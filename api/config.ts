@@ -1,5 +1,5 @@
 import { sql } from '@vercel/postgres';
-import { NextApiRequest, NextApiResponse } from 'next';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
 const TABLE_MAP = {
@@ -9,7 +9,7 @@ const TABLE_MAP = {
     clientSectors: 'client_sectors'
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { id, type } = req.query;
 

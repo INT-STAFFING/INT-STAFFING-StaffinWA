@@ -1,10 +1,6 @@
 import { sql } from '@vercel/postgres';
-import { NextResponse } from 'next/server';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
-
-export const config = {
-  runtime: 'edge',
-};
 
 // Helper function to convert snake_case from DB to camelCase for frontend
 const toCamelCase = (obj: any) => {
@@ -16,7 +12,11 @@ const toCamelCase = (obj: any) => {
     return newObj;
 }
 
-export default async function handler() {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'GET') {
+        res.setHeader('Allow', ['GET']);
+        return res.status(405).end(`Method ${req.method} Not Allowed`);
+    }
     try {
         const [
             clientsRes,
@@ -65,9 +65,9 @@ export default async function handler() {
             clientSectors: clientSectorsRes.rows as ConfigOption[],
         };
 
-        return NextResponse.json(data, { status: 200 });
+        return res.status(200).json(data);
     } catch (error) {
         console.error('Failed to fetch all data:', error);
-        return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
+        return res.status(500).json({ error: 'Failed to fetch data' });
     }
 }

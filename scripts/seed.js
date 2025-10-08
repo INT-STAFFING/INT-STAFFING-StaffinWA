@@ -1,5 +1,102 @@
-const { db } = require('@vercel/postgres');
-const { generateSampleData } = require('../utils/sampleData');
+import { db } from '@vercel/postgres';
+
+function generateSampleData() {
+    // Configuration Data
+    const horizontals = [
+        { id: 'h1', value: 'Web Development' },
+        { id: 'h2', value: 'Data Science' },
+        { id: 'h3', value: 'DevOps' },
+        { id: 'h4', value: 'Design' },
+        { id: 'h5', value: 'Management' },
+    ];
+    const seniorityLevels = [
+        { id: 's1', value: 'Junior' },
+        { id: 's2', value: 'Mid' },
+        { id: 's3', value: 'Senior' },
+        { id: 's4', value: 'Lead' },
+        { id: 's5', value: 'Manager' },
+    ];
+    const projectStatuses = [
+        { id: 'ps1', value: 'In corso' },
+        { id: 'ps2', value: 'Completato' },
+        { id: 'ps3', value: 'In pausa' },
+    ];
+     const clientSectors = [
+        { id: 'cs1', value: 'Tecnologia' },
+        { id: 'cs2', value: 'Finanza' },
+        { id: 'cs3', value: 'Retail' },
+        { id: 'cs4', value: 'Sanità' },
+    ];
+
+    // Core Data
+    const clients = [
+        { id: 'c1', name: 'Acme Corp', sector: 'Tecnologia', contactEmail: 'contact@acme.com' },
+        { id: 'c2', name: 'Innovate LLC', sector: 'Finanza', contactEmail: 'finance@innovate.com' },
+    ];
+
+    const roles = [
+        { id: 'r1', name: 'Junior Developer', seniorityLevel: 'Junior' },
+        { id: 'r2', name: 'Senior Developer', seniorityLevel: 'Senior' },
+        { id: 'r3', name: 'Tech Lead', seniorityLevel: 'Lead' },
+        { id: 'r4', name: 'Project Manager', seniorityLevel: 'Senior' },
+    ];
+
+    const resources = [
+        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', hireDate: '2022-01-15', workSeniority: 5, dailyCost: 500 },
+        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', hireDate: '2023-06-01', workSeniority: 1, dailyCost: 300 },
+        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', hireDate: '2020-03-10', workSeniority: 8, dailyCost: 650 },
+        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', hireDate: '2019-09-20', workSeniority: 10, dailyCost: 700 },
+    ];
+
+    const projects = [
+        { id: 'p1', name: 'E-commerce Platform', clientId: 'c1', startDate: '2024-10-01', endDate: '2024-12-31', budget: 150000, realizationPercentage: 100, projectManager: 'Giulia Neri', status: 'In corso' },
+        { id: 'p2', name: 'Mobile Banking App', clientId: 'c2', startDate: '2024-11-01', endDate: '2025-03-31', budget: 250000, realizationPercentage: 90, projectManager: 'Giulia Neri', status: 'In corso' },
+        { id: 'p3', name: 'Infrastruttura Cloud', clientId: 'c1', startDate: '2024-09-15', endDate: '2024-11-30', budget: 80000, realizationPercentage: 100, projectManager: 'Paolo Verdi', status: 'Completato' },
+    ];
+
+    const assignments = [
+        { id: 'as1', resourceId: 'res1', projectId: 'p1' },
+        { id: 'as2', resourceId: 'res2', projectId: 'p1' },
+        { id: 'as3', resourceId: 'res1', projectId: 'p2' },
+        { id: 'as4', resourceId: 'res3', projectId: 'p3' },
+        { id: 'as5', resourceId: 'res3', projectId: 'p2' },
+    ];
+
+    const allocations = {};
+    const today = new Date();
+    for (let i = 0; i < 15; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const day = date.getDay();
+        if (day !== 0 && day !== 6) { // Skip Sunday and Saturday
+            const dateStr = date.toISOString().split('T')[0];
+            if (!allocations['as1']) allocations['as1'] = {};
+            allocations['as1'][dateStr] = 50;
+        }
+    }
+     for (let i = 0; i < 10; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const day = date.getDay();
+        if (day !== 0 && day !== 6) {
+            const dateStr = date.toISOString().split('T')[0];
+            if (!allocations['as2']) allocations['as2'] = {};
+            allocations['as2'][dateStr] = 100;
+        }
+    }
+     for (let i = 0; i < 5; i++) {
+        const date = new Date();
+        date.setDate(today.getDate() + i);
+        const day = date.getDay();
+        if (day !== 0 && day !== 6) {
+            const dateStr = date.toISOString().split('T')[0];
+            if (!allocations['as3']) allocations['as3'] = {};
+            allocations['as3'][dateStr] = 60;
+        }
+    }
+
+    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors };
+};
 
 async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors) {
     console.log('Seeding config tables...');
@@ -89,14 +186,14 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
      await client.sql`
         CREATE TABLE IF NOT EXISTS assignments (
             id UUID PRIMARY KEY,
-            resource_id UUID REFERENCES resources(id),
-            project_id UUID REFERENCES projects(id),
+            resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
             UNIQUE(resource_id, project_id)
         );
     `;
     await client.sql`
         CREATE TABLE IF NOT EXISTS allocations (
-            assignment_id UUID REFERENCES assignments(id),
+            assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE,
             allocation_date DATE,
             percentage INT,
             PRIMARY KEY(assignment_id, allocation_date)
@@ -105,11 +202,24 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
-        ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}) ON CONFLICT (id) DO NOTHING;`),
-        ...resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, daily_cost, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.hireDate}, ${res.workSeniority}, ${res.dailyCost}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`),
-        ...projects.map(p => client.sql`INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes) VALUES (${p.id}, ${p.name}, ${p.clientId}, ${p.startDate}, ${p.endDate}, ${p.budget}, ${p.realizationPercentage}, ${p.projectManager}, ${p.status}, ${p.notes}) ON CONFLICT (id) DO NOTHING;`),
-        ...assignments.map(a => client.sql`INSERT INTO assignments (id, resource_id, project_id) VALUES (${a.id}, ${a.resourceId}, ${a.projectId}) ON CONFLICT (id) DO NOTHING;`)
+        ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}) ON CONFLICT (id) DO NOTHING;`)
     ]);
+
+    // Seed resources after roles
+    await Promise.all(
+         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, daily_cost, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.hireDate}, ${res.workSeniority}, ${res.dailyCost}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
+    );
+    
+    // Seed projects after clients
+    await Promise.all(
+        projects.map(p => client.sql`INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes) VALUES (${p.id}, ${p.name}, ${p.clientId}, ${p.startDate}, ${p.endDate}, ${p.budget}, ${p.realizationPercentage}, ${p.projectManager}, ${p.status}, ${p.notes}) ON CONFLICT (id) DO NOTHING;`)
+    );
+
+    // Seed assignments after resources and projects
+    await Promise.all(
+        assignments.map(a => client.sql`INSERT INTO assignments (id, resource_id, project_id) VALUES (${a.id}, ${a.resourceId}, ${a.projectId}) ON CONFLICT (id) DO NOTHING;`)
+    );
+
 
     const allocationEntries = [];
     for (const assignmentId in allocations) {
@@ -122,6 +232,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         }
     }
     
+    // Seed allocations after assignments
     await Promise.all(
         allocationEntries.map(a => client.sql`
             INSERT INTO allocations (assignment_id, allocation_date, percentage) 
@@ -137,25 +248,30 @@ async function main() {
     const client = await db.connect();
     const sampleData = generateSampleData();
     
-    await seedConfigTables(
-        client,
-        sampleData.horizontals,
-        sampleData.seniorityLevels,
-        sampleData.projectStatuses,
-        sampleData.clientSectors
-    );
-    
-    await seedMainTables(
-        client,
-        sampleData.clients,
-        sampleData.roles,
-        sampleData.resources,
-        sampleData.projects,
-        sampleData.assignments,
-        sampleData.allocations
-    );
-
-    await client.release();
+    try {
+        await seedConfigTables(
+            client,
+            sampleData.horizontals,
+            sampleData.seniorityLevels,
+            sampleData.projectStatuses,
+            sampleData.clientSectors
+        );
+        
+        await seedMainTables(
+            client,
+            sampleData.clients,
+            sampleData.roles,
+            sampleData.resources,
+            sampleData.projects,
+            sampleData.assignments,
+            sampleData.allocations
+        );
+    } catch (err) {
+        console.error('Error during seeding:', err);
+        throw err;
+    } finally {
+        await client.release();
+    }
 }
 
 main().catch((err) => {
