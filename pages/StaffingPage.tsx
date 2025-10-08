@@ -68,6 +68,8 @@ const StaffingPage: React.FC = () => {
     const timeWindow = 31;
     const weekDays = useMemo(() => getWorkingDays(currentDate, timeWindow), [currentDate]);
 
+    const assignableProjects = useMemo(() => projects.filter(p => p.status !== 'Completato'), [projects]);
+
     const handlePrevWeek = () => setCurrentDate(prev => addDays(prev, -7));
     const handleNextWeek = () => setCurrentDate(prev => addDays(prev, 7));
     const handleToday = () => setCurrentDate(new Date());
@@ -294,7 +296,7 @@ const StaffingPage: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
                             <select required value={newAssignmentData.projectId} onChange={e => setNewAssignmentData(d => ({...d, projectId: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                                 <option value="">Seleziona un progetto</option>
-                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                {assignableProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
                     </div>

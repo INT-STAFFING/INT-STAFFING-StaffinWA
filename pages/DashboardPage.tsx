@@ -86,7 +86,8 @@ const DashboardPage: React.FC = () => {
 
             projectAssignments.forEach(assignment => {
                 const resource = resources.find(r => r.id === assignment.resourceId);
-                const dailyRate = resource?.dailyCost || 0;
+                const role = roles.find(ro => ro.id === resource?.roleId);
+                const dailyRate = role?.dailyCost || 0;
 
                 const assignmentAllocations = allocations[assignment.id];
                 if (assignmentAllocations) {
@@ -105,7 +106,7 @@ const DashboardPage: React.FC = () => {
             // Return the full budget, the calculated estimated cost, and the variance
             return { ...project, fullBudget: project.budget, estimatedCost, variance };
         }).sort((a,b) => a.name.localeCompare(b.name));
-    }, [projects, assignments, allocations, resources]);
+    }, [projects, assignments, allocations, resources, roles]);
 
     const underutilizedResourcesData = useMemo(() => {
         const now = new Date();

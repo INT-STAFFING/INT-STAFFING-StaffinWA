@@ -14,6 +14,7 @@ export interface Role {
     id?: string;
     name: string;
     seniorityLevel: string;
+    dailyCost: number;
 }
 
 export interface Resource {
@@ -24,7 +25,6 @@ export interface Resource {
     horizontal: string;
     hireDate: string; // YYYY-MM-DD
     workSeniority: number; // years
-    dailyCost: number; // EUR
     notes?: string;
 }
 

@@ -9,11 +9,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (method) {
         case 'POST':
             try {
-                const { name, seniorityLevel } = req.body;
+                const { name, seniorityLevel, dailyCost } = req.body;
                 const newId = uuidv4();
                 await db.sql`
-                    INSERT INTO roles (id, name, seniority_level)
-                    VALUES (${newId}, ${name}, ${seniorityLevel});
+                    INSERT INTO roles (id, name, seniority_level, daily_cost)
+                    VALUES (${newId}, ${name}, ${seniorityLevel}, ${dailyCost});
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
@@ -22,10 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             break;
         case 'PUT':
             try {
-                const { name, seniorityLevel } = req.body;
+                const { name, seniorityLevel, dailyCost } = req.body;
                 await db.sql`
                     UPDATE roles
-                    SET name = ${name}, seniority_level = ${seniorityLevel}
+                    SET name = ${name}, seniority_level = ${seniorityLevel}, daily_cost = ${dailyCost}
                     WHERE id = ${id as string};
                 `;
                 res.status(200).json({ id, ...req.body });

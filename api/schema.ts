@@ -44,7 +44,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
         CREATE TABLE IF NOT EXISTS roles (
             id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL UNIQUE,
-            seniority_level VARCHAR(255)
+            seniority_level VARCHAR(255),
+            daily_cost NUMERIC(10, 2)
         );
     `;
     await db.sql`
@@ -56,7 +57,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
             horizontal VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
-            daily_cost NUMERIC(10, 2),
             notes TEXT
         );
     `;

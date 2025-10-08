@@ -24,7 +24,6 @@ export const exportDataToExcel = (data: StaffingData) => {
         horizontal: r.horizontal,
         hireDate: r.hireDate,
         workSeniority: r.workSeniority,
-        dailyCost: r.dailyCost,
         notes: r.notes || '',
     }));
     
@@ -84,8 +83,8 @@ export const exportTemplateToExcel = () => {
     // NOTE: The headers here MUST match the keys used in the API endpoint for import.
     // Making them camelCase aligns with the rest of the app and JSON standards.
     const clientsHeaders = [["name", "sector", "contactEmail"]];
-    const rolesHeaders = [["name", "seniorityLevel"]];
-    const resourcesHeaders = [["name", "email", "roleName", "horizontal", "hireDate", "workSeniority", "dailyCost", "notes"]];
+    const rolesHeaders = [["name", "seniorityLevel", "dailyCost"]];
+    const resourcesHeaders = [["name", "email", "roleName", "horizontal", "hireDate", "workSeniority", "notes"]];
     const projectsHeaders = [["name", "clientName", "startDate", "endDate", "budget", "realizationPercentage", "projectManager", "status", "notes"]];
 
     const wsClients = XLSX.utils.aoa_to_sheet(clientsHeaders);

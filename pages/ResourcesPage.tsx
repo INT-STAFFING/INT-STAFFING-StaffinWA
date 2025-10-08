@@ -22,7 +22,6 @@ const ResourcesPage: React.FC = () => {
         horizontal: horizontals[0]?.value || '',
         hireDate: '',
         workSeniority: 0,
-        dailyCost: 0,
         notes: '',
     };
 
@@ -91,7 +90,7 @@ const ResourcesPage: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (editingResource) {
             const { name, value } = e.target;
-            const numericFields = ['workSeniority', 'dailyCost'];
+            const numericFields = ['workSeniority'];
             setEditingResource({
                 ...editingResource,
                 [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value
@@ -130,7 +129,7 @@ const ResourcesPage: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{role?.name || 'N/A'}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{resource.horizontal}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(resource.dailyCost)}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(role?.dailyCost || 0)}</td>
                                 <td className={`px-6 py-4 whitespace-nowrap text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button onClick={() => openModalForEdit(resource)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-4">
@@ -183,10 +182,6 @@ const ResourcesPage: React.FC = () => {
                                 <label className="block text-sm font-medium">Anzianità Lavorativa (anni)</label>
                                 <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="mt-1 w-full form-input"/>
                             </div>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium">Costo Giornaliero (€)</label>
-                            <input type="number" step="0.01" name="dailyCost" value={editingResource.dailyCost} onChange={handleChange} className="mt-1 w-full form-input"/>
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Note</label>

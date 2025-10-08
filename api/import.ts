@@ -68,8 +68,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     continue;
                 }
                 await client.query(
-                    `INSERT INTO roles (id, name, seniority_level) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING`,
-                    [uuidv4(), r.name, r.seniorityLevel || null]
+                    `INSERT INTO roles (id, name, seniority_level, daily_cost) VALUES ($1, $2, $3, $4) ON CONFLICT (name) DO NOTHING`,
+                    [uuidv4(), r.name, r.seniorityLevel || null, r.dailyCost || 0]
                 );
             }
         }
@@ -96,10 +96,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  const hireDate = r.hireDate ? formatDateForDB(parseDate(r.hireDate)) : null;
 
                 await client.query(
-                    `INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, daily_cost, notes) 
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                    `INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, notes) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
                      ON CONFLICT (email) DO NOTHING`,
-                    [uuidv4(), r.name, r.email, roleId, r.horizontal || null, hireDate, r.workSeniority || 0, r.dailyCost || 0, r.notes || null]
+                    [uuidv4(), r.name, r.email, roleId, r.horizontal || null, hireDate, r.workSeniority || 0, r.notes || null]
                 );
             }
         }

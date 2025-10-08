@@ -9,11 +9,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (method) {
         case 'POST':
             try {
-                const { name, email, roleId, horizontal, hireDate, workSeniority, dailyCost, notes } = req.body;
+                const { name, email, roleId, horizontal, hireDate, workSeniority, notes } = req.body;
                 const newId = uuidv4();
                 await db.sql`
-                    INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, daily_cost, notes)
-                    VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${hireDate}, ${workSeniority}, ${dailyCost}, ${notes});
+                    INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, notes)
+                    VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${hireDate}, ${workSeniority}, ${notes});
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
@@ -22,10 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             break;
         case 'PUT':
             try {
-                const { name, email, roleId, horizontal, hireDate, workSeniority, dailyCost, notes } = req.body;
+                const { name, email, roleId, horizontal, hireDate, workSeniority, notes } = req.body;
                 await db.sql`
                     UPDATE resources
-                    SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, hire_date = ${hireDate}, work_seniority = ${workSeniority}, daily_cost = ${dailyCost}, notes = ${notes}
+                    SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}
                     WHERE id = ${id as string};
                 `;
                 res.status(200).json({ id, ...req.body });

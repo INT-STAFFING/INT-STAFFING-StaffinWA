@@ -5,6 +5,9 @@ import { Role } from '../types';
 import Modal from '../components/Modal';
 import { PencilIcon, TrashIcon } from '../components/icons';
 
+const formatCurrency = (value: number) => {
+    return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+};
 
 const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole } = useStaffingContext();
@@ -14,6 +17,7 @@ const RolesPage: React.FC = () => {
     const emptyRole: Omit<Role, 'id'> = {
         name: '',
         seniorityLevel: seniorityLevels[0]?.value || '',
+        dailyCost: 0,
     };
 
     const openModalForNew = () => {
@@ -45,7 +49,12 @@ const RolesPage: React.FC = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         if (editingRole) {
-            setEditingRole({ ...editingRole, [e.target.name]: e.target.value } as Role | Omit<Role, 'id'>);
+            const { name, value } = e.target;
+            const numericFields = ['dailyCost'];
+            setEditingRole({
+                ...editingRole,
+                [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value
+            } as Role | Omit<Role, 'id'>);
         }
     };
 
@@ -62,6 +71,7 @@ const RolesPage: React.FC = () => {
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome Ruolo</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Livello Seniority</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Costo Giornaliero</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                         </tr>
                     </thead>
@@ -70,6 +80,7 @@ const RolesPage: React.FC = () => {
                             <tr key={role.id}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{role.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{role.seniorityLevel}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(role.dailyCost)}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button onClick={() => openModalForEdit(role)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-4"><PencilIcon className="w-5 h-5"/></button>
                                     <button onClick={() => deleteRole(role.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5"/></button>
@@ -92,6 +103,10 @@ const RolesPage: React.FC = () => {
                             <select name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleChange} required className="mt-1 w-full form-select">
                                {seniorityLevels.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Costo Giornaliero (€)</label>
+                            <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="mt-1 w-full form-input"/>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>

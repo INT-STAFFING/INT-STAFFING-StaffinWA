@@ -42,17 +42,17 @@ function generateSampleData() {
     ];
 
     const roles = [
-        { id: 'r1', name: 'Junior Developer', seniorityLevel: 'Junior' },
-        { id: 'r2', name: 'Senior Developer', seniorityLevel: 'Senior' },
-        { id: 'r3', name: 'Tech Lead', seniorityLevel: 'Lead' },
-        { id: 'r4', name: 'Project Manager', seniorityLevel: 'Senior' },
+        { id: 'r1', name: 'Junior Developer', seniorityLevel: 'Junior', dailyCost: 300 },
+        { id: 'r2', name: 'Senior Developer', seniorityLevel: 'Senior', dailyCost: 500 },
+        { id: 'r3', name: 'Tech Lead', seniorityLevel: 'Lead', dailyCost: 650 },
+        { id: 'r4', name: 'Project Manager', seniorityLevel: 'Senior', dailyCost: 700 },
     ];
 
     const resources = [
-        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', hireDate: '2022-01-15', workSeniority: 5, dailyCost: 500 },
-        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', hireDate: '2023-06-01', workSeniority: 1, dailyCost: 300 },
-        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', hireDate: '2020-03-10', workSeniority: 8, dailyCost: 650 },
-        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', hireDate: '2019-09-20', workSeniority: 10, dailyCost: 700 },
+        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', hireDate: '2022-01-15', workSeniority: 5 },
+        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', hireDate: '2023-06-01', workSeniority: 1 },
+        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', hireDate: '2020-03-10', workSeniority: 8 },
+        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', hireDate: '2019-09-20', workSeniority: 10 },
     ];
 
     const projects = [
@@ -160,7 +160,8 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         CREATE TABLE IF NOT EXISTS roles (
             id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL UNIQUE,
-            seniority_level VARCHAR(255)
+            seniority_level VARCHAR(255),
+            daily_cost NUMERIC(10, 2)
         );
     `;
     await client.sql`
@@ -172,7 +173,6 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             horizontal VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
-            daily_cost NUMERIC(10, 2),
             notes TEXT
         );
     `;
@@ -210,12 +210,12 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
-        ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}) ON CONFLICT (id) DO NOTHING;`)
+        ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level, daily_cost) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}, ${r.dailyCost}) ON CONFLICT (id) DO NOTHING;`)
     ]);
 
     // Seed resources after roles
     await Promise.all(
-         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, daily_cost, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.hireDate}, ${res.workSeniority}, ${res.dailyCost}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
+         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
     );
     
     // Seed projects after clients
