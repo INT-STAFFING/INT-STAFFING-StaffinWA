@@ -17,6 +17,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
+                // COMMENTO: Aggiunta gestione per email duplicate.
+                if ((error as any).code === '23505') { // unique_violation on email
+                    return res.status(409).json({ error: `Una risorsa con email '${req.body.email}' esiste già.` });
+                }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
@@ -30,6 +34,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(200).json({ id, ...req.body });
             } catch (error) {
+                // COMMENTO: Aggiunta gestione per email duplicate.
+                if ((error as any).code === '23505') { // unique_violation on email
+                    return res.status(409).json({ error: `Una risorsa con email '${req.body.email}' esiste già.` });
+                }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;

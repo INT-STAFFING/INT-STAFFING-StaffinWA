@@ -52,8 +52,9 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
         ...options,
     });
     if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} ${errorText}`);
+        // COMMENTO: Estrae il messaggio di errore dal server per mostrarlo all'utente.
+        const errorBody = await response.json();
+        throw new Error(errorBody.error || `API request failed: ${response.status}`);
     }
     if (response.status !== 204) { // No Content
         return response.json();
@@ -98,43 +99,57 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         fetchData();
     }, [fetchData]);
 
-    // --- CRUD Functions ---
-    const addClient = async (client: Omit<Client, 'id'>) => { await apiFetch('/api/clients', { method: 'POST', body: JSON.stringify(client) }); await fetchData(); };
-    const updateClient = async (client: Client) => { await apiFetch(`/api/clients?id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }); await fetchData(); };
-    const deleteClient = async (clientId: string) => { await apiFetch(`/api/clients?id=${clientId}`, { method: 'DELETE' }); await fetchData(); };
+    // --- MODIFICA: Aggiunta gestione errori con alert a tutte le funzioni CRUD ---
 
-    const addRole = async (role: Omit<Role, 'id'>) => { await apiFetch('/api/roles', { method: 'POST', body: JSON.stringify(role) }); await fetchData(); };
-    const updateRole = async (role: Role) => { await apiFetch(`/api/roles?id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }); await fetchData(); };
-    const deleteRole = async (roleId: string) => { await apiFetch(`/api/roles?id=${roleId}`, { method: 'DELETE' }); await fetchData(); };
-    
-    const addResource = async (resource: Omit<Resource, 'id'>) => { await apiFetch('/api/resources', { method: 'POST', body: JSON.stringify(resource) }); await fetchData(); };
-    const updateResource = async (resource: Resource) => { await apiFetch(`/api/resources?id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }); await fetchData(); };
-    const deleteResource = async (resourceId: string) => { await apiFetch(`/api/resources?id=${resourceId}`, { method: 'DELETE' }); await fetchData(); };
-    
-    const addProject = async (project: Omit<Project, 'id'>) => { await apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(project) }); await fetchData(); };
-    const updateProject = async (project: Project) => { await apiFetch(`/api/projects?id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) }); await fetchData(); };
-    const deleteProject = async (projectId: string) => { await apiFetch(`/api/projects?id=${projectId}`, { method: 'DELETE' }); await fetchData(); };
-
-    const addAssignment = async (assignment: Omit<Assignment, 'id'>) => { await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }); await fetchData(); };
-    const deleteAssignment = async (assignmentId: string) => { await apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' }); await fetchData(); };
-    
-    const updateAllocation = async (assignmentId: string, date: string, percentage: number) => {
-        await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
-        // Optimistic update for better UX
-        setAllocations(prev => {
-            const newAllocations = { ...prev };
-            if (!newAllocations[assignmentId]) {
-                newAllocations[assignmentId] = {};
-            }
-            if (percentage === 0) {
-                delete newAllocations[assignmentId][date];
-            } else {
-                newAllocations[assignmentId][date] = percentage;
-            }
-            return newAllocations;
-        });
+    const handleApiCall = async (apiCall: () => Promise<any>, errorMessage: string) => {
+        try {
+            await apiCall();
+            await fetchData();
+        } catch (error) {
+            alert(`${errorMessage}: ${(error as Error).message}`);
+            throw error; // Rilancia l'errore se il componente chiamante ha bisogno di gestirlo
+        }
     };
 
+    const addClient = (client: Omit<Client, 'id'>) => handleApiCall(() => apiFetch('/api/clients', { method: 'POST', body: JSON.stringify(client) }), 'Errore aggiunta cliente');
+    const updateClient = (client: Client) => handleApiCall(() => apiFetch(`/api/clients?id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }), 'Errore modifica cliente');
+    const deleteClient = (clientId: string) => handleApiCall(() => apiFetch(`/api/clients?id=${clientId}`, { method: 'DELETE' }), 'Errore eliminazione cliente');
+
+    const addRole = (role: Omit<Role, 'id'>) => handleApiCall(() => apiFetch('/api/roles', { method: 'POST', body: JSON.stringify(role) }), 'Errore aggiunta ruolo');
+    const updateRole = (role: Role) => handleApiCall(() => apiFetch(`/api/roles?id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }), 'Errore modifica ruolo');
+    const deleteRole = (roleId: string) => handleApiCall(() => apiFetch(`/api/roles?id=${roleId}`, { method: 'DELETE' }), 'Errore eliminazione ruolo');
+    
+    const addResource = (resource: Omit<Resource, 'id'>) => handleApiCall(() => apiFetch('/api/resources', { method: 'POST', body: JSON.stringify(resource) }), 'Errore aggiunta risorsa');
+    const updateResource = (resource: Resource) => handleApiCall(() => apiFetch(`/api/resources?id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }), 'Errore modifica risorsa');
+    const deleteResource = (resourceId: string) => handleApiCall(() => apiFetch(`/api/resources?id=${resourceId}`, { method: 'DELETE' }), 'Errore eliminazione risorsa');
+    
+    const addProject = (project: Omit<Project, 'id'>) => handleApiCall(() => apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(project) }), 'Errore aggiunta progetto');
+    const updateProject = (project: Project) => handleApiCall(() => apiFetch(`/api/projects?id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) }), 'Errore modifica progetto');
+    const deleteProject = (projectId: string) => handleApiCall(() => apiFetch(`/api/projects?id=${projectId}`, { method: 'DELETE' }), 'Errore eliminazione progetto');
+
+    const addAssignment = (assignment: Omit<Assignment, 'id'>) => handleApiCall(() => apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }), 'Errore aggiunta assegnazione');
+    const deleteAssignment = (assignmentId: string) => handleApiCall(() => apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' }), 'Errore eliminazione assegnazione');
+    
+    const updateAllocation = async (assignmentId: string, date: string, percentage: number) => {
+        // COMMENTO: Implementata logica di "aggiornamento ottimistico" con rollback in caso di errore.
+        const previousAllocations = JSON.parse(JSON.stringify(allocations)); // Deep copy per il rollback
+        
+        setAllocations(prev => {
+            const newAllocations = JSON.parse(JSON.stringify(prev));
+            if (!newAllocations[assignmentId]) newAllocations[assignmentId] = {};
+            if (percentage === 0) delete newAllocations[assignmentId][date];
+            else newAllocations[assignmentId][date] = percentage;
+            return newAllocations;
+        });
+
+        try {
+            await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
+        } catch (error) {
+            alert(`Errore modifica allocazione: ${(error as Error).message}`);
+            setAllocations(previousAllocations); // Ripristina lo stato precedente in caso di errore
+        }
+    };
+    
     const bulkUpdateAllocations = async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
         const updates = [];
         const start = new Date(startDate);
@@ -146,13 +161,12 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
                 updates.push({ assignmentId, date: dateStr, percentage });
             }
         }
-        await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) });
-        await fetchData(); // Refetch for bulk updates
+        await handleApiCall(() => apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) }), 'Errore aggiornamento massivo');
     };
 
-    const addConfigOption = async (type: keyof ConfigLists, value: string) => { await apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }); await fetchData(); };
-    const updateConfigOption = async (type: keyof ConfigLists, option: ConfigOption) => { await apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify(option) }); await fetchData(); };
-    const deleteConfigOption = async (type: keyof ConfigLists, optionId: string) => { await apiFetch(`/api/config?type=${type}&id=${optionId}`, { method: 'DELETE' }); await fetchData(); };
+    const addConfigOption = (type: keyof ConfigLists, value: string) => handleApiCall(() => apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }), 'Errore aggiunta opzione');
+    const updateConfigOption = (type: keyof ConfigLists, option: ConfigOption) => handleApiCall(() => apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify(option) }), 'Errore modifica opzione');
+    const deleteConfigOption = (type: keyof ConfigLists, optionId: string) => handleApiCall(() => apiFetch(`/api/config?type=${type}&id=${optionId}`, { method: 'DELETE' }), 'Errore eliminazione opzione');
 
     const contextValue: StaffingContextType = {
         clients, roles, resources, projects, assignments, allocations,

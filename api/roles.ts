@@ -17,6 +17,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
+                // COMMENTO: Aggiunta gestione per nomi di ruolo duplicati.
+                if ((error as any).code === '23505') { // unique_violation
+                    return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` });
+                }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
@@ -30,11 +34,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(200).json({ id, ...req.body });
             } catch (error) {
+                // COMMENTO: Aggiunta gestione per nomi di ruolo duplicati.
+                if ((error as any).code === '23505') { // unique_violation
+                    return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` });
+                }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
         case 'DELETE':
             try {
+                // COMMENTO: Aggiunto controllo per impedire l'eliminazione di un ruolo se è in uso.
+                const { rows } = await db.sql`SELECT COUNT(*) FROM resources WHERE role_id = ${id as string};`;
+                if (rows[0].count > 0) {
+                    return res.status(409).json({ error: `Impossibile eliminare il ruolo. È ancora assegnato a ${rows[0].count} risorsa/e.` });
+                }
                 await db.sql`DELETE FROM roles WHERE id = ${id as string};`;
                 res.status(204).end();
             } catch (error) {

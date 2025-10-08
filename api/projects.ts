@@ -17,6 +17,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
+                // COMMENTO: Aggiunta gestione per progetti duplicati (stesso nome per lo stesso cliente).
+                if ((error as any).code === '23505') {
+                    return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già per questo cliente.` });
+                }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
@@ -30,6 +34,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(200).json({ id, ...req.body });
             } catch (error) {
+                // COMMENTO: Aggiunta gestione per progetti duplicati (stesso nome per lo stesso cliente).
+                if ((error as any).code === '23505') {
+                    return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già per questo cliente.` });
+                }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
