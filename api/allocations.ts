@@ -1,4 +1,4 @@
-import { db } from './db';
+import { db } from './db.ts';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
