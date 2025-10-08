@@ -9,11 +9,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     switch (method) {
         case 'POST':
             try {
-                const { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
+                // COMMENTO: De-strutturazione in 'let' e sanificazione degli input per gestire
+                // correttamente i valori opzionali. Stringhe vuote o valori 'falsy' vengono
+                // convertiti in 'null' per coerenza con il database, risolvendo problemi di salvataggio.
+                let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
+                
+                clientId = clientId || null;
+                startDate = startDate || null;
+                endDate = endDate || null;
+                projectManager = projectManager || null;
+                status = status || null;
+                notes = notes || null;
+
                 const newId = uuidv4();
                 await db.sql`
                     INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes)
-                    VALUES (${newId}, ${name}, ${clientId}, ${startDate}, ${endDate}, ${budget}, ${realizationPercentage}, ${projectManager}, ${status}, ${notes});
+                    VALUES (${newId}, ${name}, ${clientId}, ${startDate}, ${endDate}, ${budget || 0}, ${realizationPercentage || 100}, ${projectManager}, ${status}, ${notes});
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
@@ -26,10 +37,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             break;
         case 'PUT':
             try {
-                const { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
+                // COMMENTO: De-strutturazione in 'let' e sanificazione degli input per gestire
+                // correttamente i valori opzionali. Stringhe vuote o valori 'falsy' vengono
+                // convertiti in 'null' per coerenza con il database, risolvendo problemi di salvataggio.
+                let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
+
+                clientId = clientId || null;
+                startDate = startDate || null;
+                endDate = endDate || null;
+                projectManager = projectManager || null;
+                status = status || null;
+                notes = notes || null;
+
                 await db.sql`
                     UPDATE projects
-                    SET name = ${name}, client_id = ${clientId}, start_date = ${startDate}, end_date = ${endDate}, budget = ${budget}, realization_percentage = ${realizationPercentage}, project_manager = ${projectManager}, status = ${status}, notes = ${notes}
+                    SET name = ${name}, client_id = ${clientId}, start_date = ${startDate}, end_date = ${endDate}, budget = ${budget || 0}, realization_percentage = ${realizationPercentage || 100}, project_manager = ${projectManager}, status = ${status}, notes = ${notes}
                     WHERE id = ${id as string};
                 `;
                 res.status(200).json({ id, ...req.body });

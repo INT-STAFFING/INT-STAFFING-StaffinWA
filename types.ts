@@ -28,18 +28,23 @@ export interface Resource {
     notes?: string;
 }
 
+// COMMENTO: La definizione del tipo 'Project' è stata resa più flessibile per rispecchiare
+// accuratamente lo schema del database, dove molte colonne possono essere NULL.
+// Questo previene errori di tipo e bug nel frontend, specialmente nei form,
+// garantendo che i campi opzionali siano gestiti correttamente come 'string | null'.
 export interface Project {
     id?: string;
     name: string;
-    clientId: string;
-    startDate: string; // YYYY-MM-DD
-    endDate: string; // YYYY-MM-DD
+    clientId: string | null;
+    startDate: string | null;
+    endDate: string | null;
     budget: number;
-    realizationPercentage: number; // from 30 to 100
-    projectManager: string;
-    status: string;
-    notes?: string;
+    realizationPercentage: number;
+    projectManager: string | null;
+    status: string | null;
+    notes?: string | null;
 }
+
 
 export interface Assignment {
     id?: string;

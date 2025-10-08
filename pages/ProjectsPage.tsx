@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Project } from '../types';
@@ -64,9 +63,9 @@ const ProjectsPage: React.FC = () => {
         e.preventDefault();
         if (editingProject) {
             if ('id' in editingProject) {
-                updateProject(editingProject);
+                updateProject(editingProject as Project);
             } else {
-                addProject(editingProject);
+                addProject(editingProject as Omit<Project, 'id'>);
             }
             handleCloseModal();
         }
@@ -83,12 +82,12 @@ const ProjectsPage: React.FC = () => {
         }
     };
 
-    const getStatusBadgeClass = (status: string) => {
+    const getStatusBadgeClass = (status: string | null) => {
         switch (status) {
             case 'Completato': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
             case 'In pausa': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-            case 'In corso':
-            default: return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+            case 'In corso': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+            default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
         }
     };
     
@@ -146,7 +145,7 @@ const ProjectsPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client?.name || 'N/A'}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>
-                                        {project.status}
+                                        {project.status || 'Non definito'}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</td>
@@ -169,8 +168,10 @@ const ProjectsPage: React.FC = () => {
                             <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="mt-1 w-full form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Cliente *</label>
-                            <select name="clientId" value={editingProject.clientId} onChange={handleChange} required className="mt-1 w-full form-select">
+                            <label className="block text-sm font-medium">Cliente</label>
+                            {/* COMMENTO: Rimosso 'required' e aggiunto '|| ""' al valore per gestire correttamente i
+                                progetti senza cliente assegnato e rendere il form stabile. */}
+                            <select name="clientId" value={editingProject.clientId || ''} onChange={handleChange} className="mt-1 w-full form-select">
                                 <option value="">Seleziona un cliente</option>
                                 {clients.sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
@@ -178,11 +179,13 @@ const ProjectsPage: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium">Data Inizio</label>
-                                <input type="date" name="startDate" value={editingProject.startDate} onChange={handleChange} className="mt-1 w-full form-input"/>
+                                 {/* COMMENTO: Aggiunto '|| ""' per gestire correttamente le date non impostate. */}
+                                <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="mt-1 w-full form-input"/>
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Data Fine</label>
-                                <input type="date" name="endDate" value={editingProject.endDate} onChange={handleChange} className="mt-1 w-full form-input"/>
+                                {/* COMMENTO: Aggiunto '|| ""' per gestire correttamente le date non impostate. */}
+                                <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="mt-1 w-full form-input"/>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -197,15 +200,17 @@ const ProjectsPage: React.FC = () => {
                         </div>
                          <div>
                             <label className="block text-sm font-medium">Project Manager</label>
-                            {/* ULTIMA MODIFICA: Aggiunto `|| ''` per garantire che il campo sia sempre controllato,
-                                anche se il valore `projectManager` dal database è nullo. Questo risolve un bug
-                                che poteva impedire l'aggiornamento di altri campi (come lo Stato) a causa di
-                                un'instabilità del form. */}
+                            {/* COMMENTO: Aggiunto `|| ''` per garantire che il campo sia sempre controllato,
+                                anche se il valore `projectManager` dal database è nullo. Questo risolve il bug
+                                che impediva il salvataggio. */}
                             <input type="text" name="projectManager" value={editingProject.projectManager || ''} onChange={handleChange} className="mt-1 w-full form-input"/>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium">Stato *</label>
-                            <select name="status" value={editingProject.status} onChange={handleChange} required className="mt-1 w-full form-select">
+                            <label className="block text-sm font-medium">Stato</label>
+                             {/* COMMENTO: Rimosso 'required', aggiunto '|| ""' e un'opzione vuota per consentire
+                                progetti senza stato e risolvere problemi di salvataggio. */}
+                            <select name="status" value={editingProject.status || ''} onChange={handleChange} className="mt-1 w-full form-select">
+                                <option value="">Nessuno stato</option>
                                 {projectStatuses.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
                             </select>
                         </div>
