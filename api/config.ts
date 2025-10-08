@@ -1,4 +1,4 @@
-import { sql } from '@vercel/postgres';
+import { db } from './db';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,7 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 const { value } = req.body;
                 const newId = uuidv4();
-                await sql.query(`
+                // FIX: Property 'query' does not exist on `sql`. Use `db.query` for dynamic (but whitelisted) table names.
+                await db.query(`
                     INSERT INTO ${tableName} (id, value)
                     VALUES ($1, $2);
                 `, [newId, value]);
@@ -35,7 +36,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'PUT':
             try {
                 const { value } = req.body;
-                await sql.query(`
+                // FIX: Property 'query' does not exist on `sql`. Use `db.query` for dynamic (but whitelisted) table names.
+                await db.query(`
                     UPDATE ${tableName}
                     SET value = $1
                     WHERE id = $2;
@@ -47,7 +49,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             break;
         case 'DELETE':
             try {
-                await sql.query(`DELETE FROM ${tableName} WHERE id = $1;`, [id]);
+                // FIX: Property 'query' does not exist on `sql`. Use `db.query` for dynamic (but whitelisted) table names.
+                await db.query(`DELETE FROM ${tableName} WHERE id = $1;`, [id]);
                 res.status(204).end();
             } catch (error) {
                 res.status(500).json({ error: (error as Error).message });

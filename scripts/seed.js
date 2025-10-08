@@ -1,3 +1,10 @@
+// In cima al file, prima di qualsiasi importazione
+// Questo permette allo script di funzionare sia con la convenzione di Vercel (POSTGRES_URL)
+// sia con quella di Neon (NEON_POSTGRES_URL).
+if (process.env.NEON_POSTGRES_URL && !process.env.POSTGRES_URL) {
+  process.env.POSTGRES_URL = process.env.NEON_POSTGRES_URL;
+}
+
 import { db } from '@vercel/postgres';
 
 function generateSampleData() {
