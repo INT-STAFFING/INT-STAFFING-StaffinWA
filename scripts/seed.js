@@ -151,7 +151,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
     await client.sql`
         CREATE TABLE IF NOT EXISTS clients (
             id UUID PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL UNIQUE,
             sector VARCHAR(255),
             contact_email VARCHAR(255)
         );
@@ -159,7 +159,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
     await client.sql`
         CREATE TABLE IF NOT EXISTS roles (
             id UUID PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL UNIQUE,
             seniority_level VARCHAR(255)
         );
     `;
@@ -187,7 +187,8 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             realization_percentage INT,
             project_manager VARCHAR(255),
             status VARCHAR(100),
-            notes TEXT
+            notes TEXT,
+            UNIQUE(name, client_id)
         );
     `;
      await client.sql`

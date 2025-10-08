@@ -32,6 +32,7 @@ interface StaffingContextType {
     addConfigOption: (type: keyof ConfigLists, value: string) => Promise<void>;
     updateConfigOption: (type: keyof ConfigLists, option: ConfigOption) => Promise<void>;
     deleteConfigOption: (type: keyof ConfigLists, optionId: string) => Promise<void>;
+    fetchData: () => Promise<void>;
 }
 
 type ConfigLists = {
@@ -73,6 +74,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
 
     const fetchData = useCallback(async () => {
+        setLoading(true);
         try {
             const data = await apiFetch('/api/data');
             setClients(data.clients);
@@ -161,7 +163,8 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         addProject, updateProject, deleteProject,
         addAssignment, deleteAssignment,
         updateAllocation, bulkUpdateAllocations,
-        addConfigOption, updateConfigOption, deleteConfigOption
+        addConfigOption, updateConfigOption, deleteConfigOption,
+        fetchData
     };
 
     return (

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon } from './icons';
 
 const Sidebar: React.FC = () => {
     const navLinkClasses = "flex items-center px-4 py-2 text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200";
@@ -50,6 +50,10 @@ const Sidebar: React.FC = () => {
                  <NavLink to="/export" className={getNavLinkClass}>
                     <ArrowDownOnSquareIcon className="w-6 h-6 mr-3" />
                     Esporta Excel
+                </NavLink>
+                <NavLink to="/import" className={getNavLinkClass}>
+                    <ArrowUpOnSquareIcon className="w-6 h-6 mr-3" />
+                    Importa Dati
                 </NavLink>
             </nav>
         </div>

@@ -10,6 +10,7 @@ import RolesPage from './pages/RolesPage';
 import DashboardPage from './pages/DashboardPage';
 import ExportPage from './pages/ExportPage';
 import ConfigPage from './pages/ConfigPage';
+import ImportPage from './pages/ImportPage';
 
 const AppContent: React.FC = () => {
     const { loading } = useStaffingContext();
@@ -37,6 +38,7 @@ const AppContent: React.FC = () => {
                     <Route path="/roles" element={<RolesPage />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/export" element={<ExportPage />} />
+                    <Route path="/import" element={<ImportPage />} />
                     <Route path="/config" element={<ConfigPage />} />
                 </Routes>
             </div>
