@@ -1,4 +1,5 @@
 import { db } from './db.js';
+import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
 
@@ -18,6 +19,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
     try {
+        // Ensure database schema is created before fetching data.
+        // This makes the app resilient to empty databases on new deployments.
+        await ensureDbTablesExist(db);
+
         const [
             clientsRes,
             rolesRes,
