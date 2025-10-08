@@ -1,0 +1,5 @@
+{
+  "name": "Staffing Allocation Planner",
+  "description": "A comprehensive tool for planning and monitoring the allocation of human resources on company projects. It allows visualizing who is working on what, for how long, and quickly identifying situations of overload or underutilization of staff.",
+  "requestFramePermissions": []
+}
