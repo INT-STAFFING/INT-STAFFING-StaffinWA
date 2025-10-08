@@ -45,9 +45,18 @@ export async function ensureDbTablesExist(db: VercelPool) {
             id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL UNIQUE,
             seniority_level VARCHAR(255),
+            -- COMMENTO: Correzione schema. Aggiunta la colonna 'daily_cost' direttamente
+            -- nella definizione della tabella per garantire che le nuove installazioni
+            -- del database siano create con lo schema corretto.
             daily_cost NUMERIC(10, 2)
         );
     `;
+    // COMMENTO: Aggiunta robustezza. Questo comando 'ALTER TABLE' assicura la
+    // retrocompatibilità, aggiornando le tabelle 'roles' esistenti che potrebbero
+    // essere state create con una versione precedente dello schema (senza daily_cost).
+    // In questo modo l'applicazione funziona correttamente sia su installazioni nuove che vecchie.
+    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS daily_cost NUMERIC(10, 2);`;
+    
     await db.sql`
         CREATE TABLE IF NOT EXISTS resources (
             id UUID PRIMARY KEY,
