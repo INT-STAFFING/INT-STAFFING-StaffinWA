@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Resource } from '../types';
 import Modal from '../components/Modal';
@@ -15,6 +15,10 @@ const ResourcesPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
 
+    // START: Filters State
+    const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '' });
+    // END: Filters State
+
     const emptyResource: Omit<Resource, 'id'> = {
         name: '',
         email: '',
@@ -24,6 +28,25 @@ const ResourcesPage: React.FC = () => {
         workSeniority: 0,
         notes: '',
     };
+    
+    // START: Filtering Logic
+    const filteredResources = useMemo(() => {
+        return resources.filter(resource => {
+            const nameMatch = resource.name.toLowerCase().includes(filters.name.toLowerCase());
+            const roleMatch = filters.roleId ? resource.roleId === filters.roleId : true;
+            const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
+            return nameMatch && roleMatch && horizontalMatch;
+        });
+    }, [resources, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const resetFilters = () => {
+        setFilters({ name: '', roleId: '', horizontal: '' });
+    };
+    // END: Filtering Logic
 
     const calculateResourceAllocation = useCallback((resourceId: string): number => {
         const now = new Date();
@@ -105,6 +128,32 @@ const ResourcesPage: React.FC = () => {
                 <button onClick={openModalForNew} className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Risorsa</button>
             </div>
 
+            {/* START: Filters JSX */}
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome</label>
+                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 w-full form-input" placeholder="Cerca per nome..." />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label>
+                        <select name="roleId" value={filters.roleId} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti i ruoli</option>
+                            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Horizontal</label>
+                        <select name="horizontal" value={filters.horizontal} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti gli horizontal</option>
+                            {horizontals.map(h => <option key={h.id} value={h.value}>{h.value}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                </div>
+            </div>
+            {/* END: Filters JSX */}
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -118,7 +167,7 @@ const ResourcesPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {resources.map(resource => {
+                        {filteredResources.map(resource => {
                             const role = roles.find(r => r.id === resource.roleId);
                             const allocation = calculateResourceAllocation(resource.id);
                             return (
@@ -163,13 +212,13 @@ const ResourcesPage: React.FC = () => {
                                 <label className="block text-sm font-medium">Ruolo *</label>
                                 <select name="roleId" value={editingResource.roleId} onChange={handleChange} required className="mt-1 w-full form-select">
                                     <option value="">Seleziona un ruolo</option>
-                                    {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    {roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                                 </select>
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Horizontal *</label>
                                 <select name="horizontal" value={editingResource.horizontal} onChange={handleChange} required className="mt-1 w-full form-select">
-                                    {horizontals.map(h => <option key={h.id} value={h.value}>{h.value}</option>)}
+                                    {horizontals.sort((a, b) => a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}
                                 </select>
                             </div>
                         </div>

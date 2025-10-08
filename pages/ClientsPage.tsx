@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
@@ -10,11 +10,33 @@ const ClientsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
 
+    // START: Filters State
+    const [filters, setFilters] = useState({ name: '', sector: '' });
+    // END: Filters State
+
     const emptyClient: Omit<Client, 'id'> = {
         name: '',
         sector: clientSectors[0]?.value || '',
         contactEmail: ''
     };
+
+    // START: Filtering Logic
+    const filteredClients = useMemo(() => {
+        return clients.filter(client => {
+            const nameMatch = client.name.toLowerCase().includes(filters.name.toLowerCase());
+            const sectorMatch = filters.sector ? client.sector === filters.sector : true;
+            return nameMatch && sectorMatch;
+        });
+    }, [clients, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const resetFilters = () => {
+        setFilters({ name: '', sector: '' });
+    };
+    // END: Filtering Logic
 
     const openModalForNew = () => {
         setEditingClient(emptyClient);
@@ -55,6 +77,25 @@ const ClientsPage: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gestione Clienti</h1>
                 <button onClick={openModalForNew} className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Cliente</button>
             </div>
+            
+            {/* START: Filters JSX */}
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Cliente</label>
+                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 w-full form-input" placeholder="Cerca per nome..." />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Settore</label>
+                        <select name="sector" value={filters.sector} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti i settori</option>
+                            {clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                </div>
+            </div>
+            {/* END: Filters JSX */}
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -67,7 +108,7 @@ const ClientsPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {clients.map(client => (
+                        {filteredClients.map(client => (
                             <tr key={client.id}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.sector}</td>
@@ -92,7 +133,7 @@ const ClientsPage: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium">Settore</label>
                              <select name="sector" value={editingClient.sector} onChange={handleChange} className="mt-1 w-full form-select">
-                                {clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                                {clientSectors.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
                             </select>
                         </div>
                         <div>

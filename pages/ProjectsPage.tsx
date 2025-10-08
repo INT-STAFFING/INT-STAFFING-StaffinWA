@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
@@ -9,6 +9,10 @@ const ProjectsPage: React.FC = () => {
     const { projects, clients, projectStatuses, addProject, updateProject, deleteProject } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
+
+    // START: Filters State
+    const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
+    // END: Filters State
 
     const emptyProject: Omit<Project, 'id'> = {
         name: '',
@@ -22,6 +26,25 @@ const ProjectsPage: React.FC = () => {
         notes: '',
     };
     
+    // START: Filtering Logic
+    const filteredProjects = useMemo(() => {
+        return projects.filter(project => {
+            const nameMatch = project.name.toLowerCase().includes(filters.name.toLowerCase());
+            const clientMatch = filters.clientId ? project.clientId === filters.clientId : true;
+            const statusMatch = filters.status ? project.status === filters.status : true;
+            return nameMatch && clientMatch && statusMatch;
+        });
+    }, [projects, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const resetFilters = () => {
+        setFilters({ name: '', clientId: '', status: '' });
+    };
+    // END: Filtering Logic
+
     const openModalForNew = () => {
         setEditingProject(emptyProject);
         setIsModalOpen(true);
@@ -76,6 +99,32 @@ const ProjectsPage: React.FC = () => {
                 <button onClick={openModalForNew} className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Progetto</button>
             </div>
 
+            {/* START: Filters JSX */}
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Progetto</label>
+                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 w-full form-input" placeholder="Cerca per nome..." />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                        <select name="clientId" value={filters.clientId} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti i clienti</option>
+                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Stato</label>
+                        <select name="status" value={filters.status} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti gli stati</option>
+                            {projectStatuses.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                </div>
+            </div>
+            {/* END: Filters JSX */}
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -89,7 +138,7 @@ const ProjectsPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {projects.map(project => {
+                        {filteredProjects.map(project => {
                             const client = clients.find(c => c.id === project.clientId);
                             return (
                             <tr key={project.id}>
@@ -123,7 +172,7 @@ const ProjectsPage: React.FC = () => {
                             <label className="block text-sm font-medium">Cliente *</label>
                             <select name="clientId" value={editingProject.clientId} onChange={handleChange} required className="mt-1 w-full form-select">
                                 <option value="">Seleziona un cliente</option>
-                                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {clients.sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -153,7 +202,7 @@ const ProjectsPage: React.FC = () => {
                          <div>
                             <label className="block text-sm font-medium">Stato *</label>
                             <select name="status" value={editingProject.status} onChange={handleChange} required className="mt-1 w-full form-select">
-                                {projectStatuses.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                                {projectStatuses.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
                             </select>
                         </div>
                          <div>

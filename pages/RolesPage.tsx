@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
@@ -13,12 +13,34 @@ const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | Omit<Role, 'id'> | null>(null);
+
+    // START: Filters State
+    const [filters, setFilters] = useState({ name: '', seniorityLevel: '' });
+    // END: Filters State
     
     const emptyRole: Omit<Role, 'id'> = {
         name: '',
         seniorityLevel: seniorityLevels[0]?.value || '',
         dailyCost: 0,
     };
+
+    // START: Filtering Logic
+    const filteredRoles = useMemo(() => {
+        return roles.filter(role => {
+            const nameMatch = role.name.toLowerCase().includes(filters.name.toLowerCase());
+            const seniorityMatch = filters.seniorityLevel ? role.seniorityLevel === filters.seniorityLevel : true;
+            return nameMatch && seniorityMatch;
+        });
+    }, [roles, filters]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    const resetFilters = () => {
+        setFilters({ name: '', seniorityLevel: '' });
+    };
+    // END: Filtering Logic
 
     const openModalForNew = () => {
         setEditingRole(emptyRole);
@@ -65,6 +87,25 @@ const RolesPage: React.FC = () => {
                 <button onClick={openModalForNew} className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Ruolo</button>
             </div>
 
+            {/* START: Filters JSX */}
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Ruolo</label>
+                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 w-full form-input" placeholder="Cerca per nome..." />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Livello Seniority</label>
+                        <select name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti i livelli</option>
+                            {seniorityLevels.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                </div>
+            </div>
+            {/* END: Filters JSX */}
+
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700">
@@ -76,7 +117,7 @@ const RolesPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {roles.map(role => (
+                        {filteredRoles.map(role => (
                             <tr key={role.id}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{role.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{role.seniorityLevel}</td>
@@ -101,7 +142,7 @@ const RolesPage: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium">Livello Seniority *</label>
                             <select name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleChange} required className="mt-1 w-full form-select">
-                               {seniorityLevels.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                               {seniorityLevels.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
                             </select>
                         </div>
                         <div>
