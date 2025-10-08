@@ -134,7 +134,7 @@ const DashboardPage: React.FC = () => {
                 ...resource, avgAllocation, role: roles.find(r => r.id === resource.roleId)?.name || 'N/A'
             };
         })
-        .filter(r => r.avgAllocation < 25)
+        .filter(r => r.avgAllocation < 100)
         .sort((a,b) => a.avgAllocation - b.avgAllocation);
     }, [resources, assignments, allocations, roles]);
     
@@ -290,7 +290,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* Underutilized Resources Card */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Risorse Sottoutilizzate (&lt;25% Mese Corr.)</h2>
+                    <h2 className="text-xl font-semibold mb-4">Risorse Sottoutilizzate (&lt;100% Mese Corr.)</h2>
                     <div className="overflow-y-auto max-h-96">
                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
