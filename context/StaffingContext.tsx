@@ -1,21 +1,5 @@
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
-import {
-    collection,
-    doc,
-    onSnapshot,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    query,
-    where,
-    getDocs,
-    writeBatch,
-    setDoc,
-    deleteField,
-} from 'firebase/firestore';
-import { db } from '../firebase';
+import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
-import { generateSampleData } from '../utils/sampleData';
 
 interface StaffingContextType {
     clients: Client[];
@@ -57,42 +41,22 @@ type ConfigLists = {
     clientSectors: ConfigOption[]
 };
 
-const collections = {
-    clients: 'clients',
-    roles: 'roles',
-    resources: 'resources',
-    projects: 'projects',
-    assignments: 'assignments',
-    allocations: 'allocations',
-    horizontals: 'config-horizontals',
-    seniorityLevels: 'config-seniorityLevels',
-    projectStatuses: 'config-projectStatuses',
-    clientSectors: 'config-clientSectors'
-};
-
 export const StaffingContext = createContext<StaffingContextType | undefined>(undefined);
 
-const seedDatabase = async () => {
-    console.log("Seeding database with initial data...");
-    const sample = generateSampleData();
-    const batch = writeBatch(db);
-
-    Object.entries(collections).forEach(([key, collName]) => {
-        const data = sample[key as keyof typeof sample] as any[];
-        if (key === 'allocations') {
-            Object.entries(data).forEach(([assignmentId, dateData]) => {
-                 batch.set(doc(db, collName, assignmentId), dateData as object);
-            })
-        } else {
-             data.forEach(item => {
-                const docRef = doc(collection(db, collName));
-                batch.set(docRef, item);
-            });
-        }
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+    const response = await fetch(url, {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        ...options,
     });
-
-    await batch.commit();
-    console.log("Database seeded successfully.");
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${response.status} ${errorText}`);
+    }
+    if (response.status !== 204) { // No Content
+        return response.json();
+    }
 };
 
 export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -108,138 +72,85 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [projectStatuses, setProjectStatuses] = useState<ConfigOption[]>([]);
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
 
-    useEffect(() => {
-        const unsubscribes = Object.entries(collections).map(([key, collName]) => {
-            const q = collection(db, collName);
-            return onSnapshot(q, async (querySnapshot) => {
-                if (loading && querySnapshot.empty && key === 'clients') { // Check one collection to decide to seed
-                    await seedDatabase();
-                    return; // The snapshot will re-trigger with the new data
-                }
-                
-                const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                switch (key) {
-                    case 'clients': setClients(data as Client[]); break;
-                    case 'roles': setRoles(data as Role[]); break;
-                    case 'resources': setResources(data as Resource[]); break;
-                    case 'projects': setProjects(data as Project[]); break;
-                    case 'assignments': setAssignments(data as Assignment[]); break;
-                    case 'allocations': 
-                        const allocs: Allocation = {};
-                        querySnapshot.docs.forEach(doc => {
-                           allocs[doc.id] = doc.data();
-                        });
-                        setAllocations(allocs);
-                        break;
-                    case 'horizontals': setHorizontals(data as ConfigOption[]); break;
-                    case 'seniorityLevels': setSeniorityLevels(data as ConfigOption[]); break;
-                    case 'projectStatuses': setProjectStatuses(data as ConfigOption[]); break;
-                    case 'clientSectors': setClientSectors(data as ConfigOption[]); break;
-                }
-                setLoading(false);
-            });
-        });
-        return () => unsubscribes.forEach(unsub => unsub());
-    }, [loading]);
-
-    // --- CRUD Functions (Firebase v9) ---
-    const addClient = async (client: Omit<Client, 'id'>) => { await addDoc(collection(db, collections.clients), client); };
-    const updateClient = async (client: Client) => { const { id, ...data } = client; await updateDoc(doc(db, collections.clients, id!), data); };
-    const deleteClient = async (clientId: string) => { await deleteDoc(doc(db, collections.clients, clientId)); /* Note: cascade delete logic needed */ };
-
-    const addRole = async (role: Omit<Role, 'id'>) => { await addDoc(collection(db, collections.roles), role); };
-    const updateRole = async (role: Role) => { const { id, ...data } = role; await updateDoc(doc(db, collections.roles, id!), data); };
-    const deleteRole = async (roleId: string) => { await deleteDoc(doc(db, collections.roles, roleId)); };
-    
-    const addResource = async (resource: Omit<Resource, 'id'>) => { await addDoc(collection(db, collections.resources), resource); };
-    const updateResource = async (resource: Resource) => { const { id, ...data } = resource; await updateDoc(doc(db, collections.resources, id!), data); };
-    const deleteResource = async (resourceId: string) => {
-         const batch = writeBatch(db);
-         const assignmentsQuery = query(collection(db, collections.assignments), where("resourceId", "==", resourceId));
-         const assignmentsSnapshot = await getDocs(assignmentsQuery);
-         assignmentsSnapshot.forEach(docSnapshot => {
-             batch.delete(docSnapshot.ref);
-             // Also delete allocations for this assignment
-             batch.delete(doc(db, collections.allocations, docSnapshot.id));
-         });
-         batch.delete(doc(db, collections.resources, resourceId));
-         await batch.commit();
-    };
-    
-    const addProject = async (project: Omit<Project, 'id'>) => { await addDoc(collection(db, collections.projects), project); };
-    const updateProject = async (project: Project) => { const { id, ...data } = project; await updateDoc(doc(db, collections.projects, id!), data); };
-    const deleteProject = async (projectId: string) => {
-        const batch = writeBatch(db);
-        const assignmentsQuery = query(collection(db, collections.assignments), where("projectId", "==", projectId));
-        const assignmentsSnapshot = await getDocs(assignmentsQuery);
-        assignmentsSnapshot.forEach(docSnapshot => {
-            batch.delete(docSnapshot.ref);
-            batch.delete(doc(db, collections.allocations, docSnapshot.id));
-        });
-        batch.delete(doc(db, collections.projects, projectId));
-        await batch.commit();
-    };
-
-    const addAssignment = async (assignment: Omit<Assignment, 'id'>) => {
-        const q = query(collection(db, collections.assignments), where("resourceId", "==", assignment.resourceId), where("projectId", "==", assignment.projectId));
-        const existing = await getDocs(q);
-        if (existing.empty) {
-            await addDoc(collection(db, collections.assignments), assignment);
+    const fetchData = useCallback(async () => {
+        try {
+            const data = await apiFetch('/api/data');
+            setClients(data.clients);
+            setRoles(data.roles);
+            setResources(data.resources);
+            setProjects(data.projects);
+            setAssignments(data.assignments);
+            setAllocations(data.allocations);
+            setHorizontals(data.horizontals);
+            setSeniorityLevels(data.seniorityLevels);
+            setProjectStatuses(data.projectStatuses);
+            setClientSectors(data.clientSectors);
+        } catch (error) {
+            console.error("Failed to fetch initial data:", error);
+        } finally {
+            setLoading(false);
         }
-    };
-    const deleteAssignment = async (assignmentId: string) => {
-        const batch = writeBatch(db);
-        batch.delete(doc(db, collections.assignments, assignmentId));
-        batch.delete(doc(db, collections.allocations, assignmentId)); // Delete associated allocations
-        await batch.commit();
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    // --- CRUD Functions ---
+    const addClient = async (client: Omit<Client, 'id'>) => { await apiFetch('/api/clients', { method: 'POST', body: JSON.stringify(client) }); await fetchData(); };
+    const updateClient = async (client: Client) => { await apiFetch(`/api/clients?id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }); await fetchData(); };
+    const deleteClient = async (clientId: string) => { await apiFetch(`/api/clients?id=${clientId}`, { method: 'DELETE' }); await fetchData(); };
+
+    const addRole = async (role: Omit<Role, 'id'>) => { await apiFetch('/api/roles', { method: 'POST', body: JSON.stringify(role) }); await fetchData(); };
+    const updateRole = async (role: Role) => { await apiFetch(`/api/roles?id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }); await fetchData(); };
+    const deleteRole = async (roleId: string) => { await apiFetch(`/api/roles?id=${roleId}`, { method: 'DELETE' }); await fetchData(); };
+    
+    const addResource = async (resource: Omit<Resource, 'id'>) => { await apiFetch('/api/resources', { method: 'POST', body: JSON.stringify(resource) }); await fetchData(); };
+    const updateResource = async (resource: Resource) => { await apiFetch(`/api/resources?id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }); await fetchData(); };
+    const deleteResource = async (resourceId: string) => { await apiFetch(`/api/resources?id=${resourceId}`, { method: 'DELETE' }); await fetchData(); };
+    
+    const addProject = async (project: Omit<Project, 'id'>) => { await apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(project) }); await fetchData(); };
+    const updateProject = async (project: Project) => { await apiFetch(`/api/projects?id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) }); await fetchData(); };
+    const deleteProject = async (projectId: string) => { await apiFetch(`/api/projects?id=${projectId}`, { method: 'DELETE' }); await fetchData(); };
+
+    const addAssignment = async (assignment: Omit<Assignment, 'id'>) => { await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }); await fetchData(); };
+    const deleteAssignment = async (assignmentId: string) => { await apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' }); await fetchData(); };
     
     const updateAllocation = async (assignmentId: string, date: string, percentage: number) => {
-        const docRef = doc(db, collections.allocations, assignmentId);
-        if (percentage === 0) {
-            await updateDoc(docRef, {
-                [date]: deleteField()
-            });
-        } else {
-            await setDoc(docRef, { [date]: percentage }, { merge: true });
-        }
+        await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
+        // Optimistic update for better UX
+        setAllocations(prev => {
+            const newAllocations = { ...prev };
+            if (!newAllocations[assignmentId]) {
+                newAllocations[assignmentId] = {};
+            }
+            if (percentage === 0) {
+                delete newAllocations[assignmentId][date];
+            } else {
+                newAllocations[assignmentId][date] = percentage;
+            }
+            return newAllocations;
+        });
     };
 
     const bulkUpdateAllocations = async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
+        const updates = [];
         const start = new Date(startDate);
         const end = new Date(endDate);
-        const updates: { [key: string]: any } = {};
         for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
             const dayOfWeek = d.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Skip weekends
                 const dateStr = d.toISOString().split('T')[0];
-                updates[dateStr] = percentage === 0 ? deleteField() : percentage;
+                updates.push({ assignmentId, date: dateStr, percentage });
             }
         }
-        
-        const docRef = doc(db, collections.allocations, assignmentId);
-        try {
-            if (percentage > 0) {
-                await setDoc(docRef, updates, { merge: true });
-            } else if (Object.keys(updates).length > 0) {
-                await updateDoc(docRef, updates);
-            }
-        } catch(e) {
-            console.warn(`Could not bulk update allocations for ${assignmentId}`, e);
-        }
+        await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) });
+        await fetchData(); // Refetch for bulk updates
     };
 
-    const addConfigOption = async (type: keyof ConfigLists, value: string) => {
-        await addDoc(collection(db, collections[type]), { value });
-    };
-    const updateConfigOption = async (type: keyof ConfigLists, option: ConfigOption) => {
-        const { id, ...data } = option;
-        await updateDoc(doc(db, collections[type], id!), data);
-    };
-    const deleteConfigOption = async (type: keyof ConfigLists, optionId: string) => {
-        await deleteDoc(doc(db, collections[type], optionId));
-    };
+    const addConfigOption = async (type: keyof ConfigLists, value: string) => { await apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }); await fetchData(); };
+    const updateConfigOption = async (type: keyof ConfigLists, option: ConfigOption) => { await apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify(option) }); await fetchData(); };
+    const deleteConfigOption = async (type: keyof ConfigLists, optionId: string) => { await apiFetch(`/api/config?type=${type}&id=${optionId}`, { method: 'DELETE' }); await fetchData(); };
 
     const contextValue: StaffingContextType = {
         clients, roles, resources, projects, assignments, allocations,

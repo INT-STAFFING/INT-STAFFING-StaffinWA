@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { StaffingProvider, useStaffingContext } from './context/StaffingContext';
 import Sidebar from './components/Sidebar';
 import StaffingPage from './pages/StaffingPage';
@@ -47,12 +47,12 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
     return (
         <StaffingProvider>
-            <HashRouter>
+            <BrowserRouter>
                 <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
                     <Sidebar />
                     <AppContent />
                 </div>
-            </HashRouter>
+            </BrowserRouter>
         </StaffingProvider>
     );
 };
