@@ -147,7 +147,8 @@ const RolesPage: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Costo Giornaliero (€)</label>
-                            <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="mt-1 w-full form-input"/>
+                            {/* ULTIMA MODIFICA: Rimosso 'required' per permettere il salvataggio anche con costo zero o non specificato, risolvendo un bug sul pulsante Salva. */}
+                            <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="mt-1 w-full form-input"/>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
