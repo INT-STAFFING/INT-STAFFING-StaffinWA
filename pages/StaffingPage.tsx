@@ -294,7 +294,7 @@ const StaffingPage: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
                             <select required value={newAssignmentData.projectId} onChange={e => setNewAssignmentData(d => ({...d, projectId: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                                 <option value="">Seleziona un progetto</option>
-                                {projects.filter(p => p.status === 'In corso').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
                     </div>
