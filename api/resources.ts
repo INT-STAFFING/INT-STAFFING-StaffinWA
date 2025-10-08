@@ -1,4 +1,4 @@
-import { db, sql } from './db.js';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 const { name, email, roleId, horizontal, hireDate, workSeniority, dailyCost, notes } = req.body;
                 const newId = uuidv4();
-                await sql`
+                await db.sql`
                     INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, daily_cost, notes)
                     VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${hireDate}, ${workSeniority}, ${dailyCost}, ${notes});
                 `;
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'PUT':
             try {
                 const { name, email, roleId, horizontal, hireDate, workSeniority, dailyCost, notes } = req.body;
-                await sql`
+                await db.sql`
                     UPDATE resources
                     SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, hire_date = ${hireDate}, work_seniority = ${workSeniority}, daily_cost = ${dailyCost}, notes = ${notes}
                     WHERE id = ${id as string};

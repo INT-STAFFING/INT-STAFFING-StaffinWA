@@ -1,4 +1,4 @@
-import { db, sql } from './db.js';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -12,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const { resourceId, projectId } = req.body;
 
                 // Check if assignment already exists
-                const { rows } = await sql`
+                const { rows } = await db.sql`
                     SELECT id FROM assignments WHERE resource_id = ${resourceId} AND project_id = ${projectId};
                 `;
 
@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
 
                 const newId = uuidv4();
-                await sql`
+                await db.sql`
                     INSERT INTO assignments (id, resource_id, project_id)
                     VALUES (${newId}, ${resourceId}, ${projectId});
                 `;

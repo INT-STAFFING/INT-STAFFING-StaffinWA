@@ -1,4 +1,4 @@
-import { sql } from './db.js';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
 
@@ -30,16 +30,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projectStatusesRes,
             clientSectorsRes
         ] = await Promise.all([
-            sql`SELECT * FROM clients;`,
-            sql`SELECT * FROM roles;`,
-            sql`SELECT * FROM resources;`,
-            sql`SELECT * FROM projects;`,
-            sql`SELECT * FROM assignments;`,
-            sql`SELECT * FROM allocations;`,
-            sql`SELECT * FROM horizontals;`,
-            sql`SELECT * FROM seniority_levels;`,
-            sql`SELECT * FROM project_statuses;`,
-            sql`SELECT * FROM client_sectors;`
+            db.sql`SELECT * FROM clients;`,
+            db.sql`SELECT * FROM roles;`,
+            db.sql`SELECT * FROM resources;`,
+            db.sql`SELECT * FROM projects;`,
+            db.sql`SELECT * FROM assignments;`,
+            db.sql`SELECT * FROM allocations;`,
+            db.sql`SELECT * FROM horizontals;`,
+            db.sql`SELECT * FROM seniority_levels;`,
+            db.sql`SELECT * FROM project_statuses;`,
+            db.sql`SELECT * FROM client_sectors;`
         ]);
 
         const allocations: Allocation = {};

@@ -1,4 +1,4 @@
-import { db, sql } from './db.js';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 const { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
                 const newId = uuidv4();
-                await sql`
+                await db.sql`
                     INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes)
                     VALUES (${newId}, ${name}, ${clientId}, ${startDate}, ${endDate}, ${budget}, ${realizationPercentage}, ${projectManager}, ${status}, ${notes});
                 `;
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'PUT':
             try {
                 const { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
-                await sql`
+                await db.sql`
                     UPDATE projects
                     SET name = ${name}, client_id = ${clientId}, start_date = ${startDate}, end_date = ${endDate}, budget = ${budget}, realization_percentage = ${realizationPercentage}, project_manager = ${projectManager}, status = ${status}, notes = ${notes}
                     WHERE id = ${id as string};

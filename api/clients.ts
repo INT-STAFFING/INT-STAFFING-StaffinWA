@@ -1,4 +1,4 @@
-import { sql } from './db.js';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 const { name, sector, contactEmail } = req.body;
                 const newId = uuidv4();
-                await sql`
+                await db.sql`
                     INSERT INTO clients (id, name, sector, contact_email)
                     VALUES (${newId}, ${name}, ${sector}, ${contactEmail});
                 `;
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'PUT':
             try {
                 const { name, sector, contactEmail } = req.body;
-                await sql`
+                await db.sql`
                     UPDATE clients
                     SET name = ${name}, sector = ${sector}, contact_email = ${contactEmail}
                     WHERE id = ${id as string};
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'DELETE':
             try {
                 // Note: In a real app, you might want to handle cascading deletes for projects, etc.
-                await sql`DELETE FROM clients WHERE id = ${id as string};`;
+                await db.sql`DELETE FROM clients WHERE id = ${id as string};`;
                 res.status(204).end();
             } catch (error) {
                 res.status(500).json({ error: (error as Error).message });

@@ -13,11 +13,9 @@ if (!connectionString) {
 
 // createPool di @vercel/postgres restituisce un'istanza di Pool estesa 
 // con il template literal tag `sql`.
-const pool = createPool({
+export const db = createPool({
   connectionString,
 });
 
-// Esportiamo il pool stesso (che ha un metodo .connect(), compatibile con db.connect())
-// e la funzione sql associata.
-export const db = pool;
-export const sql = pool.sql;
+// NON esportiamo `sql` separatamente per evitare potenziali problemi di contesto (`this`).
+// Tutti i moduli devono importare `db` e usare `db.sql` o `db.connect()`.
