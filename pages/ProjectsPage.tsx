@@ -197,7 +197,11 @@ const ProjectsPage: React.FC = () => {
                         </div>
                          <div>
                             <label className="block text-sm font-medium">Project Manager</label>
-                            <input type="text" name="projectManager" value={editingProject.projectManager} onChange={handleChange} className="mt-1 w-full form-input"/>
+                            {/* ULTIMA MODIFICA: Aggiunto `|| ''` per garantire che il campo sia sempre controllato,
+                                anche se il valore `projectManager` dal database è nullo. Questo risolve un bug
+                                che poteva impedire l'aggiornamento di altri campi (come lo Stato) a causa di
+                                un'instabilità del form. */}
+                            <input type="text" name="projectManager" value={editingProject.projectManager || ''} onChange={handleChange} className="mt-1 w-full form-input"/>
                         </div>
                          <div>
                             <label className="block text-sm font-medium">Stato *</label>
