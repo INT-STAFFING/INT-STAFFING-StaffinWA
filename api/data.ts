@@ -1,4 +1,4 @@
-import { sql } from './db.ts';
+import { sql } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
 

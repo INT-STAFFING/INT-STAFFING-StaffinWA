@@ -1,4 +1,4 @@
-import { sql } from './db.ts';
+import { sql } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
