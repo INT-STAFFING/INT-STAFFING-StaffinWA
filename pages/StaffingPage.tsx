@@ -1,3 +1,8 @@
+/**
+ * @file StaffingPage.tsx
+ * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
+ */
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Resource, Project, Assignment } from '../types';
@@ -5,11 +10,31 @@ import { getWorkingDays, formatDate, addDays } from '../utils/dateUtils';
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
 import Modal from '../components/Modal';
 
-// Sub-component for a single allocation cell
-const AllocationCell: React.FC<{ assignment: Assignment, date: string }> = ({ assignment, date }) => {
+/**
+ * @interface AllocationCellProps
+ * @description Prop per il componente AllocationCell.
+ */
+interface AllocationCellProps {
+    /** @property {Assignment} assignment - L'assegnazione a cui si riferisce la cella. */
+    assignment: Assignment;
+    /** @property {string} date - La data (YYYY-MM-DD) per questa cella di allocazione. */
+    date: string;
+}
+
+/**
+ * Componente per una singola cella di allocazione nella griglia di staffing.
+ * Mostra un menu a tendina per modificare la percentuale di allocazione.
+ * @param {AllocationCellProps} props - Le prop del componente.
+ * @returns {React.ReactElement} L'elemento `<td>` della cella.
+ */
+const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date }) => {
     const { allocations, updateAllocation } = useStaffingContext();
     const percentage = allocations[assignment.id]?.[date] || 0;
 
+    /**
+     * Gestisce la modifica del valore nel menu a tendina e chiama l'aggiornamento del contesto.
+     * @param {React.ChangeEvent<HTMLSelectElement>} e - L'evento di modifica.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         updateAllocation(assignment.id, date, parseInt(e.target.value));
     };
@@ -29,10 +54,27 @@ const AllocationCell: React.FC<{ assignment: Assignment, date: string }> = ({ as
     );
 };
 
-// Sub-component for the daily total cell
-const DailyTotalCell: React.FC<{ resource: Resource, date: string }> = ({ resource, date }) => {
+/**
+ * @interface DailyTotalCellProps
+ * @description Prop per il componente DailyTotalCell.
+ */
+interface DailyTotalCellProps {
+    /** @property {Resource} resource - La risorsa per cui calcolare il totale. */
+    resource: Resource;
+    /** @property {string} date - La data (YYYY-MM-DD) per cui calcolare il totale. */
+    date: string;
+}
+
+/**
+ * Componente per la cella che mostra il carico totale giornaliero di una risorsa.
+ * Cambia colore in base al livello di carico (sottoutilizzo, pieno, sovraccarico).
+ * @param {DailyTotalCellProps} props - Le prop del componente.
+ * @returns {React.ReactElement} L'elemento `<td>` della cella.
+ */
+const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date }) => {
     const { assignments, allocations } = useStaffingContext();
     
+    // Calcola il totale giornaliero per la risorsa sommando tutte le sue allocazioni.
     const total = useMemo(() => {
         const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
         return resourceAssignments.reduce((sum, a) => {
@@ -40,6 +82,7 @@ const DailyTotalCell: React.FC<{ resource: Resource, date: string }> = ({ resour
         }, 0);
     }, [assignments, allocations, resource.id, date]);
 
+    // Determina il colore di sfondo della cella in base al carico totale.
     const cellColor = useMemo(() => {
         if (total > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
         if (total === 100) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
@@ -54,31 +97,49 @@ const DailyTotalCell: React.FC<{ resource: Resource, date: string }> = ({ resour
     );
 };
 
-
+/**
+ * Componente principale della pagina di Staffing.
+ * Gestisce la navigazione temporale, i filtri, l'apertura delle modali e il rendering della griglia di allocazione.
+ * @returns {React.ReactElement} La pagina di Staffing.
+ */
 const StaffingPage: React.FC = () => {
+    // Stato per la data di inizio della finestra temporale visualizzata.
     const [currentDate, setCurrentDate] = useState(new Date());
     const { resources, projects, assignments, roles, clients, addAssignment, deleteAssignment, bulkUpdateAllocations } = useStaffingContext();
+    
+    // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);
     const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
     const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
     const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string, projectId: string }>({ resourceId: '', projectId: '' });
+    
+    // Stato per i filtri applicati alla griglia.
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '' });
 
-    const timeWindow = 31;
+    const timeWindow = 31; // Numero di giorni lavorativi da visualizzare.
     const weekDays = useMemo(() => getWorkingDays(currentDate, timeWindow), [currentDate]);
 
+    // Progetti a cui è possibile assegnare risorse (esclusi quelli completati).
     const assignableProjects = useMemo(() => projects.filter(p => p.status !== 'Completato'), [projects]);
 
     const handlePrevWeek = () => setCurrentDate(prev => addDays(prev, -7));
     const handleNextWeek = () => setCurrentDate(prev => addDays(prev, 7));
     const handleToday = () => setCurrentDate(new Date());
 
+    /**
+     * Apre la modale per l'assegnazione massiva.
+     * @param {Assignment} assignment - L'assegnazione selezionata.
+     */
     const openBulkModal = (assignment: Assignment) => {
         setSelectedAssignment(assignment);
         setBulkModalOpen(true);
     };
 
+    /**
+     * Gestisce l'invio del form di assegnazione massiva.
+     * @param {React.FormEvent} e - L'evento di invio del form.
+     */
     const handleBulkSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (selectedAssignment && bulkFormData.startDate && bulkFormData.endDate) {
@@ -88,6 +149,10 @@ const StaffingPage: React.FC = () => {
         }
     };
 
+    /**
+     * Gestisce l'invio del form per una nuova assegnazione.
+     * @param {React.FormEvent} e - L'evento di invio del form.
+     */
     const handleNewAssignmentSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (newAssignmentData.resourceId && newAssignmentData.projectId) {
@@ -97,6 +162,10 @@ const StaffingPage: React.FC = () => {
         }
     };
 
+    /**
+     * Aggiorna lo stato dei filtri quando un valore cambia.
+     * @param {React.ChangeEvent<HTMLSelectElement>} e - L'evento di modifica.
+     */
     const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFilters(prev => ({ ...prev, [name]: value }));
@@ -106,11 +175,13 @@ const StaffingPage: React.FC = () => {
         setFilters({ resourceId: '', projectId: '', clientId: '' });
     };
 
+    // Funzioni memoizzate per trovare entità per ID, per ottimizzare le performance.
     const getResourceById = useCallback((id: string) => resources.find(r => r.id === id), [resources]);
     const getProjectById = useCallback((id: string) => projects.find(p => p.id === id), [projects]);
     const getRoleById = useCallback((id: string) => roles.find(r => r.id === id), [roles]);
     const getClientById = useCallback((id: string) => clients.find(c => c.id === id), [clients]);
 
+    // Calcola e memoizza i dati da visualizzare, applicando i filtri e raggruppando per risorsa.
     const displayData = useMemo(() => {
         let filteredAssignments = [...assignments];
 
@@ -146,20 +217,20 @@ const StaffingPage: React.FC = () => {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Staffing Giornaliero</h1>
-                <div className="flex items-center space-x-2">
-                    <button onClick={handlePrevWeek} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600">← Settimana Prec.</button>
+            {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                <div className="flex items-center justify-center space-x-2">
+                    <button onClick={handlePrevWeek} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
                     <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                    <button onClick={handleNextWeek} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600">Settimana Succ. →</button>
+                    <button onClick={handleNextWeek} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
                 </div>
-                 <button onClick={() => setAssignmentModalOpen(true)} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">
+                 <button onClick={() => setAssignmentModalOpen(true)} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">
                     <PlusCircleIcon className="w-5 h-5 mr-2"/>
                     Assegna Risorsa
                 </button>
             </div>
 
-            {/* Filters */}
+            {/* Sezione Filtri */}
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
@@ -187,17 +258,19 @@ const StaffingPage: React.FC = () => {
                  </div>
             </div>
 
+            {/* Griglia di Staffing */}
             <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                         <tr>
+                            {/* Le colonne fisse (sticky) sono state ottimizzate per mobile, riducendo gli offset per prevenire sovrapposizioni. */}
                             <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Risorsa</th>
                             <th className="sticky left-[150px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Ruolo</th>
-                            <th className="sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Cliente</th>
-                            <th className="sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>Progetto</th>
+                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Cliente</th>
+                            <th className="sticky left-[300px] md:left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>Progetto</th>
                             <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Azioni</th>
                             {weekDays.map(date => (
-                                <th key={date.toISOString()} className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white w-24">
+                                <th key={date.toISOString()} className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white w-20 md:w-24">
                                     <div className="flex flex-col items-center">
                                         <span>{formatDate(date, 'short')}</span>
                                         <span className="text-xs text-gray-500">{formatDate(date, 'day')}</span>
@@ -207,7 +280,7 @@ const StaffingPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                         {displayData.map(({ resource, assignments: resourceAssignments }, resIndex) => (
+                         {displayData.map(({ resource, assignments: resourceAssignments }) => (
                              <React.Fragment key={resource.id}>
                                 {resourceAssignments.map((assignment, assignIndex) => {
                                     const project = getProjectById(assignment.projectId);
@@ -224,8 +297,8 @@ const StaffingPage: React.FC = () => {
                                              {isFirstAssignmentOfResource ? (
                                                 <td rowSpan={resourceAssignments.length} className="sticky left-[150px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>
                                              ): null}
-                                            <td className="sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
-                                            <td className="sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
+                                            <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
+                                            <td className="sticky left-[300px] md:left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
                                             <td className="px-2 py-3 text-center">
                                                 <div className="flex items-center justify-center space-x-2">
                                                      <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
@@ -242,7 +315,7 @@ const StaffingPage: React.FC = () => {
                                         </tr>
                                     );
                                 })}
-                                {/* Total Row */}
+                                {/* Riga del Totale */}
                                 <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
                                     <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
                                         Carico Totale {resource.name}
@@ -257,7 +330,7 @@ const StaffingPage: React.FC = () => {
                 </table>
             </div>
 
-            {/* Bulk Assignment Modal */}
+            {/* Modale per Assegnazione Massiva */}
             <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva">
                  <form onSubmit={handleBulkSubmit}>
                     <div className="space-y-4">
@@ -281,7 +354,7 @@ const StaffingPage: React.FC = () => {
                 </form>
             </Modal>
              
-            {/* New Assignment Modal */}
+            {/* Modale per Nuova Assegnazione */}
             <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto">
                 <form onSubmit={handleNewAssignmentSubmit}>
                     <div className="space-y-4">

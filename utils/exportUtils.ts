@@ -1,6 +1,16 @@
-// This assumes the xlsx library is loaded from a CDN in index.html
+/**
+ * @file exportUtils.ts
+ * @description Funzioni di utilità per esportare dati in formato Excel.
+ * Si assume che la libreria 'xlsx' sia caricata globalmente tramite CDN.
+ */
+
+// Dichiarazione per informare TypeScript che la variabile XLSX esiste a livello globale.
 declare var XLSX: any;
 
+/**
+ * @interface StaffingData
+ * @description Definisce la struttura dei dati di staffing passati alla funzione di esportazione.
+ */
 interface StaffingData {
     clients: any[];
     roles: any[];
@@ -10,10 +20,14 @@ interface StaffingData {
     allocations: any;
 }
 
+/**
+ * Esporta tutti i dati principali dell'applicazione in un singolo file Excel con fogli multipli.
+ * @param {StaffingData} data - L'oggetto contenente tutti i dati dell'applicazione, solitamente dal contesto.
+ */
 export const exportDataToExcel = (data: StaffingData) => {
     const { clients, roles, resources, projects, assignments, allocations } = data;
 
-    // 1. Prepare data for sheets
+    // 1. Prepara i dati per ciascun foglio, mappando gli ID a valori leggibili.
     const clientsSheet = clients.map(({ id, ...rest }) => rest);
     const rolesSheet = roles.map(({ id, ...rest }) => rest);
     
@@ -45,6 +59,7 @@ export const exportDataToExcel = (data: StaffingData) => {
         projectName: projects.find(p => p.id === a.projectId)?.name || a.projectId,
     }));
 
+    // Trasforma l'oggetto delle allocazioni in un array piatto per l'esportazione.
     const allocationsSheet: { resourceName: string, projectName: string, date: string, percentage: number }[] = [];
     Object.entries(allocations).forEach(([assignmentId, dateAllocations]) => {
         const assignment = assignments.find(a => a.id === assignmentId);
@@ -62,8 +77,7 @@ export const exportDataToExcel = (data: StaffingData) => {
         }
     });
 
-
-    // 2. Create workbook and worksheets
+    // 2. Crea un nuovo workbook e aggiunge i fogli di lavoro.
     const wb = XLSX.utils.book_new();
     
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientsSheet), 'Clienti');
@@ -73,15 +87,18 @@ export const exportDataToExcel = (data: StaffingData) => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(assignmentsSheet), 'Assegnazioni');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allocationsSheet), 'Allocazioni Giornaliere');
     
-    // 3. Trigger download
+    // 3. Avvia il download del file Excel.
     XLSX.writeFile(wb, 'Staffing_Export.xlsx');
 };
 
+/**
+ * Genera e avvia il download di un file Excel vuoto che funge da template per l'importazione massiva.
+ * I nomi delle colonne corrispondono a quelli attesi dall'API di importazione.
+ */
 export const exportTemplateToExcel = () => {
     const wb = XLSX.utils.book_new();
 
-    // NOTE: The headers here MUST match the keys used in the API endpoint for import.
-    // Making them camelCase aligns with the rest of the app and JSON standards.
+    // NOTA: Gli header qui DEVONO corrispondere alle chiavi usate nell'endpoint API di importazione.
     const clientsHeaders = [["name", "sector", "contactEmail"]];
     const rolesHeaders = [["name", "seniorityLevel", "dailyCost"]];
     const resourcesHeaders = [["name", "email", "roleName", "horizontal", "hireDate", "workSeniority", "notes"]];

@@ -1,3 +1,7 @@
+/**
+ * @file ConfigPage.tsx
+ * @description Pagina per la gestione delle opzioni di configurazione (es. Horizontals, Livelli di Seniority, etc.).
+ */
 
 import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
@@ -5,19 +9,37 @@ import { ConfigOption } from '../types';
 import Modal from '../components/Modal';
 import { PencilIcon, TrashIcon } from '../components/icons';
 
+/** @type ConfigType - Definisce i tipi di configurazione gestibili. */
 type ConfigType = 'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors';
 
+/**
+ * @interface ConfigSectionProps
+ * @description Prop per il componente ConfigSection.
+ */
 interface ConfigSectionProps {
+    /** @property {string} title - Il titolo della sezione di configurazione. */
     title: string;
+    /** @property {ConfigType} configType - Il tipo di configurazione gestito da questa sezione. */
     configType: ConfigType;
+    /** @property {ConfigOption[]} options - L'array di opzioni da visualizzare. */
     options: ConfigOption[];
 }
 
+/**
+ * Componente per una singola sezione della pagina di configurazione.
+ * Gestisce la visualizzazione, aggiunta, modifica ed eliminazione delle opzioni per un tipo specifico.
+ * @param {ConfigSectionProps} props - Le prop del componente.
+ * @returns {React.ReactElement} Una card con la lista di opzioni e i controlli.
+ */
 const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, options }) => {
     const { addConfigOption, updateConfigOption, deleteConfigOption } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOption, setEditingOption] = useState<ConfigOption | { value: string } | null>(null);
 
+    /**
+     * Apre la modale per aggiungere o modificare un'opzione.
+     * @param {ConfigOption | null} [option=null] - L'opzione da modificare, o null per crearne una nuova.
+     */
     const handleOpenModal = (option: ConfigOption | null = null) => {
         setEditingOption(option || { value: '' });
         setIsModalOpen(true);
@@ -28,6 +50,10 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
         setEditingOption(null);
     };
 
+    /**
+     * Gestisce l'invio del form nella modale.
+     * @param {React.FormEvent} e - L'evento di submit.
+     */
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingOption) {
@@ -40,6 +66,10 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
         }
     };
 
+    /**
+     * Gestisce le modifiche al campo di input nella modale.
+     * @param {React.ChangeEvent<HTMLInputElement>} e - L'evento di input.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (editingOption) {
             setEditingOption({ ...editingOption, value: e.target.value });
@@ -59,10 +89,10 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                     <li key={option.id} className="py-2 flex justify-between items-center">
                         <span className="text-sm text-gray-800 dark:text-gray-200">{option.value}</span>
                         <div>
-                            <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1">
+                            <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1" title="Modifica">
                                 <PencilIcon className="w-4 h-4" />
                             </button>
-                            <button onClick={() => deleteConfigOption(configType, option.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1">
+                            <button onClick={() => deleteConfigOption(configType, option.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1" title="Elimina">
                                 <TrashIcon className="w-4 h-4" />
                             </button>
                         </div>
@@ -91,6 +121,11 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
     );
 };
 
+/**
+ * Componente principale della pagina di Configurazione.
+ * Raggruppa diverse sezioni di configurazione in un layout a griglia.
+ * @returns {React.ReactElement} La pagina delle configurazioni.
+ */
 const ConfigPage: React.FC = () => {
     const { horizontals, seniorityLevels, projectStatuses, clientSectors } = useStaffingContext();
 
@@ -99,10 +134,10 @@ const ConfigPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Configurazioni</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <ConfigSection title="Horizontals (Risorse)" configType="horizontals" options={horizontals} />
-                <ConfigSection title="Livelli Seniority (Ruoli)" configType="seniorityLevels" options={seniorityLevels} />
-                <ConfigSection title="Stati (Progetti)" configType="projectStatuses" options={projectStatuses} />
-                <ConfigSection title="Settori (Clienti)" configType="clientSectors" options={clientSectors} />
+                <ConfigSection title="Horizontals" configType="horizontals" options={horizontals} />
+                <ConfigSection title="Grade - Ruoli" configType="seniorityLevels" options={seniorityLevels} />
+                <ConfigSection title="Stati dei" configType="projectStatuses" options={projectStatuses} />
+                <ConfigSection title="Settori - Classificazione Clienti" configType="clientSectors" options={clientSectors} />
             </div>
              <style>{`
                 .form-input { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }

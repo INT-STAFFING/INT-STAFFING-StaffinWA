@@ -1,15 +1,34 @@
+/**
+ * @file DashboardPage.tsx
+ * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
+ */
 
 import React, { useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
 
-const formatCurrency = (value: number) => {
+/**
+ * Formatta un valore numerico come valuta EUR.
+ * @param {number} value - Il valore numerico da formattare.
+ * @returns {string} La stringa formattata (es. "€ 1.234,56").
+ */
+const formatCurrency = (value: number): string => {
     return value.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
+/**
+ * Componente per la pagina Dashboard.
+ * Mostra una serie di "card" con analisi dei dati, come allocazione media,
+ * FTE per progetto, analisi dei budget e altro.
+ * @returns {React.ReactElement} La pagina della dashboard.
+ */
 const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, allocations } = useStaffingContext();
 
+    /**
+     * @description Calcola l'allocazione media mensile per ogni risorsa.
+     * L'allocazione media è calcolata solo sui giorni in cui la risorsa è stata effettivamente allocata.
+     */
     const monthlyAllocationData = useMemo(() => {
         const data: { [key: string]: { total: number, count: number } } = {};
         
@@ -38,6 +57,10 @@ const DashboardPage: React.FC = () => {
 
     }, [allocations, assignments, resources, roles]);
 
+    /**
+     * @description Calcola il Full-Time Equivalent (FTE) per ciascun progetto.
+     * FTE = (Totale giorni-uomo allocati) / (Totale giorni lavorativi del progetto).
+     */
     const fteData = useMemo(() => {
         return projects.map(project => {
             if (!project.startDate || !project.endDate) return null;
@@ -79,6 +102,11 @@ const DashboardPage: React.FC = () => {
         }).filter(Boolean);
     }, [projects, assignments, allocations, clients]);
 
+    /**
+     * @description Esegue un'analisi dei costi per ogni progetto, confrontando il budget con i costi stimati.
+     * Costo Stimato = (Totale giorni-uomo allocati * costo giornaliero del ruolo) * (% di realizzo / 100).
+     * Varianza = Budget - Costo Stimato.
+     */
     const budgetAnalysisData = useMemo(() => {
         return projects.map(project => {
             let rawEstimatedCost = 0;
@@ -91,23 +119,22 @@ const DashboardPage: React.FC = () => {
 
                 const assignmentAllocations = allocations[assignment.id];
                 if (assignmentAllocations) {
-                    // Sum of allocated days (e.g., 10 days at 50% = 5 person-days)
                     const allocatedPersonDays = Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
                     rawEstimatedCost += allocatedPersonDays * dailyRate;
                 }
             });
             
-            // Costo Stimato is the raw cost multiplied by the realization percentage
             const estimatedCost = rawEstimatedCost * (project.realizationPercentage / 100);
-
-            // Variance is the difference between the full budget and the estimated cost (with realization applied)
             const variance = project.budget - estimatedCost;
 
-            // Return the full budget, the calculated estimated cost, and the variance
             return { ...project, fullBudget: project.budget, estimatedCost, variance };
         }).sort((a,b) => a.name.localeCompare(b.name));
     }, [projects, assignments, allocations, resources, roles]);
 
+    /**
+     * @description Identifica le risorse sottoutilizzate (< 100%) nel mese corrente.
+     * Calcola l'allocazione media di ogni risorsa nel mese e filtra quelle sotto la soglia.
+     */
     const underutilizedResourcesData = useMemo(() => {
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -139,6 +166,9 @@ const DashboardPage: React.FC = () => {
         .sort((a,b) => a.avgAllocation - b.avgAllocation);
     }, [resources, assignments, allocations, roles]);
     
+    /**
+     * @description Aggrega i dati di sforzo (giorni-uomo) e budget per cliente.
+     */
     const effortByClientData = useMemo(() => {
         const clientData: { [clientId: string]: { name: string, projectCount: number, totalPersonDays: number, totalBudget: number } } = {};
         
@@ -147,7 +177,7 @@ const DashboardPage: React.FC = () => {
         });
 
         projects.forEach(project => {
-            if (clientData[project.clientId]) {
+            if (project.clientId && clientData[project.clientId]) {
                 if(project.status === 'In corso') clientData[project.clientId].projectCount++;
                 clientData[project.clientId].totalBudget += project.budget;
 
@@ -166,6 +196,9 @@ const DashboardPage: React.FC = () => {
         return Object.values(clientData).sort((a,b) => b.totalBudget - a.totalBudget);
     }, [clients, projects, assignments, allocations]);
 
+    /**
+     * @description Aggrega i dati di sforzo (giorni-uomo) per "horizontal" (area di competenza).
+     */
     const effortByHorizontalData = useMemo(() => {
         const horizontalData: { [key: string]: number } = {};
         
@@ -188,8 +221,12 @@ const DashboardPage: React.FC = () => {
             .sort((a,b) => b.totalPersonDays - a.totalPersonDays);
     }, [assignments, allocations, resources]);
 
-
-    const getAvgAllocationColor = (avg: number) => {
+    /**
+     * Determina il colore del testo per l'allocazione media.
+     * @param {number} avg - La percentuale di allocazione.
+     * @returns {string} La classe CSS per il colore.
+     */
+    const getAvgAllocationColor = (avg: number): string => {
         if (avg > 90) return 'text-red-600 dark:text-red-400 font-bold';
         if (avg >= 70) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
         return 'text-green-600 dark:text-green-400';
@@ -200,7 +237,7 @@ const DashboardPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Dashboard</h1>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Monthly Allocation Card */}
+                {/* Card Allocazione Mensile */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Allocazione Media Mensile (sui giorni lavorati)</h2>
                     <div className="overflow-y-auto max-h-96">
@@ -230,9 +267,9 @@ const DashboardPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* FTE Card */}
+                {/* Card FTE per Progetto */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">FTE per Progetto</h2>
+                    <h2 className="text-xl font-semibold mb-4">FTE allocati per Progetto</h2>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
@@ -260,17 +297,17 @@ const DashboardPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Budget vs Estimated Cost Card */}
+                {/* Card Analisi Budget */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Analisi Budget vs. Costi Stimati</h2>
+                    <h2 className="text-xl font-semibold mb-4">Analisi: Budget vs. Costo</h2>
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Budget</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato (Realizzato)</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Varianza</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo (Realizzato)</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Variazione</th>
                                 </tr>
                             </thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -289,7 +326,7 @@ const DashboardPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Underutilized Resources Card */}
+                {/* Card Risorse Sottoutilizzate */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Risorse Sottoutilizzate (&lt;100% Mese Corr.)</h2>
                     <div className="overflow-y-auto max-h-96">
@@ -315,7 +352,7 @@ const DashboardPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Effort by Client Card */}
+                {/* Card Sforzo per Cliente */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Cliente</h2>
                      <div className="overflow-y-auto max-h-96">
@@ -342,7 +379,7 @@ const DashboardPage: React.FC = () => {
                     </div>
                 </div>
                 
-                {/* Effort by Horizontal Card */}
+                {/* Card Sforzo per Horizontal */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
                      <div className="overflow-y-auto max-h-96">

@@ -1,10 +1,19 @@
+/**
+ * @file api/data.ts
+ * @description Endpoint API per recuperare tutti i dati iniziali necessari all'applicazione con una singola richiesta.
+ */
+
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
 
-// Helper function to convert snake_case from DB to camelCase for frontend
-const toCamelCase = (obj: any) => {
+/**
+ * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
+ * @param {any} obj - L'oggetto da convertire.
+ * @returns {any} Il nuovo oggetto con chiavi in camelCase.
+ */
+const toCamelCase = (obj: any): any => {
     const newObj: any = {};
     for (const key in obj) {
         const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
@@ -13,16 +22,24 @@ const toCamelCase = (obj: any) => {
     return newObj;
 }
 
+/**
+ * Gestore della richiesta API per l'endpoint /api/data.
+ * Risponde solo a richieste GET.
+ * Assicura che le tabelle del database esistano, poi recupera e restituisce tutti i dati necessari.
+ * @param {VercelRequest} req - L'oggetto della richiesta Vercel.
+ * @param {VercelResponse} res - L'oggetto della risposta Vercel.
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
         res.setHeader('Allow', ['GET']);
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
     try {
-        // Ensure database schema is created before fetching data.
-        // This makes the app resilient to empty databases on new deployments.
+        // Assicura che lo schema del database sia creato prima di recuperare i dati.
+        // Questo rende l'app resiliente a database vuoti su nuovi deployment.
         await ensureDbTablesExist(db);
 
+        // Esegue tutte le query in parallelo per efficienza.
         const [
             clientsRes,
             rolesRes,
@@ -47,6 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM client_sectors;`
         ]);
 
+        // Trasforma la lista di allocazioni dal formato tabellare del DB
+        // al formato annidato { assignmentId: { date: percentage } } usato dal frontend.
         const allocations: Allocation = {};
         allocationsRes.rows.forEach(row => {
             const { assignment_id, allocation_date, percentage } = row;
@@ -57,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             allocations[assignment_id][dateStr] = percentage;
         });
 
+        // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
         const data = {
             clients: clientsRes.rows.map(toCamelCase) as Client[],
             roles: rolesRes.rows.map(toCamelCase) as Role[],

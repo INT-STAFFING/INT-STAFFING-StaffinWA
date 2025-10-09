@@ -1,14 +1,31 @@
+/**
+ * @file ExportPage.tsx
+ * @description Pagina dedicata all'esportazione dei dati dell'applicazione in un file Excel.
+ */
 
 import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { exportDataToExcel } from '../utils/exportUtils';
 import { ArrowDownOnSquareIcon } from '../components/icons';
 
+/**
+ * Componente per la pagina di esportazione.
+ * Fornisce un pulsante per scaricare tutti i dati dell'applicazione in un file Excel.
+ * @returns {React.ReactElement} La pagina di esportazione.
+ */
 const ExportPage: React.FC = () => {
+    // Ottiene l'intero stato dell'applicazione dal contesto.
     const staffingData = useStaffingContext();
+    // Stato per gestire la visualizzazione del feedback durante l'esportazione.
     const [isExporting, setIsExporting] = useState(false);
+    // Stato per mostrare un messaggio di successo o fallimento dopo il tentativo di esportazione.
     const [exportSuccess, setExportSuccess] = useState<boolean | null>(null);
 
+    /**
+     * Gestisce il click sul pulsante di esportazione.
+     * Chiama la funzione di utility per creare e scaricare il file Excel.
+     * Aggiorna lo stato per fornire feedback all'utente.
+     */
     const handleExport = () => {
         setIsExporting(true);
         setExportSuccess(null);

@@ -1,6 +1,15 @@
+/**
+ * @file StaffingContext.tsx
+ * @description Provider di contesto React per la gestione centralizzata dello stato dell'applicazione (dati, caricamento, operazioni CRUD).
+ */
+
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
 
+/**
+ * @interface StaffingContextType
+ * @description Definisce la struttura del contesto, includendo gli array di dati, lo stato di caricamento e le funzioni per manipolare i dati.
+ */
 interface StaffingContextType {
     clients: Client[];
     roles: Role[];
@@ -35,6 +44,10 @@ interface StaffingContextType {
     fetchData: () => Promise<void>;
 }
 
+/**
+ * @type ConfigLists
+ * @description Raggruppa le liste di opzioni di configurazione per una gestione più semplice.
+ */
 type ConfigLists = {
     horizontals: ConfigOption[],
     seniorityLevels: ConfigOption[],
@@ -42,8 +55,19 @@ type ConfigLists = {
     clientSectors: ConfigOption[]
 };
 
+/**
+ * @const StaffingContext
+ * @description Istanza del contesto React.
+ */
 export const StaffingContext = createContext<StaffingContextType | undefined>(undefined);
 
+/**
+ * Funzione helper per effettuare chiamate API.
+ * Imposta gli header di default, gestisce la serializzazione JSON e lancia un errore in caso di risposta non-OK.
+ * @param {string} url - L'URL dell'endpoint API.
+ * @param {RequestInit} [options={}] - Opzioni aggiuntive per la richiesta fetch.
+ * @returns {Promise<any>} La risposta JSON parsata dall'API.
+ */
 const apiFetch = async (url: string, options: RequestInit = {}) => {
     const response = await fetch(url, {
         headers: {
@@ -52,7 +76,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
         ...options,
     });
     if (!response.ok) {
-        // COMMENTO: Estrae il messaggio di errore dal server per mostrarlo all'utente.
+        // Estrae il messaggio di errore dal server per mostrarlo all'utente.
         const errorBody = await response.json();
         throw new Error(errorBody.error || `API request failed: ${response.status}`);
     }
@@ -61,6 +85,12 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
     }
 };
 
+/**
+ * Componente Provider che incapsula la logica di gestione dello stato.
+ * Fornisce i dati e le funzioni di modifica a tutti i componenti figli.
+ * @param {{ children: ReactNode }} props - Prop che include i componenti figli.
+ * @returns {React.ReactElement} Il provider del contesto con i figli.
+ */
 export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [clients, setClients] = useState<Client[]>([]);
@@ -74,6 +104,10 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [projectStatuses, setProjectStatuses] = useState<ConfigOption[]>([]);
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
 
+    /**
+     * Carica tutti i dati iniziali dall'API.
+     * Viene eseguito al montaggio del componente e può essere richiamato per aggiornare i dati.
+     */
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
@@ -99,17 +133,22 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         fetchData();
     }, [fetchData]);
 
-    // --- MODIFICA: Aggiunta gestione errori con alert a tutte le funzioni CRUD ---
-
+    /**
+     * Wrapper generico per le chiamate API che gestisce la logica di ricaricamento dei dati e la visualizzazione degli errori.
+     * @param {() => Promise<any>} apiCall - La funzione che esegue la chiamata API.
+     * @param {string} errorMessage - Il messaggio di errore da mostrare in caso di fallimento.
+     */
     const handleApiCall = async (apiCall: () => Promise<any>, errorMessage: string) => {
         try {
             await apiCall();
-            await fetchData();
+            await fetchData(); // Ricarica tutti i dati dopo un'operazione andata a buon fine.
         } catch (error) {
             alert(`${errorMessage}: ${(error as Error).message}`);
             throw error; // Rilancia l'errore se il componente chiamante ha bisogno di gestirlo
         }
     };
+
+    // --- Funzioni CRUD per le varie entità ---
 
     const addClient = (client: Omit<Client, 'id'>) => handleApiCall(() => apiFetch('/api/clients', { method: 'POST', body: JSON.stringify(client) }), 'Errore aggiunta cliente');
     const updateClient = (client: Client) => handleApiCall(() => apiFetch(`/api/clients?id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }), 'Errore modifica cliente');
@@ -130,15 +169,26 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const addAssignment = (assignment: Omit<Assignment, 'id'>) => handleApiCall(() => apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }), 'Errore aggiunta assegnazione');
     const deleteAssignment = (assignmentId: string) => handleApiCall(() => apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' }), 'Errore eliminazione assegnazione');
     
+    /**
+     * Aggiorna una singola allocazione giornaliera.
+     * Utilizza una logica di "aggiornamento ottimistico": l'UI viene aggiornata immediatamente
+     * e, in caso di errore della chiamata API, lo stato viene ripristinato.
+     * @param {string} assignmentId - L'ID dell'assegnazione da modificare.
+     * @param {string} date - La data (YYYY-MM-DD) dell'allocazione.
+     * @param {number} percentage - La nuova percentuale di allocazione.
+     */
     const updateAllocation = async (assignmentId: string, date: string, percentage: number) => {
-        // COMMENTO: Implementata logica di "aggiornamento ottimistico" con rollback in caso di errore.
         const previousAllocations = JSON.parse(JSON.stringify(allocations)); // Deep copy per il rollback
         
+        // Aggiornamento ottimistico dello stato locale
         setAllocations(prev => {
             const newAllocations = JSON.parse(JSON.stringify(prev));
             if (!newAllocations[assignmentId]) newAllocations[assignmentId] = {};
-            if (percentage === 0) delete newAllocations[assignmentId][date];
-            else newAllocations[assignmentId][date] = percentage;
+            if (percentage === 0) {
+                delete newAllocations[assignmentId][date];
+            } else {
+                newAllocations[assignmentId][date] = percentage;
+            }
             return newAllocations;
         });
 
@@ -146,23 +196,32 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
             await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
         } catch (error) {
             alert(`Errore modifica allocazione: ${(error as Error).message}`);
-            setAllocations(previousAllocations); // Ripristina lo stato precedente in caso di errore
+            setAllocations(previousAllocations); // Rollback in caso di errore
         }
     };
     
+    /**
+     * Esegue un aggiornamento massivo delle allocazioni per un dato intervallo di date.
+     * @param {string} assignmentId - L'ID dell'assegnazione.
+     * @param {string} startDate - La data di inizio (YYYY-MM-DD).
+     * @param {string} endDate - La data di fine (YYYY-MM-DD).
+     * @param {number} percentage - La percentuale da applicare a tutti i giorni lavorativi nell'intervallo.
+     */
     const bulkUpdateAllocations = async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
         const updates = [];
         const start = new Date(startDate);
         const end = new Date(endDate);
         for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
             const dayOfWeek = d.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Skip weekends
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Salta i weekend
                 const dateStr = d.toISOString().split('T')[0];
                 updates.push({ assignmentId, date: dateStr, percentage });
             }
         }
         await handleApiCall(() => apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) }), 'Errore aggiornamento massivo');
     };
+
+    // --- Funzioni CRUD per le opzioni di configurazione ---
 
     const addConfigOption = (type: keyof ConfigLists, value: string) => handleApiCall(() => apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }), 'Errore aggiunta opzione');
     const updateConfigOption = (type: keyof ConfigLists, option: ConfigOption) => handleApiCall(() => apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify(option) }), 'Errore modifica opzione');
@@ -188,6 +247,11 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     );
 };
 
+/**
+ * Hook personalizzato per accedere facilmente al contesto di staffing.
+ * @returns {StaffingContextType} Il valore del contesto.
+ * @throws {Error} Se usato al di fuori di un `StaffingProvider`.
+ */
 export const useStaffingContext = () => {
     const context = useContext(StaffingContext);
     if (!context) {

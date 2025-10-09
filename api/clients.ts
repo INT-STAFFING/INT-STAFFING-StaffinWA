@@ -1,13 +1,24 @@
+/**
+ * @file api/clients.ts
+ * @description Endpoint API per la gestione delle operazioni CRUD sull'entità Clienti.
+ */
+
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Gestore della richiesta API per l'endpoint /api/clients.
+ * @param {VercelRequest} req - L'oggetto della richiesta Vercel.
+ * @param {VercelResponse} res - L'oggetto della risposta Vercel.
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
-    const { id } = req.query;
+    const { id } = req.query; // L'ID del cliente per le operazioni PUT e DELETE
     
     switch (method) {
         case 'POST':
+            // Gestisce la creazione di un nuovo cliente.
             try {
                 const { name, sector, contactEmail } = req.body;
                 const newId = uuidv4();
@@ -17,14 +28,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
-                // COMMENTO: Aggiunta gestione per nomi duplicati.
+                // Gestisce l'errore di violazione del vincolo di unicità sul nome del cliente.
                 if ((error as any).code === '23505') { // unique_violation
                     return res.status(409).json({ error: `Un cliente con nome '${req.body.name}' esiste già.` });
                 }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
+
         case 'PUT':
+            // Gestisce la modifica di un cliente esistente.
             try {
                 const { name, sector, contactEmail } = req.body;
                 await db.sql`
@@ -34,26 +47,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `;
                 res.status(200).json({ id, ...req.body });
             } catch (error) {
-                // COMMENTO: Aggiunta gestione per nomi duplicati.
+                // Gestisce l'errore di violazione del vincolo di unicità sul nome del cliente.
                 if ((error as any).code === '23505') { // unique_violation
                     return res.status(409).json({ error: `Un cliente con nome '${req.body.name}' esiste già.` });
                 }
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
+
         case 'DELETE':
+            // Gestisce l'eliminazione di un cliente.
             try {
-                // COMMENTO: Aggiunto controllo per impedire l'eliminazione di un cliente se ha progetti associati.
+                // Impedisce l'eliminazione se il cliente ha ancora progetti associati.
                 const { rows } = await db.sql`SELECT COUNT(*) FROM projects WHERE client_id = ${id as string};`;
                 if (rows[0].count > 0) {
                     return res.status(409).json({ error: `Impossibile eliminare il cliente. È ancora associato a ${rows[0].count} progetto/i.` });
                 }
                 await db.sql`DELETE FROM clients WHERE id = ${id as string};`;
-                res.status(204).end();
+                res.status(204).end(); // No Content
             } catch (error) {
                 res.status(500).json({ error: (error as Error).message });
             }
             break;
+            
         default:
             res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
             res.status(405).end(`Method ${method} Not Allowed`);
