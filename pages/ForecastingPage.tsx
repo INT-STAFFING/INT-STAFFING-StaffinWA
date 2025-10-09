@@ -13,17 +13,44 @@ import { getWorkingDaysBetween } from '../utils/dateUtils';
  * @returns {React.ReactElement} La pagina di Forecasting.
  */
 const ForecastingPage: React.FC = () => {
-    const { resources, assignments, allocations, horizontals } = useStaffingContext();
+    const { resources, assignments, allocations, horizontals, clients, projects } = useStaffingContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     const [selectedHorizontal, setSelectedHorizontal] = useState('');
+    const [selectedClient, setSelectedClient] = useState('');
+    const [selectedProject, setSelectedProject] = useState('');
+    
+    const availableProjects = useMemo(() => {
+        if (!selectedClient) {
+            return projects;
+        }
+        return projects.filter(p => p.clientId === selectedClient);
+    }, [projects, selectedClient]);
+
 
     const forecastData = useMemo(() => {
         const results = [];
         const today = new Date();
 
-        const filteredResources = selectedHorizontal
-            ? resources.filter(r => r.horizontal === selectedHorizontal)
-            : resources;
+        let filteredResources = [...resources];
+
+        if (selectedHorizontal) {
+            filteredResources = filteredResources.filter(r => r.horizontal === selectedHorizontal);
+        }
+        
+        if (selectedProject) {
+            const resourceIdsInProject = new Set(
+                assignments.filter(a => a.projectId === selectedProject).map(a => a.resourceId)
+            );
+            filteredResources = filteredResources.filter(r => resourceIdsInProject.has(r.id!));
+        } else if (selectedClient) {
+            const projectIdsForClient = new Set(
+                projects.filter(p => p.clientId === selectedClient).map(p => p.id)
+            );
+            const resourceIdsForClient = new Set(
+                assignments.filter(a => projectIdsForClient.has(a.projectId!)).map(a => a.resourceId)
+            );
+            filteredResources = filteredResources.filter(r => resourceIdsForClient.has(r.id!));
+        }
         
         const totalResources = filteredResources.length;
 
@@ -65,7 +92,7 @@ const ForecastingPage: React.FC = () => {
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, selectedHorizontal]);
+    }, [resources, assignments, allocations, forecastHorizon, selectedHorizontal, selectedClient, selectedProject, projects]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 
@@ -77,23 +104,63 @@ const ForecastingPage: React.FC = () => {
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Forecasting & Capacity</h1>
-                <div className="w-full md:w-64">
-                    <label htmlFor="horizontal-filter" className="sr-only">Filtra per Horizontal</label>
-                    <select
-                        id="horizontal-filter"
-                        value={selectedHorizontal}
-                        onChange={(e) => setSelectedHorizontal(e.target.value)}
-                        className="form-select w-full"
-                    >
-                        <option value="">Tutti gli Horizontal</option>
-                        {horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => (
-                            <option key={h.id} value={h.value}>{h.value}</option>
-                        ))}
-                    </select>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Forecasting & Capacity</h1>
+
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label htmlFor="horizontal-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Horizontal</label>
+                        <select
+                            id="horizontal-filter"
+                            value={selectedHorizontal}
+                            onChange={(e) => setSelectedHorizontal(e.target.value)}
+                            className="mt-1 form-select w-full"
+                        >
+                            <option value="">Tutti</option>
+                            {horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => (
+                                <option key={h.id} value={h.value}>{h.value}</option>
+                            ))}
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="client-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                        <select
+                            id="client-filter"
+                            value={selectedClient}
+                            onChange={(e) => {
+                                setSelectedClient(e.target.value);
+                                setSelectedProject(''); // Reset project filter when client changes
+                            }}
+                            className="mt-1 form-select w-full"
+                        >
+                            <option value="">Tutti</option>
+                            {clients.sort((a,b) => a.name.localeCompare(b.name)).map(c => (
+                                <option key={c.id} value={c.id!}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="project-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <select
+                            id="project-filter"
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="mt-1 form-select w-full"
+                        >
+                            <option value="">Tutti</option>
+                            {availableProjects.sort((a,b) => a.name.localeCompare(b.name)).map(p => (
+                                <option key={p.id} value={p.id!}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <button onClick={() => {
+                        setSelectedHorizontal('');
+                        setSelectedClient('');
+                        setSelectedProject('');
+                    }} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                 </div>
             </div>
+
 
             {/* Grafico Utilizzo */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
@@ -153,7 +220,7 @@ const ForecastingPage: React.FC = () => {
                     </tbody>
                 </table>
             </div>
-             <style>{`.form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };

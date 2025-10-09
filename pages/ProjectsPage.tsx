@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 
 /**
@@ -99,7 +100,7 @@ const ProjectsPage: React.FC = () => {
             handleCloseModal();
         }
     };
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (editingProject) {
             const { name, value } = e.target;
             const numericFields = ['budget', 'realizationPercentage'];
@@ -107,14 +108,26 @@ const ProjectsPage: React.FC = () => {
         }
     };
 
+    const handleSelectChange = (name: string, value: string) => {
+        if (editingProject) {
+            setEditingProject({ ...editingProject, [name]: value });
+        }
+    };
+
     const handleStartInlineEdit = (project: Project) => { setInlineEditingId(project.id!); setInlineEditingData({ ...project }); };
     const handleCancelInlineEdit = () => { setInlineEditingId(null); setInlineEditingData(null); };
 
-    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) {
             const { name, value } = e.target;
             const numericFields = ['budget', 'realizationPercentage'];
             setInlineEditingData({ ...inlineEditingData, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value });
+        }
+    };
+    
+    const handleInlineSelectChange = (name: string, value: string) => {
+        if (inlineEditingData) {
+            setInlineEditingData({ ...inlineEditingData, [name]: value });
         }
     };
 
@@ -137,6 +150,9 @@ const ProjectsPage: React.FC = () => {
             </button>
         </th>
     );
+
+    const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
+    const statusOptions = useMemo(() => projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
     
     return (
         <div>
@@ -177,8 +193,8 @@ const ProjectsPage: React.FC = () => {
                                     return (
                                         <tr key={project.id}>
                                             <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                            <td className="px-6 py-4"><select name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessun cliente</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
-                                            <td className="px-6 py-4"><select name="status" value={inlineEditingData!.status || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessuno stato</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
+                                            <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
+                                            <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
                                             <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                                             <td className="px-6 py-4"><input type="number" name="realizationPercentage" value={inlineEditingData!.realizationPercentage} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                                             <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
@@ -216,8 +232,8 @@ const ProjectsPage: React.FC = () => {
                                 <div key={project.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
                                     <div className="space-y-3">
                                         <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Cliente</label><select name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessun cliente</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Stato</label><select name="status" value={inlineEditingData!.status || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessuno stato</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
@@ -256,7 +272,13 @@ const ProjectsPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingProject ? 'Modifica Progetto' : 'Aggiungi Progetto'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Progetto *"/>
-                        <select name="clientId" value={editingProject.clientId || ''} onChange={handleChange} className="w-full form-select"><option value="">Seleziona un cliente</option>{clients.sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                        <SearchableSelect
+                            name="clientId"
+                            value={editingProject.clientId || ''}
+                            onChange={handleSelectChange}
+                            options={clientOptions}
+                            placeholder="Seleziona un cliente"
+                        />
                         <div className="grid grid-cols-2 gap-4"><input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="w-full form-input"/><input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="w-full form-input"/></div>
                         <div className="grid grid-cols-2 gap-4 items-center"><input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input" placeholder="Budget (€)"/>
                             <div>
@@ -265,7 +287,13 @@ const ProjectsPage: React.FC = () => {
                             </div>
                         </div>
                          <input type="text" name="projectManager" value={editingProject.projectManager || ''} onChange={handleChange} className="w-full form-input" placeholder="Project Manager"/>
-                         <select name="status" value={editingProject.status || ''} onChange={handleChange} className="w-full form-select"><option value="">Nessuno stato</option>{projectStatuses.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                         <SearchableSelect
+                            name="status"
+                            value={editingProject.status || ''}
+                            onChange={handleSelectChange}
+                            options={statusOptions}
+                            placeholder="Nessuno stato"
+                        />
                          <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea" placeholder="Note"></textarea>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>

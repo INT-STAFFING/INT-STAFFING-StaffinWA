@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 
 /**
@@ -94,22 +95,34 @@ const RolesPage: React.FC = () => {
         }
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (editingRole) {
             const { name, value } = e.target;
             const numericFields = ['dailyCost'];
             setEditingRole({ ...editingRole, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value } as Role | Omit<Role, 'id'>);
         }
     };
+
+    const handleSelectChange = (name: string, value: string) => {
+        if (editingRole) {
+            setEditingRole({ ...editingRole, [name]: value });
+        }
+    };
     
     const handleStartInlineEdit = (role: Role) => { setInlineEditingId(role.id!); setInlineEditingData({ ...role }); };
     const handleCancelInlineEdit = () => { setInlineEditingId(null); setInlineEditingData(null); };
 
-    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) {
             const { name, value } = e.target;
             const isNumeric = name === 'dailyCost';
             setInlineEditingData({ ...inlineEditingData, [name]: isNumeric ? parseFloat(value) || 0 : value });
+        }
+    };
+    
+    const handleInlineSelectChange = (name: string, value: string) => {
+        if (inlineEditingData) {
+            setInlineEditingData({ ...inlineEditingData, [name]: value });
         }
     };
 
@@ -123,6 +136,8 @@ const RolesPage: React.FC = () => {
             </button>
         </th>
     );
+
+    const seniorityOptions = useMemo(() => seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [seniorityLevels]);
 
     return (
         <div>
@@ -158,7 +173,7 @@ const RolesPage: React.FC = () => {
                                     return (
                                     <tr key={role.id}>
                                         <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
-                                        <td className="px-6 py-4"><select name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineFormChange} className="w-full form-select p-1">{seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
+                                        <td className="px-6 py-4"><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></td>
                                         <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
                                     </tr>
@@ -191,7 +206,7 @@ const RolesPage: React.FC = () => {
                                 <div key={role.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
                                     <div className="space-y-3">
                                         <div><label className="text-xs font-medium text-gray-500">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><select name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineFormChange} className="w-full form-select p-1">{seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
                                         <div><label className="text-xs font-medium text-gray-500">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
@@ -227,7 +242,14 @@ const RolesPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Ruolo *"/>
-                        <select name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleChange} required className="w-full form-select">{seniorityLevels.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                        <SearchableSelect
+                            name="seniorityLevel"
+                            value={editingRole.seniorityLevel}
+                            onChange={handleSelectChange}
+                            options={seniorityOptions}
+                            placeholder="Seleziona un livello"
+                            required
+                        />
                         <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input" placeholder="Costo Giornaliero (€)"/>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>

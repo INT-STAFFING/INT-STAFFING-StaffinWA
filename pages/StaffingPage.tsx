@@ -9,6 +9,7 @@ import { Resource, Project, Assignment } from '../types';
 import { getWorkingDays, formatDate, addDays } from '../utils/dateUtils';
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 
 /**
  * @interface AllocationCellProps
@@ -160,6 +161,10 @@ const StaffingPage: React.FC = () => {
             setAssignmentModalOpen(false);
             setNewAssignmentData({ resourceId: '', projectId: '' });
         }
+    };
+    
+    const handleNewAssignmentChange = (name: string, value: string) => {
+        setNewAssignmentData(d => ({ ...d, [name]: value }));
     };
 
     /**
@@ -360,17 +365,25 @@ const StaffingPage: React.FC = () => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
-                            <select required value={newAssignmentData.resourceId} onChange={e => setNewAssignmentData(d => ({...d, resourceId: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                <option value="">Seleziona una risorsa</option>
-                                {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
+                            <SearchableSelect
+                                name="resourceId"
+                                value={newAssignmentData.resourceId}
+                                onChange={handleNewAssignmentChange}
+                                options={resources.map(r => ({ value: r.id!, label: r.name }))}
+                                placeholder="Seleziona una risorsa"
+                                required
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
-                            <select required value={newAssignmentData.projectId} onChange={e => setNewAssignmentData(d => ({...d, projectId: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                <option value="">Seleziona un progetto</option>
-                                {assignableProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
+                            <SearchableSelect
+                                name="projectId"
+                                value={newAssignmentData.projectId}
+                                onChange={handleNewAssignmentChange}
+                                options={assignableProjects.map(p => ({ value: p.id!, label: p.name }))}
+                                placeholder="Seleziona un progetto"
+                                required
+                            />
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
@@ -394,6 +407,21 @@ const StaffingPage: React.FC = () => {
                     border-color: #4B5563;
                     background-color: #374151;
                     color: #F9FAFB;
+                }
+                .form-input { 
+                    display: block; 
+                    width: 100%; 
+                    border-radius: 0.375rem; 
+                    border: 1px solid #D1D5DB; 
+                    background-color: #FFFFFF; 
+                    padding: 0.5rem 0.75rem; 
+                    font-size: 0.875rem; 
+                    line-height: 1.25rem; 
+                } 
+                .dark .form-input { 
+                    border-color: #4B5563; 
+                    background-color: #374151; 
+                    color: #F9FAFB; 
                 }
             `}</style>
         </div>

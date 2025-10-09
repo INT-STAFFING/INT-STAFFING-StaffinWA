@@ -7,6 +7,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Resource } from '../types';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
 
@@ -153,19 +154,32 @@ const ResourcesPage: React.FC = () => {
         }
     };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (editingResource) {
             const { name, value } = e.target;
             const numericFields = ['workSeniority'];
             setEditingResource({ ...editingResource, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value });
         }
     };
+    
+    const handleSelectChange = (name: string, value: string) => {
+        if (editingResource) {
+            setEditingResource({ ...editingResource, [name]: value });
+        }
+    };
 
     const handleStartInlineEdit = (resource: Resource) => { setInlineEditingId(resource.id!); setInlineEditingData({ ...resource }); };
     const handleCancelInlineEdit = () => { setInlineEditingId(null); setInlineEditingData(null); };
-    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [e.target.name]: e.target.value });
     };
+    
+    const handleInlineSelectChange = (name: string, value: string) => {
+        if (inlineEditingData) {
+            setInlineEditingData({ ...inlineEditingData, [name]: value });
+        }
+    };
+    
     const handleSaveInlineEdit = () => { if (inlineEditingData) { updateResource(inlineEditingData); handleCancelInlineEdit(); } };
     
     const getSortableHeader = (label: string, key: SortConfig['key']) => (
@@ -176,6 +190,10 @@ const ResourcesPage: React.FC = () => {
             </button>
         </th>
     );
+
+    const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);
+    const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
+
 
     return (
         <div>
@@ -223,8 +241,8 @@ const ResourcesPage: React.FC = () => {
                                     return (
                                     <tr key={resource.id}>
                                         <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
-                                        <td className="px-6 py-4"><select name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></td>
-                                        <td className="px-6 py-4"><select name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}</select></td>
+                                        <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
+                                        <td className="px-6 py-4"><SearchableSelect name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal"/></td>
                                         <td className="px-6 py-4 text-sm">{formatCurrency(roles.find(r => r.id === inlineEditingData!.roleId)?.dailyCost || 0)}</td>
                                         <td className={`px-6 py-4 text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
                                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
@@ -265,8 +283,8 @@ const ResourcesPage: React.FC = () => {
                                     <div className="space-y-3">
                                         <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Ruolo</label><select name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Horizontal</label><select name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Ruolo</label><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo"/></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Horizontal</label><SearchableSelect name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal"/></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
                                             <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
@@ -309,8 +327,22 @@ const ResourcesPage: React.FC = () => {
                             <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input" placeholder="Email *"/>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <select name="roleId" value={editingResource.roleId} onChange={handleChange} required className="form-select">{roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
-                            <select name="horizontal" value={editingResource.horizontal} onChange={handleChange} required className="form-select">{horizontals.sort((a, b) => a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}</select>
+                           <SearchableSelect
+                                name="roleId"
+                                value={editingResource.roleId}
+                                onChange={handleSelectChange}
+                                options={roleOptions}
+                                placeholder="Seleziona un ruolo *"
+                                required
+                            />
+                            <SearchableSelect
+                                name="horizontal"
+                                value={editingResource.horizontal}
+                                onChange={handleSelectChange}
+                                options={horizontalOptions}
+                                placeholder="Seleziona un horizontal *"
+                                required
+                            />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>

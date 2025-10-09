@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 
 /**
@@ -80,15 +81,28 @@ const ClientsPage: React.FC = () => {
             handleCloseModal();
         }
     };
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (editingClient) setEditingClient({ ...editingClient, [e.target.name]: e.target.value });
+    };
+
+    const handleSelectChange = (name: string, value: string) => {
+        if (editingClient) {
+            setEditingClient({ ...editingClient, [name]: value });
+        }
     };
 
     const handleStartInlineEdit = (client: Client) => { setInlineEditingId(client.id!); setInlineEditingData({ ...client }); };
     const handleCancelInlineEdit = () => { setInlineEditingId(null); setInlineEditingData(null); };
-    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [e.target.name]: e.target.value });
     };
+
+    const handleInlineSelectChange = (name: string, value: string) => {
+        if (inlineEditingData) {
+            setInlineEditingData({ ...inlineEditingData, [name]: value });
+        }
+    };
+
     const handleSaveInlineEdit = () => { if (inlineEditingData) { updateClient(inlineEditingData); handleCancelInlineEdit(); } };
 
     const getSortableHeader = (label: string, key: keyof Client) => (
@@ -99,6 +113,8 @@ const ClientsPage: React.FC = () => {
             </button>
         </th>
     );
+
+    const sectorOptions = useMemo(() => clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [clientSectors]);
 
     return (
         <div>
@@ -134,7 +150,7 @@ const ClientsPage: React.FC = () => {
                                     return (
                                     <tr key={client.id}>
                                         <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                        <td className="px-6 py-4"><select name="sector" value={inlineEditingData!.sector} onChange={handleInlineFormChange} className="w-full form-select p-1">{clientSectors.sort((a,b)=> a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
+                                        <td className="px-6 py-4"><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></td>
                                         <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
                                     </tr>
@@ -167,7 +183,7 @@ const ClientsPage: React.FC = () => {
                                 <div key={client.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
                                     <div className="space-y-3">
                                         <div><label className="text-xs font-medium text-gray-500">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Settore</label><select name="sector" value={inlineEditingData!.sector} onChange={handleInlineFormChange} className="w-full form-select p-1">{clientSectors.sort((a,b)=> a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Settore</label><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
@@ -203,7 +219,13 @@ const ClientsPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Cliente *"/>
-                        <select name="sector" value={editingClient.sector} onChange={handleChange} className="w-full form-select">{clientSectors.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                        <SearchableSelect
+                            name="sector"
+                            value={editingClient.sector}
+                            onChange={handleSelectChange}
+                            options={sectorOptions}
+                            placeholder="Seleziona un settore"
+                        />
                         <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input" placeholder="Email Contatto *"/>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
