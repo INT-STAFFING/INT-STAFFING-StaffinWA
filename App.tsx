@@ -16,6 +16,8 @@ import DashboardPage from './pages/DashboardPage';
 import ExportPage from './pages/ExportPage';
 import ConfigPage from './pages/ConfigPage';
 import ImportPage from './pages/ImportPage';
+import ForecastingPage from './pages/ForecastingPage';
+import GanttPage from './pages/GanttPage';
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -48,6 +50,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         switch (path) {
             case 'staffing': return 'Staffing';
             case 'dashboard': return 'Dashboard';
+            case 'forecasting': return 'Forecasting & Capacity';
+            case 'gantt': return 'Gantt Progetti';
             case 'resources': return 'Gestione Risorse';
             case 'projects': return 'Gestione Progetti';
             case 'clients': return 'Gestione Clienti';
@@ -119,6 +123,8 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/clients" element={<ClientsPage />} />
                         <Route path="/roles" element={<RolesPage />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/forecasting" element={<ForecastingPage />} />
+                        <Route path="/gantt" element={<GanttPage />} />
                         <Route path="/export" element={<ExportPage />} />
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />

@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -72,6 +72,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <ChartBarIcon className="w-6 h-6 mr-3" />
                     Dashboard
                 </NavLink>
+
+                <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Analisi</div>
+                <NavLink to="/forecasting" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                    <PresentationChartLineIcon className="w-6 h-6 mr-3" />
+                    Forecasting
+                </NavLink>
+                <NavLink to="/gantt" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                    <Bars4Icon className="w-6 h-6 mr-3" />
+                    Gantt Progetti
+                </NavLink>
+
                 <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>
                 <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <UsersIcon className="w-6 h-6 mr-3" />

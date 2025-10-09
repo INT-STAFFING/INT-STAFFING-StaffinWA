@@ -125,3 +125,21 @@ export const ArrowsUpDownIcon: React.FC<{ className?: string }> = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
   </svg>
 );
+
+/** Icona per grafico a linea, usata per Forecasting. */
+export const PresentationChartLineIcon: React.FC<{ className?: string }> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h12A2.25 2.25 0 0020.25 14.25V3M3.75 21h16.5M12 3v18m0 0l-3.75-3.75M12 21l3.75-3.75" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5l3-3 4.5 4.5 6-6" />
+    </svg>
+);
+
+/** Icona a barre, usata per Gantt. */
+export const Bars4Icon: React.FC<{ className?: string }> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5" />
+  </svg>
+);
