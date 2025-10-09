@@ -70,14 +70,6 @@ export const PencilIcon: React.FC<{ className?: string }> = (props) => (
     </svg>
 );
 
-/** Icona matita su foglio, per avviare la modifica inline. */
-export const PencilSquareIcon: React.FC<{ className?: string }> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 19.82a2.25 2.25 0 01-1.897 1.13l-2.685.8.8-2.685a2.25 2.25 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 21H6.75A2.25 2.25 0 014.5 18.75V8.25A2.25 2.25 0 016.75 6H15a2.25 2.25 0 012.25 2.25v.5" />
-    </svg>
-);
-
 /** Icona cestino, per l'azione di eliminazione. */
 export const TrashIcon: React.FC<{ className?: string }> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>

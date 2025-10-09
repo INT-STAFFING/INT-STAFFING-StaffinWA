@@ -26,15 +26,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     INSERT INTO clients (id, name, sector, contact_email)
                     VALUES (${newId}, ${name}, ${sector}, ${contactEmail});
                 `;
-                res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
                 // Gestisce l'errore di violazione del vincolo di unicità sul nome del cliente.
                 if ((error as any).code === '23505') { // unique_violation
                     return res.status(409).json({ error: `Un cliente con nome '${req.body.name}' esiste già.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'PUT':
             // Gestisce la modifica di un cliente esistente.
@@ -45,15 +44,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     SET name = ${name}, sector = ${sector}, contact_email = ${contactEmail}
                     WHERE id = ${id as string};
                 `;
-                res.status(200).json({ id, ...req.body });
+                return res.status(200).json({ id, ...req.body });
             } catch (error) {
                 // Gestisce l'errore di violazione del vincolo di unicità sul nome del cliente.
                 if ((error as any).code === '23505') { // unique_violation
                     return res.status(409).json({ error: `Un cliente con nome '${req.body.name}' esiste già.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'DELETE':
             // Gestisce l'eliminazione di un cliente.
@@ -64,14 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(409).json({ error: `Impossibile eliminare il cliente. È ancora associato a ${rows[0].count} progetto/i.` });
                 }
                 await db.sql`DELETE FROM clients WHERE id = ${id as string};`;
-                res.status(204).end(); // No Content
+                return res.status(204).end(); // No Content
             } catch (error) {
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
             
         default:
             res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-            res.status(405).end(`Method ${method} Not Allowed`);
+            return res.status(405).end(`Method ${method} Not Allowed`);
     }
 }

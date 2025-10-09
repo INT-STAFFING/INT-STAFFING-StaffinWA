@@ -5,7 +5,11 @@ if (process.env.NEON_POSTGRES_URL && !process.env.POSTGRES_URL) {
   process.env.POSTGRES_URL = process.env.NEON_POSTGRES_URL;
 }
 
-import { db } from '@vercel/postgres';
+import { createPool } from '@vercel/postgres';
+
+const db = createPool({
+    connectionString: process.env.POSTGRES_URL,
+});
 
 function generateSampleData() {
     // Configuration Data

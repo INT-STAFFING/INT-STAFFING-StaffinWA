@@ -7,7 +7,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Resource } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
 
 /**
@@ -141,7 +141,7 @@ const ResourcesPage: React.FC = () => {
     };
 
     const openModalForNew = () => { setEditingResource(emptyResource); setIsModalOpen(true); };
-    const openModalForEdit = (resource: Resource) => { setEditingResource(resource); setIsModalOpen(true); };
+    const openModalForEdit = (resource: Resource) => { setEditingResource(resource); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingResource(null); };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -170,9 +170,9 @@ const ResourcesPage: React.FC = () => {
     
     const getSortableHeader = (label: string, key: SortConfig['key']) => (
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-700 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4" />
+            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
+                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
+                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
             </button>
         </th>
     );
@@ -189,67 +189,116 @@ const ResourcesPage: React.FC = () => {
                     <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
                     <select name="roleId" value={filters.roleId} onChange={handleFilterChange} className="w-full form-select">
                         <option value="">Tutti i ruoli</option>
-                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        {roles.sort((a,b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                     <select name="horizontal" value={filters.horizontal} onChange={handleFilterChange} className="w-full form-select">
                         <option value="">Tutti gli horizontal</option>
-                        {horizontals.map(h => <option key={h.id} value={h.value}>{h.value}</option>)}
+                        {horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}
                     </select>
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y md:divide-y-0 divide-gray-200 dark:divide-gray-700">
-                    <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            {getSortableHeader('Nome', 'name')}
-                            {getSortableHeader('Ruolo', 'roleId')}
-                            {getSortableHeader('Horizontal', 'horizontal')}
-                            {getSortableHeader('Costo Giornaliero', 'dailyCost')}
-                            {getSortableHeader('Alloc. Media', 'allocation')}
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody className="block md:table-row-group divide-y divide-gray-200 dark:divide-gray-700">
-                        {sortedResources.map(resource => {
-                            const role = roles.find(r => r.id === resource.roleId);
-                            const allocation = calculateResourceAllocation(resource.id!);
-                            const isEditing = inlineEditingId === resource.id;
-
-                            if (isEditing) {
-                                // Riga in modalità modifica inline
-                                return (
-                                <tr key={resource.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                    <td data-label="Nome"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
-                                    <td data-label="Ruolo"><select name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></td>
-                                    <td data-label="Horizontal"><select name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}</select></td>
-                                    <td data-label="Costo">{formatCurrency(roles.find(r => r.id === inlineEditingData!.roleId)?.dailyCost || 0)}</td>
-                                    <td data-label="Allocazione" className={getAllocationColor(allocation)}>{allocation}%</td>
-                                    <td data-label="Azioni" className="text-right"><button onClick={handleSaveInlineEdit} className="text-green-600"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="text-gray-600"><XMarkIcon className="w-5 h-5"/></button></td>
-                                </tr>
-                                )
-                            }
-                            
-                            // Riga in modalità visualizzazione
-                            return (
-                            <tr key={resource.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                <td data-label="Nome"><div>{resource.name}</div><div className="text-xs text-gray-400">{resource.email}</div></td>
-                                <td data-label="Ruolo">{role?.name || 'N/A'}</td>
-                                <td data-label="Horizontal">{resource.horizontal}</td>
-                                <td data-label="Costo">{formatCurrency(role?.dailyCost || 0)}</td>
-                                <td data-label="Allocazione" className={getAllocationColor(allocation)}>{allocation}%</td>
-                                <td className="text-right">
-                                    <div className="flex items-center justify-end space-x-2">
-                                        <button onClick={() => openModalForEdit(resource)}><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(resource)}><PencilSquareIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteResource(resource.id!)}><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </td>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                                {getSortableHeader('Nome', 'name')}
+                                {getSortableHeader('Ruolo', 'roleId')}
+                                {getSortableHeader('Horizontal', 'horizontal')}
+                                {getSortableHeader('Costo Giornaliero', 'dailyCost')}
+                                {getSortableHeader('Alloc. Media', 'allocation')}
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
-                        )})}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {sortedResources.map(resource => {
+                                const role = roles.find(r => r.id === resource.roleId);
+                                const allocation = calculateResourceAllocation(resource.id!);
+                                const isEditing = inlineEditingId === resource.id;
+
+                                if (isEditing) {
+                                    return (
+                                    <tr key={resource.id}>
+                                        <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
+                                        <td className="px-6 py-4"><select name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></td>
+                                        <td className="px-6 py-4"><select name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}</select></td>
+                                        <td className="px-6 py-4 text-sm">{formatCurrency(roles.find(r => r.id === inlineEditingData!.roleId)?.dailyCost || 0)}</td>
+                                        <td className={`px-6 py-4 text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
+                                        <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
+                                    </tr>
+                                    )
+                                }
+                                
+                                return (
+                                <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-6 py-4 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{resource.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</div></td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{resource.horizontal}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyCost || 0)}</td>
+                                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )})}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden p-4 space-y-4">
+                     {sortedResources.map(resource => {
+                        const role = roles.find(r => r.id === resource.roleId);
+                        const allocation = calculateResourceAllocation(resource.id!);
+                        const isEditing = inlineEditingId === resource.id;
+
+                        if (isEditing) {
+                            return (
+                                <div key={resource.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                                    <div className="space-y-3">
+                                        <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Ruolo</label><select name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Horizontal</label><select name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">{horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => <option key={h.id} value={h.value}>{h.value}</option>)}</select></div>
+                                        <div className="flex justify-end space-x-2 pt-2">
+                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
+                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        return (
+                            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</p>
+                                    </div>
+                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => handleStartInlineEdit(resource)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                                    <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{role?.name || 'N/A'}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Horizontal</p><p className="text-gray-900 dark:text-white font-medium">{resource.horizontal}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyCost || 0)}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</p></div>
+                                </div>
+                            </div>
+                        )
+                     })}
+                </div>
             </div>
 
             {editingResource && (

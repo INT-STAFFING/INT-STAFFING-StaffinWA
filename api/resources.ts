@@ -26,15 +26,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, notes)
                     VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${hireDate}, ${workSeniority}, ${notes});
                 `;
-                res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità sull'email.
                 if ((error as any).code === '23505') {
                     return res.status(409).json({ error: `Una risorsa con email '${req.body.email}' esiste già.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'PUT':
             // Gestisce la modifica di una risorsa esistente.
@@ -45,15 +44,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}
                     WHERE id = ${id as string};
                 `;
-                res.status(200).json({ id, ...req.body });
+                return res.status(200).json({ id, ...req.body });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità sull'email.
                 if ((error as any).code === '23505') {
                     return res.status(409).json({ error: `Una risorsa con email '${req.body.email}' esiste già.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'DELETE':
             // Gestisce l'eliminazione di una risorsa e dei suoi dati correlati (assegnazioni, allocazioni).
@@ -76,17 +74,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await client.query('DELETE FROM resources WHERE id = $1', [id]);
                 
                 await client.query('COMMIT');
-                res.status(204).end();
+                return res.status(204).end();
             } catch (error) {
                 await client.query('ROLLBACK'); // Annulla la transazione in caso di errore.
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             } finally {
                 client.release();
             }
-            break;
             
         default:
             res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-            res.status(405).end(`Method ${method} Not Allowed`);
+            return res.status(405).end(`Method ${method} Not Allowed`);
     }
 }

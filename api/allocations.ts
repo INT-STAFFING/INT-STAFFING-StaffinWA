@@ -50,11 +50,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         await client.query('COMMIT');
-        res.status(200).json({ message: 'Allocations updated successfully' });
+        return res.status(200).json({ message: 'Allocations updated successfully' });
 
     } catch (error) {
         await client.query('ROLLBACK'); // Annulla la transazione in caso di errore.
-        res.status(500).json({ error: (error as Error).message });
+        return res.status(500).json({ error: (error as Error).message });
     } finally {
         client.release();
     }

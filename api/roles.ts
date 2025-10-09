@@ -26,15 +26,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     INSERT INTO roles (id, name, seniority_level, daily_cost)
                     VALUES (${newId}, ${name}, ${seniorityLevel}, ${dailyCost});
                 `;
-                res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità sul nome del ruolo.
                 if ((error as any).code === '23505') { // unique_violation
                     return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'PUT':
             // Gestisce la modifica di un ruolo esistente.
@@ -45,15 +44,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     SET name = ${name}, seniority_level = ${seniorityLevel}, daily_cost = ${dailyCost}
                     WHERE id = ${id as string};
                 `;
-                res.status(200).json({ id, ...req.body });
+                return res.status(200).json({ id, ...req.body });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità sul nome del ruolo.
                 if ((error as any).code === '23505') { // unique_violation
                     return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'DELETE':
             // Gestisce l'eliminazione di un ruolo.
@@ -64,14 +62,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(409).json({ error: `Impossibile eliminare il ruolo. È ancora assegnato a ${rows[0].count} risorsa/e.` });
                 }
                 await db.sql`DELETE FROM roles WHERE id = ${id as string};`;
-                res.status(204).end();
+                return res.status(204).end();
             } catch (error) {
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
             
         default:
             res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-            res.status(405).end(`Method ${method} Not Allowed`);
+            return res.status(405).end(`Method ${method} Not Allowed`);
     }
 }

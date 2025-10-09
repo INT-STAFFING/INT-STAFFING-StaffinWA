@@ -102,40 +102,58 @@ const DashboardPage: React.FC = () => {
     // --- Calcoli per le Card di Analisi Dettagliata ---
 
     /**
-     * @description Calcola l'allocazione media per risorsa su tutto il periodo, filtrabile.
+     * @description Calcola l'allocazione media per risorsa per il mese corrente e il mese prossimo.
      */
     const averageAllocationData = useMemo(() => {
-        const data: { [resourceId: string]: { total: number; count: number } } = {};
+        const now = new Date();
+        const currentMonthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const currentMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const nextMonthFirstDay = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const nextMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 2, 0);
 
-        for (const assignmentId in allocations) {
-            const assignment = assignments.find(a => a.id === assignmentId);
-            if (!assignment) continue;
+        const workingDaysCurrentMonth = getWorkingDaysBetween(currentMonthFirstDay, currentMonthLastDay);
+        const workingDaysNextMonth = getWorkingDaysBetween(nextMonthFirstDay, nextMonthLastDay);
+
+        let results = resources.map(resource => {
+            const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
             
-            const resourceId = assignment.resourceId;
-            if (!data[resourceId]) {
-                data[resourceId] = { total: 0, count: 0 };
-            }
+            let totalPersonDaysCurrentMonth = 0;
+            let totalPersonDaysNextMonth = 0;
 
-            for (const dateStr in allocations[assignmentId]) {
-                const percentage = allocations[assignmentId][dateStr];
-                data[resourceId].total += percentage;
-                data[resourceId].count += 1;
-            }
-        }
+            resourceAssignments.forEach(assignment => {
+                const assignmentAllocations = allocations[assignment.id];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = new Date(dateStr);
+                        const percentage = assignmentAllocations[dateStr];
+                        const personDayFraction = percentage / 100;
 
-        let results = Object.entries(data).map(([resourceId, value]) => {
-            const resource = resources.find(r => r.id === resourceId);
+                        if (allocDate >= currentMonthFirstDay && allocDate <= currentMonthLastDay) {
+                            totalPersonDaysCurrentMonth += personDayFraction;
+                        }
+                        
+                        if (allocDate >= nextMonthFirstDay && allocDate <= nextMonthLastDay) {
+                            totalPersonDaysNextMonth += personDayFraction;
+                        }
+                    }
+                }
+            });
+
+            const avgCurrentMonth = workingDaysCurrentMonth > 0 ? (totalPersonDaysCurrentMonth / workingDaysCurrentMonth) * 100 : 0;
+            const avgNextMonth = workingDaysNextMonth > 0 ? (totalPersonDaysNextMonth / workingDaysNextMonth) * 100 : 0;
+            
             const role = roles.find(r => r.id === resource?.roleId);
-            const avg = value.count > 0 ? value.total / value.count : 0;
-            return { resource, role, avg };
+
+            return { resource, role, avgCurrentMonth, avgNextMonth };
         });
 
         if (avgAllocFilter.resourceId) {
             results = results.filter(item => item.resource?.id === avgAllocFilter.resourceId);
         }
 
-        return results.filter(item => item.resource).sort((a, b) => a.resource!.name.localeCompare(b.resource!.name));
-    }, [allocations, assignments, resources, roles, avgAllocFilter]);
+        return results.sort((a, b) => a.resource!.name.localeCompare(b.resource!.name));
+
+    }, [resources, assignments, allocations, roles, avgAllocFilter]);
 
 
     /**
@@ -303,7 +321,17 @@ const DashboardPage: React.FC = () => {
     const budgetTotals = useMemo(() => budgetAnalysisData.reduce((acc, p) => ({ budget: acc.budget + p.fullBudget, cost: acc.cost + p.estimatedCost, variance: acc.variance + p.variance }), { budget: 0, cost: 0, variance: 0 }), [budgetAnalysisData]);
     const effortByClientTotals = useMemo(() => effortByClientData.reduce((acc, c) => ({ days: acc.days + c.totalPersonDays, budget: acc.budget + c.totalBudget }), { days: 0, budget: 0 }), [effortByClientData]);
     const effortByHorizontalTotal = useMemo(() => effortByHorizontalData.reduce((sum, h) => sum + h.totalPersonDays, 0), [effortByHorizontalData]);
-    const avgAllocationTotal = useMemo(() => averageAllocationData.length > 0 ? averageAllocationData.reduce((sum, d) => sum + d.avg, 0) / averageAllocationData.length : 0, [averageAllocationData]);
+    const avgAllocationTotals = useMemo(() => {
+        if (averageAllocationData.length === 0) {
+            return { currentMonth: 0, nextMonth: 0 };
+        }
+        const totalCurrent = averageAllocationData.reduce((sum, d) => sum + d.avgCurrentMonth, 0);
+        const totalNext = averageAllocationData.reduce((sum, d) => sum + d.avgNextMonth, 0);
+        return {
+            currentMonth: totalCurrent / averageAllocationData.length,
+            nextMonth: totalNext / averageAllocationData.length,
+        };
+    }, [averageAllocationData]);
 
     /**
      * Determina il colore del testo per l'allocazione media.
@@ -340,11 +368,40 @@ const DashboardPage: React.FC = () => {
                     </div>
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Media</th></tr></thead>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Mese Corrente</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Mese Prossimo</th>
+                                </tr>
+                            </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {averageAllocationData.map((data, index) => (<tr key={index}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{data.resource?.name}</div><div className="text-xs text-gray-500">{data.role?.name}</div></td><td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avg)}`}>{data.avg.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%</td></tr>))}
+                                {averageAllocationData.map((data, index) => (
+                                <tr key={index}>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                        <div>{data.resource?.name}</div>
+                                        <div className="text-xs text-gray-500">{data.role?.name}</div>
+                                    </td>
+                                    <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgCurrentMonth)}`}>
+                                        {data.avgCurrentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                    </td>
+                                    <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgNextMonth)}`}>
+                                        {data.avgNextMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                    </td>
+                                </tr>
+                                ))}
                             </tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Media Totale</td><td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotal)}`}>{avgAllocationTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%</td></tr></tfoot>
+                             <tfoot>
+                                 <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                                     <td className="px-4 py-2 text-left text-sm">Media Totale</td>
+                                     <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.currentMonth)}`}>
+                                        {avgAllocationTotals.currentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                     </td>
+                                     <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.nextMonth)}`}>
+                                        {avgAllocationTotals.nextMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                     </td>
+                                 </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>

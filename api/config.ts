@@ -46,11 +46,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     INSERT INTO ${tableName} (id, value)
                     VALUES ($1, $2);
                 `, [newId, value]);
-                res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'PUT':
             // Gestisce la modifica di un'opzione di configurazione esistente.
@@ -61,24 +60,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     SET value = $1
                     WHERE id = $2;
                 `, [value, id]);
-                res.status(200).json({ id, ...req.body });
+                return res.status(200).json({ id, ...req.body });
             } catch (error) {
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'DELETE':
             // Gestisce l'eliminazione di un'opzione di configurazione.
             try {
                 await db.query(`DELETE FROM ${tableName} WHERE id = $1;`, [id]);
-                res.status(204).end();
+                return res.status(204).end();
             } catch (error) {
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
             
         default:
             res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-            res.status(405).end(`Method ${method} Not Allowed`);
+            return res.status(405).end(`Method ${method} Not Allowed`);
     }
 }

@@ -7,7 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 
 /**
  * @type SortConfig
@@ -88,7 +88,7 @@ const ProjectsPage: React.FC = () => {
     const resetFilters = () => setFilters({ name: '', clientId: '', status: '' });
 
     const openModalForNew = () => { setEditingProject(emptyProject); setIsModalOpen(true); };
-    const openModalForEdit = (project: Project) => { setEditingProject(project); setIsModalOpen(true); };
+    const openModalForEdit = (project: Project) => { setEditingProject(project); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingProject(null); };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -131,9 +131,9 @@ const ProjectsPage: React.FC = () => {
 
     const getSortableHeader = (label: string, key: SortConfig['key']) => (
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-700 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4" />
+            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
+                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
+                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
             </button>
         </th>
     );
@@ -148,60 +148,108 @@ const ProjectsPage: React.FC = () => {
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <select name="clientId" value={filters.clientId} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti i clienti</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                    <select name="status" value={filters.status} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti gli stati</option>{projectStatuses.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                    <select name="clientId" value={filters.clientId} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti i clienti</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                    <select name="status" value={filters.status} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti gli stati</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y md:divide-y-0 divide-gray-200 dark:divide-gray-700">
-                    <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            {getSortableHeader('Nome Progetto', 'name')}
-                            {getSortableHeader('Cliente', 'clientName')}
-                            {getSortableHeader('Stato', 'status')}
-                            {getSortableHeader('Budget', 'budget')}
-                            {getSortableHeader('% Realizzo', 'realizationPercentage')}
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody className="block md:table-row-group divide-y divide-gray-200 dark:divide-gray-700">
-                        {sortedProjects.map(project => {
-                            const client = clients.find(c => c.id === project.clientId);
-                            const isEditing = inlineEditingId === project.id;
-                            
-                            if(isEditing){
-                                return (
-                                    <tr key={project.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                        <td data-label="Progetto"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                        <td data-label="Cliente"><select name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessun cliente</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
-                                        <td data-label="Stato"><select name="status" value={inlineEditingData!.status || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessuno stato</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
-                                        <td data-label="Budget"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                        <td data-label="% Realizzo"><input type="number" name="realizationPercentage" value={inlineEditingData!.realizationPercentage} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                        <td className="text-right"><button onClick={handleSaveInlineEdit}><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit}><XMarkIcon className="w-5 h-5"/></button></td>
-                                    </tr>
-                                );
-                            }
-
-                            return (
-                            <tr key={project.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                <td data-label="Progetto">{project.name}</td>
-                                <td data-label="Cliente">{client?.name || 'N/A'}</td>
-                                <td data-label="Stato"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></td>
-                                <td data-label="Budget">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</td>
-                                <td data-label="% Realizzo">{project.realizationPercentage}%</td>
-                                <td className="text-right">
-                                    <div className="flex items-center justify-end space-x-2">
-                                        <button onClick={() => openModalForEdit(project)}><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(project)}><PencilSquareIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteProject(project.id!)}><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </td>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                                {getSortableHeader('Nome Progetto', 'name')}
+                                {getSortableHeader('Cliente', 'clientName')}
+                                {getSortableHeader('Stato', 'status')}
+                                {getSortableHeader('Budget', 'budget')}
+                                {getSortableHeader('% Realizzo', 'realizationPercentage')}
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
-                        )})}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {sortedProjects.map(project => {
+                                const client = clients.find(c => c.id === project.clientId);
+                                const isEditing = inlineEditingId === project.id;
+                                
+                                if(isEditing){
+                                    return (
+                                        <tr key={project.id}>
+                                            <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                                            <td className="px-6 py-4"><select name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessun cliente</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td>
+                                            <td className="px-6 py-4"><select name="status" value={inlineEditingData!.status || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessuno stato</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
+                                            <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                                            <td className="px-6 py-4"><input type="number" name="realizationPercentage" value={inlineEditingData!.realizationPercentage} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                                            <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
+                                        </tr>
+                                    );
+                                }
+
+                                return (
+                                <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{project.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project.realizationPercentage}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )})}
+                        </tbody>
+                    </table>
+                </div>
+                 {/* Mobile Cards */}
+                <div className="md:hidden p-4 space-y-4">
+                    {sortedProjects.map(project => {
+                        const client = clients.find(c => c.id === project.clientId);
+                        const isEditing = inlineEditingId === project.id;
+
+                        if (isEditing) {
+                             return (
+                                <div key={project.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                                    <div className="space-y-3">
+                                        <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Cliente</label><select name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessun cliente</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Stato</label><select name="status" value={inlineEditingData!.status || ''} onChange={handleInlineFormChange} className="w-full form-select p-1"><option value="">Nessuno stato</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                                        <div className="flex justify-end space-x-2 pt-2">
+                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
+                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        return (
+                            <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{client?.name || 'N/A'}</p>
+                                    </div>
+                                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                                    <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">% Realizzo</p><p className="font-medium text-gray-900 dark:text-white">{project.realizationPercentage}%</p></div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
 
             {editingProject && (
@@ -210,7 +258,12 @@ const ProjectsPage: React.FC = () => {
                         <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Progetto *"/>
                         <select name="clientId" value={editingProject.clientId || ''} onChange={handleChange} className="w-full form-select"><option value="">Seleziona un cliente</option>{clients.sort((a, b) => a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                         <div className="grid grid-cols-2 gap-4"><input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="w-full form-input"/><input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="w-full form-input"/></div>
-                        <div className="grid grid-cols-2 gap-4"><input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input" placeholder="Budget (€)"/><input type="range" min="30" max="100" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="w-full"/></div>
+                        <div className="grid grid-cols-2 gap-4 items-center"><input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input" placeholder="Budget (€)"/>
+                            <div>
+                                <label className="block text-sm text-gray-500">% Realizzo: {editingProject.realizationPercentage}%</label>
+                                <input type="range" min="30" max="100" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="w-full"/>
+                            </div>
+                        </div>
                          <input type="text" name="projectManager" value={editingProject.projectManager || ''} onChange={handleChange} className="w-full form-input" placeholder="Project Manager"/>
                          <select name="status" value={editingProject.status || ''} onChange={handleChange} className="w-full form-select"><option value="">Nessuno stato</option>{projectStatuses.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
                          <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea" placeholder="Note"></textarea>

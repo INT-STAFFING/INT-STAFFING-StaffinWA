@@ -37,15 +37,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes)
                     VALUES (${newId}, ${name}, ${clientId}, ${startDate}, ${endDate}, ${budget || 0}, ${realizationPercentage || 100}, ${projectManager}, ${status}, ${notes});
                 `;
-                res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità (stesso nome per lo stesso cliente).
                 if ((error as any).code === '23505') {
                     return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già per questo cliente.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'PUT':
             // Gestisce la modifica di un progetto esistente.
@@ -65,15 +64,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     SET name = ${name}, client_id = ${clientId}, start_date = ${startDate}, end_date = ${endDate}, budget = ${budget || 0}, realization_percentage = ${realizationPercentage || 100}, project_manager = ${projectManager}, status = ${status}, notes = ${notes}
                     WHERE id = ${id as string};
                 `;
-                res.status(200).json({ id, ...req.body });
+                return res.status(200).json({ id, ...req.body });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità.
                 if ((error as any).code === '23505') {
                     return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già per questo cliente.` });
                 }
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             }
-            break;
 
         case 'DELETE':
             // Gestisce l'eliminazione di un progetto e di tutti i suoi dati correlati (assegnazioni, allocazioni).
@@ -96,17 +94,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await client.query('DELETE FROM projects WHERE id = $1', [id]);
                 
                 await client.query('COMMIT');
-                res.status(204).end();
+                return res.status(204).end();
             } catch (error) {
                 await client.query('ROLLBACK'); // Annulla la transazione in caso di errore.
-                res.status(500).json({ error: (error as Error).message });
+                return res.status(500).json({ error: (error as Error).message });
             } finally {
                 client.release();
             }
-            break;
             
         default:
             res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-            res.status(405).end(`Method ${method} Not Allowed`);
+            return res.status(405).end(`Method ${method} Not Allowed`);
     }
 }

@@ -7,7 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
 
 /**
  * @type SortConfig
@@ -69,7 +69,7 @@ const ClientsPage: React.FC = () => {
     const resetFilters = () => setFilters({ name: '', sector: '' });
 
     const openModalForNew = () => { setEditingClient(emptyClient); setIsModalOpen(true); };
-    const openModalForEdit = (client: Client) => { setEditingClient(client); setIsModalOpen(true); };
+    const openModalForEdit = (client: Client) => { setEditingClient(client); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingClient(null); };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -93,9 +93,9 @@ const ClientsPage: React.FC = () => {
 
     const getSortableHeader = (label: string, key: keyof Client) => (
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-700 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4" />
+            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
+                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
+                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
             </button>
         </th>
     );
@@ -110,50 +110,93 @@ const ClientsPage: React.FC = () => {
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <select name="sector" value={filters.sector} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti i settori</option>{clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                    <select name="sector" value={filters.sector} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti i settori</option>{clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y md:divide-y-0 divide-gray-200 dark:divide-gray-700">
-                    <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            {getSortableHeader('Nome Cliente', 'name')}
-                            {getSortableHeader('Settore', 'sector')}
-                            {getSortableHeader('Email Contatto', 'contactEmail')}
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody className="block md:table-row-group divide-y divide-gray-200 dark:divide-gray-700">
-                        {sortedClients.map(client => {
-                            const isEditing = inlineEditingId === client.id;
-                            if (isEditing) {
-                                return (
-                                <tr key={client.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                    <td data-label="Cliente"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                    <td data-label="Settore"><select name="sector" value={inlineEditingData!.sector} onChange={handleInlineFormChange} className="w-full form-select p-1">{clientSectors.sort((a,b)=> a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
-                                    <td data-label="Email"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                    <td className="text-right"><button onClick={handleSaveInlineEdit}><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit}><XMarkIcon className="w-5 h-5"/></button></td>
-                                </tr>
-                                )
-                            }
-                            return (
-                            <tr key={client.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                <td data-label="Cliente">{client.name}</td>
-                                <td data-label="Settore">{client.sector}</td>
-                                <td data-label="Email">{client.contactEmail}</td>
-                                <td className="text-right">
-                                    <div className="flex items-center justify-end space-x-2">
-                                        <button onClick={() => openModalForEdit(client)}><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(client)}><PencilSquareIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteClient(client.id!)}><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </td>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                                {getSortableHeader('Nome Cliente', 'name')}
+                                {getSortableHeader('Settore', 'sector')}
+                                {getSortableHeader('Email Contatto', 'contactEmail')}
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
-                        )})}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {sortedClients.map(client => {
+                                const isEditing = inlineEditingId === client.id;
+                                if (isEditing) {
+                                    return (
+                                    <tr key={client.id}>
+                                        <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                                        <td className="px-6 py-4"><select name="sector" value={inlineEditingData!.sector} onChange={handleInlineFormChange} className="w-full form-select p-1">{clientSectors.sort((a,b)=> a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></td>
+                                        <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                                        <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
+                                    </tr>
+                                    )
+                                }
+                                return (
+                                <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{client.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client.sector}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client.contactEmail}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => deleteClient(client.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )})}
+                        </tbody>
+                    </table>
+                </div>
+
+                 {/* Mobile Cards */}
+                 <div className="md:hidden p-4 space-y-4">
+                     {sortedClients.map(client => {
+                        const isEditing = inlineEditingId === client.id;
+                         if (isEditing) {
+                            return (
+                                <div key={client.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                                    <div className="space-y-3">
+                                        <div><label className="text-xs font-medium text-gray-500">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Settore</label><select name="sector" value={inlineEditingData!.sector} onChange={handleInlineFormChange} className="w-full form-select p-1">{clientSectors.sort((a,b)=> a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}</select></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                                        <div className="flex justify-end space-x-2 pt-2">
+                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
+                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }
+                        return(
+                            <div key={client.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{client.name}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{client.contactEmail}</p>
+                                    </div>
+                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => deleteClient(client.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
+                                    </div>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
+                                    <div><p className="text-gray-500 dark:text-gray-400">Settore</p><p className="font-medium text-gray-900 dark:text-white">{client.sector}</p></div>
+                                </div>
+                            </div>
+                        )
+                     })}
+                 </div>
             </div>
 
             {editingClient && (
