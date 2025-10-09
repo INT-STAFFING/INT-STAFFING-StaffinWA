@@ -66,7 +66,12 @@ const ClientsPage: React.FC = () => {
         setSortConfig({ key, direction });
     };
 
-    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleFilterChange = (name: string, value: string) => {
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+    const handleTextFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    }
     const resetFilters = () => setFilters({ name: '', sector: '' });
 
     const openModalForNew = () => { setEditingClient(emptyClient); setIsModalOpen(true); };
@@ -115,6 +120,7 @@ const ClientsPage: React.FC = () => {
     );
 
     const sectorOptions = useMemo(() => clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [clientSectors]);
+    const sectorOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i settori' }, ...sectorOptions], [sectorOptions]);
 
     return (
         <div>
@@ -125,17 +131,17 @@ const ClientsPage: React.FC = () => {
             
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <select name="sector" value={filters.sector} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti i settori</option>{clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                    <input type="text" name="name" value={filters.name} onChange={handleTextFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
+                    <SearchableSelect name="sector" value={filters.sector} onChange={handleFilterChange} options={sectorOptionsForFilter} placeholder="Tutti i settori" />
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 {getSortableHeader('Nome Cliente', 'name')}
                                 {getSortableHeader('Settore', 'sector')}

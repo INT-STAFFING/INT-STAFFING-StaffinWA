@@ -169,10 +169,10 @@ const StaffingPage: React.FC = () => {
 
     /**
      * Aggiorna lo stato dei filtri quando un valore cambia.
-     * @param {React.ChangeEvent<HTMLSelectElement>} e - L'evento di modifica.
+     * @param {string} name - Il nome del filtro.
+     * @param {string} value - Il valore del filtro.
      */
-    const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const { name, value } = e.target;
+    const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
 
@@ -219,6 +219,9 @@ const StaffingPage: React.FC = () => {
 
     }, [assignments, filters, getResourceById, projects]);
 
+    const resourceOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutte le Risorse' }, ...resources.map(r => ({ value: r.id!, label: r.name }))], [resources]);
+    const projectOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i Progetti' }, ...projects.map(p => ({ value: p.id!, label: p.name }))], [projects]);
+    const clientOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i Clienti' }, ...clients.map(c => ({ value: c.id!, label: c.name }))], [clients]);
 
     return (
         <div>
@@ -239,25 +242,16 @@ const StaffingPage: React.FC = () => {
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label htmlFor="resource-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
-                        <select id="resource-filter" name="resourceId" value={filters.resourceId} onChange={handleFilterChange} className="mt-1 block w-full form-select">
-                            <option value="">Tutte le Risorse</option>
-                            {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Risorsa</label>
+                        <SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptionsForFilter} placeholder="Tutte le Risorse" />
                     </div>
                      <div>
-                        <label htmlFor="project-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
-                        <select id="project-filter" name="projectId" value={filters.projectId} onChange={handleFilterChange} className="mt-1 block w-full form-select">
-                            <option value="">Tutti i Progetti</option>
-                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Progetto</label>
+                        <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptionsForFilter} placeholder="Tutti i Progetti" />
                     </div>
                      <div>
-                        <label htmlFor="client-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
-                        <select id="client-filter" name="clientId" value={filters.clientId} onChange={handleFilterChange} className="mt-1 block w-full form-select">
-                            <option value="">Tutti i Clienti</option>
-                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
+                        <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptionsForFilter} placeholder="Tutti i Clienti" />
                     </div>
                     <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                  </div>

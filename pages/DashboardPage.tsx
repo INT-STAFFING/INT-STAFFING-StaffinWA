@@ -6,6 +6,7 @@
 import React, { useMemo, useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
+import SearchableSelect from '../components/SearchableSelect';
 
 /**
  * Formatta un valore numerico o stringa come valuta EUR in formato italiano.
@@ -333,6 +334,10 @@ const DashboardPage: React.FC = () => {
         };
     }, [averageAllocationData]);
 
+    const resourceOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutte le Risorse' }, ...resources.map(r => ({ value: r.id!, label: r.name }))], [resources]);
+    const clientOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i Clienti' }, ...clients.map(c => ({ value: c.id!, label: c.name }))], [clients]);
+    const sectorOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i Settori' }, ...clientSectors.map(s => ({ value: s.id!, label: s.value }))], [clientSectors]);
+
     /**
      * Determina il colore del testo per l'allocazione media.
      * @param {number} avg - La percentuale di allocazione.
@@ -358,17 +363,16 @@ const DashboardPage: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Card Allocazione Media */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <div className="flex justify-between items-start mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                    <div className="flex justify-between items-start mb-4 flex-shrink-0">
                         <h2 className="text-xl font-semibold">Allocazione Media</h2>
-                        <select value={avgAllocFilter.resourceId} onChange={(e) => setAvgAllocFilter({ resourceId: e.target.value })} className="form-select text-sm py-1">
-                            <option value="">Tutte le Risorse</option>
-                            {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                        </select>
+                        <div className="w-48">
+                            <SearchableSelect name="resourceId" value={avgAllocFilter.resourceId} onChange={(_, value) => setAvgAllocFilter({ resourceId: value })} options={resourceOptionsForFilter} placeholder="Tutte le Risorse" />
+                        </div>
                     </div>
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Mese Corrente</th>
@@ -407,11 +411,11 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card FTE per Progetto */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">FTE per Progetto</h2><select value={fteFilter.clientId} onChange={(e) => setFteFilter({ clientId: e.target.value })} className="form-select text-sm py-1"><option value="">Tutti i Clienti</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                     <div className="flex justify-between items-start mb-4 flex-shrink-0"><h2 className="text-xl font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={fteFilter.clientId} onChange={(_, value) => setFteFilter({ clientId: value })} options={clientOptionsForFilter} placeholder="Tutti i Clienti" /></div></div>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni Alloc.</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">FTE</th></tr></thead>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni Alloc.</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">FTE</th></tr></thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{fteData.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{data.name}</div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-blue-600 dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
                         </table>
@@ -419,11 +423,11 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card Analisi Budget */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Budget</h2><select value={budgetFilter.clientId} onChange={(e) => setBudgetFilter({ clientId: e.target.value })} className="form-select text-sm py-1"><option value="">Tutti i Clienti</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                    <div className="flex justify-between items-start mb-4 flex-shrink-0"><h2 className="text-xl font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={budgetFilter.clientId} onChange={(_, value) => setBudgetFilter({ clientId: value })} options={clientOptionsForFilter} placeholder="Tutti i Clienti" /></div></div>
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Budget</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Varianza</th></tr></thead>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Budget</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Varianza</th></tr></thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{budgetAnalysisData.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{p.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
                         </table>
@@ -431,22 +435,22 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card Risorse Sottoutilizzate */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={underutilizedFilter} onChange={(e) => setUnderutilizedFilter(e.target.value)} className="form-select text-sm py-1"/></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                    <div className="flex justify-between items-start mb-4 flex-shrink-0"><h2 className="text-xl font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={underutilizedFilter} onChange={(e) => setUnderutilizedFilter(e.target.value)} className="form-input text-sm py-1"/></div>
                     <div className="overflow-y-auto max-h-96">
                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Media</th></tr></thead>
+                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Media</th></tr></thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{underutilizedResourcesData.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{r.name}</div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
                          </table>
                     </div>
                 </div>
 
                 {/* Card Sforzo per Cliente */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Sforzo per Cliente</h2><select value={effortByClientFilter.sector} onChange={(e) => setEffortByClientFilter({ sector: e.target.value })} className="form-select text-sm py-1"><option value="">Tutti i Settori</option>{clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                     <div className="flex justify-between items-start mb-4 flex-shrink-0"><h2 className="text-xl font-semibold">Analisi Sforzo per Cliente</h2><div className="w-48"><SearchableSelect name="sector" value={effortByClientFilter.sector} onChange={(_, value) => setEffortByClientFilter({ sector: value })} options={sectorOptionsForFilter} placeholder="Tutti i Settori" /></div></div>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Valore Budget</th></tr></thead>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Valore Budget</th></tr></thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByClientData.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
                         </table>
@@ -454,11 +458,11 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card Costo Mensile per Cliente */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Costo Mensile per Cliente</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                    <h2 className="text-xl font-semibold mb-4 flex-shrink-0">Costo Mensile per Cliente</h2>
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th></tr></thead>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th></tr></thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{currentMonthKPIs.clientCostArray.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
                         </table>
@@ -466,11 +470,11 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card Sforzo per Horizontal */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+                    <h2 className="text-xl font-semibold mb-4 flex-shrink-0">Analisi Sforzo per Horizontal</h2>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Horizontal</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th></tr></thead>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Horizontal</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th></tr></thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByHorizontalData.map(h => (<tr key={h.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{h.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-semibold">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale</td><td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr></tfoot>
                         </table>
@@ -478,16 +482,8 @@ const DashboardPage: React.FC = () => {
                 </div>
             </div>
              <style>{`
-                .form-select {
-                    -webkit-appearance: none;
-                    -moz-appearance: none;
-                    appearance: none;
-                    background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
-                    background-repeat: no-repeat;
-                    background-position: right 0.5rem center;
-                    background-size: 1.5em 1.5em;
-                    padding-right: 2.5rem;
-                }
+                .form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }
+                .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }
             `}</style>
         </div>
     );

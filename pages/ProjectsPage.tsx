@@ -17,6 +17,20 @@ import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '.
 type SortConfig = { key: keyof Project | 'clientName'; direction: 'ascending' | 'descending' } | null;
 
 /**
+ * Formatta una data per la visualizzazione.
+ * @param {string | null} dateStr - La stringa della data (YYYY-MM-DD).
+ * @returns {string} La data formattata (DD/MM/YYYY) o 'N/A'.
+ */
+const formatDateForDisplay = (dateStr: string | null): string => {
+    if (!dateStr) return 'N/A';
+    // Aggiunge un controllo per evitare 'Invalid Date' se la stringa non è un formato valido
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit' });
+};
+
+
+/**
  * Componente per la pagina di gestione dei Progetti.
  * Permette di visualizzare, filtrare, ordinare, aggiungere, modificare ed eliminare progetti.
  * @returns {React.ReactElement} La pagina di gestione dei progetti.
@@ -85,7 +99,12 @@ const ProjectsPage: React.FC = () => {
         setSortConfig({ key, direction });
     };
 
-    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleFilterChange = (name: string, value: string) => {
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+    const handleTextFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFilters(prev => ({...prev, [e.target.name]: e.target.value}));
+    }
     const resetFilters = () => setFilters({ name: '', clientId: '', status: '' });
 
     const openModalForNew = () => { setEditingProject(emptyProject); setIsModalOpen(true); };
@@ -153,6 +172,9 @@ const ProjectsPage: React.FC = () => {
 
     const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
+
+    const clientOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i clienti' }, ...clientOptions], [clientOptions]);
+    const statusOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti gli stati' }, ...statusOptions], [statusOptions]);
     
     return (
         <div>
@@ -163,24 +185,25 @@ const ProjectsPage: React.FC = () => {
 
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <select name="clientId" value={filters.clientId} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti i clienti</option>{clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                    <select name="status" value={filters.status} onChange={handleFilterChange} className="w-full form-select"><option value="">Tutti gli stati</option>{projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}</select>
+                    <input type="text" name="name" value={filters.name} onChange={handleTextFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
+                    <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptionsForFilter} placeholder="Tutti i clienti"/>
+                    <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptionsForFilter} placeholder="Tutti gli stati"/>
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 {getSortableHeader('Nome Progetto', 'name')}
                                 {getSortableHeader('Cliente', 'clientName')}
                                 {getSortableHeader('Stato', 'status')}
+                                {getSortableHeader('Data Inizio', 'startDate')}
+                                {getSortableHeader('Data Fine', 'endDate')}
                                 {getSortableHeader('Budget', 'budget')}
-                                {getSortableHeader('% Realizzo', 'realizationPercentage')}
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
@@ -195,8 +218,9 @@ const ProjectsPage: React.FC = () => {
                                             <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                                             <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
                                             <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
+                                            <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                                            <td className="px-6 py-4"><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                                             <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                            <td className="px-6 py-4"><input type="number" name="realizationPercentage" value={inlineEditingData!.realizationPercentage} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                                             <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
                                         </tr>
                                     );
@@ -207,8 +231,9 @@ const ProjectsPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{project.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(project.startDate)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(project.endDate)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project.realizationPercentage}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
                                             <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
@@ -234,6 +259,8 @@ const ProjectsPage: React.FC = () => {
                                         <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Data Fine</label><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
@@ -260,7 +287,8 @@ const ProjectsPage: React.FC = () => {
                                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                                     <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">% Realizzo</p><p className="font-medium text-gray-900 dark:text-white">{project.realizationPercentage}%</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.startDate)}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Data Fine</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.endDate)}</p></div>
                                 </div>
                             </div>
                         )
@@ -279,7 +307,16 @@ const ProjectsPage: React.FC = () => {
                             options={clientOptions}
                             placeholder="Seleziona un cliente"
                         />
-                        <div className="grid grid-cols-2 gap-4"><input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="w-full form-input"/><input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="w-full form-input"/></div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio</label>
+                                <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="w-full form-input"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fine</label>
+                                <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="w-full form-input"/>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-4 items-center"><input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input" placeholder="Budget (€)"/>
                             <div>
                                 <label className="block text-sm text-gray-500">% Realizzo: {editingProject.realizationPercentage}%</label>
