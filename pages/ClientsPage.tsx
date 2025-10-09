@@ -1,69 +1,17 @@
-/**
- * @file ClientsPage.tsx
- * @description Pagina per la gestione dei clienti (CRUD e visualizzazione).
- */
-
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon } from '../components/icons';
+import { PencilIcon, TrashIcon } from '../components/icons';
 
-/**
- * Componente per la pagina di gestione dei Clienti.
- * Permette di visualizzare, filtrare, aggiungere, modificare (in modale o inline) ed eliminare clienti.
- * @returns {React.ReactElement} La pagina di gestione dei clienti.
- */
 const ClientsPage: React.FC = () => {
     const { clients, clientSectors, addClient, updateClient, deleteClient } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
-    const [filters, setFilters] = useState({ name: '', sector: '' });
-    
-    // Stati per la gestione della modifica inline.
-    const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
-    const [inlineEditingData, setInlineEditingData] = useState<Client | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
-    // Oggetto cliente vuoto usato come stato iniziale per il form di creazione.
-    const emptyClient: Omit<Client, 'id'> = {
-        name: '',
-        sector: clientSectors[0]?.value || '',
-        contactEmail: ''
-    };
-
-    // Memoizza i clienti filtrati per ottimizzare le performance.
-    const filteredClients = useMemo(() => {
-        return clients.filter(client => {
-            const nameMatch = client.name.toLowerCase().includes(filters.name.toLowerCase());
-            const sectorMatch = filters.sector ? client.sector === filters.sector : true;
-            return nameMatch && sectorMatch;
-        });
-    }, [clients, filters]);
-
-    /**
-     * Aggiorna lo stato dei filtri.
-     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
-     */
-    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
-
-    const resetFilters = () => {
-        setFilters({ name: '', sector: '' });
-    };
-
-    /** Apre la modale per creare un nuovo cliente. */
-    const openModalForNew = () => {
-        setEditingClient(emptyClient);
-        setIsModalOpen(true);
-    };
-
-    /**
-     * Apre la modale per modificare un cliente esistente.
-     * @param {Client} client - Il cliente da modificare.
-     */
-    const openModalForEdit = (client: Client) => {
-        setEditingClient(client);
+    const handleOpenModal = (client: Client | null = null) => {
+        setEditingClient(client || { name: '', sector: '', contactEmail: '' });
         setIsModalOpen(true);
     };
 
@@ -72,159 +20,102 @@ const ClientsPage: React.FC = () => {
         setEditingClient(null);
     };
 
-    /**
-     * Gestisce l'invio del form della modale (creazione/modifica).
-     * @param {React.FormEvent<HTMLFormElement>} e - L'evento di submit.
-     */
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (editingClient) {
-            if ('id' in editingClient) {
-                updateClient(editingClient);
-            } else {
-                addClient(editingClient);
+            try {
+                if ('id' in editingClient) {
+                    await updateClient(editingClient as Client);
+                } else {
+                    await addClient(editingClient as Omit<Client, 'id'>);
+                }
+                handleCloseModal();
+            } catch (error) {
+                console.error("Failed to save client:", error);
+                // The context already shows an alert, but you could add more specific error handling here
             }
-            handleCloseModal();
         }
     };
 
-    /**
-     * Gestisce le modifiche ai campi del form nella modale.
-     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
-     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         if (editingClient) {
             setEditingClient({ ...editingClient, [e.target.name]: e.target.value });
         }
     };
 
-    /**
-     * Attiva la modalità di modifica inline per una riga.
-     * @param {Client} client - Il cliente da modificare.
-     */
-    const handleStartInlineEdit = (client: Client) => {
-        setInlineEditingId(client.id!);
-        setInlineEditingData({ ...client });
-    };
-
-    /** Annulla la modalità di modifica inline. */
-    const handleCancelInlineEdit = () => {
-        setInlineEditingId(null);
-        setInlineEditingData(null);
-    };
-
-    /**
-     * Gestisce le modifiche ai campi del form durante la modifica inline.
-     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
-     */
-    const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        if (inlineEditingData) {
-            setInlineEditingData({ ...inlineEditingData, [e.target.name]: e.target.value });
-        }
-    };
-
-    /** Salva le modifiche effettuate in modalità inline. */
-    const handleSaveInlineEdit = () => {
-        if (inlineEditingData) {
-            updateClient(inlineEditingData);
-            handleCancelInlineEdit();
-        }
-    };
+    const filteredClients = clients.filter(client =>
+        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Clienti</h1>
-                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Cliente</button>
-            </div>
-            
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome Cliente</label>
-                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 w-full form-input" placeholder="Cerca per nome..." />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Settore</label>
-                        <select name="sector" value={filters.sector} onChange={handleFilterChange} className="mt-1 w-full form-select">
-                            <option value="">Tutti i settori</option>
-                            {clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
-                        </select>
-                    </div>
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                <div className="self-end w-full md:w-auto flex gap-4">
+                     <input
+                        type="text"
+                        placeholder="Cerca cliente..."
+                        className="form-input w-full md:w-64"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <button onClick={() => handleOpenModal()} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 whitespace-nowrap">
+                        Aggiungi Cliente
+                    </button>
                 </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y md:divide-y-0 divide-gray-200 dark:divide-gray-700">
-                    <thead className="hidden md:table-header-group bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome Cliente</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Settore</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email Contatto</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                         </tr>
                     </thead>
-                    <tbody className="block md:table-row-group divide-y divide-gray-200 dark:divide-gray-700">
-                        {filteredClients.map(client => {
-                            const isEditing = inlineEditingId === client.id;
-                            if (isEditing) {
-                                // Riga in modalità modifica inline
-                                return (
-                                <tr key={client.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                    <td data-label="Cliente" className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap before:content-[attr(data-label)':_'] before:font-bold before:inline-block before:w-28 md:before:content-none"><input type="text" name="name" value={inlineEditingData.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></td>
-                                    <td data-label="Settore" className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap before:content-[attr(data-label)':_'] before:font-bold before:inline-block before:w-28 md:before:content-none">
-                                        <select name="sector" value={inlineEditingData.sector} onChange={handleInlineFormChange} className="w-full text-sm form-select p-1">
-                                            {clientSectors.sort((a,b)=> a.value.localeCompare(b.value)).map(s=><option key={s.id} value={s.value}>{s.value}</option>)}
-                                        </select>
-                                    </td>
-                                    <td data-label="Email" className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap before:content-[attr(data-label)':_'] before:font-bold before:inline-block before:w-28 md:before:content-none"><input type="email" name="contactEmail" value={inlineEditingData.contactEmail} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></td>
-                                    <td className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-2">
-                                            <button onClick={handleSaveInlineEdit} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200"><CheckIcon className="w-5 h-5"/></button>
-                                            <button onClick={handleCancelInlineEdit} className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"><XMarkIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                )
-                            }
-                            // Riga in modalità visualizzazione
-                            return (
-                            <tr key={client.id} className="block md:table-row p-4 md:p-0 border-b dark:border-gray-600">
-                                <td data-label="Cliente" className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white before:content-[attr(data-label)':_'] before:font-bold before:inline-block before:w-28 md:before:content-none">{client.name}</td>
-                                <td data-label="Settore" className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 before:content-[attr(data-label)':_'] before:font-bold before:inline-block before:w-28 md:before:content-none">{client.sector}</td>
-                                <td data-label="Email" className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 before:content-[attr(data-label)':_'] before:font-bold before:inline-block before:w-28 md:before:content-none">{client.contactEmail}</td>
-                                <td className="block md:table-cell px-2 py-1 md:px-6 md:py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex items-center justify-end space-x-2">
-                                        <button onClick={() => openModalForEdit(client)} title="Modifica in modale" className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(client)} title="Modifica inline" className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-200"><PencilSquareIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteClient(client.id)} title="Elimina" className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredClients.map(client => (
+                            <tr key={client.id}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.sector}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.contactEmail}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <button onClick={() => handleOpenModal(client)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3" title="Modifica">
+                                        <PencilIcon className="w-5 h-5" />
+                                    </button>
+                                    <button onClick={() => deleteClient(client.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200" title="Elimina">
+                                        <TrashIcon className="w-5 h-5" />
+                                    </button>
                                 </td>
                             </tr>
-                        )})}
+                        ))}
                     </tbody>
                 </table>
             </div>
 
             {editingClient && (
-                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={('id' in editingClient ? 'Modifica' : 'Aggiungi') + ' Cliente'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium">Nome Cliente *</label>
-                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="mt-1 w-full form-input"/>
+                            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
+                            <input type="text" name="name" id="name" value={editingClient.name} onChange={handleChange} required className="mt-1 w-full form-input" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium">Settore</label>
-                             <select name="sector" value={editingClient.sector} onChange={handleChange} className="mt-1 w-full form-select">
-                                {clientSectors.sort((a, b) => a.value.localeCompare(b.value)).map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                         <div>
+                            <label htmlFor="sector" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Settore *</label>
+                            <select name="sector" id="sector" value={editingClient.sector} onChange={handleChange} required className="mt-1 w-full form-select">
+                                <option value="">Seleziona un settore...</option>
+                                {clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Email Contatto *</label>
-                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="mt-1 w-full form-input"/>
+                            <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Contatto *</label>
+                            <input type="email" name="contactEmail" id="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="mt-1 w-full form-input" />
                         </div>
-                        <div className="flex justify-end space-x-3 pt-4">
+                        <div className="flex justify-end space-x-3 pt-2">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
                             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Salva</button>
                         </div>

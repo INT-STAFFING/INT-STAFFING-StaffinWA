@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { StaffingProvider, useStaffingContext } from './context/StaffingContext';
 import Sidebar from './components/Sidebar';
+// Fix: Added exports to page components to make them modules.
 import StaffingPage from './pages/StaffingPage';
 import ResourcesPage from './pages/ResourcesPage';
 import ProjectsPage from './pages/ProjectsPage';
@@ -16,6 +17,7 @@ import DashboardPage from './pages/DashboardPage';
 import ExportPage from './pages/ExportPage';
 import ConfigPage from './pages/ConfigPage';
 import ImportPage from './pages/ImportPage';
+// Fix: Added export to icons component to make it a module.
 import { Bars3Icon } from './components/icons';
 
 /**
