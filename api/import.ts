@@ -94,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const newId = uuidv4();
                     await client.query(
                         'INSERT INTO roles (id, name, seniority_level, daily_cost) VALUES ($1, $2, $3, $4)',
-                        [newId, role.name, role.seniorityLevel, role.dailyCost || 0]
+                        [newId, role.name, role.seniorityLevel, Number(role.dailyCost) || 0]
                     );
                     roleNameMap.set(role.name, newId);
                 }
@@ -147,7 +147,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             roleId,
                             resource.horizontal,
                             formatDateForDB(parseDate(resource.hireDate)),
-                            resource.workSeniority || 0,
+                            Number(resource.workSeniority) || 0,
                             resource.notes
                         ]
                     );
@@ -181,8 +181,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             clientId,
                             formatDateForDB(parseDate(project.startDate)),
                             formatDateForDB(parseDate(project.endDate)),
-                            project.budget || 0,
-                            project.realizationPercentage || 100,
+                            Number(project.budget) || 0,
+                            Number(project.realizationPercentage) || 100,
                             project.projectManager,
                             project.status,
                             project.notes

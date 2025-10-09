@@ -8,12 +8,14 @@ import { useStaffingContext } from '../context/StaffingContext';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
 
 /**
- * Formatta un valore numerico come valuta EUR in formato italiano.
- * @param {number} value - Il valore numerico da formattare.
+ * Formatta un valore numerico o stringa come valuta EUR in formato italiano.
+ * @param {number | string} value - Il valore da formattare.
  * @returns {string} La stringa formattata (es. "€ 1.234,56").
  */
-const formatCurrency = (value: number): string => {
-    return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+const formatCurrency = (value: number | string): string => {
+    // Assicura che il valore sia un numero, con fallback a 0 in caso di input non valido.
+    const numValue = Number(value) || 0;
+    return numValue.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
 /**
@@ -38,7 +40,8 @@ const DashboardPage: React.FC = () => {
      * @description Calcola i KPI aggregati: budget totale, giorni-uomo totali.
      */
     const overallKPIs = useMemo(() => {
-        const totalBudget = projects.reduce((sum, p) => sum + p.budget, 0);
+        // CORREZIONE: Usa Number() per convertire in modo sicuro il budget (che può essere una stringa dal DB) prima di sommarlo.
+        const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
 
         let totalPersonDays = 0;
         Object.values(allocations).forEach(assignmentAllocations => {
@@ -189,10 +192,12 @@ const DashboardPage: React.FC = () => {
                     }
                 });
                 
-                const estimatedCost = rawEstimatedCost * (project.realizationPercentage / 100);
-                const variance = project.budget - estimatedCost;
+                // CORREZIONE: Usa Number() per il calcolo.
+                const projectBudget = Number(project.budget || 0);
+                const estimatedCost = rawEstimatedCost * (Number(project.realizationPercentage || 100) / 100);
+                const variance = projectBudget - estimatedCost;
 
-                return { ...project, fullBudget: project.budget, estimatedCost, variance };
+                return { ...project, fullBudget: projectBudget, estimatedCost, variance };
             }).sort((a,b) => a.name.localeCompare(b.name));
     }, [projects, assignments, allocations, resources, roles, budgetFilter]);
 
@@ -245,7 +250,8 @@ const DashboardPage: React.FC = () => {
         projects.forEach(project => {
             if (project.clientId && clientData[project.clientId]) {
                 if(project.status === 'In corso') clientData[project.clientId].projectCount++;
-                clientData[project.clientId].totalBudget += project.budget;
+                // CORREZIONE: Usa Number() per sommare il budget.
+                clientData[project.clientId].totalBudget += Number(project.budget || 0);
 
                 const projectAssignments = assignments.filter(a => a.projectId === project.id);
                 let projectPersonDays = 0;
@@ -419,7 +425,7 @@ const DashboardPage: React.FC = () => {
                     -webkit-appearance: none;
                     -moz-appearance: none;
                     appearance: none;
-                    background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
+                    background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>');
                     background-repeat: no-repeat;
                     background-position: right 0.5rem center;
                     background-size: 1.5em 1.5em;
