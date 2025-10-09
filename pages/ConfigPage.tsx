@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { ConfigOption } from '../types';
 import Modal from '../components/Modal';
-// Fix: Added content and exports to icons.tsx
 import { PencilIcon, TrashIcon } from '../components/icons';
 
 /** @type ConfigType - Definisce i tipi di configurazione gestibili. */
@@ -58,8 +57,8 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingOption) {
-            if ('id' in editingOption && editingOption.id) {
-                updateConfigOption(configType, editingOption as ConfigOption);
+            if ('id' in editingOption) {
+                updateConfigOption(configType, editingOption);
             } else {
                 addConfigOption(configType, editingOption.value);
             }
@@ -93,7 +92,7 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                             <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1" title="Modifica">
                                 <PencilIcon className="w-4 h-4" />
                             </button>
-                            <button onClick={() => deleteConfigOption(configType, option.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1" title="Elimina">
+                            <button onClick={() => deleteConfigOption(configType, option.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1" title="Elimina">
                                 <TrashIcon className="w-4 h-4" />
                             </button>
                         </div>
@@ -101,7 +100,7 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                 ))}
             </ul>
              {editingOption && (
-                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={('id' in editingOption && editingOption.id ? `Modifica ${title}` : `Aggiungi ${title}`)}>
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingOption ? `Modifica ${title}` : `Aggiungi ${title}`}>
                      <form onSubmit={handleSubmit}>
                         <label className="block text-sm font-medium mb-2">Valore *</label>
                         <input
@@ -137,7 +136,7 @@ const ConfigPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <ConfigSection title="Horizontals" configType="horizontals" options={horizontals} />
                 <ConfigSection title="Grade - Ruoli" configType="seniorityLevels" options={seniorityLevels} />
-                <ConfigSection title="Stati dei Progetti" configType="projectStatuses" options={projectStatuses} />
+                <ConfigSection title="Stati dei" configType="projectStatuses" options={projectStatuses} />
                 <ConfigSection title="Settori - Classificazione Clienti" configType="clientSectors" options={clientSectors} />
             </div>
              <style>{`

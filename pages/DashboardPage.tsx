@@ -3,7 +3,7 @@
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
 import { Allocation } from '../types';
@@ -26,18 +26,95 @@ const formatCurrency = (value: number): string => {
 const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, allocations } = useStaffingContext();
 
+    const [filters, setFilters] = useState({
+        startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+        endDate: new Date(new Date().getFullYear(), 11, 31).toISOString().split('T')[0],
+        clientId: '',
+        projectId: '',
+        resourceId: '',
+    });
+
     /**
-     * @description Calcola l'allocazione media mensile per ogni risorsa.
+     * Aggiorna lo stato dei filtri.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    };
+
+    /** Resetta tutti i filtri ai valori di default (tutto l'anno corrente). */
+    const resetFilters = () => {
+         setFilters({
+            startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+            endDate: new Date(new Date().getFullYear(), 11, 31).toISOString().split('T')[0],
+            clientId: '',
+            projectId: '',
+            resourceId: '',
+        });
+    };
+    
+    /**
+     * @description Hook memoizzato per pre-filtrare i dati grezzi in base ai filtri globali.
+     * Questo ottimizza le performance, evitando di ripetere gli stessi filtri in ogni card.
+     */
+    const filteredData = useMemo(() => {
+        const start = filters.startDate ? new Date(filters.startDate) : null;
+        const end = filters.endDate ? new Date(filters.endDate) : null;
+
+        const relevantProjects = projects.filter(p =>
+            (!filters.clientId || p.clientId === filters.clientId) &&
+            (!filters.projectId || p.id === filters.projectId)
+        );
+        const relevantProjectIds = new Set(relevantProjects.map(p => p.id));
+
+        const relevantAssignments = assignments.filter(a =>
+            relevantProjectIds.has(a.projectId) &&
+            (!filters.resourceId || a.resourceId === filters.resourceId)
+        );
+        const relevantAssignmentIds = new Set(relevantAssignments.map(a => a.id));
+        
+        const relevantResources = resources.filter(r =>
+            !filters.resourceId || r.id === filters.resourceId
+        );
+
+        const relevantAllocations: Allocation = {};
+        for (const assignmentId in allocations) {
+            if (relevantAssignmentIds.has(assignmentId)) {
+                const dailyAllocations = allocations[assignmentId];
+                const filteredDaily: { [date: string]: number } = {};
+                for (const dateStr in dailyAllocations) {
+                    const allocDate = new Date(dateStr);
+                     if ((!start || allocDate >= start) && (!end || allocDate <= end)) {
+                        filteredDaily[dateStr] = dailyAllocations[dateStr];
+                    }
+                }
+                if (Object.keys(filteredDaily).length > 0) {
+                    relevantAllocations[assignmentId] = filteredDaily;
+                }
+            }
+        }
+        
+        return {
+            projects: relevantProjects,
+            assignments: relevantAssignments,
+            allocations: relevantAllocations,
+            resources: relevantResources,
+        };
+    }, [filters, projects, assignments, allocations, resources]);
+
+
+    /**
+     * @description Calcola l'allocazione media mensile per ogni risorsa, basandosi sui dati filtrati.
      */
     const monthlyAllocationData = useMemo(() => {
         const data: { [key: string]: { total: number, count: number } } = {};
         
-        for (const assignmentId in allocations) {
-            const assignment = assignments.find(a => a.id === assignmentId);
+        for (const assignmentId in filteredData.allocations) {
+            const assignment = filteredData.assignments.find(a => a.id === assignmentId);
             if (!assignment) continue;
             
-            for (const dateStr in allocations[assignmentId]) {
-                const percentage = allocations[assignmentId][dateStr];
+            for (const dateStr in filteredData.allocations[assignmentId]) {
+                const percentage = filteredData.allocations[assignmentId][dateStr];
                 const monthKey = `${assignment.resourceId}|${dateStr.substring(0, 7)}`;
                 if (!data[monthKey]) {
                     data[monthKey] = { total: 0, count: 0 };
@@ -49,19 +126,19 @@ const DashboardPage: React.FC = () => {
 
         return Object.entries(data).map(([key, value]) => {
             const [resourceId, month] = key.split('|');
-            const resource = resources.find(r => r.id === resourceId);
+            const resource = filteredData.resources.find(r => r.id === resourceId);
             const role = roles.find(r => r.id === resource?.roleId);
             const avg = value.total > 0 ? value.total / value.count : 0;
             return { resource, role, month, avg: Math.round(avg) };
         }).filter(item => item.resource).sort((a,b) => b.month.localeCompare(a.month) || a.resource!.name.localeCompare(b.resource!.name));
 
-    }, [allocations, assignments, resources, roles]);
+    }, [filteredData, roles]);
 
     /**
-     * @description Calcola il Full-Time Equivalent (FTE) per ciascun progetto.
+     * @description Calcola il Full-Time Equivalent (FTE) per ciascun progetto, basandosi sui dati filtrati.
      */
     const fteData = useMemo(() => {
-        return projects.map(project => {
+        return filteredData.projects.map(project => {
             if (!project.startDate || !project.endDate) return null;
 
             const client = clients.find(c => c.id === project.clientId);
@@ -71,11 +148,11 @@ const DashboardPage: React.FC = () => {
                  return { ...project, clientName: client?.name || 'N/A', fte: (0).toFixed(2), totalAllocatedDays: (0).toFixed(2), projectWorkingDays: 0 };
             }
 
-            const projectAssignments = assignments.filter(a => a.projectId === project.id);
+            const projectAssignments = filteredData.assignments.filter(a => a.projectId === project.id);
             let totalAllocatedDays = 0;
 
             projectAssignments.forEach(assignment => {
-                const assignmentAllocations = allocations[assignment.id!];
+                const assignmentAllocations = filteredData.allocations[assignment.id];
                 if(assignmentAllocations){
                     Object.values(assignmentAllocations).forEach(percentage => {
                         totalAllocatedDays += percentage / 100;
@@ -87,22 +164,22 @@ const DashboardPage: React.FC = () => {
 
             return { ...project, clientName: client?.name || 'N/A', fte: fte.toFixed(2), totalAllocatedDays: totalAllocatedDays.toFixed(2), projectWorkingDays };
         }).filter(Boolean);
-    }, [projects, assignments, allocations, clients]);
+    }, [filteredData, clients]);
 
     /**
-     * @description Esegue un'analisi dei costi per ogni progetto.
+     * @description Esegue un'analisi dei costi per ogni progetto, basandosi sui dati filtrati.
      */
     const budgetAnalysisData = useMemo(() => {
-        return projects.map(project => {
+        return filteredData.projects.map(project => {
             let rawEstimatedCost = 0;
-            const projectAssignments = assignments.filter(a => a.projectId === project.id);
+            const projectAssignments = filteredData.assignments.filter(a => a.projectId === project.id);
 
             projectAssignments.forEach(assignment => {
-                const resource = resources.find(r => r.id === assignment.resourceId);
+                const resource = filteredData.resources.find(r => r.id === assignment.resourceId);
                 const role = roles.find(ro => ro.id === resource?.roleId);
                 const dailyRate = role?.dailyCost || 0;
 
-                const assignmentAllocations = allocations[assignment.id!];
+                const assignmentAllocations = filteredData.allocations[assignment.id];
                 if (assignmentAllocations) {
                     const allocatedPersonDays = Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
                     rawEstimatedCost += allocatedPersonDays * dailyRate;
@@ -114,59 +191,55 @@ const DashboardPage: React.FC = () => {
 
             return { ...project, fullBudget: project.budget, estimatedCost, variance };
         }).sort((a,b) => a.name.localeCompare(b.name));
-    }, [projects, assignments, allocations, resources, roles]);
+    }, [filteredData, roles]);
 
     /**
-     * @description Identifica le risorse sottoutilizzate (< 100%) nel mese corrente.
+     * @description Identifica le risorse sottoutilizzate (< 100%) nel periodo di tempo filtrato.
      */
     const underutilizedResourcesData = useMemo(() => {
-        const today = new Date();
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const workingDaysInMonth = getWorkingDaysBetween(firstDayOfMonth, lastDayOfMonth);
+        if(!filters.startDate || !filters.endDate) return [];
+        
+        const firstDay = new Date(filters.startDate);
+        const lastDay = new Date(filters.endDate);
+        const workingDaysInPeriod = getWorkingDaysBetween(firstDay, lastDay);
 
-        if (workingDaysInMonth === 0) return [];
-
-        return resources.map(resource => {
-            const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+        if (workingDaysInPeriod === 0) return [];
+        
+        return filteredData.resources.map(resource => {
+            const resourceAssignments = filteredData.assignments.filter(a => a.resourceId === resource.id);
             let totalPersonDays = 0;
             resourceAssignments.forEach(assignment => {
-                const assignmentAllocations = allocations[assignment.id!];
+                const assignmentAllocations = filteredData.allocations[assignment.id];
                 if (assignmentAllocations) {
-                     for (const dateStr in assignmentAllocations) {
-                        const allocDate = new Date(dateStr);
-                        if (allocDate >= firstDayOfMonth && allocDate <= lastDayOfMonth) {
-                             totalPersonDays += (assignmentAllocations as any)[dateStr] / 100;
-                        }
-                    }
+                     totalPersonDays += Object.values(assignmentAllocations).reduce((sum, p) => sum + p/100, 0);
                 }
             });
-            const avgAllocation = Math.round((totalPersonDays / workingDaysInMonth) * 100);
+            const avgAllocation = Math.round((totalPersonDays / workingDaysInPeriod) * 100);
             return { ...resource, avgAllocation, role: roles.find(r => r.id === resource.roleId)?.name || 'N/A' };
         })
         .filter(r => r.avgAllocation < 100)
         .sort((a,b) => a.avgAllocation - b.avgAllocation);
-    }, [resources, assignments, allocations, roles]);
+    }, [filteredData, roles, filters.startDate, filters.endDate]);
     
     /**
-     * @description Aggrega i dati di sforzo (giorni-uomo) e budget per cliente.
+     * @description Aggrega i dati di sforzo (giorni-uomo) e budget per cliente, basandosi sui dati filtrati.
      */
     const effortByClientData = useMemo(() => {
         const clientData: { [clientId: string]: { name: string, projectCount: number, totalPersonDays: number, totalBudget: number } } = {};
         
         clients.forEach(client => {
-            clientData[client.id!] = { name: client.name, projectCount: 0, totalPersonDays: 0, totalBudget: 0 };
+            clientData[client.id] = { name: client.name, projectCount: 0, totalPersonDays: 0, totalBudget: 0 };
         });
 
-        projects.forEach(project => {
+        filteredData.projects.forEach(project => {
             if (project.clientId && clientData[project.clientId]) {
                 if(project.status === 'In corso') clientData[project.clientId].projectCount++;
                 clientData[project.clientId].totalBudget += project.budget;
 
-                const projectAssignments = assignments.filter(a => a.projectId === project.id);
+                const projectAssignments = filteredData.assignments.filter(a => a.projectId === project.id);
                 let projectPersonDays = 0;
                 projectAssignments.forEach(assignment => {
-                    const assignmentAllocations = allocations[assignment.id!];
+                    const assignmentAllocations = filteredData.allocations[assignment.id];
                     if (assignmentAllocations) {
                         projectPersonDays += Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
                     }
@@ -177,21 +250,21 @@ const DashboardPage: React.FC = () => {
         
         const finalData = Object.values(clientData).filter(c => c.projectCount > 0 || c.totalPersonDays > 0 || c.totalBudget > 0);
         return finalData.sort((a,b) => b.totalBudget - a.totalBudget);
-    }, [clients, projects, assignments, allocations]);
+    }, [clients, filteredData]);
 
     /**
-     * @description Aggrega i dati di sforzo (giorni-uomo) per "horizontal".
+     * @description Aggrega i dati di sforzo (giorni-uomo) per "horizontal", basandosi sui dati filtrati.
      */
     const effortByHorizontalData = useMemo(() => {
         const horizontalData: { [key: string]: number } = {};
         
-        assignments.forEach(assignment => {
-            const resource = resources.find(r => r.id === assignment.resourceId);
+        filteredData.assignments.forEach(assignment => {
+            const resource = filteredData.resources.find(r => r.id === assignment.resourceId);
             if (resource) {
                 const horizontal = resource.horizontal;
                 if (!horizontalData[horizontal]) horizontalData[horizontal] = 0;
                 
-                const assignmentAllocations = allocations[assignment.id!];
+                const assignmentAllocations = filteredData.allocations[assignment.id];
                 if (assignmentAllocations) {
                     const personDays = Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
                     horizontalData[horizontal] += personDays;
@@ -202,7 +275,7 @@ const DashboardPage: React.FC = () => {
         return Object.entries(horizontalData)
             .map(([name, totalPersonDays]) => ({ name, totalPersonDays: Math.round(totalPersonDays) }))
             .sort((a,b) => b.totalPersonDays - a.totalPersonDays);
-    }, [assignments, resources, allocations]);
+    }, [filteredData]);
 
     /**
      * Determina il colore del testo per l'allocazione media.
@@ -219,6 +292,42 @@ const DashboardPage: React.FC = () => {
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Dashboard</h1>
+            </div>
+            
+            {/* Sezione Filtri */}
+            <div className="mb-8 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Inizio</label>
+                        <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="mt-1 w-full form-input" />
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Fine</label>
+                        <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="mt-1 w-full form-input" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                        <select name="clientId" value={filters.clientId} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti</option>
+                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <select name="projectId" value={filters.projectId} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutti</option>
+                            {projects.filter(p=>!filters.clientId || p.clientId === filters.clientId).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
+                        <select name="resourceId" value={filters.resourceId} onChange={handleFilterChange} className="mt-1 w-full form-select">
+                            <option value="">Tutte</option>
+                            {resources.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        </select>
+                    </div>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
+                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -284,7 +393,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* Card Analisi Budget */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Analisi: Budget vs. Costo Stimato</h2>
+                    <h2 className="text-xl font-semibold mb-4">Analisi: Budget vs. Costo (nel periodo)</h2>
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
@@ -313,7 +422,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* Card Risorse Sottoutilizzate */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Risorse Sottoutilizzate (&lt;100% nel mese corrente)</h2>
+                    <h2 className="text-xl font-semibold mb-4">Risorse Sottoutilizzate (&lt;100% nel periodo)</h2>
                     <div className="overflow-y-auto max-h-96">
                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
@@ -339,7 +448,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* Card Sforzo per Cliente */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Cliente</h2>
+                    <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Cliente (nel periodo)</h2>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
@@ -366,7 +475,7 @@ const DashboardPage: React.FC = () => {
                 
                 {/* Card Sforzo per Horizontal */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
+                    <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal (nel periodo)</h2>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">

@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-// Fix: Added content and exports to icons.tsx
 import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon } from './icons';
 
 /**
