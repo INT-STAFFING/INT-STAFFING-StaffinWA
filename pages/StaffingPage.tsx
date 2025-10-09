@@ -167,11 +167,6 @@ const StaffingPage: React.FC = () => {
         setNewAssignmentData(d => ({ ...d, [name]: value }));
     };
 
-    /**
-     * Aggiorna lo stato dei filtri quando un valore cambia.
-     * @param {string} name - Il nome del filtro.
-     * @param {string} value - Il valore del filtro.
-     */
     const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
@@ -219,9 +214,9 @@ const StaffingPage: React.FC = () => {
 
     }, [assignments, filters, getResourceById, projects]);
 
-    const resourceOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutte le Risorse' }, ...resources.map(r => ({ value: r.id!, label: r.name }))], [resources]);
-    const projectOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i Progetti' }, ...projects.map(p => ({ value: p.id!, label: p.name }))], [projects]);
-    const clientOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i Clienti' }, ...clients.map(c => ({ value: c.id!, label: c.name }))], [clients]);
+    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
+    const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
 
     return (
         <div>
@@ -242,16 +237,16 @@ const StaffingPage: React.FC = () => {
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Risorsa</label>
-                        <SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptionsForFilter} placeholder="Tutte le Risorse" />
+                        <label htmlFor="resource-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
+                        <SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/>
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Progetto</label>
-                        <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptionsForFilter} placeholder="Tutti i Progetti" />
+                        <label htmlFor="project-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
-                        <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptionsForFilter} placeholder="Tutti i Clienti" />
+                        <label htmlFor="client-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                        <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/>
                     </div>
                     <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                  </div>

@@ -131,12 +131,8 @@ const ResourcesPage: React.FC = () => {
         setSortConfig({ key, direction });
     };
 
-    const handleFilterChange = (name: string, value: string) => {
-        setFilters(prev => ({ ...prev, [name]: value }));
-    };
-    const handleTextFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    }
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => setFilters({ name: '', roleId: '', horizontal: '' });
     
     const getAllocationColor = (avg: number): string => {
@@ -199,8 +195,6 @@ const ResourcesPage: React.FC = () => {
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
 
-    const roleOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti i ruoli' }, ...roleOptions], [roleOptions]);
-    const horizontalOptionsForFilter = useMemo(() => [{ value: '', label: 'Tutti gli horizontal' }, ...horizontalOptions], [horizontalOptions]);
 
     return (
         <div>
@@ -211,18 +205,18 @@ const ResourcesPage: React.FC = () => {
             
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleTextFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
-                    <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptionsForFilter} placeholder="Tutti i ruoli" />
-                    <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterChange} options={horizontalOptionsForFilter} placeholder="Tutti gli horizontal" />
+                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
+                    <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
+                    <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterSelectChange} options={horizontalOptions} placeholder="Tutti gli horizontal" />
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full">
-                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
+                        <thead className="border-b border-gray-200 dark:border-gray-700">
                             <tr>
                                 {getSortableHeader('Nome', 'name')}
                                 {getSortableHeader('Ruolo', 'roleId')}

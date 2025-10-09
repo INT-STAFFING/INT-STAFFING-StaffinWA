@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { getWorkingDaysBetween } from '../utils/dateUtils';
+import SearchableSelect from '../components/SearchableSelect';
 
 /**
  * Componente per la pagina di Forecasting e Capacity Planning.
@@ -15,17 +16,29 @@ import { getWorkingDaysBetween } from '../utils/dateUtils';
 const ForecastingPage: React.FC = () => {
     const { resources, assignments, allocations, horizontals, clients, projects } = useStaffingContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
-    const [selectedHorizontal, setSelectedHorizontal] = useState('');
-    const [selectedClient, setSelectedClient] = useState('');
-    const [selectedProject, setSelectedProject] = useState('');
+    const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
     
     const availableProjects = useMemo(() => {
-        if (!selectedClient) {
+        if (!filters.clientId) {
             return projects;
         }
-        return projects.filter(p => p.clientId === selectedClient);
-    }, [projects, selectedClient]);
+        return projects.filter(p => p.clientId === filters.clientId);
+    }, [projects, filters.clientId]);
 
+    const handleFilterChange = (name: string, value: string) => {
+        setFilters(prev => {
+            const newFilters = { ...prev, [name]: value };
+            // Reset project filter if client changes
+            if (name === 'clientId') {
+                newFilters.projectId = '';
+            }
+            return newFilters;
+        });
+    };
+
+    const resetFilters = () => {
+        setFilters({ horizontal: '', clientId: '', projectId: ''});
+    };
 
     const forecastData = useMemo(() => {
         const results = [];
@@ -33,22 +46,22 @@ const ForecastingPage: React.FC = () => {
 
         let filteredResources = [...resources];
 
-        if (selectedHorizontal) {
-            filteredResources = filteredResources.filter(r => r.horizontal === selectedHorizontal);
+        if (filters.horizontal) {
+            filteredResources = filteredResources.filter(r => r.horizontal === filters.horizontal);
         }
         
-        if (selectedProject) {
-            const resourceIdsInProject = new Set(
-                assignments.filter(a => a.projectId === selectedProject).map(a => a.resourceId)
-            );
+        let assignmentsToConsider = [...assignments];
+
+        if (filters.projectId) {
+            assignmentsToConsider = assignmentsToConsider.filter(a => a.projectId === filters.projectId);
+            const resourceIdsInProject = new Set(assignmentsToConsider.map(a => a.resourceId));
             filteredResources = filteredResources.filter(r => resourceIdsInProject.has(r.id!));
-        } else if (selectedClient) {
+        } else if (filters.clientId) {
             const projectIdsForClient = new Set(
-                projects.filter(p => p.clientId === selectedClient).map(p => p.id)
+                projects.filter(p => p.clientId === filters.clientId).map(p => p.id)
             );
-            const resourceIdsForClient = new Set(
-                assignments.filter(a => projectIdsForClient.has(a.projectId!)).map(a => a.resourceId)
-            );
+            assignmentsToConsider = assignmentsToConsider.filter(a => projectIdsForClient.has(a.projectId!));
+            const resourceIdsForClient = new Set(assignmentsToConsider.map(a => a.resourceId));
             filteredResources = filteredResources.filter(r => resourceIdsForClient.has(r.id!));
         }
         
@@ -64,8 +77,11 @@ const ForecastingPage: React.FC = () => {
             const availablePersonDays = totalResources * workingDays;
 
             let allocatedPersonDays = 0;
+
+            const relevantAssignmentIds = new Set(assignmentsToConsider.map(a => a.id));
+
             filteredResources.forEach(resource => {
-                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id && relevantAssignmentIds.has(a.id!));
                 resourceAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
@@ -92,7 +108,7 @@ const ForecastingPage: React.FC = () => {
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, selectedHorizontal, selectedClient, selectedProject, projects]);
+    }, [resources, assignments, allocations, forecastHorizon, filters, projects]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 
@@ -102,6 +118,11 @@ const ForecastingPage: React.FC = () => {
         return 'bg-green-500';
     };
 
+    const horizontalOptions = useMemo(() => horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
+    const clientOptions = useMemo(() => clients.sort((a,b) => a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
+    const projectOptions = useMemo(() => availableProjects.sort((a,b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id!, label: p.name })), [availableProjects]);
+
+
     return (
         <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Forecasting & Capacity</h1>
@@ -109,55 +130,18 @@ const ForecastingPage: React.FC = () => {
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label htmlFor="horizontal-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Horizontal</label>
-                        <select
-                            id="horizontal-filter"
-                            value={selectedHorizontal}
-                            onChange={(e) => setSelectedHorizontal(e.target.value)}
-                            className="mt-1 form-select w-full"
-                        >
-                            <option value="">Tutti</option>
-                            {horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => (
-                                <option key={h.id} value={h.value}>{h.value}</option>
-                            ))}
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Horizontal</label>
+                        <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterChange} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
                     </div>
                      <div>
-                        <label htmlFor="client-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
-                        <select
-                            id="client-filter"
-                            value={selectedClient}
-                            onChange={(e) => {
-                                setSelectedClient(e.target.value);
-                                setSelectedProject(''); // Reset project filter when client changes
-                            }}
-                            className="mt-1 form-select w-full"
-                        >
-                            <option value="">Tutti</option>
-                            {clients.sort((a,b) => a.name.localeCompare(b.name)).map(c => (
-                                <option key={c.id} value={c.id!}>{c.name}</option>
-                            ))}
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                        <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/>
                     </div>
                      <div>
-                        <label htmlFor="project-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
-                        <select
-                            id="project-filter"
-                            value={selectedProject}
-                            onChange={(e) => setSelectedProject(e.target.value)}
-                            className="mt-1 form-select w-full"
-                        >
-                            <option value="">Tutti</option>
-                            {availableProjects.sort((a,b) => a.name.localeCompare(b.name)).map(p => (
-                                <option key={p.id} value={p.id!}>{p.name}</option>
-                            ))}
-                        </select>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
                     </div>
-                    <button onClick={() => {
-                        setSelectedHorizontal('');
-                        setSelectedClient('');
-                        setSelectedProject('');
-                    }} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                 </div>
             </div>
 

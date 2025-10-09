@@ -80,11 +80,18 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                         />
                     </div>
                     <ul className="max-h-60 overflow-y-auto" role="listbox">
+                         {/* Aggiunta dell'opzione placeholder per resettare il filtro */}
+                        <li
+                            className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
+                            onClick={() => handleSelect('')}
+                        >
+                            {placeholder}
+                        </li>
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map(option => (
                                 <li
                                     key={option.value}
-                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
+                                    className={`px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer ${value === option.value ? 'bg-blue-50 dark:bg-blue-900/50' : ''}`}
                                     onClick={() => handleSelect(option.value)}
                                     role="option"
                                     aria-selected={value === option.value}
