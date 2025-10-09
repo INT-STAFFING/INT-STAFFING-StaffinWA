@@ -134,10 +134,10 @@ const ConfigPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Configurazioni</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <ConfigSection title="Horizontals" configType="horizontals" options={horizontals} />
-                <ConfigSection title="Grade - Ruoli" configType="seniorityLevels" options={seniorityLevels} />
-                <ConfigSection title="Stati dei" configType="projectStatuses" options={projectStatuses} />
-                <ConfigSection title="Settori - Classificazione Clienti" configType="clientSectors" options={clientSectors} />
+                <ConfigSection title="Horizontals (Risorse)" configType="horizontals" options={horizontals} />
+                <ConfigSection title="Livelli Seniority (Ruoli)" configType="seniorityLevels" options={seniorityLevels} />
+                <ConfigSection title="Stati (Progetti)" configType="projectStatuses" options={projectStatuses} />
+                <ConfigSection title="Settori (Clienti)" configType="clientSectors" options={clientSectors} />
             </div>
              <style>{`
                 .form-input { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }
