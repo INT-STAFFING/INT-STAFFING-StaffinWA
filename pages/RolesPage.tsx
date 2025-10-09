@@ -1,14 +1,38 @@
+/**
+ * @file RolesPage.tsx
+ * @description Pagina per la gestione dei ruoli professionali.
+ */
 import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon } from '../components/icons';
 
+/**
+ * Formatta un valore numerico come valuta EUR.
+ * @param {number} value - Il valore da formattare.
+ * @returns {string} La stringa formattata.
+ */
+const formatCurrency = (value: number) => value.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+
+/**
+ * Componente per la pagina di gestione dei ruoli.
+ * Permette di visualizzare, aggiungere, modificare (sia in modale che inline) ed eliminare i ruoli.
+ * @returns {React.ReactElement} La pagina di gestione dei ruoli.
+ */
 const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | Omit<Role, 'id'> | null>(null);
     
+    // Stati per la modifica inline
+    const [editingRowId, setEditingRowId] = useState<string | null>(null);
+    const [editedData, setEditedData] = useState<Partial<Role>>({});
+
+    /**
+     * Apre la modale per aggiungere un nuovo ruolo o modificare uno esistente.
+     * @param {Role | null} [role=null] - Il ruolo da modificare, o null per crearne uno nuovo.
+     */
     const handleOpenModal = (role: Role | null = null) => {
         setEditingRole(role || { name: '', seniorityLevel: '', dailyCost: 0 });
         setIsModalOpen(true);
@@ -19,6 +43,10 @@ const RolesPage: React.FC = () => {
         setEditingRole(null);
     };
 
+    /**
+     * Gestisce l'invio del form della modale per creare o aggiornare un ruolo.
+     * @param {React.FormEvent} e - L'evento di submit del form.
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (editingRole) {
@@ -34,13 +62,58 @@ const RolesPage: React.FC = () => {
             }
         }
     };
-
+    
+    /**
+     * Gestisce le modifiche ai campi di input nel form della modale.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         if (editingRole) {
             const { name, value, type } = e.target;
             const isNumber = type === 'number';
             setEditingRole({ ...editingRole, [name]: isNumber ? parseFloat(value) || 0 : value });
         }
+    };
+    
+    /**
+     * Attiva la modalità di modifica inline per una specifica riga della tabella.
+     * @param {Role} role - Il ruolo su cui avviare la modifica inline.
+     */
+    const handleStartInlineEdit = (role: Role) => {
+        setEditingRowId(role.id!);
+        setEditedData(role);
+    };
+
+    /** Annulla la modifica inline e ripristina lo stato originale della riga. */
+    const handleCancelInlineEdit = () => {
+        setEditingRowId(null);
+        setEditedData({});
+    };
+
+    /**
+     * Salva le modifiche apportate inline.
+     * Chiama l'API per l'aggiornamento e disattiva la modalità di modifica.
+     */
+    const handleSaveInlineEdit = async () => {
+        if (editingRowId) {
+             try {
+                await updateRole(editedData as Role);
+                setEditingRowId(null);
+                setEditedData({});
+            } catch(error) {
+                 console.error("Failed to save inline edit:", error);
+            }
+        }
+    };
+
+    /**
+     * Gestisce le modifiche ai campi di input durante la modifica inline.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
+    const handleInlineChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        const isNumber = type === 'number';
+        setEditedData(prev => ({ ...prev, [name]: isNumber ? parseFloat(value) : value }));
     };
     
     return (
@@ -65,12 +138,36 @@ const RolesPage: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {roles.map(role => (
                             <tr key={role.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{role.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{role.seniorityLevel}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{role.dailyCost.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</td>
+                                {editingRowId === role.id ? (
+                                    <>
+                                        <td className="px-6 py-4"><input type="text" name="name" value={editedData.name || ''} onChange={handleInlineChange} className="form-input" /></td>
+                                        <td className="px-6 py-4">
+                                            <select name="seniorityLevel" value={editedData.seniorityLevel || ''} onChange={handleInlineChange} className="form-select">
+                                                {seniorityLevels.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={editedData.dailyCost || 0} onChange={handleInlineChange} className="form-input" /></td>
+                                    </>
+                                ) : (
+                                    <>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{role.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{role.seniorityLevel}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(role.dailyCost)}</td>
+                                    </>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => handleOpenModal(role)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3"><PencilIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => deleteRole(role.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5" /></button>
+                                     {editingRowId === role.id ? (
+                                        <>
+                                            <button onClick={handleSaveInlineEdit} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 mr-3"><CheckIcon className="w-5 h-5" /></button>
+                                            <button onClick={handleCancelInlineEdit} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><XMarkIcon className="w-5 h-5" /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-3"><PencilSquareIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleOpenModal(role)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => deleteRole(role.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5" /></button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -94,7 +191,7 @@ const RolesPage: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-medium">Costo Giornaliero *</label>
-                            <input type="number" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="mt-1 w-full form-input" />
+                            <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="mt-1 w-full form-input" />
                         </div>
                         <div className="flex justify-end space-x-3 pt-2">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md">Annulla</button>

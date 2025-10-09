@@ -1,15 +1,32 @@
+/**
+ * @file ClientsPage.tsx
+ * @description Pagina per la gestione dei clienti.
+ */
 import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon } from '../components/icons';
 
+/**
+ * Componente per la pagina di gestione dei clienti.
+ * Permette di visualizzare, filtrare, aggiungere, modificare (sia in modale che inline) ed eliminare i clienti.
+ * @returns {React.ReactElement} La pagina di gestione dei clienti.
+ */
 const ClientsPage: React.FC = () => {
     const { clients, clientSectors, addClient, updateClient, deleteClient } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Stati per la modifica inline
+    const [editingRowId, setEditingRowId] = useState<string | null>(null);
+    const [editedData, setEditedData] = useState<Partial<Client>>({});
 
+    /**
+     * Apre la modale per aggiungere un nuovo cliente o modificare uno esistente.
+     * @param {Client | null} [client=null] - Il cliente da modificare, o null per crearne uno nuovo.
+     */
     const handleOpenModal = (client: Client | null = null) => {
         setEditingClient(client || { name: '', sector: '', contactEmail: '' });
         setIsModalOpen(true);
@@ -20,6 +37,10 @@ const ClientsPage: React.FC = () => {
         setEditingClient(null);
     };
 
+    /**
+     * Gestisce l'invio del form della modale per creare o aggiornare un cliente.
+     * @param {React.FormEvent} e - L'evento di submit del form.
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (editingClient) {
@@ -32,17 +53,63 @@ const ClientsPage: React.FC = () => {
                 handleCloseModal();
             } catch (error) {
                 console.error("Failed to save client:", error);
-                // The context already shows an alert, but you could add more specific error handling here
             }
         }
     };
 
+    /**
+     * Gestisce le modifiche ai campi di input nel form della modale.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         if (editingClient) {
             setEditingClient({ ...editingClient, [e.target.name]: e.target.value });
         }
     };
+    
+    /**
+     * Attiva la modalità di modifica inline per una specifica riga della tabella.
+     * @param {Client} client - Il cliente su cui avviare la modifica inline.
+     */
+    const handleStartInlineEdit = (client: Client) => {
+        setEditingRowId(client.id!);
+        setEditedData(client);
+    };
 
+    /** Annulla la modifica inline e ripristina lo stato originale della riga. */
+    const handleCancelInlineEdit = () => {
+        setEditingRowId(null);
+        setEditedData({});
+    };
+
+    /**
+     * Salva le modifiche apportate inline.
+     * Chiama l'API per l'aggiornamento e disattiva la modalità di modifica.
+     */
+    const handleSaveInlineEdit = async () => {
+        if (editingRowId) {
+            try {
+                await updateClient(editedData as Client);
+                setEditingRowId(null);
+                setEditedData({});
+            } catch(error) {
+                 console.error("Failed to save inline edit:", error);
+            }
+        }
+    };
+    
+    /**
+     * Gestisce le modifiche ai campi di input durante la modifica inline.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
+    const handleInlineChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setEditedData(prev => ({ ...prev, [name]: value }));
+    };
+
+    /**
+     * @description Filtra i clienti in base al termine di ricerca inserito.
+     */
     const filteredClients = clients.filter(client =>
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         client.sector.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -80,16 +147,36 @@ const ClientsPage: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {filteredClients.map(client => (
                             <tr key={client.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.sector}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.contactEmail}</td>
+                                {editingRowId === client.id ? (
+                                    <>
+                                        <td className="px-6 py-4"><input type="text" name="name" value={editedData.name || ''} onChange={handleInlineChange} className="form-input" /></td>
+                                        <td className="px-6 py-4">
+                                            <select name="sector" value={editedData.sector || ''} onChange={handleInlineChange} className="form-select">
+                                                {clientSectors.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4"><input type="email" name="contactEmail" value={editedData.contactEmail || ''} onChange={handleInlineChange} className="form-input" /></td>
+                                    </>
+                                ) : (
+                                    <>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{client.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.sector}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{client.contactEmail}</td>
+                                    </>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => handleOpenModal(client)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3" title="Modifica">
-                                        <PencilIcon className="w-5 h-5" />
-                                    </button>
-                                    <button onClick={() => deleteClient(client.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200" title="Elimina">
-                                        <TrashIcon className="w-5 h-5" />
-                                    </button>
+                                    {editingRowId === client.id ? (
+                                        <>
+                                            <button onClick={handleSaveInlineEdit} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 mr-3"><CheckIcon className="w-5 h-5" /></button>
+                                            <button onClick={handleCancelInlineEdit} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><XMarkIcon className="w-5 h-5" /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-3" title="Modifica Inline"><PencilSquareIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleOpenModal(client)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3" title="Modifica"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => deleteClient(client.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200" title="Elimina"><TrashIcon className="w-5 h-5" /></button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}

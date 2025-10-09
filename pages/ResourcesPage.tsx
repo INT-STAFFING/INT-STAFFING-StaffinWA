@@ -1,15 +1,32 @@
+/**
+ * @file ResourcesPage.tsx
+ * @description Pagina per la gestione delle risorse umane (dipendenti).
+ */
 import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Resource } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon } from '../components/icons';
 
+/**
+ * Componente per la pagina di gestione delle risorse.
+ * Permette di visualizzare, filtrare, aggiungere, modificare (sia in modale che inline) ed eliminare le risorse.
+ * @returns {React.ReactElement} La pagina di gestione delle risorse.
+ */
 const ResourcesPage: React.FC = () => {
     const { resources, roles, horizontals, addResource, updateResource, deleteResource } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Stati per la modifica inline
+    const [editingRowId, setEditingRowId] = useState<string | null>(null);
+    const [editedData, setEditedData] = useState<Partial<Resource>>({});
 
+    /**
+     * Apre la modale per aggiungere una nuova risorsa o modificare una esistente.
+     * @param {Resource | null} [resource=null] - La risorsa da modificare, o null per crearne una nuova.
+     */
     const handleOpenModal = (resource: Resource | null = null) => {
         setEditingResource(resource || { name: '', email: '', roleId: '', horizontal: '', hireDate: '', workSeniority: 0, notes: '' });
         setIsModalOpen(true);
@@ -20,6 +37,10 @@ const ResourcesPage: React.FC = () => {
         setEditingResource(null);
     };
 
+    /**
+     * Gestisce l'invio del form della modale per creare o aggiornare una risorsa.
+     * @param {React.FormEvent} e - L'evento di submit del form.
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (editingResource) {
@@ -36,6 +57,10 @@ const ResourcesPage: React.FC = () => {
         }
     };
 
+    /**
+     * Gestisce le modifiche ai campi di input nel form della modale.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e - L'evento di input.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (editingResource) {
              const { name, value, type } = e.target;
@@ -43,9 +68,57 @@ const ResourcesPage: React.FC = () => {
             setEditingResource({ ...editingResource, [name]: isNumber ? parseInt(value, 10) || 0 : value });
         }
     };
+
+    /**
+     * Attiva la modalità di modifica inline per una specifica riga della tabella.
+     * @param {Resource} resource - La risorsa su cui avviare la modifica inline.
+     */
+    const handleStartInlineEdit = (resource: Resource) => {
+        setEditingRowId(resource.id!);
+        setEditedData(resource);
+    };
+
+    /** Annulla la modifica inline e ripristina lo stato originale della riga. */
+    const handleCancelInlineEdit = () => {
+        setEditingRowId(null);
+        setEditedData({});
+    };
+
+    /**
+     * Salva le modifiche apportate inline.
+     * Chiama l'API per l'aggiornamento e disattiva la modalità di modifica.
+     */
+    const handleSaveInlineEdit = async () => {
+        if (editingRowId) {
+            try {
+                await updateResource(editedData as Resource);
+                setEditingRowId(null);
+                setEditedData({});
+            } catch(error) {
+                 console.error("Failed to save inline edit:", error);
+            }
+        }
+    };
     
+    /**
+     * Gestisce le modifiche ai campi di input durante la modifica inline.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
+    const handleInlineChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setEditedData(prev => ({ ...prev, [name]: value }));
+    };
+    
+    /**
+     * Ottiene il nome di un ruolo a partire dal suo ID per la visualizzazione.
+     * @param {string} roleId - L'ID del ruolo.
+     * @returns {string} Il nome del ruolo o 'N/A'.
+     */
     const getRoleName = (roleId: string) => roles.find(r => r.id === roleId)?.name || 'N/A';
     
+    /**
+     * @description Filtra le risorse in base al termine di ricerca inserito.
+     */
     const filteredResources = resources.filter(r =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,13 +158,42 @@ const ResourcesPage: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {filteredResources.map(r => (
                             <tr key={r.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{r.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{r.email}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getRoleName(r.roleId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{r.horizontal}</td>
+                                {editingRowId === r.id ? (
+                                    <>
+                                        <td className="px-6 py-4"><input type="text" name="name" value={editedData.name || ''} onChange={handleInlineChange} className="form-input w-full" /></td>
+                                        <td className="px-6 py-4"><input type="email" name="email" value={editedData.email || ''} onChange={handleInlineChange} className="form-input w-full" /></td>
+                                        <td className="px-6 py-4">
+                                            <select name="roleId" value={editedData.roleId || ''} onChange={handleInlineChange} className="form-select w-full">
+                                                {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <select name="horizontal" value={editedData.horizontal || ''} onChange={handleInlineChange} className="form-select w-full">
+                                                {horizontals.map(h => <option key={h.id} value={h.value}>{h.value}</option>)}
+                                            </select>
+                                        </td>
+                                    </>
+                                ) : (
+                                    <>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{r.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{r.email}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getRoleName(r.roleId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{r.horizontal}</td>
+                                    </>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => handleOpenModal(r)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3"><PencilIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => deleteResource(r.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5" /></button>
+                                     {editingRowId === r.id ? (
+                                        <>
+                                            <button onClick={handleSaveInlineEdit} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 mr-3"><CheckIcon className="w-5 h-5" /></button>
+                                            <button onClick={handleCancelInlineEdit} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><XMarkIcon className="w-5 h-5" /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleStartInlineEdit(r)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-3"><PencilSquareIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleOpenModal(r)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => deleteResource(r.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5" /></button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}

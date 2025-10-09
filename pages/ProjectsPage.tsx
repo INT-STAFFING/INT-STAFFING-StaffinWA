@@ -1,15 +1,32 @@
+/**
+ * @file ProjectsPage.tsx
+ * @description Pagina per la gestione dei progetti.
+ */
 import React, { useState } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, PencilSquareIcon, CheckIcon, XMarkIcon } from '../components/icons';
 
+/**
+ * Componente per la pagina di gestione dei progetti.
+ * Permette di visualizzare, filtrare, aggiungere, modificare (sia in modale che inline) ed eliminare i progetti.
+ * @returns {React.ReactElement} La pagina di gestione dei progetti.
+ */
 const ProjectsPage: React.FC = () => {
     const { projects, clients, projectStatuses, addProject, updateProject, deleteProject } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Stati per la modifica inline
+    const [editingRowId, setEditingRowId] = useState<string | null>(null);
+    const [editedData, setEditedData] = useState<Partial<Project>>({});
+
+    /**
+     * Apre la modale per aggiungere un nuovo progetto o modificare uno esistente.
+     * @param {Project | null} [project=null] - Il progetto da modificare, o null per crearne uno nuovo.
+     */
     const handleOpenModal = (project: Project | null = null) => {
         setEditingProject(project || { name: '', clientId: null, startDate: null, endDate: null, budget: 0, realizationPercentage: 100, projectManager: null, status: null, notes: '' });
         setIsModalOpen(true);
@@ -20,6 +37,10 @@ const ProjectsPage: React.FC = () => {
         setEditingProject(null);
     };
 
+    /**
+     * Gestisce l'invio del form della modale per creare o aggiornare un progetto.
+     * @param {React.FormEvent} e - L'evento di submit del form.
+     */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (editingProject) {
@@ -35,20 +56,73 @@ const ProjectsPage: React.FC = () => {
             }
         }
     };
-
+    
+    /**
+     * Gestisce le modifiche ai campi di input nel form della modale.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} e - L'evento di input.
+     */
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (editingProject) {
             const { name, value, type } = e.target;
             const isNumber = type === 'number';
-            setEditingProject({ ...editingProject, [name]: isNumber ? parseFloat(value) || 0 : value });
+            setEditingProject({ ...editingProject, [name]: isNumber ? parseFloat(value) || 0 : (value || null) });
         }
     };
+    
+    /**
+     * Attiva la modalità di modifica inline per una specifica riga della tabella.
+     * @param {Project} project - Il progetto su cui avviare la modifica inline.
+     */
+    const handleStartInlineEdit = (project: Project) => {
+        setEditingRowId(project.id!);
+        setEditedData(project);
+    };
 
+    /** Annulla la modifica inline e ripristina lo stato originale della riga. */
+    const handleCancelInlineEdit = () => {
+        setEditingRowId(null);
+        setEditedData({});
+    };
+
+    /**
+     * Salva le modifiche apportate inline.
+     * Chiama l'API per l'aggiornamento e disattiva la modalità di modifica.
+     */
+    const handleSaveInlineEdit = async () => {
+        if (editingRowId) {
+             try {
+                await updateProject(editedData as Project);
+                setEditingRowId(null);
+                setEditedData({});
+            } catch(error) {
+                 console.error("Failed to save inline edit:", error);
+            }
+        }
+    };
+    
+    /**
+     * Gestisce le modifiche ai campi di input durante la modifica inline.
+     * @param {React.ChangeEvent<HTMLInputElement | HTMLSelectElement>} e - L'evento di input.
+     */
+    const handleInlineChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        const isNumber = type === 'number';
+        setEditedData(prev => ({ ...prev, [name]: isNumber ? parseFloat(value) : (value || null) }));
+    };
+
+    /**
+     * Ottiene il nome di un cliente a partire dal suo ID per la visualizzazione.
+     * @param {string | null} clientId - L'ID del cliente.
+     * @returns {string} Il nome del cliente o 'N/A'.
+     */
     const getClientName = (clientId: string | null) => {
         if (!clientId) return 'N/A';
         return clients.find(c => c.id === clientId)?.name || 'Sconosciuto';
     };
 
+    /**
+     * @description Filtra i progetti in base al termine di ricerca inserito.
+     */
     const filteredProjects = projects.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.projectManager && p.projectManager.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -87,13 +161,47 @@ const ProjectsPage: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {filteredProjects.map(p => (
                             <tr key={p.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClientName(p.clientId)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.startDate || 'N/A'} - {p.endDate || 'N/A'}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.status || 'N/A'}</td>
+                                {editingRowId === p.id ? (
+                                    <>
+                                        <td className="px-6 py-4"><input type="text" name="name" value={editedData.name || ''} onChange={handleInlineChange} className="form-input" /></td>
+                                        <td className="px-6 py-4">
+                                            <select name="clientId" value={editedData.clientId || ''} onChange={handleInlineChange} className="form-select">
+                                                <option value="">Nessun cliente</option>
+                                                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <input type="date" name="startDate" value={editedData.startDate || ''} onChange={handleInlineChange} className="form-input text-sm" />
+                                            <input type="date" name="endDate" value={editedData.endDate || ''} onChange={handleInlineChange} className="form-input text-sm mt-1" />
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <select name="status" value={editedData.status || ''} onChange={handleInlineChange} className="form-select">
+                                                <option value="">Nessuno stato</option>
+                                                {projectStatuses.map(s => <option key={s.id} value={s.value}>{s.value}</option>)}
+                                            </select>
+                                        </td>
+                                    </>
+                                ) : (
+                                     <>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{p.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{getClientName(p.clientId)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.startDate || 'N/A'} - {p.endDate || 'N/A'}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{p.status || 'N/A'}</td>
+                                    </>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => handleOpenModal(p)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3"><PencilIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => deleteProject(p.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5" /></button>
+                                     {editingRowId === p.id ? (
+                                        <>
+                                            <button onClick={handleSaveInlineEdit} className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 mr-3"><CheckIcon className="w-5 h-5" /></button>
+                                            <button onClick={handleCancelInlineEdit} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><XMarkIcon className="w-5 h-5" /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleStartInlineEdit(p)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-3"><PencilSquareIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleOpenModal(p)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3"><PencilIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => deleteProject(p.id!)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200"><TrashIcon className="w-5 h-5" /></button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -126,7 +234,7 @@ const ProjectsPage: React.FC = () => {
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">Budget</label>
-                                <input type="number" name="budget" value={editingProject.budget} onChange={handleChange} className="mt-1 w-full form-input" />
+                                <input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="mt-1 w-full form-input" />
                             </div>
                              <div>
                                 <label className="block text-sm font-medium">% Realizzazione</label>
