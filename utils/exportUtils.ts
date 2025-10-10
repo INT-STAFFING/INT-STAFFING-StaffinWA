@@ -43,7 +43,6 @@ export const exportDataToExcel = (data: StaffingData) => {
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1 + monthOffset, 0);
         const resource = resources.find((r: any) => r.id === resourceId);
         const resourceLocation = resource ? resource.location : null;
-        // FIX: The function call to getWorkingDaysBetween was missing the required 'companyCalendar' argument and the optional 'resourceLocation' for better accuracy.
         const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resourceLocation);
 
         if (workingDaysInMonth === 0) return 0;

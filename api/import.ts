@@ -59,7 +59,6 @@ const formatDateForDB = (date: Date | null): string | null => {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
-        // FIX: Replaced `method` with `req.method` as `method` is not defined in this scope.
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 

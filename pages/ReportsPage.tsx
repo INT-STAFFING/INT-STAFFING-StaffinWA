@@ -63,7 +63,6 @@ const useSort = <T extends string>() => {
 // --- Componenti Principali dei Report ---
 
 const ProjectCostsReport: React.FC = () => {
-    // FIX: Destructure allocations from context.
     const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar, allocations } = useStaffingContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
     const { sortConfig, SortableHeader } = useSort<ProjectCostSortKey>();
@@ -81,11 +80,9 @@ const ProjectCostsReport: React.FC = () => {
                     const role = roles.find(ro => ro.id === resource?.roleId);
                     const dailyRate = role?.dailyCost || 0;
                     
-                    // FIX: Property 'allocations' does not exist on type 'CalendarEvent[]'. Use allocations from context.
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
-                             // FIX: Property 'companyCalendar' does not exist on type 'CalendarEvent[]'. Use companyCalendar directly.
                              if (!isHoliday(new Date(dateStr), resource?.location || null, companyCalendar) && new Date(dateStr).getDay() !== 0 && new Date(dateStr).getDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 personDays += dayFraction;
@@ -109,14 +106,19 @@ const ProjectCostsReport: React.FC = () => {
                     avgCostPerDay: personDays > 0 ? allocatedCost / personDays : 0,
                 };
             });
-    // FIX: Add allocations to dependency array.
     }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations]);
     
     const sortedData = useMemo(() => {
         if (!sortConfig) return reportData;
         return [...reportData].sort((a, b) => {
-            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
-            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
+            const valA = a[sortConfig.key];
+            const valB = b[sortConfig.key];
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+             if (typeof valA === 'number' && typeof valB === 'number') {
+                return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
+            }
             return 0;
         });
     }, [reportData, sortConfig]);
@@ -166,7 +168,6 @@ const ProjectCostsReport: React.FC = () => {
 
 
 const ResourceUtilizationReport: React.FC = () => {
-    // FIX: Destructure allocations from context.
     const { resources, roles, assignments, companyCalendar, horizontals, allocations } = useStaffingContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     const [filters, setFilters] = useState({ roleId: '', horizontal: '' });
@@ -181,7 +182,6 @@ const ResourceUtilizationReport: React.FC = () => {
             .filter(r => (!filters.roleId || r.roleId === filters.roleId) && (!filters.horizontal || r.horizontal === filters.horizontal))
             .map(resource => {
                 const role = roles.find(ro => ro.id === resource.roleId);
-                // FIX: Property 'companyCalendar' does not exist on type 'CalendarEvent[]'. Use companyCalendar directly.
                 const availableDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
                 
                 let allocatedDays = 0;
@@ -189,12 +189,10 @@ const ResourceUtilizationReport: React.FC = () => {
                 const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
                 
                 resourceAssignments.forEach(assignment => {
-                    // FIX: Property 'allocations' does not exist on type 'CalendarEvent[]'. Use allocations from context.
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
-                            // FIX: Property 'companyCalendar' does not exist on type 'CalendarEvent[]'. Use companyCalendar directly.
                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 allocatedDays += dayFraction;
@@ -216,14 +214,19 @@ const ResourceUtilizationReport: React.FC = () => {
                     allocatedCost,
                 };
             });
-    // FIX: Add allocations to dependency array.
     }, [resources, roles, assignments, companyCalendar, month, filters, allocations]);
     
     const sortedData = useMemo(() => {
         if (!sortConfig) return reportData;
         return [...reportData].sort((a, b) => {
-            if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'ascending' ? -1 : 1;
-            if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'ascending' ? 1 : -1;
+            const valA = a[sortConfig.key];
+            const valB = b[sortConfig.key];
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+             if (typeof valA === 'number' && typeof valB === 'number') {
+                return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
+            }
             return 0;
         });
     }, [reportData, sortConfig]);
