@@ -30,6 +30,12 @@ export async function ensureDbTablesExist(db: VercelPool) {
             value VARCHAR(255) NOT NULL UNIQUE
         );
     `;
+     await db.sql`
+        CREATE TABLE IF NOT EXISTS locations (
+            id UUID PRIMARY KEY,
+            value VARCHAR(255) NOT NULL UNIQUE
+        );
+    `;
 
     // Core Data Tables
     await db.sql`
@@ -56,6 +62,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
             email VARCHAR(255) UNIQUE,
             role_id UUID REFERENCES roles(id),
             horizontal VARCHAR(255),
+            location VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
             notes TEXT

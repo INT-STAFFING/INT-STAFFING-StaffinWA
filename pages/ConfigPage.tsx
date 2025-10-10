@@ -10,7 +10,7 @@ import Modal from '../components/Modal';
 import { PencilIcon, TrashIcon } from '../components/icons';
 
 /** @type ConfigType - Definisce i tipi di configurazione gestibili. */
-type ConfigType = 'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors';
+type ConfigType = 'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations';
 
 /**
  * @interface ConfigSectionProps
@@ -127,7 +127,7 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
  * @returns {React.ReactElement} La pagina delle configurazioni.
  */
 const ConfigPage: React.FC = () => {
-    const { horizontals, seniorityLevels, projectStatuses, clientSectors } = useStaffingContext();
+    const { horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = useStaffingContext();
 
     return (
         <div>
@@ -138,6 +138,7 @@ const ConfigPage: React.FC = () => {
                 <ConfigSection title="Livelli Seniority (Ruoli)" configType="seniorityLevels" options={seniorityLevels} />
                 <ConfigSection title="Stati (Progetti)" configType="projectStatuses" options={projectStatuses} />
                 <ConfigSection title="Settori (Clienti)" configType="clientSectors" options={clientSectors} />
+                <ConfigSection title="Sedi di Lavoro (Risorse)" configType="locations" options={locations} />
             </div>
              <style>{`
                 .form-input { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }

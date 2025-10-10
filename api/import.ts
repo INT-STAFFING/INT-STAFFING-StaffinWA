@@ -59,6 +59,7 @@ const formatDateForDB = (date: Date | null): string | null => {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
+        // FIX: Replaced `method` with `req.method` as `method` is not defined in this scope.
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 
@@ -138,14 +139,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         continue;
                     }
                     await client.query(
-                        `INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, notes)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                        `INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                         [
                             uuidv4(),
                             resource.name,
                             resource.email,
                             roleId,
                             resource.horizontal,
+                            resource.location,
                             formatDateForDB(parseDate(resource.hireDate)),
                             Number(resource.workSeniority) || 0,
                             resource.notes

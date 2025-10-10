@@ -88,7 +88,10 @@ const ForecastingPage: React.FC = () => {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
                             if (allocDate >= firstDay && allocDate <= lastDay) {
-                                allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
+                                const day = allocDate.getDay();
+                                if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                                    allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
+                                }
                             }
                         }
                     }

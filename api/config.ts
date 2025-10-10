@@ -16,7 +16,8 @@ const TABLE_MAP = {
     horizontals: 'horizontals',
     seniorityLevels: 'seniority_levels',
     projectStatuses: 'project_statuses',
-    clientSectors: 'client_sectors'
+    clientSectors: 'client_sectors',
+    locations: 'locations'
 };
 
 /**

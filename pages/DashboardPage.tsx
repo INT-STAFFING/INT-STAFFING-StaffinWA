@@ -26,7 +26,7 @@ const formatCurrency = (value: number | string): string => {
  * @returns {React.ReactElement} La pagina della dashboard.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, allocations, clientSectors } = useStaffingContext();
+    const { resources, roles, projects, clients, assignments, allocations, clientSectors, locations } = useStaffingContext();
 
     // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
@@ -41,13 +41,18 @@ const DashboardPage: React.FC = () => {
      * @description Calcola i KPI aggregati: budget totale, giorni-uomo totali.
      */
     const overallKPIs = useMemo(() => {
-        // CORREZIONE: Usa Number() per convertire in modo sicuro il budget (che può essere una stringa dal DB) prima di sommarlo.
         const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
 
         let totalPersonDays = 0;
-        Object.values(allocations).forEach(assignmentAllocations => {
-            totalPersonDays += Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
-        });
+        for (const assignmentId in allocations) {
+            for (const dateStr in allocations[assignmentId]) {
+                const allocDate = new Date(dateStr);
+                const day = allocDate.getDay();
+                if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                    totalPersonDays += (allocations[assignmentId][dateStr] / 100);
+                }
+            }
+        }
 
         return { totalBudget, totalPersonDays };
     }, [projects, allocations]);
@@ -79,7 +84,9 @@ const DashboardPage: React.FC = () => {
 
             for (const dateStr in allocations[assignmentId]) {
                 const allocDate = new Date(dateStr);
-                if (allocDate >= firstDay && allocDate <= lastDay) {
+                const day = allocDate.getDay();
+
+                if (allocDate >= firstDay && allocDate <= lastDay && day !== 0 && day !== 6) {
                     const percentage = allocations[assignmentId][dateStr];
                     const personDayFraction = percentage / 100;
                     const dailyCost = personDayFraction * dailyRate;
@@ -126,15 +133,19 @@ const DashboardPage: React.FC = () => {
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = new Date(dateStr);
-                        const percentage = assignmentAllocations[dateStr];
-                        const personDayFraction = percentage / 100;
-
-                        if (allocDate >= currentMonthFirstDay && allocDate <= currentMonthLastDay) {
-                            totalPersonDaysCurrentMonth += personDayFraction;
-                        }
+                        const day = allocDate.getDay();
                         
-                        if (allocDate >= nextMonthFirstDay && allocDate <= nextMonthLastDay) {
-                            totalPersonDaysNextMonth += personDayFraction;
+                        if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                            const percentage = assignmentAllocations[dateStr];
+                            const personDayFraction = percentage / 100;
+
+                            if (allocDate >= currentMonthFirstDay && allocDate <= currentMonthLastDay) {
+                                totalPersonDaysCurrentMonth += personDayFraction;
+                            }
+                            
+                            if (allocDate >= nextMonthFirstDay && allocDate <= nextMonthLastDay) {
+                                totalPersonDaysNextMonth += personDayFraction;
+                            }
                         }
                     }
                 }
@@ -167,7 +178,9 @@ const DashboardPage: React.FC = () => {
                 if (!project.startDate || !project.endDate) return null;
 
                 const client = clients.find(c => c.id === project.clientId);
-                const projectWorkingDays = getWorkingDaysBetween(new Date(project.startDate), new Date(project.endDate));
+                const projectStartDate = new Date(project.startDate);
+                const projectEndDate = new Date(project.endDate);
+                const projectWorkingDays = getWorkingDaysBetween(projectStartDate, projectEndDate);
                 
                 if (projectWorkingDays === 0) return { ...project, clientName: client?.name || 'N/A', fte: 0, totalAllocatedDays: 0, projectWorkingDays: 0 };
 
@@ -177,9 +190,14 @@ const DashboardPage: React.FC = () => {
                 projectAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id];
                     if(assignmentAllocations){
-                        Object.values(assignmentAllocations).forEach(percentage => {
-                            totalAllocatedDays += percentage / 100;
-                        });
+                        for (const dateStr in assignmentAllocations) {
+                            const allocDate = new Date(dateStr);
+                            const day = allocDate.getDay();
+                            // Assicura che l'allocazione sia un giorno lavorativo e rientri nel range del progetto
+                            if (day !== 0 && day !== 6 && allocDate >= projectStartDate && allocDate <= projectEndDate) {
+                                totalAllocatedDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
                     }
                 });
 
@@ -205,13 +223,19 @@ const DashboardPage: React.FC = () => {
                     const dailyRate = role?.dailyCost || 0;
 
                     const assignmentAllocations = allocations[assignment.id];
+                    let allocatedPersonDays = 0;
                     if (assignmentAllocations) {
-                        const allocatedPersonDays = Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
-                        rawEstimatedCost += allocatedPersonDays * dailyRate;
+                        for (const dateStr in assignmentAllocations) {
+                             const allocDate = new Date(dateStr);
+                             const day = allocDate.getDay();
+                             if (day !== 0 && day !== 6) {
+                                allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
                     }
+                    rawEstimatedCost += allocatedPersonDays * dailyRate;
                 });
                 
-                // CORREZIONE: Usa Number() per il calcolo.
                 const projectBudget = Number(project.budget || 0);
                 const estimatedCost = rawEstimatedCost * (Number(project.realizationPercentage || 100) / 100);
                 const variance = projectBudget - estimatedCost;
@@ -240,7 +264,10 @@ const DashboardPage: React.FC = () => {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = new Date(dateStr);
                         if (allocDate >= firstDay && allocDate <= lastDay) {
-                            totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                            const day = allocDate.getDay();
+                            if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                                totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                            }
                         }
                     }
                 }
@@ -269,7 +296,6 @@ const DashboardPage: React.FC = () => {
         projects.forEach(project => {
             if (project.clientId && clientData[project.clientId]) {
                 if(project.status === 'In corso') clientData[project.clientId].projectCount++;
-                // CORREZIONE: Usa Number() per sommare il budget.
                 clientData[project.clientId].totalBudget += Number(project.budget || 0);
 
                 const projectAssignments = assignments.filter(a => a.projectId === project.id);
@@ -277,7 +303,13 @@ const DashboardPage: React.FC = () => {
                 projectAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
-                        projectPersonDays += Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
+                         for (const dateStr in assignmentAllocations) {
+                            const allocDate = new Date(dateStr);
+                            const day = allocDate.getDay();
+                            if (day !== 0 && day !== 6) {
+                                projectPersonDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
                     }
                 });
                 clientData[project.clientId].totalPersonDays += projectPersonDays;
@@ -300,10 +332,17 @@ const DashboardPage: React.FC = () => {
                 if (!horizontalData[horizontal]) horizontalData[horizontal] = 0;
                 
                 const assignmentAllocations = allocations[assignment.id];
+                let personDays = 0;
                 if (assignmentAllocations) {
-                    const personDays = Object.values(assignmentAllocations).reduce((sum, p) => sum + (p / 100), 0);
-                    horizontalData[horizontal] += personDays;
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = new Date(dateStr);
+                        const day = allocDate.getDay();
+                        if (day !== 0 && day !== 6) {
+                           personDays += (assignmentAllocations[dateStr] / 100);
+                        }
+                    }
                 }
+                horizontalData[horizontal] += personDays;
             }
         });
 
@@ -311,6 +350,65 @@ const DashboardPage: React.FC = () => {
             .map(([name, totalPersonDays]) => ({ name, totalPersonDays }))
             .sort((a,b) => b.totalPersonDays - a.totalPersonDays);
     }, [assignments, allocations, resources]);
+
+    /**
+     * @description Aggrega i dati di analisi per Sede (Mese Corrente).
+     */
+    const analysisByLocationData = useMemo(() => {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay);
+
+        const locationData: { [location: string]: { resourceCount: number, personDays: number } } = {};
+
+        locations.forEach(loc => {
+            locationData[loc.value] = { resourceCount: 0, personDays: 0 };
+        });
+        resources.forEach(res => {
+            if (res.location && !locationData[res.location]) {
+                locationData[res.location] = { resourceCount: 0, personDays: 0 };
+            }
+        });
+
+        resources.forEach(resource => {
+            if(resource.location) {
+                locationData[resource.location].resourceCount++;
+            }
+        });
+
+        assignments.forEach(assignment => {
+            const resource = resources.find(r => r.id === assignment.resourceId);
+            if (resource && resource.location) {
+                const assignmentAllocations = allocations[assignment.id];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = new Date(dateStr);
+                        if (allocDate >= firstDay && allocDate <= lastDay) {
+                            const day = allocDate.getDay();
+                            if (day !== 0 && day !== 6) {
+                                locationData[resource.location].personDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        return Object.entries(locationData)
+            .map(([locationName, data]) => {
+                const availablePersonDays = data.resourceCount * workingDaysInMonth;
+                const utilization = availablePersonDays > 0 ? (data.personDays / availablePersonDays) * 100 : 0;
+                return {
+                    locationName,
+                    resourceCount: data.resourceCount,
+                    personDays: data.personDays,
+                    utilization
+                };
+            })
+            .filter(d => d.resourceCount > 0)
+            .sort((a, b) => b.resourceCount - a.resourceCount);
+    }, [resources, assignments, allocations, locations]);
 
     // --- Totali per le tabelle ---
     const fteTotals = useMemo(() => {
@@ -475,6 +573,35 @@ const DashboardPage: React.FC = () => {
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Horizontal</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th></tr></thead>
                              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByHorizontalData.map(h => (<tr key={h.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{h.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-semibold">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale</td><td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Card Analisi per Sede */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 className="text-xl font-semibold mb-4">Analisi per Sede (Mese Corrente)</h2>
+                    <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Sede</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorse</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">G/U Allocati</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Utilizzo Medio</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {analysisByLocationData.map(data => (
+                                    <tr key={data.locationName}>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{data.locationName}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.resourceCount}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.personDays.toFixed(1)}</td>
+                                        <td className={`px-4 py-2 whitespace-nowrap text-sm text-center font-semibold ${getAvgAllocationColor(data.utilization)}`}>
+                                            {data.utilization.toFixed(0)}%
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
                         </table>
                     </div>
                 </div>

@@ -50,7 +50,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             horizontalsRes,
             seniorityLevelsRes,
             projectStatusesRes,
-            clientSectorsRes
+            clientSectorsRes,
+            locationsRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -61,7 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM horizontals;`,
             db.sql`SELECT * FROM seniority_levels;`,
             db.sql`SELECT * FROM project_statuses;`,
-            db.sql`SELECT * FROM client_sectors;`
+            db.sql`SELECT * FROM client_sectors;`,
+            db.sql`SELECT * FROM locations;`
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -88,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             seniorityLevels: seniorityLevelsRes.rows as ConfigOption[],
             projectStatuses: projectStatusesRes.rows as ConfigOption[],
             clientSectors: clientSectorsRes.rows as ConfigOption[],
+            locations: locationsRes.rows as ConfigOption[],
         };
 
         return res.status(200).json(data);

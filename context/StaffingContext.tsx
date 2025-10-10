@@ -21,6 +21,7 @@ interface StaffingContextType {
     seniorityLevels: ConfigOption[];
     projectStatuses: ConfigOption[];
     clientSectors: ConfigOption[];
+    locations: ConfigOption[];
     loading: boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
@@ -52,7 +53,8 @@ type ConfigLists = {
     horizontals: ConfigOption[],
     seniorityLevels: ConfigOption[],
     projectStatuses: ConfigOption[],
-    clientSectors: ConfigOption[]
+    clientSectors: ConfigOption[],
+    locations: ConfigOption[],
 };
 
 /**
@@ -103,6 +105,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [seniorityLevels, setSeniorityLevels] = useState<ConfigOption[]>([]);
     const [projectStatuses, setProjectStatuses] = useState<ConfigOption[]>([]);
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
+    const [locations, setLocations] = useState<ConfigOption[]>([]);
 
     /**
      * Carica tutti i dati iniziali dall'API.
@@ -122,6 +125,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
             setSeniorityLevels(data.seniorityLevels);
             setProjectStatuses(data.projectStatuses);
             setClientSectors(data.clientSectors);
+            setLocations(data.locations);
         } catch (error) {
             console.error("Failed to fetch initial data:", error);
         } finally {
@@ -229,7 +233,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const contextValue: StaffingContextType = {
         clients, roles, resources, projects, assignments, allocations,
-        horizontals, seniorityLevels, projectStatuses, clientSectors, loading,
+        horizontals, seniorityLevels, projectStatuses, clientSectors, locations, loading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,

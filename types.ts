@@ -59,6 +59,8 @@ export interface Resource {
     roleId: string;
     /** @property {string} horizontal - L'area di competenza principale (es. "Web Development"). */
     horizontal: string;
+    /** @property {string} location - La sede di lavoro della risorsa (es. "Milano"). */
+    location: string;
     /** @property {string} hireDate - La data di assunzione in formato YYYY-MM-DD. */
     hireDate: string; 
     /** @property {number} workSeniority - Gli anni di anzianità lavorativa. */

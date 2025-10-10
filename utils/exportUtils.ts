@@ -80,6 +80,7 @@ export const exportDataToExcel = (data: StaffingData) => {
         return {
             'Nome': r.name,
             'Email': r.email,
+            'Sede': r.location,
             'Ruolo': role?.name || 'N/A',
             'Horizontal': r.horizontal,
             'Costo Giornaliero (€)': role?.dailyCost || 0,
@@ -176,7 +177,7 @@ export const exportTemplateToExcel = () => {
     // NOTA: Gli header qui DEVONO corrispondere alle chiavi usate nell'endpoint API di importazione.
     const clientsHeaders = [["name", "sector", "contactEmail"]];
     const rolesHeaders = [["name", "seniorityLevel", "dailyCost"]];
-    const resourcesHeaders = [["name", "email", "roleName", "horizontal", "hireDate", "workSeniority", "notes"]];
+    const resourcesHeaders = [["name", "email", "roleName", "horizontal", "location", "hireDate", "workSeniority", "notes"]];
     // Colonne Progetti riordinate per coerenza con la UI
     const projectsHeaders = [["name", "clientName", "status", "budget", "realizationPercentage", "startDate", "endDate", "projectManager", "notes"]];
 

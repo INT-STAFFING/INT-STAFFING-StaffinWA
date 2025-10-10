@@ -33,10 +33,10 @@ const formatCurrency = (value: number): string => {
  * @returns {React.ReactElement} La pagina di gestione delle risorse.
  */
 const ResourcesPage: React.FC = () => {
-    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, allocations } = useStaffingContext();
+    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, allocations, locations } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
-    const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '' });
+    const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '' });
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     
     // Stati per la gestione della modifica inline.
@@ -45,6 +45,7 @@ const ResourcesPage: React.FC = () => {
 
     const emptyResource: Omit<Resource, 'id'> = {
         name: '', email: '', roleId: '', horizontal: horizontals[0]?.value || '',
+        location: locations[0]?.value || '',
         hireDate: '', workSeniority: 0, notes: '',
     };
     
@@ -53,7 +54,8 @@ const ResourcesPage: React.FC = () => {
             const nameMatch = resource.name.toLowerCase().includes(filters.name.toLowerCase());
             const roleMatch = filters.roleId ? resource.roleId === filters.roleId : true;
             const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
-            return nameMatch && roleMatch && horizontalMatch;
+            const locationMatch = filters.location ? resource.location === filters.location : true;
+            return nameMatch && roleMatch && horizontalMatch && locationMatch;
         });
     }, [resources, filters]);
 
@@ -74,7 +76,10 @@ const ResourcesPage: React.FC = () => {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = new Date(dateStr);
                     if (allocDate >= firstDay && allocDate <= lastDay) {
-                        totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                        const day = allocDate.getDay();
+                        if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                            totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                        }
                     }
                 }
             }
@@ -133,7 +138,7 @@ const ResourcesPage: React.FC = () => {
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ name: '', roleId: '', horizontal: '' });
+    const resetFilters = () => setFilters({ name: '', roleId: '', horizontal: '', location: '' });
     
     const getAllocationColor = (avg: number): string => {
         if (avg > 100) return 'text-red-600 dark:text-red-400 font-bold';
@@ -194,6 +199,7 @@ const ResourcesPage: React.FC = () => {
 
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
+    const locationOptions = useMemo(() => locations.sort((a,b)=> a.value.localeCompare(b.value)).map(l => ({ value: l.value, label: l.value })), [locations]);
 
 
     return (
@@ -204,10 +210,11 @@ const ResourcesPage: React.FC = () => {
             </div>
             
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
                     <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
                     <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterSelectChange} options={horizontalOptions} placeholder="Tutti gli horizontal" />
+                    <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
                     <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
                 </div>
             </div>
@@ -220,6 +227,7 @@ const ResourcesPage: React.FC = () => {
                             <tr>
                                 {getSortableHeader('Nome', 'name')}
                                 {getSortableHeader('Ruolo', 'roleId')}
+                                {getSortableHeader('Sede', 'location')}
                                 {getSortableHeader('Horizontal', 'horizontal')}
                                 {getSortableHeader('Costo Giornaliero', 'dailyCost')}
                                 {getSortableHeader('Alloc. Media', 'allocation')}
@@ -237,6 +245,7 @@ const ResourcesPage: React.FC = () => {
                                     <tr key={resource.id}>
                                         <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
                                         <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
+                                        <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede"/></td>
                                         <td className="px-6 py-4"><SearchableSelect name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal"/></td>
                                         <td className="px-6 py-4 text-sm">{formatCurrency(roles.find(r => r.id === inlineEditingData!.roleId)?.dailyCost || 0)}</td>
                                         <td className={`px-6 py-4 text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
@@ -249,6 +258,7 @@ const ResourcesPage: React.FC = () => {
                                 <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="px-6 py-4 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{resource.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</div></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{resource.location}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{resource.horizontal}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyCost || 0)}</td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</td>
@@ -279,6 +289,7 @@ const ResourcesPage: React.FC = () => {
                                         <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Ruolo</label><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo"/></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Sede</label><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede"/></div>
                                         <div><label className="text-xs font-medium text-gray-500">Horizontal</label><SearchableSelect name="horizontal" value={inlineEditingData!.horizontal} onChange={handleInlineSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal"/></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
@@ -304,6 +315,7 @@ const ResourcesPage: React.FC = () => {
                                 </div>
                                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{role?.name || 'N/A'}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Sede</p><p className="text-gray-900 dark:text-white font-medium">{resource.location}</p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Horizontal</p><p className="text-gray-900 dark:text-white font-medium">{resource.horizontal}</p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyCost || 0)}</p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</p></div>
@@ -340,9 +352,17 @@ const ResourcesPage: React.FC = () => {
                             />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <SearchableSelect
+                                name="location"
+                                value={editingResource.location}
+                                onChange={handleSelectChange}
+                                options={locationOptions}
+                                placeholder="Seleziona una sede *"
+                                required
+                            />
                              <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
-                            <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="form-input" placeholder="Anzianità (anni)"/>
                         </div>
+                        <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="form-input" placeholder="Anzianità (anni)"/>
                         <textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} rows={3} className="form-textarea" placeholder="Note"></textarea>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>

@@ -16,20 +16,16 @@ export const addDays = (date: Date, days: number): Date => {
 };
 
 /**
- * Restituisce un array di date corrispondenti ai prossimi giorni lavorativi (lunedì-venerdì)
- * a partire da una data specificata.
+ * Restituisce un array di date consecutive a partire da una data specificata.
  * @param {Date} startDate - La data da cui iniziare a contare.
- * @param {number} count - Il numero di giorni lavorativi da restituire.
+ * @param {number} count - Il numero di giorni da restituire.
  * @returns {Date[]} Un array di oggetti Date.
  */
-export const getWorkingDays = (startDate: Date, count: number): Date[] => {
+export const getCalendarDays = (startDate: Date, count: number): Date[] => {
     const days: Date[] = [];
     let currentDate = new Date(startDate);
     while (days.length < count) {
-        const dayOfWeek = currentDate.getDay(); // 0 = Domenica, 6 = Sabato
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-            days.push(new Date(currentDate));
-        }
+        days.push(new Date(currentDate));
         currentDate.setDate(currentDate.getDate() + 1);
     }
     return days;

@@ -38,6 +38,14 @@ function generateSampleData() {
         { id: 'cs3', value: 'Retail' },
         { id: 'cs4', value: 'Sanità' },
     ];
+    const locations = [
+        { id: 'loc1', value: 'Milano' },
+        { id: 'loc2', value: 'Roma' },
+        { id: 'loc3', value: 'Torino' },
+        { id: 'loc4', value: 'Napoli' },
+        { id: 'loc5', value: 'Padova' },
+        { id: 'loc6', value: 'Trento' },
+    ];
 
     // Core Data
     const clients = [
@@ -53,10 +61,10 @@ function generateSampleData() {
     ];
 
     const resources = [
-        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', hireDate: '2022-01-15', workSeniority: 5 },
-        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', hireDate: '2023-06-01', workSeniority: 1 },
-        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', hireDate: '2020-03-10', workSeniority: 8 },
-        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', hireDate: '2019-09-20', workSeniority: 10 },
+        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', location: 'Milano', hireDate: '2022-01-15', workSeniority: 5 },
+        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', location: 'Roma', hireDate: '2023-06-01', workSeniority: 1 },
+        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', location: 'Milano', hireDate: '2020-03-10', workSeniority: 8 },
+        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', location: 'Torino', hireDate: '2019-09-20', workSeniority: 10 },
     ];
 
     const projects = [
@@ -106,10 +114,10 @@ function generateSampleData() {
         }
     }
 
-    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors };
+    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations };
 };
 
-async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors) {
+async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors, locations) {
     console.log('Seeding config tables...');
     await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
 
@@ -137,12 +145,19 @@ async function seedConfigTables(client, horizontals, seniorityLevels, projectSta
             value VARCHAR(255) NOT NULL UNIQUE
         );
     `;
+    await client.sql`
+        CREATE TABLE IF NOT EXISTS locations (
+            id UUID PRIMARY KEY,
+            value VARCHAR(255) NOT NULL UNIQUE
+        );
+    `;
     
     await Promise.all([
         ...horizontals.map(h => client.sql`INSERT INTO horizontals (id, value) VALUES (${h.id}, ${h.value}) ON CONFLICT (id) DO NOTHING;`),
         ...seniorityLevels.map(s => client.sql`INSERT INTO seniority_levels (id, value) VALUES (${s.id}, ${s.value}) ON CONFLICT (id) DO NOTHING;`),
         ...projectStatuses.map(p => client.sql`INSERT INTO project_statuses (id, value) VALUES (${p.id}, ${p.value}) ON CONFLICT (id) DO NOTHING;`),
-        ...clientSectors.map(c => client.sql`INSERT INTO client_sectors (id, value) VALUES (${c.id}, ${c.value}) ON CONFLICT (id) DO NOTHING;`)
+        ...clientSectors.map(c => client.sql`INSERT INTO client_sectors (id, value) VALUES (${c.id}, ${c.value}) ON CONFLICT (id) DO NOTHING;`),
+        ...locations.map(l => client.sql`INSERT INTO locations (id, value) VALUES (${l.id}, ${l.value}) ON CONFLICT (id) DO NOTHING;`)
     ]);
 
     console.log('Config tables seeded.');
@@ -175,6 +190,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             email VARCHAR(255) UNIQUE,
             role_id UUID REFERENCES roles(id),
             horizontal VARCHAR(255),
+            location VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
             notes TEXT
@@ -219,7 +235,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
 
     // Seed resources after roles
     await Promise.all(
-         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, hire_date, work_seniority, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
+         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.location}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
     );
     
     // Seed projects after clients
@@ -266,7 +282,8 @@ async function main() {
             sampleData.horizontals,
             sampleData.seniorityLevels,
             sampleData.projectStatuses,
-            sampleData.clientSectors
+            sampleData.clientSectors,
+            sampleData.locations
         );
         
         await seedMainTables(

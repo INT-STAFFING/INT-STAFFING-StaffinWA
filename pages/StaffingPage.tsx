@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Resource, Project, Assignment } from '../types';
-import { getWorkingDays, formatDate, addDays } from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays } from '../utils/dateUtils';
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -20,6 +20,8 @@ interface AllocationCellProps {
     assignment: Assignment;
     /** @property {string} date - La data (YYYY-MM-DD) per questa cella di allocazione. */
     date: string;
+    /** @property {boolean} isWeekend - Indica se la data corrisponde a un giorno del weekend. */
+    isWeekend: boolean;
 }
 
 /**
@@ -28,10 +30,18 @@ interface AllocationCellProps {
  * @param {AllocationCellProps} props - Le prop del componente.
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date }) => {
+const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isWeekend }) => {
     const { allocations, updateAllocation } = useStaffingContext();
     const percentage = allocations[assignment.id]?.[date] || 0;
 
+    // Se è un weekend, mostra una cella disabilitata con sfondo grigio.
+    if (isWeekend) {
+        return (
+            <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
+                <span className="text-sm text-gray-400">-</span>
+            </td>
+        );
+    }
     /**
      * Gestisce la modifica del valore nel menu a tendina e chiama l'aggiornamento del contesto.
      * @param {React.ChangeEvent<HTMLSelectElement>} e - L'evento di modifica.
@@ -40,7 +50,7 @@ const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date }) => 
         updateAllocation(assignment.id, date, parseInt(e.target.value));
     };
 
-    const percentageOptions = Array.from({ length: 11 }, (_, i) => i * 10);
+    const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
 
     return (
         <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
@@ -64,6 +74,8 @@ interface DailyTotalCellProps {
     resource: Resource;
     /** @property {string} date - La data (YYYY-MM-DD) per cui calcolare il totale. */
     date: string;
+    /** @property {boolean} isWeekend - Indica se la data corrisponde a un giorno del weekend. */
+    isWeekend: boolean;
 }
 
 /**
@@ -72,8 +84,17 @@ interface DailyTotalCellProps {
  * @param {DailyTotalCellProps} props - Le prop del componente.
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date }) => {
+const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isWeekend }) => {
     const { assignments, allocations } = useStaffingContext();
+
+    // Se è un weekend, il totale è 0 e la cella è stilizzata di conseguenza.
+     if (isWeekend) {
+        return (
+            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+                -
+            </td>
+        );
+    }
     
     // Calcola il totale giornaliero per la risorsa sommando tutte le sue allocazioni.
     const total = useMemo(() => {
@@ -118,8 +139,8 @@ const StaffingPage: React.FC = () => {
     // Stato per i filtri applicati alla griglia.
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '' });
 
-    const timeWindow = 31; // Numero di giorni lavorativi da visualizzare.
-    const weekDays = useMemo(() => getWorkingDays(currentDate, timeWindow), [currentDate]);
+    const timeWindow = 35; // Numero di giorni da visualizzare (5 settimane).
+    const calendarDays = useMemo(() => getCalendarDays(currentDate, timeWindow), [currentDate]);
 
     // Progetti a cui è possibile assegnare risorse (esclusi quelli completati).
     const assignableProjects = useMemo(() => projects.filter(p => p.status !== 'Completato'), [projects]);
@@ -263,14 +284,17 @@ const StaffingPage: React.FC = () => {
                             <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Cliente</th>
                             <th className="sticky left-[300px] md:left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>Progetto</th>
                             <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Azioni</th>
-                            {weekDays.map(date => (
-                                <th key={date.toISOString()} className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white w-20 md:w-24">
+                            {calendarDays.map(date => {
+                                const day = date.getDay();
+                                const isWeekend = day === 0 || day === 6;
+                                return (
+                                <th key={date.toISOString()} className={`px-2 py-3.5 text-center text-sm font-semibold w-20 md:w-24 ${isWeekend ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                     <div className="flex flex-col items-center">
-                                        <span>{formatDate(date, 'short')}</span>
+                                        <span className={isWeekend ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{formatDate(date, 'short')}</span>
                                         <span className="text-xs text-gray-500">{formatDate(date, 'day')}</span>
                                     </div>
                                 </th>
-                            ))}
+                            )})}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -303,9 +327,12 @@ const StaffingPage: React.FC = () => {
                                                     </button>
                                                 </div>
                                             </td>
-                                            {weekDays.map(date => (
-                                                <AllocationCell key={date.toISOString()} assignment={assignment} date={formatDate(date, 'iso')} />
-                                            ))}
+                                            {calendarDays.map(date => {
+                                                const day = date.getDay();
+                                                const isWeekend = day === 0 || day === 6;
+                                                return (
+                                                <AllocationCell key={date.toISOString()} assignment={assignment} date={formatDate(date, 'iso')} isWeekend={isWeekend}/>
+                                            )})}
                                         </tr>
                                     );
                                 })}
@@ -314,9 +341,12 @@ const StaffingPage: React.FC = () => {
                                     <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
                                         Carico Totale {resource.name}
                                     </td>
-                                    {weekDays.map(date => (
-                                        <DailyTotalCell key={date.toISOString()} resource={resource} date={formatDate(date, 'iso')} />
-                                    ))}
+                                    {calendarDays.map(date => {
+                                        const day = date.getDay();
+                                        const isWeekend = day === 0 || day === 6;
+                                        return (
+                                        <DailyTotalCell key={date.toISOString()} resource={resource} date={formatDate(date, 'iso')} isWeekend={isWeekend} />
+                                    )})}
                                 </tr>
                              </React.Fragment>
                          ))}
@@ -338,7 +368,7 @@ const StaffingPage: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Percentuale ({bulkFormData.percentage}%)</label>
-                            <input type="range" min="0" max="100" step="10" value={bulkFormData.percentage} onChange={e => setBulkFormData(f => ({...f, percentage: parseInt(e.target.value)}))} className="mt-1 block w-full"/>
+                            <input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={e => setBulkFormData(f => ({...f, percentage: parseInt(e.target.value)}))} className="mt-1 block w-full"/>
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
