@@ -1,8 +1,3 @@
-/**
- * @file TasksPage.tsx
- * @description Pagina per la gestione degli Incarichi (CRUD e visualizzazione).
- */
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import { Task } from '../types';
@@ -10,7 +5,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, ArrowsUpDownIcon, XCircleIcon } from '../components/icons';
 
-type SortConfig = { key: keyof Task | 'projectName' | 'clientName'; direction: 'ascending' | 'descending' } | null;
+type SortConfig = { key: keyof Task | 'projectName' | 'clientName' | 'internalFees' | 'externalFees' | 'expenses' | 'realization'; direction: 'ascending' | 'descending' } | null;
 
 const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -31,6 +26,50 @@ const TasksPage: React.FC = () => {
         wbs: '', name: '', projectId: '', totalFees: 0, internalFees: 0,
         externalFees: 0, expenses: 0, realization: 100, margin: 0, roleEfforts: {}
     };
+
+    // Effetto per i calcoli automatici nella modale
+    useEffect(() => {
+        if (!editingTask) return;
+
+        const { roleEfforts, internalFees, externalFees } = editingTask;
+
+        const sumOfDailyCosts = Object.entries(roleEfforts || {}).reduce((acc, [roleId, days]) => {
+            const role = roles.find(r => r.id === roleId);
+            return acc + ((Number(days) || 0) * (role?.dailyCost || 0));
+        }, 0);
+
+        const sumOfStandardCosts = Object.entries(roleEfforts || {}).reduce((acc, [roleId, days]) => {
+            const role = roles.find(r => r.id === roleId);
+            return acc + ((Number(days) || 0) * (role?.standardCost || role?.dailyCost || 0));
+        }, 0);
+        
+        const calculatedExpenses = sumOfDailyCosts * 0.035;
+        const calculatedTotalFees = (Number(internalFees) || 0) + (Number(externalFees) || 0) + calculatedExpenses;
+        const calculatedRealization = sumOfDailyCosts > 0 ? ((Number(internalFees) || 0) / sumOfDailyCosts) * 100 : 0;
+        const calculatedMargin = calculatedTotalFees > 0 ? ((calculatedTotalFees - sumOfStandardCosts) / calculatedTotalFees) * 100 : 0;
+
+        setEditingTask(prev => {
+            if (!prev) return null;
+            // Aggiorna solo se i valori calcolati sono diversi per evitare loop
+            if (
+                prev.expenses.toFixed(2) === calculatedExpenses.toFixed(2) &&
+                prev.totalFees.toFixed(2) === calculatedTotalFees.toFixed(2) &&
+                prev.realization.toFixed(2) === calculatedRealization.toFixed(2) &&
+                prev.margin.toFixed(2) === calculatedMargin.toFixed(2)
+            ) {
+                return prev;
+            }
+            return {
+                ...prev,
+                expenses: calculatedExpenses,
+                totalFees: calculatedTotalFees,
+                realization: calculatedRealization,
+                margin: calculatedMargin,
+            };
+        });
+
+    }, [editingTask?.roleEfforts, editingTask?.internalFees, editingTask?.externalFees, roles]);
+
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
@@ -209,6 +248,10 @@ const TasksPage: React.FC = () => {
                             {getSortableHeader('Progetto', 'projectName')}
                             {getSortableHeader('Cliente', 'clientName')}
                             {getSortableHeader('Onorari Totali', 'totalFees')}
+                            {getSortableHeader('Onorari Interni', 'internalFees')}
+                            {getSortableHeader('Onorari Esterni', 'externalFees')}
+                            {getSortableHeader('Spese', 'expenses')}
+                            {getSortableHeader('Realizzo', 'realization')}
                             {getSortableHeader('Margine', 'margin')}
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                         </tr>
@@ -224,7 +267,11 @@ const TasksPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project?.name || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.totalFees)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.margin}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.internalFees)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.externalFees)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.expenses)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.realization.toFixed(2)}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.margin.toFixed(2)}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
                                             <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
@@ -258,7 +305,7 @@ const TasksPage: React.FC = () => {
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                                 <div>
                                     <label htmlFor="totalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Totali (€)</label>
-                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                                 <div>
                                     <label htmlFor="internalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Interni (€)</label>
@@ -270,17 +317,17 @@ const TasksPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <label htmlFor="expenses" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Spese (€)</label>
-                                    <input id="expenses" type="number" step="0.01" name="expenses" value={editingTask.expenses} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="expenses" type="number" step="0.01" name="expenses" value={editingTask.expenses.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 <div>
                                     <label htmlFor="realization" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Realizzo (%)</label>
-                                    <input id="realization" type="number" name="realization" value={editingTask.realization} onChange={handleChange} className="form-input mt-1" placeholder="100"/>
+                                    <input id="realization" type="number" step="0.01" name="realization" value={editingTask.realization.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="100"/>
                                 </div>
                                 <div>
                                     <label htmlFor="margin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Margine (%)</label>
-                                    <input id="margin" type="number" name="margin" value={editingTask.margin} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="margin" type="number" step="0.01" name="margin" value={editingTask.margin.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                             </div>
                         </fieldset>
