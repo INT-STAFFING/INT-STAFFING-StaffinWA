@@ -31,7 +31,7 @@ const TasksPage: React.FC = () => {
     useEffect(() => {
         if (!editingTask) return;
 
-        const { roleEfforts, internalFees, externalFees } = editingTask;
+        const { roleEfforts, totalFees, externalFees } = editingTask;
 
         const sumOfDailyCosts = Object.entries(roleEfforts || {}).reduce((acc, [roleId, days]) => {
             const role = roles.find(r => r.id === roleId);
@@ -43,32 +43,32 @@ const TasksPage: React.FC = () => {
             return acc + ((Number(days) || 0) * (role?.standardCost || role?.dailyCost || 0));
         }, 0);
         
+        // Spese = Sommatoria per ogni Ruolo di (numero giornate * costo giornaliero del ruolo * 0,035)
         const calculatedExpenses = sumOfDailyCosts * 0.035;
-        const calculatedTotalFees = (Number(internalFees) || 0) + (Number(externalFees) || 0) + calculatedExpenses;
-        const calculatedRealization = sumOfDailyCosts > 0 ? ((Number(internalFees) || 0) / sumOfDailyCosts) * 100 : 0;
-        const calculatedMargin = calculatedTotalFees > 0 ? ((calculatedTotalFees - sumOfStandardCosts) / calculatedTotalFees) * 100 : 0;
+        
+        // Onorari Interni = Onorari Totale - Onorari Esterni - Spese
+        const calculatedInternalFees = (Number(totalFees) || 0) - (Number(externalFees) || 0) - calculatedExpenses;
+
+        // REALIZZO = Onorari Interni / (Sommatoria per ogni ruolo di (numero giornate * Costo Giornaliero del ruolo))
+        const calculatedRealization = sumOfDailyCosts > 0 ? (calculatedInternalFees / sumOfDailyCosts) * 100 : 0;
+
+        // MARGINE = (Onorari Totale - Sommatoria per ruolo (numero giornate * Costi Stardard del ruolo)) / Onorari Totale * 100
+        const calculatedMargin = (Number(totalFees) || 0) > 0 
+            ? (((Number(totalFees) || 0) - sumOfStandardCosts) / (Number(totalFees) || 0)) * 100 
+            : 0;
 
         setEditingTask(prev => {
             if (!prev) return null;
-            // Aggiorna solo se i valori calcolati sono diversi per evitare loop
-            if (
-                prev.expenses.toFixed(2) === calculatedExpenses.toFixed(2) &&
-                prev.totalFees.toFixed(2) === calculatedTotalFees.toFixed(2) &&
-                prev.realization.toFixed(2) === calculatedRealization.toFixed(2) &&
-                prev.margin.toFixed(2) === calculatedMargin.toFixed(2)
-            ) {
-                return prev;
-            }
             return {
                 ...prev,
+                internalFees: calculatedInternalFees,
                 expenses: calculatedExpenses,
-                totalFees: calculatedTotalFees,
                 realization: calculatedRealization,
                 margin: calculatedMargin,
             };
         });
 
-    }, [editingTask?.roleEfforts, editingTask?.internalFees, editingTask?.externalFees, roles]);
+    }, [editingTask?.roleEfforts, editingTask?.totalFees, editingTask?.externalFees, roles]);
 
 
     const filteredTasks = useMemo(() => {
@@ -305,7 +305,7 @@ const TasksPage: React.FC = () => {
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                                 <div>
                                     <label htmlFor="totalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Totali (€)</label>
-                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                                 <div>
                                     <label htmlFor="internalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Interni (€)</label>
@@ -317,17 +317,17 @@ const TasksPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <label htmlFor="expenses" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Spese (€)</label>
-                                    <input id="expenses" type="number" step="0.01" name="expenses" value={editingTask.expenses.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="expenses" type="number" step="0.01" name="expenses" value={editingTask.expenses} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 <div>
                                     <label htmlFor="realization" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Realizzo (%)</label>
-                                    <input id="realization" type="number" step="0.01" name="realization" value={editingTask.realization.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="100"/>
+                                    <input id="realization" type="number" step="0.01" name="realization" value={editingTask.realization} onChange={handleChange} className="form-input mt-1" placeholder="100"/>
                                 </div>
                                 <div>
                                     <label htmlFor="margin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Margine (%)</label>
-                                    <input id="margin" type="number" step="0.01" name="margin" value={editingTask.margin.toFixed(2)} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="margin" type="number" step="0.01" name="margin" value={editingTask.margin} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                             </div>
                         </fieldset>
