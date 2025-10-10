@@ -2,13 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
 import SearchableSelect from '../components/SearchableSelect';
 
-const formatCurrency = (value: number) => (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+const formatCurrency = (value: number | null | undefined) => (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 
 const TaskDetailsPage: React.FC = () => {
     const { tasks, projects, clients, roles } = useStaffingContext();
     const [selectedTaskId, setSelectedTaskId] = useState<string>('');
 
-    const taskOptions = useMemo(() => tasks.map(t => ({ value: t.id!, label: `${t.wbs} - ${t.name}` })).sort((a, b) => a.label.localeCompare(b.label)), [tasks]);
+    const taskOptions = useMemo(() => 
+        tasks
+            .map(t => ({ value: t.id!, label: `${t.wbs} - ${t.name}` }))
+            .sort((a, b) => a.label.localeCompare(b.label)), 
+        [tasks]
+    );
 
     const selectedTaskData = useMemo(() => {
         if (!selectedTaskId) return null;
@@ -19,16 +24,6 @@ const TaskDetailsPage: React.FC = () => {
         const project = projects.find(p => p.id === task.projectId);
         const client = clients.find(c => c.id === project?.clientId);
 
-        const sumOfDailyCosts = Object.entries(task.roleEfforts || {}).reduce((acc, [roleId, days]) => {
-            const role = roles.find(r => r.id === roleId);
-            return acc + ((Number(days) || 0) * (role?.dailyCost || 0));
-        }, 0);
-
-        const sumOfStandardCosts = Object.entries(task.roleEfforts || {}).reduce((acc, [roleId, days]) => {
-            const role = roles.find(r => r.id === roleId);
-            return acc + ((Number(days) || 0) * (role?.standardCost || role?.dailyCost || 0));
-        }, 0);
-
         const roleBreakdown = Object.entries(task.roleEfforts || {}).map(([roleId, days]) => {
             const role = roles.find(r => r.id === roleId);
             const dailyCost = role?.dailyCost || 0;
@@ -38,9 +33,13 @@ const TaskDetailsPage: React.FC = () => {
                 days: Number(days) || 0,
                 dailyCost,
                 standardCost,
-                totalCost: (Number(days) || 0) * dailyCost,
+                totalDailyCost: (Number(days) || 0) * dailyCost,
+                totalStandardCost: (Number(days) || 0) * standardCost,
             };
         });
+
+        const sumOfDailyCosts = roleBreakdown.reduce((acc, item) => acc + item.totalDailyCost, 0);
+        const sumOfStandardCosts = roleBreakdown.reduce((acc, item) => acc + item.totalStandardCost, 0);
 
         return {
             task,
@@ -105,8 +104,8 @@ const TaskDetailsPage: React.FC = () => {
                             <div><p className="text-gray-500">Onorari Interni</p><p className="font-medium text-lg">{formatCurrency(selectedTaskData.task.internalFees)}</p></div>
                             <div><p className="text-gray-500">Onorari Esterni</p><p className="font-medium text-lg">{formatCurrency(selectedTaskData.task.externalFees)}</p></div>
                             <div><p className="text-gray-500">Spese</p><p className="font-medium text-lg">{formatCurrency(selectedTaskData.task.expenses)}</p></div>
-                            <div><p className="text-gray-500">Realizzo</p><p className="font-medium text-lg">{(selectedTaskData.task.realization || 0).toFixed(2)}%</p></div>
-                            <div><p className="text-gray-500">Margine</p><p className="font-medium text-lg">{(selectedTaskData.task.margin || 0).toFixed(2)}%</p></div>
+                            <div><p className="text-gray-500">Realizzo</p><p className="font-medium text-lg">{(selectedTaskData.task.realization ?? 0).toFixed(2)}%</p></div>
+                            <div><p className="text-gray-500">Margine</p><p className="font-medium text-lg">{(selectedTaskData.task.margin ?? 0).toFixed(2)}%</p></div>
                         </div>
                     </div>
 
@@ -131,7 +130,7 @@ const TaskDetailsPage: React.FC = () => {
                                             <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{item.days}</td>
                                             <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatCurrency(item.dailyCost)}</td>
                                             <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatCurrency(item.standardCost)}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatCurrency(item.totalCost)}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatCurrency(item.totalDailyCost)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -157,7 +156,7 @@ const TaskDetailsPage: React.FC = () => {
                                  { label: "Costo Totale Giorni/Uomo", value: formatCurrency(selectedTaskData.sumOfDailyCosts) },
                              ],
                              `(${formatCurrency(selectedTaskData.task.internalFees)} / ${formatCurrency(selectedTaskData.sumOfDailyCosts)}) * 100`,
-                             `${(selectedTaskData.task.realization || 0).toFixed(2)}%`
+                             `${(selectedTaskData.task.realization ?? 0).toFixed(2)}%`
                          )}
                          <div className="border-t my-6 dark:border-gray-700"></div>
                           {renderCalculationDetail(
@@ -167,7 +166,7 @@ const TaskDetailsPage: React.FC = () => {
                                  { label: "Costo Standard Totale", value: formatCurrency(selectedTaskData.sumOfStandardCosts) },
                              ],
                              `((${formatCurrency(selectedTaskData.task.totalFees)} - ${formatCurrency(selectedTaskData.sumOfStandardCosts)}) / ${formatCurrency(selectedTaskData.task.totalFees)}) * 100`,
-                             `${(selectedTaskData.task.margin || 0).toFixed(2)}%`
+                             `${(selectedTaskData.task.margin ?? 0).toFixed(2)}%`
                          )}
                     </div>
                 </div>

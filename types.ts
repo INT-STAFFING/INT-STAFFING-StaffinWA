@@ -174,10 +174,10 @@ export interface Task {
     externalFees: number;
     /** @property {number} expenses - Spese previste per l'incarico. */
     expenses: number;
-    /** @property {number} realization - Percentuale di realizzo. */
-    realization: number;
-    /** @property {number} margin - Margine percentuale previsto. */
-    margin: number;
+    /** @property {number | null} realization - Percentuale di realizzo. */
+    realization: number | null;
+    /** @property {number | null} margin - Margine percentuale previsto. */
+    margin: number | null;
     /** @property {{ [roleId: string]: number }} roleEfforts - Oggetto che mappa l'ID di un ruolo allo sforzo numerico previsto (es. giorni). */
     roleEfforts: { [roleId: string]: number };
 }
