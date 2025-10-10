@@ -68,6 +68,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <CalendarDaysIcon className="w-6 h-6 mr-3" />
                     Staffing
                 </NavLink>
+                <NavLink to="/workload" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                    <UserGroupIcon className="w-6 h-6 mr-3" />
+                    Carico Risorse
+                </NavLink>
                 <NavLink to="/dashboard" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <ChartBarIcon className="w-6 h-6 mr-3" />
                     Dashboard
@@ -77,10 +81,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <NavLink to="/forecasting" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <PresentationChartLineIcon className="w-6 h-6 mr-3" />
                     Forecasting
-                </NavLink>
-                <NavLink to="/workload" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                    <UserGroupIcon className="w-6 h-6 mr-3" />
-                    Carico Risorse
                 </NavLink>
                 <NavLink to="/gantt" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <Bars4Icon className="w-6 h-6 mr-3" />
