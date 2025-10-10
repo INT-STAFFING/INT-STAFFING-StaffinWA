@@ -105,8 +105,8 @@ const TaskDetailsPage: React.FC = () => {
                             <div><p className="text-gray-500">Onorari Interni</p><p className="font-medium text-lg">{formatCurrency(selectedTaskData.task.internalFees)}</p></div>
                             <div><p className="text-gray-500">Onorari Esterni</p><p className="font-medium text-lg">{formatCurrency(selectedTaskData.task.externalFees)}</p></div>
                             <div><p className="text-gray-500">Spese</p><p className="font-medium text-lg">{formatCurrency(selectedTaskData.task.expenses)}</p></div>
-                            <div><p className="text-gray-500">Realizzo</p><p className="font-medium text-lg">{selectedTaskData.task.realization.toFixed(2)}%</p></div>
-                            <div><p className="text-gray-500">Margine</p><p className="font-medium text-lg">{selectedTaskData.task.margin.toFixed(2)}%</p></div>
+                            <div><p className="text-gray-500">Realizzo</p><p className="font-medium text-lg">{(selectedTaskData.task.realization || 0).toFixed(2)}%</p></div>
+                            <div><p className="text-gray-500">Margine</p><p className="font-medium text-lg">{(selectedTaskData.task.margin || 0).toFixed(2)}%</p></div>
                         </div>
                     </div>
 
@@ -157,7 +157,7 @@ const TaskDetailsPage: React.FC = () => {
                                  { label: "Costo Totale Giorni/Uomo", value: formatCurrency(selectedTaskData.sumOfDailyCosts) },
                              ],
                              `(${formatCurrency(selectedTaskData.task.internalFees)} / ${formatCurrency(selectedTaskData.sumOfDailyCosts)}) * 100`,
-                             `${selectedTaskData.task.realization.toFixed(2)}%`
+                             `${(selectedTaskData.task.realization || 0).toFixed(2)}%`
                          )}
                          <div className="border-t my-6 dark:border-gray-700"></div>
                           {renderCalculationDetail(
@@ -167,7 +167,7 @@ const TaskDetailsPage: React.FC = () => {
                                  { label: "Costo Standard Totale", value: formatCurrency(selectedTaskData.sumOfStandardCosts) },
                              ],
                              `((${formatCurrency(selectedTaskData.task.totalFees)} - ${formatCurrency(selectedTaskData.sumOfStandardCosts)}) / ${formatCurrency(selectedTaskData.task.totalFees)}) * 100`,
-                             `${selectedTaskData.task.margin.toFixed(2)}%`
+                             `${(selectedTaskData.task.margin || 0).toFixed(2)}%`
                          )}
                     </div>
                 </div>

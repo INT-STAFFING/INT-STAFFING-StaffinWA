@@ -169,7 +169,7 @@ const TasksPage: React.FC = () => {
 
     const handleRoleEffortChange = (roleId: string, value: string) => {
         if (editingTask) {
-            const newEfforts = { ...editingTask.roleEfforts, [roleId]: Number(value) || 0 };
+            const newEfforts = { ...(editingTask.roleEfforts || {}), [roleId]: Number(value) || 0 };
             setEditingTask({ ...editingTask, roleEfforts: newEfforts });
         }
     };
@@ -270,8 +270,8 @@ const TasksPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.internalFees)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.externalFees)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.expenses)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.realization.toFixed(2)}%</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.margin.toFixed(2)}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{(task.realization || 0).toFixed(2)}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{(task.margin || 0).toFixed(2)}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
                                             <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
@@ -341,7 +341,7 @@ const TasksPage: React.FC = () => {
                                         <label className="block text-sm text-gray-600 dark:text-gray-400">{role.name}</label>
                                         <input
                                             type="number"
-                                            value={editingTask.roleEfforts[role.id!] || ''}
+                                            value={(editingTask.roleEfforts || {})[role.id!] || ''}
                                             onChange={(e) => handleRoleEffortChange(role.id!, e.target.value)}
                                             className="form-input mt-1"
                                             placeholder="0"
