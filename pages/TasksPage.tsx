@@ -8,7 +8,7 @@ import { useStaffingContext } from '../context/StaffingContext';
 import { Task } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, ArrowsUpDownIcon, XCircleIcon } from '../components/icons';
 
 type SortConfig = { key: keyof Task | 'projectName' | 'clientName'; direction: 'ascending' | 'descending' } | null;
 
@@ -22,6 +22,7 @@ const TasksPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | Omit<Task, 'id'> | null>(null);
     const [assignedResources, setAssignedResources] = useState<Set<string>>(new Set());
+    const [resourceToAdd, setResourceToAdd] = useState('');
     
     const [filters, setFilters] = useState({ name: '', projectId: '', clientId: '' });
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
@@ -139,15 +140,22 @@ const TasksPage: React.FC = () => {
             setEditingTask({ ...editingTask, [name]: value });
         }
     };
+    
+    const handleAddResource = () => {
+        if (resourceToAdd) {
+            setAssignedResources(prev => {
+                const newSet = new Set(prev);
+                newSet.add(resourceToAdd);
+                return newSet;
+            });
+            setResourceToAdd('');
+        }
+    };
 
-    const handleResourceToggle = (resourceId: string) => {
+    const handleRemoveResource = (resourceId: string) => {
         setAssignedResources(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(resourceId)) {
-                newSet.delete(resourceId);
-            } else {
-                newSet.add(resourceId);
-            }
+            newSet.delete(resourceId);
             return newSet;
         });
     };
@@ -281,18 +289,45 @@ const TasksPage: React.FC = () => {
                         {/* Sezione Assegnazione Risorse */}
                         <fieldset className="border p-4 rounded-md">
                             <legend className="text-lg font-medium px-2">Risorse Assegnate</legend>
-                            <div className="mt-2 max-h-48 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2">
-                                {resourceOptions.map(option => (
-                                    <label key={option.value} className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
-                                        <input
-                                            type="checkbox"
-                                            checked={assignedResources.has(option.value)}
-                                            onChange={() => handleResourceToggle(option.value)}
-                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                        />
-                                        <span className="text-sm text-gray-800 dark:text-gray-200">{option.label}</span>
-                                    </label>
-                                ))}
+                            <div className="flex items-center gap-2 mt-2">
+                                <div className="flex-grow">
+                                    <SearchableSelect
+                                        name="resourceToAdd"
+                                        value={resourceToAdd}
+                                        onChange={(_, value) => setResourceToAdd(value)}
+                                        options={resourceOptions.filter(opt => !assignedResources.has(opt.value))}
+                                        placeholder="Aggiungi una risorsa..."
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleAddResource}
+                                    disabled={!resourceToAdd}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
+                                >
+                                    Aggiungi
+                                </button>
+                            </div>
+                            <div className="mt-4 max-h-48 overflow-y-auto space-y-2">
+                                {Array.from(assignedResources).map(resourceId => {
+                                    const resource = resources.find(r => r.id === resourceId);
+                                    return (
+                                        <div key={resourceId} className="flex items-center justify-between p-2 rounded-md bg-gray-100 dark:bg-gray-700">
+                                            <span className="text-sm text-gray-800 dark:text-gray-200">{resource?.name || 'Risorsa non trovata'}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveResource(resourceId)}
+                                                className="text-red-500 hover:text-red-700"
+                                                title="Rimuovi risorsa"
+                                            >
+                                                <XCircleIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                                {assignedResources.size === 0 && (
+                                    <p className="text-sm text-gray-500 text-center py-4">Nessuna risorsa assegnata.</p>
+                                )}
                             </div>
                         </fieldset>
                         

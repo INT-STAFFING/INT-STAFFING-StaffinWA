@@ -31,14 +31,15 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
 
     return (
-        // Backdrop: overlay scuro che copre la pagina. Cliccandoci sopra si chiude la modale.
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={onClose}>
+        // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
             <div 
-                // Contenitore della modale: impedisce la propagazione del click per non chiudersi quando si interagisce al suo interno.
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-4" 
+                // Contenitore della modale: impedisce la propagazione del click, gestisce il layout verticale e l'overflow.
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full" 
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center p-4 border-b dark:border-gray-700">
+                {/* Header: non si restringe e rimane sempre visibile in alto. */}
+                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b dark:border-gray-700">
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h3>
                     <button 
                         onClick={onClose} 
@@ -48,7 +49,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
                     </button>
                 </div>
-                <div className="p-6">
+                {/* Area del contenuto: diventa scorrevole se il contenuto è troppo alto. */}
+                <div className="p-6 overflow-y-auto">
                     {children}
                 </div>
             </div>
