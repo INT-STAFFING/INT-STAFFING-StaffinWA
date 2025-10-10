@@ -20,11 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'POST':
             // Gestisce la creazione di una nuova risorsa.
             try {
-                const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, standardCost, dailyExpenses } = req.body;
+                const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes } = req.body;
+                
                 const newId = uuidv4();
                 await db.sql`
-                    INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, standard_cost, daily_expenses)
-                    VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate}, ${workSeniority || 0}, ${notes}, ${standardCost || 0}, ${dailyExpenses || 0});
+                    INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes)
+                    VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate}, ${workSeniority}, ${notes});
                 `;
                 return res.status(201).json({ id: newId, ...req.body });
             } catch (error) {
@@ -38,10 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'PUT':
             // Gestisce la modifica di una risorsa esistente.
             try {
-                const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, standardCost, dailyExpenses } = req.body;
+                const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes } = req.body;
+                
                 await db.sql`
                     UPDATE resources
-                    SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, location = ${location}, hire_date = ${hireDate}, work_seniority = ${workSeniority || 0}, notes = ${notes}, standard_cost = ${standardCost || 0}, daily_expenses = ${dailyExpenses || 0}
+                    SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, location = ${location}, 
+                        hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}
                     WHERE id = ${id as string};
                 `;
                 return res.status(200).json({ id, ...req.body });

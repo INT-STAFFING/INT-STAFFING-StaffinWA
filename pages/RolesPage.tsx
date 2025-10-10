@@ -18,10 +18,10 @@ type SortConfig = { key: keyof Role; direction: 'ascending' | 'descending' } | n
 
 /**
  * Formatta un valore numerico come valuta EUR in formato italiano.
- * @param {number} value - Il valore numerico da formattare.
+ * @param {number | undefined} value - Il valore numerico da formattare.
  * @returns {string} La stringa formattata (es. "€ 1.234,56").
  */
-const formatCurrency = (value: number): string => {
+const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
@@ -41,7 +41,7 @@ const RolesPage: React.FC = () => {
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Role | null>(null);
 
-    const emptyRole: Omit<Role, 'id'> = { name: '', seniorityLevel: seniorityLevels[0]?.value || '', dailyCost: 0 };
+    const emptyRole: Omit<Role, 'id'> = { name: '', seniorityLevel: seniorityLevels[0]?.value || '', dailyCost: 0, standardCost: 0 };
 
     const filteredRoles = useMemo(() => {
         return roles.filter(role => {
@@ -99,7 +99,7 @@ const RolesPage: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (editingRole) {
             const { name, value } = e.target;
-            const numericFields = ['dailyCost'];
+            const numericFields = ['dailyCost', 'standardCost'];
             setEditingRole({ ...editingRole, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value } as Role | Omit<Role, 'id'>);
         }
     };
@@ -116,7 +116,7 @@ const RolesPage: React.FC = () => {
     const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) {
             const { name, value } = e.target;
-            const isNumeric = name === 'dailyCost';
+            const isNumeric = ['dailyCost', 'standardCost'].includes(name);
             setInlineEditingData({ ...inlineEditingData, [name]: isNumeric ? parseFloat(value) || 0 : value });
         }
     };
@@ -164,6 +164,8 @@ const RolesPage: React.FC = () => {
                                 {getSortableHeader('Nome Ruolo', 'name')}
                                 {getSortableHeader('Livello Seniority', 'seniorityLevel')}
                                 {getSortableHeader('Costo Giornaliero', 'dailyCost')}
+                                {getSortableHeader('Costo Standard', 'standardCost')}
+                                {getSortableHeader('Spese Giornaliere', 'dailyExpenses')}
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
@@ -176,6 +178,8 @@ const RolesPage: React.FC = () => {
                                         <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                                         <td className="px-6 py-4"><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></td>
                                         <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
+                                        <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
+                                        <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
                                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
                                     </tr>
                                     )
@@ -185,6 +189,8 @@ const RolesPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{role.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role.seniorityLevel}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyCost)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.standardCost)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyExpenses)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
                                             <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
@@ -209,6 +215,7 @@ const RolesPage: React.FC = () => {
                                         <div><label className="text-xs font-medium text-gray-500">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                                         <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
                                         <div><label className="text-xs font-medium text-gray-500">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
                                             <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
@@ -230,8 +237,10 @@ const RolesPage: React.FC = () => {
                                         <button onClick={() => deleteRole(role.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
                                     </div>
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
-                                    <div><p className="text-gray-500 dark:text-gray-400">Costo Giornaliero</p><p className="font-medium text-lg text-gray-900 dark:text-white">{formatCurrency(role.dailyCost)}</p></div>
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyCost)}</p></div>
+                                     <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.standardCost)}</p></div>
+                                     <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyExpenses)}</p></div>
                                 </div>
                             </div>
                         )
@@ -251,7 +260,10 @@ const RolesPage: React.FC = () => {
                             placeholder="Seleziona un livello"
                             required
                         />
-                        <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input" placeholder="Costo Giornaliero (€)"/>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input" placeholder="Costo Giornaliero (€)"/>
+                            <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input" placeholder="Costo Standard (€)"/>
+                        </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
                             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>

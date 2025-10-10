@@ -42,6 +42,10 @@ export interface Role {
     seniorityLevel: string;
     /** @property {number} dailyCost - Il costo giornaliero standard per questo ruolo. */
     dailyCost: number;
+    /** @property {number} [standardCost] - Un costo standard personalizzato per il ruolo. */
+    standardCost?: number;
+    /** @property {number} [dailyExpenses] - Le spese giornaliere accessorie, calcolate in base al costo giornaliero. */
+    dailyExpenses?: number;
 }
 
 /**
@@ -65,10 +69,6 @@ export interface Resource {
     hireDate: string; 
     /** @property {number} workSeniority - Gli anni di anzianità lavorativa. */
     workSeniority: number;
-    /** @property {number} standardCost - Il costo standard personalizzato per la risorsa. */
-    standardCost: number;
-    /** @property {number} dailyExpenses - Le spese giornaliere calcolate. */
-    dailyExpenses: number;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
 }

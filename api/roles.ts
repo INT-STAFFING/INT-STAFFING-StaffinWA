@@ -20,13 +20,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'POST':
             // Gestisce la creazione di un nuovo ruolo.
             try {
-                const { name, seniorityLevel, dailyCost } = req.body;
+                const { name, seniorityLevel, dailyCost, standardCost } = req.body;
+                const dailyExpenses = (Number(dailyCost) || 0) * 0.035;
                 const newId = uuidv4();
                 await db.sql`
-                    INSERT INTO roles (id, name, seniority_level, daily_cost)
-                    VALUES (${newId}, ${name}, ${seniorityLevel}, ${dailyCost});
+                    INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses)
+                    VALUES (${newId}, ${name}, ${seniorityLevel}, ${dailyCost}, ${standardCost}, ${dailyExpenses});
                 `;
-                return res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, ...req.body, dailyExpenses });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità sul nome del ruolo.
                 if ((error as any).code === '23505') { // unique_violation
@@ -38,13 +39,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         case 'PUT':
             // Gestisce la modifica di un ruolo esistente.
             try {
-                const { name, seniorityLevel, dailyCost } = req.body;
+                const { name, seniorityLevel, dailyCost, standardCost } = req.body;
+                const dailyExpenses = (Number(dailyCost) || 0) * 0.035;
                 await db.sql`
                     UPDATE roles
-                    SET name = ${name}, seniority_level = ${seniorityLevel}, daily_cost = ${dailyCost}
+                    SET name = ${name}, seniority_level = ${seniorityLevel}, daily_cost = ${dailyCost}, standard_cost = ${standardCost}, daily_expenses = ${dailyExpenses}
                     WHERE id = ${id as string};
                 `;
-                return res.status(200).json({ id, ...req.body });
+                return res.status(200).json({ id, ...req.body, dailyExpenses });
             } catch (error) {
                 // Gestisce la violazione del vincolo di unicità sul nome del ruolo.
                 if ((error as any).code === '23505') { // unique_violation

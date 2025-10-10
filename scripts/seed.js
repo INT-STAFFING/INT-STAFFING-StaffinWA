@@ -63,17 +63,17 @@ function generateSampleData() {
     ];
 
     const roles = [
-        { id: 'r1', name: 'Junior Developer', seniorityLevel: 'Junior', dailyCost: 300 },
-        { id: 'r2', name: 'Senior Developer', seniorityLevel: 'Senior', dailyCost: 500 },
-        { id: 'r3', name: 'Tech Lead', seniorityLevel: 'Lead', dailyCost: 650 },
-        { id: 'r4', name: 'Project Manager', seniorityLevel: 'Senior', dailyCost: 700 },
+        { id: 'r1', name: 'Junior Developer', seniorityLevel: 'Junior', dailyCost: 300, standardCost: 300, dailyExpenses: 10.5 },
+        { id: 'r2', name: 'Senior Developer', seniorityLevel: 'Senior', dailyCost: 500, standardCost: 520, dailyExpenses: 17.5 },
+        { id: 'r3', name: 'Tech Lead', seniorityLevel: 'Lead', dailyCost: 650, standardCost: 650, dailyExpenses: 22.75 },
+        { id: 'r4', name: 'Project Manager', seniorityLevel: 'Senior', dailyCost: 700, standardCost: 700, dailyExpenses: 24.5 },
     ];
 
     const resources = [
-        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', location: 'Milano', hireDate: '2022-01-15', workSeniority: 5, standardCost: 550, dailyExpenses: 500 * 0.035 },
-        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', location: 'Roma', hireDate: '2023-06-01', workSeniority: 1, standardCost: 320, dailyExpenses: 300 * 0.035 },
-        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', location: 'Milano', hireDate: '2020-03-10', workSeniority: 8, standardCost: 700, dailyExpenses: 650 * 0.035 },
-        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', location: 'Torino', hireDate: '2019-09-20', workSeniority: 10, standardCost: 750, dailyExpenses: 700 * 0.035 },
+        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', location: 'Milano', hireDate: '2022-01-15', workSeniority: 5 },
+        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', location: 'Roma', hireDate: '2023-06-01', workSeniority: 1 },
+        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', location: 'Milano', hireDate: '2020-03-10', workSeniority: 8 },
+        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', location: 'Torino', hireDate: '2019-09-20', workSeniority: 10 },
     ];
 
     const projects = [
@@ -192,6 +192,9 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             daily_cost NUMERIC(10, 2)
         );
     `;
+    await client.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(10, 2);`;
+    await client.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC(10, 2);`;
+
     await client.sql`
         CREATE TABLE IF NOT EXISTS resources (
             id UUID PRIMARY KEY,
@@ -205,8 +208,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
     await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
-    await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(10, 2) DEFAULT 0;`;
-    await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC(10, 2) DEFAULT 0;`;
+    
     await client.sql`
         CREATE TABLE IF NOT EXISTS projects (
             id UUID PRIMARY KEY,
@@ -251,12 +253,12 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
-        ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level, daily_cost) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}, ${r.dailyCost}) ON CONFLICT (id) DO NOTHING;`)
+        ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}, ${r.dailyCost}, ${r.standardCost}, ${r.dailyExpenses}) ON CONFLICT (id) DO NOTHING;`)
     ]);
 
     // Seed resources after roles
     await Promise.all(
-         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, standard_cost, daily_expenses) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.location}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}, ${res.standardCost}, ${res.dailyExpenses}) ON CONFLICT (id) DO NOTHING;`)
+         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.location}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
     );
     
     // Seed projects after clients

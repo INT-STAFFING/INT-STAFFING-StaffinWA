@@ -15,15 +15,15 @@ import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
  * @type SortConfig
  * @description Configurazione per l'ordinamento della tabella.
  */
-type SortConfig = { key: keyof Resource | 'dailyCost' | 'allocation' | 'dailyExpenses'; direction: 'ascending' | 'descending' } | null;
+type SortConfig = { key: keyof Resource | 'dailyCost' | 'allocation' | 'roleStandardCost' | 'roleDailyExpenses'; direction: 'ascending' | 'descending' } | null;
 
 
 /**
  * Formatta un valore numerico come valuta EUR in formato italiano.
- * @param {number} value - Il valore numerico da formattare.
+ * @param {number | undefined} value - Il valore numerico da formattare.
  * @returns {string} La stringa formattata (es. "€ 1.234,56").
  */
-const formatCurrency = (value: number): string => {
+const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
@@ -47,7 +47,6 @@ const ResourcesPage: React.FC = () => {
         name: '', email: '', roleId: '', horizontal: horizontals[0]?.value || '',
         location: locations[0]?.value || '',
         hireDate: '', workSeniority: 0, notes: '',
-        standardCost: 0, dailyExpenses: 0
     };
     
     const filteredResources = useMemo(() => {
@@ -103,9 +102,13 @@ const ResourcesPage: React.FC = () => {
                         aValue = aRole?.dailyCost || 0;
                         bValue = bRole?.dailyCost || 0;
                         break;
-                    case 'dailyExpenses':
-                        aValue = (aRole?.dailyCost || 0) * 0.035;
-                        bValue = (bRole?.dailyCost || 0) * 0.035;
+                    case 'roleStandardCost':
+                         aValue = aRole?.standardCost || 0;
+                         bValue = bRole?.standardCost || 0;
+                        break;
+                    case 'roleDailyExpenses':
+                         aValue = aRole?.dailyExpenses || 0;
+                         bValue = bRole?.dailyExpenses || 0;
                         break;
                     case 'allocation':
                          aValue = calculateResourceAllocation(a);
@@ -158,17 +161,8 @@ const ResourcesPage: React.FC = () => {
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingResource) {
-            const role = roles.find(r => r.id === editingResource.roleId);
-            const dailyCost = role?.dailyCost || 0;
-            const calculatedDailyExpenses = dailyCost * 0.035;
-
-            const resourceToSave = {
-                ...editingResource,
-                dailyExpenses: calculatedDailyExpenses,
-            };
-
-            if ('id' in resourceToSave) updateResource(resourceToSave as Resource);
-            else addResource(resourceToSave as Omit<Resource, 'id'>);
+            if ('id' in editingResource) updateResource(editingResource as Resource);
+            else addResource(editingResource as Omit<Resource, 'id'>);
             handleCloseModal();
         }
     };
@@ -176,8 +170,8 @@ const ResourcesPage: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (editingResource) {
             const { name, value } = e.target;
-            const numericFields = ['workSeniority', 'standardCost'];
-            setEditingResource({ ...editingResource, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value });
+            const numericFields = ['workSeniority'];
+            setEditingResource({ ...editingResource, [name]: numericFields.includes(name) ? (value === '' ? undefined : parseFloat(value)) : value });
         }
     };
     
@@ -192,8 +186,7 @@ const ResourcesPage: React.FC = () => {
     const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) {
             const { name, value } = e.target;
-            const numericFields = ['standardCost'];
-            setInlineEditingData({ ...inlineEditingData, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value });
+            setInlineEditingData({ ...inlineEditingData, [name]: value });
         }
     };
     
@@ -203,20 +196,7 @@ const ResourcesPage: React.FC = () => {
         }
     };
     
-    const handleSaveInlineEdit = () => { 
-        if (inlineEditingData) { 
-            const role = roles.find(r => r.id === inlineEditingData.roleId);
-            const dailyCost = role?.dailyCost || 0;
-            const calculatedDailyExpenses = dailyCost * 0.035;
-            
-            const resourceToSave = {
-                ...inlineEditingData,
-                dailyExpenses: calculatedDailyExpenses
-            };
-            updateResource(resourceToSave); 
-            handleCancelInlineEdit(); 
-        } 
-    };
+    const handleSaveInlineEdit = () => { if (inlineEditingData) { updateResource(inlineEditingData); handleCancelInlineEdit(); } };
     
     const getSortableHeader = (label: string, key: SortConfig['key']) => (
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -257,10 +237,9 @@ const ResourcesPage: React.FC = () => {
                             <tr>
                                 {getSortableHeader('Nome', 'name')}
                                 {getSortableHeader('Ruolo', 'roleId')}
-                                {getSortableHeader('Sede', 'location')}
                                 {getSortableHeader('Costo Giornaliero', 'dailyCost')}
-                                {getSortableHeader('Costo Standard', 'standardCost')}
-                                {getSortableHeader('Spese Giornaliere', 'dailyExpenses')}
+                                {getSortableHeader('Costo Standard (Ruolo)', 'roleStandardCost')}
+                                {getSortableHeader('Spese Giornaliere (Ruolo)', 'roleDailyExpenses')}
                                 {getSortableHeader('Alloc. Media', 'allocation')}
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
@@ -268,21 +247,19 @@ const ResourcesPage: React.FC = () => {
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                             {sortedResources.map(resource => {
                                 const role = roles.find(r => r.id === resource.roleId);
-                                const dailyExpenses = (role?.dailyCost || 0) * 0.035;
                                 const allocation = calculateResourceAllocation(resource);
                                 const isEditing = inlineEditingId === resource.id;
 
                                 if (isEditing) {
-                                    const selectedRoleForEdit = roles.find(r => r.id === inlineEditingData!.roleId);
-                                    const calculatedExpensesForEdit = (selectedRoleForEdit?.dailyCost || 0) * 0.035;
+                                    const editingRole = roles.find(r => r.id === inlineEditingData!.roleId);
+                                    
                                     return (
                                     <tr key={resource.id}>
                                         <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
                                         <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
-                                        <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede"/></td>
-                                        <td className="px-6 py-4 text-sm">{formatCurrency(roles.find(r => r.id === inlineEditingData!.roleId)?.dailyCost || 0)}</td>
-                                        <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
-                                        <td className="px-6 py-4 text-sm">{formatCurrency(calculatedExpensesForEdit)}</td>
+                                        <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyCost)}</td>
+                                        <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.standardCost)}</td>
+                                        <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyExpenses)}</td>
                                         <td className={`px-6 py-4 text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
                                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
                                     </tr>
@@ -293,10 +270,9 @@ const ResourcesPage: React.FC = () => {
                                 <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="px-6 py-4 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{resource.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</div></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{resource.location}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyCost || 0)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(resource.standardCost)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(dailyExpenses)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyCost)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.standardCost)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyExpenses)}</td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
@@ -315,7 +291,6 @@ const ResourcesPage: React.FC = () => {
                 <div className="md:hidden p-4 space-y-4">
                      {sortedResources.map(resource => {
                         const role = roles.find(r => r.id === resource.roleId);
-                        const dailyExpenses = (role?.dailyCost || 0) * 0.035;
                         const allocation = calculateResourceAllocation(resource);
                         const isEditing = inlineEditingId === resource.id;
 
@@ -326,8 +301,6 @@ const ResourcesPage: React.FC = () => {
                                         <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Ruolo</label><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Sede</label><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
                                             <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
@@ -352,11 +325,10 @@ const ResourcesPage: React.FC = () => {
                                 </div>
                                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{role?.name || 'N/A'}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Sede</p><p className="text-gray-900 dark:text-white font-medium">{resource.location}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyCost || 0)}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(resource.standardCost)}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(dailyExpenses)}</p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyCost)}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.standardCost)}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyExpenses)}</p></div>
                                 </div>
                             </div>
                         )
@@ -400,9 +372,8 @@ const ResourcesPage: React.FC = () => {
                             />
                              <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="form-input" placeholder="Anzianità (anni)"/>
-                            <input type="number" step="0.01" name="standardCost" value={editingResource.standardCost || 0} onChange={handleChange} className="form-input" placeholder="Costo Standard (€)"/>
                         </div>
                         <textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} rows={3} className="form-textarea" placeholder="Note"></textarea>
                         <div className="flex justify-end space-x-3 pt-4">
