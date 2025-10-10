@@ -170,21 +170,21 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- Funzioni CRUD per le varie entità ---
 
-    const addClient = (client: Omit<Client, 'id'>) => handleApiCall(() => apiFetch('/api/clients', { method: 'POST', body: JSON.stringify(client) }), 'Errore aggiunta cliente');
-    const updateClient = (client: Client) => handleApiCall(() => apiFetch(`/api/clients?id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }), 'Errore modifica cliente');
-    const deleteClient = (clientId: string) => handleApiCall(() => apiFetch(`/api/clients?id=${clientId}`, { method: 'DELETE' }), 'Errore eliminazione cliente');
+    const addClient = (client: Omit<Client, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=clients', { method: 'POST', body: JSON.stringify(client) }), 'Errore aggiunta cliente');
+    const updateClient = (client: Client) => handleApiCall(() => apiFetch(`/api/resources?entity=clients&id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }), 'Errore modifica cliente');
+    const deleteClient = (clientId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=clients&id=${clientId}`, { method: 'DELETE' }), 'Errore eliminazione cliente');
 
-    const addRole = (role: Omit<Role, 'id'>) => handleApiCall(() => apiFetch('/api/roles', { method: 'POST', body: JSON.stringify(role) }), 'Errore aggiunta ruolo');
-    const updateRole = (role: Role) => handleApiCall(() => apiFetch(`/api/roles?id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }), 'Errore modifica ruolo');
-    const deleteRole = (roleId: string) => handleApiCall(() => apiFetch(`/api/roles?id=${roleId}`, { method: 'DELETE' }), 'Errore eliminazione ruolo');
+    const addRole = (role: Omit<Role, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) }), 'Errore aggiunta ruolo');
+    const updateRole = (role: Role) => handleApiCall(() => apiFetch(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }), 'Errore modifica ruolo');
+    const deleteRole = (roleId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=roles&id=${roleId}`, { method: 'DELETE' }), 'Errore eliminazione ruolo');
     
-    const addResource = (resource: Omit<Resource, 'id'>) => handleApiCall(() => apiFetch('/api/resources', { method: 'POST', body: JSON.stringify(resource) }), 'Errore aggiunta risorsa');
-    const updateResource = (resource: Resource) => handleApiCall(() => apiFetch(`/api/resources?id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }), 'Errore modifica risorsa');
-    const deleteResource = (resourceId: string) => handleApiCall(() => apiFetch(`/api/resources?id=${resourceId}`, { method: 'DELETE' }), 'Errore eliminazione risorsa');
+    const addResource = (resource: Omit<Resource, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) }), 'Errore aggiunta risorsa');
+    const updateResource = (resource: Resource) => handleApiCall(() => apiFetch(`/api/resources?entity=resources&id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }), 'Errore modifica risorsa');
+    const deleteResource = (resourceId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=resources&id=${resourceId}`, { method: 'DELETE' }), 'Errore eliminazione risorsa');
     
-    const addProject = (project: Omit<Project, 'id'>) => handleApiCall(() => apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(project) }), 'Errore aggiunta progetto');
-    const updateProject = (project: Project) => handleApiCall(() => apiFetch(`/api/projects?id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) }), 'Errore modifica progetto');
-    const deleteProject = (projectId: string) => handleApiCall(() => apiFetch(`/api/projects?id=${projectId}`, { method: 'DELETE' }), 'Errore eliminazione progetto');
+    const addProject = (project: Omit<Project, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=projects', { method: 'POST', body: JSON.stringify(project) }), 'Errore aggiunta progetto');
+    const updateProject = (project: Project) => handleApiCall(() => apiFetch(`/api/resources?entity=projects&id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) }), 'Errore modifica progetto');
+    const deleteProject = (projectId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=projects&id=${projectId}`, { method: 'DELETE' }), 'Errore eliminazione progetto');
 
     const addAssignment = (assignment: Omit<Assignment, 'id'>) => handleApiCall(() => apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }), 'Errore aggiunta assegnazione');
     const deleteAssignment = (assignmentId: string) => handleApiCall(() => apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' }), 'Errore eliminazione assegnazione');
@@ -248,9 +248,9 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- Funzioni CRUD per gli Incarichi (Tasks) ---
 
-    const addTask = (task: Omit<Task, 'id'>, assignedResourceIds: string[]) => handleApiCall(() => apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ task, assignedResourceIds }) }), 'Errore aggiunta incarico');
-    const updateTask = (task: Task, assignedResourceIds: string[]) => handleApiCall(() => apiFetch(`/api/tasks?id=${task.id}`, { method: 'PUT', body: JSON.stringify({ task, assignedResourceIds }) }), 'Errore modifica incarico');
-    const deleteTask = (taskId: string) => handleApiCall(() => apiFetch(`/api/tasks?id=${taskId}`, { method: 'DELETE' }), 'Errore eliminazione incarico');
+    const addTask = (task: Omit<Task, 'id'>, assignedResourceIds: string[]) => handleApiCall(() => apiFetch('/api/resources?entity=tasks', { method: 'POST', body: JSON.stringify({ task, assignedResourceIds }) }), 'Errore aggiunta incarico');
+    const updateTask = (task: Task, assignedResourceIds: string[]) => handleApiCall(() => apiFetch(`/api/resources?entity=tasks&id=${task.id}`, { method: 'PUT', body: JSON.stringify({ task, assignedResourceIds }) }), 'Errore modifica incarico');
+    const deleteTask = (taskId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=tasks&id=${taskId}`, { method: 'DELETE' }), 'Errore eliminazione incarico');
 
     // --- Funzioni CRUD per le opzioni di configurazione ---
 
@@ -260,9 +260,9 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- Funzioni CRUD per il Calendario Aziendale ---
 
-    const addCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => handleApiCall(() => apiFetch('/api/calendar', { method: 'POST', body: JSON.stringify(event) }), 'Errore aggiunta evento');
-    const updateCalendarEvent = (event: CalendarEvent) => handleApiCall(() => apiFetch(`/api/calendar?id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) }), 'Errore modifica evento');
-    const deleteCalendarEvent = (eventId: string) => handleApiCall(() => apiFetch(`/api/calendar?id=${eventId}`, { method: 'DELETE' }), 'Errore eliminazione evento');
+    const addCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=calendar', { method: 'POST', body: JSON.stringify(event) }), 'Errore aggiunta evento');
+    const updateCalendarEvent = (event: CalendarEvent) => handleApiCall(() => apiFetch(`/api/resources?entity=calendar&id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) }), 'Errore modifica evento');
+    const deleteCalendarEvent = (eventId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=calendar&id=${eventId}`, { method: 'DELETE' }), 'Errore eliminazione evento');
 
     const contextValue: StaffingContextType = {
         clients, roles, resources, projects, assignments, allocations, tasks, taskResources,
