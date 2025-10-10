@@ -62,12 +62,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
             email VARCHAR(255) UNIQUE,
             role_id UUID REFERENCES roles(id),
             horizontal VARCHAR(255),
-            location VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
             notes TEXT
         );
     `;
+    // Add the location column if it doesn't exist to handle migration for existing databases.
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
+
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (
             id UUID PRIMARY KEY,

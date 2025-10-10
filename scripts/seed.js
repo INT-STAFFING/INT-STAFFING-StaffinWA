@@ -190,12 +190,12 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             email VARCHAR(255) UNIQUE,
             role_id UUID REFERENCES roles(id),
             horizontal VARCHAR(255),
-            location VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
             notes TEXT
         );
     `;
+    await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
     await client.sql`
         CREATE TABLE IF NOT EXISTS projects (
             id UUID PRIMARY KEY,
