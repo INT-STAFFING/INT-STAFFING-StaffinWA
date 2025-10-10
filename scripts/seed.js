@@ -70,10 +70,10 @@ function generateSampleData() {
     ];
 
     const resources = [
-        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', location: 'Milano', hireDate: '2022-01-15', workSeniority: 5 },
-        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', location: 'Roma', hireDate: '2023-06-01', workSeniority: 1 },
-        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', location: 'Milano', hireDate: '2020-03-10', workSeniority: 8 },
-        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', location: 'Torino', hireDate: '2019-09-20', workSeniority: 10 },
+        { id: 'res1', name: 'Mario Rossi', email: 'm.rossi@example.com', roleId: 'r2', horizontal: 'Web Development', location: 'Milano', hireDate: '2022-01-15', workSeniority: 5, standardCost: 550, dailyExpenses: 500 * 0.035 },
+        { id: 'res2', name: 'Laura Bianchi', email: 'l.bianchi@example.com', roleId: 'r1', horizontal: 'Web Development', location: 'Roma', hireDate: '2023-06-01', workSeniority: 1, standardCost: 320, dailyExpenses: 300 * 0.035 },
+        { id: 'res3', name: 'Paolo Verdi', email: 'p.verdi@example.com', roleId: 'r3', horizontal: 'DevOps', location: 'Milano', hireDate: '2020-03-10', workSeniority: 8, standardCost: 700, dailyExpenses: 650 * 0.035 },
+        { id: 'res4', name: 'Giulia Neri', email: 'g.neri@example.com', roleId: 'r4', horizontal: 'Management', location: 'Torino', hireDate: '2019-09-20', workSeniority: 10, standardCost: 750, dailyExpenses: 700 * 0.035 },
     ];
 
     const projects = [
@@ -205,6 +205,8 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
     await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
+    await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(10, 2) DEFAULT 0;`;
+    await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC(10, 2) DEFAULT 0;`;
     await client.sql`
         CREATE TABLE IF NOT EXISTS projects (
             id UUID PRIMARY KEY,
@@ -254,7 +256,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
 
     // Seed resources after roles
     await Promise.all(
-         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.location}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}) ON CONFLICT (id) DO NOTHING;`)
+         resources.map(res => client.sql`INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, standard_cost, daily_expenses) VALUES (${res.id}, ${res.name}, ${res.email}, ${res.roleId}, ${res.horizontal}, ${res.location}, ${res.hireDate}, ${res.workSeniority}, ${res.notes}, ${res.standardCost}, ${res.dailyExpenses}) ON CONFLICT (id) DO NOTHING;`)
     );
     
     // Seed projects after clients

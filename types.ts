@@ -65,6 +65,10 @@ export interface Resource {
     hireDate: string; 
     /** @property {number} workSeniority - Gli anni di anzianità lavorativa. */
     workSeniority: number;
+    /** @property {number} standardCost - Il costo standard personalizzato per la risorsa. */
+    standardCost: number;
+    /** @property {number} dailyExpenses - Le spese giornaliere calcolate. */
+    dailyExpenses: number;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
 }
