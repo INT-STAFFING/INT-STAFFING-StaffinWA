@@ -127,11 +127,16 @@ export async function ensureDbTablesExist(db: VercelPool) {
             internal_fees NUMERIC(12, 2),
             external_fees NUMERIC(12, 2),
             expenses NUMERIC(12, 2),
-            realization INT,
-            margin INT,
+            realization NUMERIC(10, 2),
+            margin NUMERIC(10, 2),
             role_efforts JSONB
         );
     `;
+    // These ALTER statements ensure that existing databases are migrated safely.
+    // They will change the column type from INT to NUMERIC without data loss.
+    await db.sql`ALTER TABLE tasks ALTER COLUMN realization TYPE NUMERIC(10, 2);`;
+    await db.sql`ALTER TABLE tasks ALTER COLUMN margin TYPE NUMERIC(10, 2);`;
+
     await db.sql`
         CREATE TABLE IF NOT EXISTS task_resources (
             task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,

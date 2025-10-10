@@ -1,8 +1,3 @@
-/**
- * @file icons.tsx
- * @description Raccolta di componenti React per le icone SVG utilizzate nell'applicazione.
- */
-
 import React from 'react';
 
 /** Icona per grafici a barre, usata nella Dashboard. */
@@ -164,4 +159,11 @@ export const ClipboardDocumentCheckIcon: React.FC<{ className?: string }> = (pro
         <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-1.125 0-2.25 1.125-2.25 2.25v13.5c0 1.125 1.125 2.25 2.25 2.25h9c1.125 0 2.25-1.125 2.25-2.25v-9.75M10.125 2.25c.45 0 .862.214 1.125.562l4.25 4.25c.348.348.562.862.562 1.125v2.25M10.125 2.25a2.25 2.25 0 00-2.25 2.25v.875M10.125 2.25a2.25 2.25 0 012.25 2.25v.875m0 0V11.25m0 0a2.25 2.25 0 012.25 2.25v2.25a2.25 2.25 0 01-2.25 2.25M10.125 11.25a2.25 2.25 0 00-2.25 2.25v2.25a2.25 2.25 0 002.25 2.25m0 0V11.25" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.563 5.563l3.87-3.87M15.563 1.693l-3.87 3.87" />
     </svg>
+);
+
+/** Icona per i dettagli. */
+export const InformationCircleIcon: React.FC<{ className?: string }> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+  </svg>
 );

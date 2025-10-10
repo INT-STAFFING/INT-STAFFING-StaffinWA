@@ -283,11 +283,14 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             internal_fees NUMERIC(12, 2),
             external_fees NUMERIC(12, 2),
             expenses NUMERIC(12, 2),
-            realization INT,
-            margin INT,
+            realization NUMERIC(10, 2),
+            margin NUMERIC(10, 2),
             role_efforts JSONB
         );
     `;
+    await client.sql`ALTER TABLE tasks ALTER COLUMN realization TYPE NUMERIC(10, 2);`;
+    await client.sql`ALTER TABLE tasks ALTER COLUMN margin TYPE NUMERIC(10, 2);`;
+
     await client.sql`
         CREATE TABLE IF NOT EXISTS task_resources (
             task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
