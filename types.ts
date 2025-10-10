@@ -152,3 +152,43 @@ export interface CalendarEvent {
     /** @property {string | null} location - La sede specifica per l'evento, se di tipo 'LOCAL_HOLIDAY'. */
     location: string | null;
 }
+
+/**
+ * @interface Task
+ * @description Rappresenta un Incarico, un'unità di lavoro dettagliata all'interno di un progetto.
+ */
+export interface Task {
+    /** @property {string} [id] - L'identificatore univoco, generato dal database. */
+    id?: string;
+    /** @property {string} wbs - Work Breakdown Structure, un codice univoco per l'incarico. */
+    wbs: string;
+    /** @property {string} name - Il nome univoco dell'incarico. */
+    name: string;
+    /** @property {string} projectId - L'ID del progetto a cui l'incarico è collegato. */
+    projectId: string;
+    /** @property {number} totalFees - Onorari totali previsti per l'incarico. */
+    totalFees: number;
+    /** @property {number} internalFees - Quota degli onorari gestita internamente. */
+    internalFees: number;
+    /** @property {number} externalFees - Quota degli onorari per esterni/fornitori. */
+    externalFees: number;
+    /** @property {number} expenses - Spese previste per l'incarico. */
+    expenses: number;
+    /** @property {number} realization - Percentuale di realizzo. */
+    realization: number;
+    /** @property {number} margin - Margine percentuale previsto. */
+    margin: number;
+    /** @property {{ [roleId: string]: number }} roleEfforts - Oggetto che mappa l'ID di un ruolo allo sforzo numerico previsto (es. giorni). */
+    roleEfforts: { [roleId: string]: number };
+}
+
+/**
+ * @interface TaskResource
+ * @description Rappresenta l'associazione N-a-N tra un Incarico e una Risorsa.
+ */
+export interface TaskResource {
+    /** @property {string} taskId - L'ID dell'incarico. */
+    taskId: string;
+    /** @property {string} resourceId - L'ID della risorsa. */
+    resourceId: string;
+}

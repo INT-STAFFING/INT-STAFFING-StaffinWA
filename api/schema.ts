@@ -116,4 +116,27 @@ export async function ensureDbTablesExist(db: VercelPool) {
             UNIQUE(date, location)
         );
     `;
+    // New Tables for "Incarichi" (Tasks)
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS tasks (
+            id UUID PRIMARY KEY,
+            wbs VARCHAR(255) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+            total_fees NUMERIC(12, 2),
+            internal_fees NUMERIC(12, 2),
+            external_fees NUMERIC(12, 2),
+            expenses NUMERIC(12, 2),
+            realization INT,
+            margin INT,
+            role_efforts JSONB
+        );
+    `;
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS task_resources (
+            task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+            resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            PRIMARY KEY (task_id, resource_id)
+        );
+    `;
 }
