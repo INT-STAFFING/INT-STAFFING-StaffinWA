@@ -20,6 +20,7 @@ interface StaffingData {
     projects: any[];
     assignments: any[];
     allocations: any;
+    companyCalendar: any[];
 }
 
 /**
@@ -28,7 +29,7 @@ interface StaffingData {
  * @param {StaffingData} data - L'oggetto contenente tutti i dati dell'applicazione, solitamente dal contesto.
  */
 export const exportDataToExcel = (data: StaffingData) => {
-    const { clients, roles, resources, projects, assignments, allocations } = data;
+    const { clients, roles, resources, projects, assignments, allocations, companyCalendar } = data;
 
     /**
      * Calcola l'allocazione media di una risorsa per un dato mese.
@@ -40,7 +41,10 @@ export const exportDataToExcel = (data: StaffingData) => {
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1 + monthOffset, 0);
-        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay);
+        const resource = resources.find((r: any) => r.id === resourceId);
+        const resourceLocation = resource ? resource.location : null;
+        // FIX: The function call to getWorkingDaysBetween was missing the required 'companyCalendar' argument and the optional 'resourceLocation' for better accuracy.
+        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resourceLocation);
 
         if (workingDaysInMonth === 0) return 0;
         const resourceAssignments = assignments.filter(a => a.resourceId === resourceId);

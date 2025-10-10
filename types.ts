@@ -125,3 +125,26 @@ export interface Allocation {
         [date: string]: number;
     };
 }
+
+/**
+ * @enum CalendarEventType
+ * @description Definisce i tipi di eventi del calendario aziendale.
+ */
+export type CalendarEventType = 'NATIONAL_HOLIDAY' | 'COMPANY_CLOSURE' | 'LOCAL_HOLIDAY';
+
+/**
+ * @interface CalendarEvent
+ * @description Rappresenta un evento nel calendario aziendale (festività, chiusura).
+ */
+export interface CalendarEvent {
+    /** @property {string} [id] - L'identificatore univoco, generato dal database. */
+    id?: string;
+    /** @property {string} name - Il nome dell'evento (es. "Natale"). */
+    name: string;
+    /** @property {string} date - La data dell'evento in formato YYYY-MM-DD. */
+    date: string;
+    /** @property {CalendarEventType} type - Il tipo di evento. */
+    type: CalendarEventType;
+    /** @property {string | null} location - La sede specifica per l'evento, se di tipo 'LOCAL_HOLIDAY'. */
+    location: string | null;
+}

@@ -12,6 +12,7 @@ const db = createPool({
 });
 
 function generateSampleData() {
+    const currentYear = new Date().getFullYear();
     // Configuration Data
     const horizontals = [
         { id: 'h1', value: 'Web Development' },
@@ -45,6 +46,14 @@ function generateSampleData() {
         { id: 'loc4', value: 'Napoli' },
         { id: 'loc5', value: 'Padova' },
         { id: 'loc6', value: 'Trento' },
+    ];
+
+    // Calendar Data
+    const companyCalendar = [
+        { id: 'cal1', name: 'Natale', date: `${currentYear}-12-25`, type: 'NATIONAL_HOLIDAY', location: null },
+        { id: 'cal2', name: 'Capodanno', date: `${currentYear + 1}-01-01`, type: 'NATIONAL_HOLIDAY', location: null },
+        { id: 'cal3', name: 'Chiusura Estiva', date: `${currentYear}-08-15`, type: 'COMPANY_CLOSURE', location: null },
+        { id: 'cal4', name: 'Festa del Patrono (Milano)', date: `${currentYear}-12-07`, type: 'LOCAL_HOLIDAY', location: 'Milano' },
     ];
 
     // Core Data
@@ -114,7 +123,7 @@ function generateSampleData() {
         }
     }
 
-    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations };
+    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar };
 };
 
 async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors, locations) {
@@ -164,7 +173,7 @@ async function seedConfigTables(client, horizontals, seniorityLevels, projectSta
 }
 
 
-async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations) {
+async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar) {
     console.log('Seeding main tables...');
 
     await client.sql`
@@ -227,6 +236,16 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             PRIMARY KEY(assignment_id, allocation_date)
         );
     `;
+    await client.sql`
+        CREATE TABLE IF NOT EXISTS company_calendar (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            date DATE NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            location VARCHAR(255),
+            UNIQUE(date, location)
+        );
+    `;
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
@@ -268,6 +287,15 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             ON CONFLICT (assignment_id, allocation_date) DO NOTHING;
         `)
     );
+
+    // Seed company calendar
+    await Promise.all(
+        companyCalendar.map(e => client.sql`
+            INSERT INTO company_calendar (id, name, date, type, location)
+            VALUES (${e.id}, ${e.name}, ${e.date}, ${e.type}, ${e.location})
+            ON CONFLICT (id) DO NOTHING;
+        `)
+    );
     
     console.log('Main tables seeded.');
 }
@@ -293,7 +321,8 @@ async function main() {
             sampleData.resources,
             sampleData.projects,
             sampleData.assignments,
-            sampleData.allocations
+            sampleData.allocations,
+            sampleData.companyCalendar
         );
     } catch (err) {
         console.error('Error during seeding:', err);

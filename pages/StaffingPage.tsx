@@ -5,8 +5,8 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
-import { Resource, Project, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays } from '../utils/dateUtils';
+import { Resource, Project, Assignment, CalendarEvent } from '../types';
+import { getCalendarDays, formatDate, addDays, isHoliday } from '../utils/dateUtils';
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -20,8 +20,8 @@ interface AllocationCellProps {
     assignment: Assignment;
     /** @property {string} date - La data (YYYY-MM-DD) per questa cella di allocazione. */
     date: string;
-    /** @property {boolean} isWeekend - Indica se la data corrisponde a un giorno del weekend. */
-    isWeekend: boolean;
+    /** @property {boolean} isNonWorkingDay - Indica se la data corrisponde a un giorno non lavorativo (weekend o festività). */
+    isNonWorkingDay: boolean;
 }
 
 /**
@@ -30,12 +30,12 @@ interface AllocationCellProps {
  * @param {AllocationCellProps} props - Le prop del componente.
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isWeekend }) => {
+const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isNonWorkingDay }) => {
     const { allocations, updateAllocation } = useStaffingContext();
     const percentage = allocations[assignment.id]?.[date] || 0;
 
-    // Se è un weekend, mostra una cella disabilitata con sfondo grigio.
-    if (isWeekend) {
+    // Se è un giorno non lavorativo, mostra una cella disabilitata con sfondo grigio.
+    if (isNonWorkingDay) {
         return (
             <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
                 <span className="text-sm text-gray-400">-</span>
@@ -74,8 +74,8 @@ interface DailyTotalCellProps {
     resource: Resource;
     /** @property {string} date - La data (YYYY-MM-DD) per cui calcolare il totale. */
     date: string;
-    /** @property {boolean} isWeekend - Indica se la data corrisponde a un giorno del weekend. */
-    isWeekend: boolean;
+    /** @property {boolean} isNonWorkingDay - Indica se la data corrisponde a un giorno non lavorativo. */
+    isNonWorkingDay: boolean;
 }
 
 /**
@@ -84,11 +84,11 @@ interface DailyTotalCellProps {
  * @param {DailyTotalCellProps} props - Le prop del componente.
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isWeekend }) => {
+const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
     const { assignments, allocations } = useStaffingContext();
 
-    // Se è un weekend, il totale è 0 e la cella è stilizzata di conseguenza.
-     if (isWeekend) {
+    // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
+     if (isNonWorkingDay) {
         return (
             <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
                 -
@@ -127,7 +127,7 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isWeeke
 const StaffingPage: React.FC = () => {
     // Stato per la data di inizio della finestra temporale visualizzata.
     const [currentDate, setCurrentDate] = useState(new Date());
-    const { resources, projects, assignments, roles, clients, addAssignment, deleteAssignment, bulkUpdateAllocations } = useStaffingContext();
+    const { resources, projects, assignments, roles, clients, addAssignment, deleteAssignment, bulkUpdateAllocations, companyCalendar } = useStaffingContext();
     
     // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);
@@ -287,10 +287,13 @@ const StaffingPage: React.FC = () => {
                             {calendarDays.map(date => {
                                 const day = date.getDay();
                                 const isWeekend = day === 0 || day === 6;
+                                 const holiday = companyCalendar.find(e => e.date === formatDate(date, 'iso') && e.type !== 'LOCAL_HOLIDAY');
+                                const isNonWorkingHeader = isWeekend || !!holiday;
+
                                 return (
-                                <th key={date.toISOString()} className={`px-2 py-3.5 text-center text-sm font-semibold w-20 md:w-24 ${isWeekend ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <th key={date.toISOString()} className={`px-2 py-3.5 text-center text-sm font-semibold w-20 md:w-24 ${isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                     <div className="flex flex-col items-center">
-                                        <span className={isWeekend ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{formatDate(date, 'short')}</span>
+                                        <span className={isNonWorkingHeader ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{formatDate(date, 'short')}</span>
                                         <span className="text-xs text-gray-500">{formatDate(date, 'day')}</span>
                                     </div>
                                 </th>
@@ -330,8 +333,9 @@ const StaffingPage: React.FC = () => {
                                             {calendarDays.map(date => {
                                                 const day = date.getDay();
                                                 const isWeekend = day === 0 || day === 6;
+                                                const isDayHoliday = isHoliday(date, resource.location, companyCalendar);
                                                 return (
-                                                <AllocationCell key={date.toISOString()} assignment={assignment} date={formatDate(date, 'iso')} isWeekend={isWeekend}/>
+                                                <AllocationCell key={date.toISOString()} assignment={assignment} date={formatDate(date, 'iso')} isNonWorkingDay={isWeekend || isDayHoliday}/>
                                             )})}
                                         </tr>
                                     );
@@ -344,8 +348,9 @@ const StaffingPage: React.FC = () => {
                                     {calendarDays.map(date => {
                                         const day = date.getDay();
                                         const isWeekend = day === 0 || day === 6;
+                                        const isDayHoliday = isHoliday(date, resource.location, companyCalendar);
                                         return (
-                                        <DailyTotalCell key={date.toISOString()} resource={resource} date={formatDate(date, 'iso')} isWeekend={isWeekend} />
+                                        <DailyTotalCell key={date.toISOString()} resource={resource} date={formatDate(date, 'iso')} isNonWorkingDay={isWeekend || isDayHoliday} />
                                     )})}
                                 </tr>
                              </React.Fragment>

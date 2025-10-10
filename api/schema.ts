@@ -101,4 +101,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
             PRIMARY KEY(assignment_id, allocation_date)
         );
     `;
+     await db.sql`
+        CREATE TABLE IF NOT EXISTS company_calendar (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            date DATE NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            location VARCHAR(255),
+            UNIQUE(date, location)
+        );
+    `;
 }

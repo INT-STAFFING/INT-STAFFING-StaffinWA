@@ -6,7 +6,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -51,7 +51,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             seniorityLevelsRes,
             projectStatusesRes,
             clientSectorsRes,
-            locationsRes
+            locationsRes,
+            calendarRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -63,7 +64,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM seniority_levels;`,
             db.sql`SELECT * FROM project_statuses;`,
             db.sql`SELECT * FROM client_sectors;`,
-            db.sql`SELECT * FROM locations;`
+            db.sql`SELECT * FROM locations;`,
+            db.sql`SELECT * FROM company_calendar;`
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -78,6 +80,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             allocations[assignment_id][dateStr] = percentage;
         });
 
+        // Formatta le date del calendario
+        const companyCalendar = calendarRes.rows.map(row => {
+            const event = toCamelCase(row);
+            if (event.date) {
+                event.date = new Date(event.date).toISOString().split('T')[0];
+            }
+            return event;
+        }) as CalendarEvent[];
+
+
         // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
         const data = {
             clients: clientsRes.rows.map(toCamelCase) as Client[],
@@ -91,6 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projectStatuses: projectStatusesRes.rows as ConfigOption[],
             clientSectors: clientSectorsRes.rows as ConfigOption[],
             locations: locationsRes.rows as ConfigOption[],
+            companyCalendar,
         };
 
         return res.status(200).json(data);

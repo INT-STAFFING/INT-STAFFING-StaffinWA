@@ -4,7 +4,8 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
+import { isHoliday } from '../utils/dateUtils';
 
 /**
  * @interface StaffingContextType
@@ -22,6 +23,7 @@ interface StaffingContextType {
     projectStatuses: ConfigOption[];
     clientSectors: ConfigOption[];
     locations: ConfigOption[];
+    companyCalendar: CalendarEvent[];
     loading: boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
@@ -42,6 +44,9 @@ interface StaffingContextType {
     addConfigOption: (type: keyof ConfigLists, value: string) => Promise<void>;
     updateConfigOption: (type: keyof ConfigLists, option: ConfigOption) => Promise<void>;
     deleteConfigOption: (type: keyof ConfigLists, optionId: string) => Promise<void>;
+    addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
+    updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
+    deleteCalendarEvent: (eventId: string) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -106,6 +111,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [projectStatuses, setProjectStatuses] = useState<ConfigOption[]>([]);
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
     const [locations, setLocations] = useState<ConfigOption[]>([]);
+    const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
 
     /**
      * Carica tutti i dati iniziali dall'API.
@@ -126,6 +132,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
             setProjectStatuses(data.projectStatuses);
             setClientSectors(data.clientSectors);
             setLocations(data.locations);
+            setCompanyCalendar(data.companyCalendar);
         } catch (error) {
             console.error("Failed to fetch initial data:", error);
         } finally {
@@ -212,13 +219,18 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
      * @param {number} percentage - La percentuale da applicare a tutti i giorni lavorativi nell'intervallo.
      */
     const bulkUpdateAllocations = async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
+        const assignment = assignments.find(a => a.id === assignmentId);
+        const resource = resources.find(r => r.id === assignment?.resourceId);
+
         const updates = [];
         const start = new Date(startDate);
         const end = new Date(endDate);
         for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
             const dayOfWeek = d.getDay();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Salta i weekend
-                const dateStr = d.toISOString().split('T')[0];
+            const dateStr = d.toISOString().split('T')[0];
+            const isNonWorkingDay = dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(d, resource?.location ?? null, companyCalendar);
+            
+            if (!isNonWorkingDay) {
                 updates.push({ assignmentId, date: dateStr, percentage });
             }
         }
@@ -231,9 +243,15 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const updateConfigOption = (type: keyof ConfigLists, option: ConfigOption) => handleApiCall(() => apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify(option) }), 'Errore modifica opzione');
     const deleteConfigOption = (type: keyof ConfigLists, optionId: string) => handleApiCall(() => apiFetch(`/api/config?type=${type}&id=${optionId}`, { method: 'DELETE' }), 'Errore eliminazione opzione');
 
+    // --- Funzioni CRUD per il Calendario Aziendale ---
+
+    const addCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => handleApiCall(() => apiFetch('/api/calendar', { method: 'POST', body: JSON.stringify(event) }), 'Errore aggiunta evento');
+    const updateCalendarEvent = (event: CalendarEvent) => handleApiCall(() => apiFetch(`/api/calendar?id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) }), 'Errore modifica evento');
+    const deleteCalendarEvent = (eventId: string) => handleApiCall(() => apiFetch(`/api/calendar?id=${eventId}`, { method: 'DELETE' }), 'Errore eliminazione evento');
+
     const contextValue: StaffingContextType = {
         clients, roles, resources, projects, assignments, allocations,
-        horizontals, seniorityLevels, projectStatuses, clientSectors, locations, loading,
+        horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, loading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -241,6 +259,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         addAssignment, deleteAssignment,
         updateAllocation, bulkUpdateAllocations,
         addConfigOption, updateConfigOption, deleteConfigOption,
+        addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         fetchData
     };
 

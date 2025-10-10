@@ -9,7 +9,7 @@ import { Resource } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
-import { getWorkingDaysBetween } from '../utils/dateUtils';
+import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 
 /**
  * @type SortConfig
@@ -33,7 +33,7 @@ const formatCurrency = (value: number): string => {
  * @returns {React.ReactElement} La pagina di gestione delle risorse.
  */
 const ResourcesPage: React.FC = () => {
-    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, allocations, locations } = useStaffingContext();
+    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, allocations, locations, companyCalendar } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '' });
@@ -59,14 +59,14 @@ const ResourcesPage: React.FC = () => {
         });
     }, [resources, filters]);
 
-    const calculateResourceAllocation = useCallback((resourceId: string): number => {
+    const calculateResourceAllocation = useCallback((resource: Resource): number => {
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay);
+        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
 
         if (workingDaysInMonth === 0) return 0;
-        const resourceAssignments = assignments.filter(a => a.resourceId === resourceId);
+        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
         if (resourceAssignments.length === 0) return 0;
 
         let totalPersonDays = 0;
@@ -76,8 +76,7 @@ const ResourcesPage: React.FC = () => {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = new Date(dateStr);
                     if (allocDate >= firstDay && allocDate <= lastDay) {
-                        const day = allocDate.getDay();
-                        if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
                     }
@@ -85,7 +84,7 @@ const ResourcesPage: React.FC = () => {
             }
         });
         return Math.round((totalPersonDays / workingDaysInMonth) * 100);
-    }, [assignments, allocations]);
+    }, [assignments, allocations, companyCalendar]);
     
     // Applica l'ordinamento ai dati filtrati
     const sortedResources = useMemo(() => {
@@ -104,8 +103,8 @@ const ResourcesPage: React.FC = () => {
                         bValue = bRole?.dailyCost || 0;
                         break;
                     case 'allocation':
-                         aValue = calculateResourceAllocation(a.id!);
-                         bValue = calculateResourceAllocation(b.id!);
+                         aValue = calculateResourceAllocation(a);
+                         bValue = calculateResourceAllocation(b);
                         break;
                     case 'roleId':
                         aValue = aRole?.name || '';
@@ -237,7 +236,7 @@ const ResourcesPage: React.FC = () => {
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                             {sortedResources.map(resource => {
                                 const role = roles.find(r => r.id === resource.roleId);
-                                const allocation = calculateResourceAllocation(resource.id!);
+                                const allocation = calculateResourceAllocation(resource);
                                 const isEditing = inlineEditingId === resource.id;
 
                                 if (isEditing) {
@@ -279,7 +278,7 @@ const ResourcesPage: React.FC = () => {
                 <div className="md:hidden p-4 space-y-4">
                      {sortedResources.map(resource => {
                         const role = roles.find(r => r.id === resource.roleId);
-                        const allocation = calculateResourceAllocation(resource.id!);
+                        const allocation = calculateResourceAllocation(resource);
                         const isEditing = inlineEditingId === resource.id;
 
                         if (isEditing) {

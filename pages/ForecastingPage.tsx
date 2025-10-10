@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
-import { getWorkingDaysBetween } from '../utils/dateUtils';
+import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
 /**
@@ -14,7 +14,7 @@ import SearchableSelect from '../components/SearchableSelect';
  * @returns {React.ReactElement} La pagina di Forecasting.
  */
 const ForecastingPage: React.FC = () => {
-    const { resources, assignments, allocations, horizontals, clients, projects } = useStaffingContext();
+    const { resources, assignments, allocations, horizontals, clients, projects, companyCalendar } = useStaffingContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
     
@@ -65,16 +65,16 @@ const ForecastingPage: React.FC = () => {
             filteredResources = filteredResources.filter(r => resourceIdsForClient.has(r.id!));
         }
         
-        const totalResources = filteredResources.length;
-
         for (let i = 0; i < forecastHorizon; i++) {
             const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
             const monthName = date.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
             const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
             const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-            const workingDays = getWorkingDaysBetween(firstDay, lastDay);
-            const availablePersonDays = totalResources * workingDays;
+            let availablePersonDays = 0;
+            filteredResources.forEach(resource => {
+                availablePersonDays += getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+            });
 
             let allocatedPersonDays = 0;
 
@@ -88,8 +88,7 @@ const ForecastingPage: React.FC = () => {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
                             if (allocDate >= firstDay && allocDate <= lastDay) {
-                                const day = allocDate.getDay();
-                                if (day !== 0 && day !== 6) { // Esclude Sabato e Domenica
+                                if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                     allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
                                 }
                             }
@@ -111,7 +110,7 @@ const ForecastingPage: React.FC = () => {
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, filters, projects]);
+    }, [resources, assignments, allocations, forecastHorizon, filters, projects, companyCalendar]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 
