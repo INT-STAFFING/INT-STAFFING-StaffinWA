@@ -150,3 +150,10 @@ export const CalendarIcon: React.FC<{ className?: string }> = (props) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M-4.5 12h18" />
     </svg>
 );
+
+/** Icona per gruppo di utenti, usata per Carico Risorse. */
+export const UserGroupIcon: React.FC<{ className?: string }> = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.962a3.75 3.75 0 015.962 0zM12 6.375a3.375 3.375 0 016.75 0 3.375 3.375 0 01-6.75 0zM6.375 18.375a9.094 9.094 0 013.741-.479 3 3 0 01-4.682-2.72m-7.5-2.962a3.75 3.75 0 005.962 0zM12 12.375a3.375 3.375 0 00-6.75 0 3.375 3.375 0 006.75 0z" />
+    </svg>
+);
