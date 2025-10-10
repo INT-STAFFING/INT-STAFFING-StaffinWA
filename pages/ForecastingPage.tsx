@@ -151,21 +151,22 @@ const ForecastingPage: React.FC = () => {
             {/* Grafico Utilizzo */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
                 <h2 className="text-xl font-semibold mb-4">Utilizzo Mensile Previsto (%)</h2>
-                <div className="flex items-end space-x-2 md:space-x-4 h-64 overflow-x-auto pb-4">
+                <div className="flex space-x-2 md:space-x-4 h-64 overflow-x-auto pb-4">
                     {forecastData.map((data, index) => (
-                        <div key={index} className="flex-1 min-w-[50px] text-center">
-                            <div className="group relative">
+                        <div key={index} className="flex-1 min-w-[50px] text-center flex flex-col">
+                            <div className="w-full flex-grow flex items-end justify-center">
                                 <div
-                                    className={`w-full rounded-t-md transition-all duration-300 ${getUtilizationColor(data.utilization)}`}
+                                    className={`group relative w-full rounded-t-md transition-all duration-300 ${getUtilizationColor(data.utilization)}`}
                                     style={{ height: `${(data.utilization / maxUtilization) * 100}%` }}
-                                ></div>
-                                <div className="absolute bottom-full mb-2 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                    <div className="bg-gray-900 text-white text-xs rounded py-1 px-2">
-                                        {data.utilization.toFixed(1)}%
+                                >
+                                    <div className="absolute bottom-full mb-2 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 mx-auto w-max">
+                                            {data.utilization.toFixed(1)}%
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 whitespace-nowrap transform -rotate-45 -translate-y-2">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                 {data.monthName.split(' ')[0]}
                             </p>
                         </div>

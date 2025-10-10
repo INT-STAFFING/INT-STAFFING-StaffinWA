@@ -82,13 +82,16 @@ const GanttPage: React.FC = () => {
             incrementDate(currentDate);
         }
         
-        const days = (maxDate.getTime() - minDate.getTime()) / (1000 * 3600 * 24);
+        const days = (maxDate.getTime() - minDate.getTime()) / (1000 * 3600 * 24) + 1;
 
         return { timeScale: scale, ganttStartDate: minDate, totalDays: days };
     }, [projects, zoom]);
+
+    const ganttChartWidth = timeScale.length * GANTT_COLUMN_WIDTH;
+    const pixelsPerDay = totalDays > 0 ? ganttChartWidth / totalDays : 0;
     
     const getBarPosition = (startDateStr: string | null, endDateStr: string | null) => {
-        if (!startDateStr || !endDateStr) return { left: '0%', width: '0%' };
+        if (!startDateStr || !endDateStr || totalDays <= 0) return { left: '0px', width: '0px' };
         
         const startDate = new Date(startDateStr);
         const endDate = new Date(endDateStr);
@@ -96,17 +99,17 @@ const GanttPage: React.FC = () => {
         const startOffset = (startDate.getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
         const duration = Math.max(1, (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
 
-        const left = (startOffset / totalDays) * 100;
-        const width = (duration / totalDays) * 100;
+        const left = startOffset * pixelsPerDay;
+        const width = duration * pixelsPerDay;
         
-        return { left: `${left}%`, width: `${width}%` };
+        return { left: `${left}px`, width: `${width}px` };
     };
 
     const todayPosition = useMemo(() => {
          if (totalDays <= 0) return -1;
          const startOffset = (new Date().getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
-         return (startOffset / totalDays) * 100;
-    }, [ganttStartDate, totalDays]);
+         return startOffset * pixelsPerDay;
+    }, [ganttStartDate, totalDays, pixelsPerDay]);
 
     const sortedAndFilteredProjects = useMemo(() => {
         const filtered = projects.filter(project => {
@@ -138,7 +141,7 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per progetto..."/>
                     <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
@@ -147,7 +150,7 @@ const GanttPage: React.FC = () => {
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <div style={{ minWidth: `calc(300px + ${timeScale.length * GANTT_COLUMN_WIDTH}px)` }}>
+                <div style={{ minWidth: `calc(300px + ${ganttChartWidth}px)` }}>
                     {/* Header */}
                     <div className="grid grid-cols-[300px_1fr] sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16">
                         <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center">
@@ -201,8 +204,8 @@ const GanttPage: React.FC = () => {
                                 </div>
                             )
                         })}
-                        {todayPosition >= 0 && todayPosition <= 100 && (
-                            <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: `calc(300px + ${todayPosition}%)` }} title="Oggi"></div>
+                        {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
+                            <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: `calc(300px + ${todayPosition}px)` }} title="Oggi"></div>
                         )}
                     </div>
                 </div>
