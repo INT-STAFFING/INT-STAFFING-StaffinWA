@@ -29,7 +29,7 @@ const TasksPage: React.FC = () => {
 
     // Effetto per i calcoli automatici nella modale
     useEffect(() => {
-        if (!editingTask) return;
+        if (!editingTask || !isModalOpen) return;
 
         const { roleEfforts, totalFees, externalFees } = editingTask;
 
@@ -65,13 +65,13 @@ const TasksPage: React.FC = () => {
             return prev;
         });
 
-    }, [editingTask?.roleEfforts, editingTask?.totalFees, editingTask?.externalFees, roles]);
+    }, [editingTask?.roleEfforts, editingTask?.totalFees, editingTask?.externalFees, roles, isModalOpen]);
 
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
             const project = projects.find(p => p.id === task.projectId);
-            const nameMatch = task.name.toLowerCase().includes(filters.name.toLowerCase()) || task.wbs.toLowerCase().includes(filters.name.toLowerCase());
+            const nameMatch = (task.name || '').toLowerCase().includes(filters.name.toLowerCase()) || (task.wbs || '').toLowerCase().includes(filters.name.toLowerCase());
             const projectMatch = filters.projectId ? task.projectId === filters.projectId : true;
             const clientMatch = filters.clientId ? project?.clientId === filters.clientId : true;
             return nameMatch && projectMatch && clientMatch;
@@ -150,7 +150,6 @@ const TasksPage: React.FC = () => {
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingTask) {
-            // Assicura che tutti i campi siano presenti prima di inviare
             const taskToSend = { ...emptyTask, ...editingTask };
 
             if ('id' in editingTask && editingTask.id) {
@@ -173,7 +172,6 @@ const TasksPage: React.FC = () => {
     const handleRoleEffortChange = (roleId: string, value: string) => {
         if (editingTask) {
             const newEfforts = { ...(editingTask.roleEfforts || {}), [roleId]: Number(value) || 0 };
-            // Rimuove il ruolo se i giorni sono 0 o vuoti
             if (!newEfforts[roleId]) {
                 delete newEfforts[roleId];
             }
@@ -263,9 +261,9 @@ const TasksPage: React.FC = () => {
                             return (
                                 <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-gray-300">{task.wbs}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{task.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{task.name ?? 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project?.name ?? 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name ?? 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(task.totalFees)}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{(task.realization ?? 0).toFixed(2)}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{(task.margin ?? 0).toFixed(2)}%</td>
@@ -302,11 +300,11 @@ const TasksPage: React.FC = () => {
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
                                 <div>
                                     <label htmlFor="totalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Totali (€)</label>
-                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees || ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees ?? ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                                 <div>
                                     <label htmlFor="externalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Esterni (€)</label>
-                                    <input id="externalFees" type="number" step="0.01" name="externalFees" value={editingTask.externalFees || ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                    <input id="externalFees" type="number" step="0.01" name="externalFees" value={editingTask.externalFees ?? ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
                                 </div>
                                  <div>
                                     <label htmlFor="internalFees" className="block text-sm font-medium text-gray-500 dark:text-gray-400">Onorari Interni (€)</label>
@@ -338,7 +336,7 @@ const TasksPage: React.FC = () => {
                                         <label className="block text-sm text-gray-600 dark:text-gray-400">{role.name}</label>
                                         <input
                                             type="number"
-                                            value={(editingTask.roleEfforts || {})[role.id!] || ''}
+                                            value={(editingTask.roleEfforts || {})[role.id!] ?? ''}
                                             onChange={(e) => handleRoleEffortChange(role.id!, e.target.value)}
                                             className="form-input mt-1"
                                             placeholder="0"
@@ -368,7 +366,7 @@ const TasksPage: React.FC = () => {
                                     const resource = resources.find(r => r.id === resourceId);
                                     return (
                                         <div key={resourceId} className="flex items-center justify-between p-2 rounded-md bg-gray-100 dark:bg-gray-700">
-                                            <span className="text-sm text-gray-800 dark:text-gray-200">{resource?.name || 'Risorsa non trovata'}</span>
+                                            <span className="text-sm text-gray-800 dark:text-gray-200">{resource?.name ?? 'Risorsa non trovata'}</span>
                                             <button type="button" onClick={() => handleRemoveResource(resourceId)} className="text-red-500 hover:text-red-700" title="Rimuovi risorsa"><XCircleIcon className="w-5 h-5" /></button>
                                         </div>
                                     );

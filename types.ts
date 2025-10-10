@@ -163,17 +163,17 @@ export interface Task {
     /** @property {string} wbs - Work Breakdown Structure, un codice univoco per l'incarico. */
     wbs: string;
     /** @property {string} name - Il nome univoco dell'incarico. */
-    name: string;
+    name: string | null;
     /** @property {string} projectId - L'ID del progetto a cui l'incarico è collegato. */
-    projectId: string;
+    projectId: string | null;
     /** @property {number} totalFees - Onorari totali previsti per l'incarico. */
-    totalFees: number;
+    totalFees: number | null;
     /** @property {number} internalFees - Quota degli onorari gestita internamente. */
-    internalFees: number;
+    internalFees: number | null;
     /** @property {number} externalFees - Quota degli onorari per esterni/fornitori. */
-    externalFees: number;
+    externalFees: number | null;
     /** @property {number} expenses - Spese previste per l'incarico. */
-    expenses: number;
+    expenses: number | null;
     /** @property {number | null} realization - Percentuale di realizzo. */
     realization: number | null;
     /** @property {number | null} margin - Margine percentuale previsto. */

@@ -10,7 +10,7 @@ const TaskDetailsPage: React.FC = () => {
 
     const taskOptions = useMemo(() => 
         tasks
-            .map(t => ({ value: t.id!, label: `${t.wbs} - ${t.name}` }))
+            .map(t => ({ value: t.id!, label: `${t.wbs} - ${t.name || 'Senza nome'}` }))
             .sort((a, b) => a.label.localeCompare(b.label)), 
         [tasks]
     );
@@ -26,10 +26,10 @@ const TaskDetailsPage: React.FC = () => {
 
         const roleBreakdown = Object.entries(task.roleEfforts || {}).map(([roleId, days]) => {
             const role = roles.find(r => r.id === roleId);
-            const dailyCost = role?.dailyCost || 0;
-            const standardCost = role?.standardCost || dailyCost;
+            const dailyCost = role?.dailyCost ?? 0;
+            const standardCost = role?.standardCost ?? dailyCost;
             return {
-                roleName: role?.name || 'N/A',
+                roleName: role?.name ?? 'N/A',
                 days: Number(days) || 0,
                 dailyCost,
                 standardCost,
@@ -90,9 +90,9 @@ const TaskDetailsPage: React.FC = () => {
                         <h2 className="text-xl font-semibold mb-4">Dettagli Principali</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div><p className="text-gray-500">WBS</p><p className="font-medium">{selectedTaskData.task.wbs}</p></div>
-                            <div><p className="text-gray-500">Nome Incarico</p><p className="font-medium">{selectedTaskData.task.name}</p></div>
-                            <div><p className="text-gray-500">Progetto</p><p className="font-medium">{selectedTaskData.project?.name || 'N/A'}</p></div>
-                            <div><p className="text-gray-500">Cliente</p><p className="font-medium">{selectedTaskData.client?.name || 'N/A'}</p></div>
+                            <div><p className="text-gray-500">Nome Incarico</p><p className="font-medium">{selectedTaskData.task.name ?? 'N/A'}</p></div>
+                            <div><p className="text-gray-500">Progetto</p><p className="font-medium">{selectedTaskData.project?.name ?? 'N/A'}</p></div>
+                            <div><p className="text-gray-500">Cliente</p><p className="font-medium">{selectedTaskData.client?.name ?? 'N/A'}</p></div>
                         </div>
                     </div>
                     
