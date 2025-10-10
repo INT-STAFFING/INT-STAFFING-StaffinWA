@@ -256,14 +256,32 @@ const TasksPage: React.FC = () => {
                         <fieldset className="border p-4 rounded-md">
                             <legend className="text-lg font-medium px-2">Dati Economici</legend>
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
-                                <input type="number" step="0.01" name="totalFees" value={editingTask.totalFees} onChange={handleChange} className="form-input" placeholder="Onorari Totali (€)"/>
-                                <input type="number" step="0.01" name="internalFees" value={editingTask.internalFees} onChange={handleChange} className="form-input" placeholder="Onorari Interni (€)"/>
-                                <input type="number" step="0.01" name="externalFees" value={editingTask.externalFees} onChange={handleChange} className="form-input" placeholder="Onorari Esterni (€)"/>
-                                <input type="number" step="0.01" name="expenses" value={editingTask.expenses} onChange={handleChange} className="form-input" placeholder="Spese (€)"/>
+                                <div>
+                                    <label htmlFor="totalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Totali (€)</label>
+                                    <input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                </div>
+                                <div>
+                                    <label htmlFor="internalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Interni (€)</label>
+                                    <input id="internalFees" type="number" step="0.01" name="internalFees" value={editingTask.internalFees} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                </div>
+                                <div>
+                                    <label htmlFor="externalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Esterni (€)</label>
+                                    <input id="externalFees" type="number" step="0.01" name="externalFees" value={editingTask.externalFees} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                </div>
+                                <div>
+                                    <label htmlFor="expenses" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Spese (€)</label>
+                                    <input id="expenses" type="number" step="0.01" name="expenses" value={editingTask.expenses} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                </div>
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                <input type="number" name="realization" value={editingTask.realization} onChange={handleChange} className="form-input" placeholder="Realizzo (%)"/>
-                                <input type="number" name="margin" value={editingTask.margin} onChange={handleChange} className="form-input" placeholder="Margine (%)"/>
+                                <div>
+                                    <label htmlFor="realization" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Realizzo (%)</label>
+                                    <input id="realization" type="number" name="realization" value={editingTask.realization} onChange={handleChange} className="form-input mt-1" placeholder="100"/>
+                                </div>
+                                <div>
+                                    <label htmlFor="margin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Margine (%)</label>
+                                    <input id="margin" type="number" name="margin" value={editingTask.margin} onChange={handleChange} className="form-input mt-1" placeholder="0"/>
+                                </div>
                             </div>
                         </fieldset>
                         
