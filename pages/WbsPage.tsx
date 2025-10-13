@@ -7,9 +7,9 @@ import { useStaffingContext } from '../context/StaffingContext';
 import { WbsTask } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, ArrowsUpDownIcon, InformationCircleIcon } from '../components/icons';
 
-type SortConfig = { key: keyof WbsTask | 'clientName'; direction: 'ascending' | 'descending' } | null;
+type SortConfig = { key: keyof WbsTask | 'clientName' | 'produzioneNetta' | 'totaleWip' | 'credito' | 'primoResponsabileName'; direction: 'ascending' | 'descending' } | null;
 
 const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -20,7 +20,7 @@ const WbsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<WbsTask | Omit<WbsTask, 'id'> | null>(null);
     const [filters, setFilters] = useState({ elementoWbs: '', clientId: '', responsabileId: '' });
-    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'elementoWbs', direction: 'ascending' });
 
     const emptyTask: Omit<WbsTask, 'id'> = {
         elementoWbs: '', descrizioneWbe: '', clientId: null, periodo: '',
@@ -29,6 +29,17 @@ const WbsPage: React.FC = () => {
         fattureOnorari: 0, fattureSpese: 0, iva: 0, incassi: 0,
         primoResponsabileId: null, secondoResponsabileId: null,
     };
+
+     const calculateWbsMetrics = useCallback((task: WbsTask) => {
+        const p = task;
+        const totaleProduzioneLorda = (p.produzioneLorda || 0) + (p.produzioneLordaNetworkItalia || 0);
+        const produzioneNetta = (totaleProduzioneLorda + (p.perdite || 0)) * ((p.realisation || 100) / 100);
+        const fattureOnorariESpese = (p.fattureOnorari || 0) + (p.fattureSpese || 0);
+        const totaleFatture = fattureOnorariESpese + (p.iva || 0);
+        const totaleWIP = produzioneNetta - fattureOnorariESpese;
+        const credito = totaleFatture + totaleWIP - (p.incassi || 0);
+        return { produzioneNetta, totaleWIP, credito };
+    }, []);
 
     const filteredTasks = useMemo(() => {
         return wbsTasks.filter(task => {
@@ -43,8 +54,34 @@ const WbsPage: React.FC = () => {
         let sortableItems = [...filteredTasks];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                const aVal = sortConfig.key === 'clientName' ? clients.find(c => c.id === a.clientId)?.name || '' : a[sortConfig.key as keyof WbsTask];
-                const bVal = sortConfig.key === 'clientName' ? clients.find(c => c.id === b.clientId)?.name || '' : b[sortConfig.key as keyof WbsTask];
+                let aVal: any;
+                let bVal: any;
+                
+                switch(sortConfig.key) {
+                    case 'clientName':
+                        aVal = clients.find(c => c.id === a.clientId)?.name || '';
+                        bVal = clients.find(c => c.id === b.clientId)?.name || '';
+                        break;
+                    case 'produzioneNetta':
+                        aVal = calculateWbsMetrics(a).produzioneNetta;
+                        bVal = calculateWbsMetrics(b).produzioneNetta;
+                        break;
+                    case 'totaleWip':
+                        aVal = calculateWbsMetrics(a).totaleWIP;
+                        bVal = calculateWbsMetrics(b).totaleWIP;
+                        break;
+                    case 'credito':
+                        aVal = calculateWbsMetrics(a).credito;
+                        bVal = calculateWbsMetrics(b).credito;
+                        break;
+                    case 'primoResponsabileName':
+                        aVal = resources.find(r => r.id === a.primoResponsabileId)?.name || '';
+                        bVal = resources.find(r => r.id === b.primoResponsabileId)?.name || '';
+                        break;
+                    default:
+                        aVal = a[sortConfig.key as keyof WbsTask];
+                        bVal = b[sortConfig.key as keyof WbsTask];
+                }
                 
                 if (typeof aVal === 'number' && typeof bVal === 'number') {
                      return sortConfig.direction === 'ascending' ? aVal - bVal : bVal - aVal;
@@ -56,7 +93,7 @@ const WbsPage: React.FC = () => {
             });
         }
         return sortableItems;
-    }, [filteredTasks, sortConfig, clients]);
+    }, [filteredTasks, sortConfig, clients, resources, calculateWbsMetrics]);
 
     const requestSort = (key: SortConfig['key']) => {
         let direction: 'ascending' | 'descending' = 'ascending';
@@ -103,7 +140,7 @@ const WbsPage: React.FC = () => {
         </th>
     );
     
-    // --- Calculated Fields ---
+    // --- Calculated Fields for Modal ---
     const calculatedValues = useMemo(() => {
         if (!editingTask) return {};
         const p = editingTask;
@@ -114,7 +151,7 @@ const WbsPage: React.FC = () => {
         const fattureOnorariESpese = (p.fattureOnorari || 0) + (p.fattureSpese || 0);
         const totaleFatture = fattureOnorariESpese + (p.iva || 0);
         const totaleWIP = produzioneNetta - fattureOnorariESpese;
-        const credito = totaleFatture - (p.incassi || 0);
+        const credito = totaleFatture + totaleWIP - (p.incassi || 0);
         return { totaleOre, totaleProduzioneLorda, produzioneNetta, totaleSpese, fattureOnorariESpese, totaleFatture, totaleWIP, credito };
     }, [editingTask]);
 
@@ -144,24 +181,33 @@ const WbsPage: React.FC = () => {
                             {getSortableHeader('Elemento WBS', 'elementoWbs')}
                             {getSortableHeader('Descrizione', 'descrizioneWbe')}
                             {getSortableHeader('Cliente', 'clientName')}
-                            {getSortableHeader('Produzione Netta', 'produzioneLorda')}
+                            {getSortableHeader('Periodo', 'periodo')}
+                            {getSortableHeader('Produzione Netta', 'produzioneNetta')}
+                            {getSortableHeader('Totale WIP', 'totaleWip')}
+                            {getSortableHeader('Credito', 'credito')}
+                            {getSortableHeader('Resp. Primario', 'primoResponsabileName')}
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Azioni</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {sortedTasks.map(task => {
                             const client = clients.find(c => c.id === task.clientId);
-                            const totaleProduzioneLorda = task.produzioneLorda + task.produzioneLordaNetworkItalia;
-                            const produzioneNetta = (totaleProduzioneLorda + task.perdite) * (task.realisation / 100);
+                            const responsabile = resources.find(r => r.id === task.primoResponsabileId);
+                            const metrics = calculateWbsMetrics(task);
                             return (
                                 <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{task.elementoWbs}</div></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 truncate max-w-xs">{task.descrizioneWbe}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 truncate max-w-[200px]">{task.descrizioneWbe}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(produzioneNetta)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.periodo}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(metrics.produzioneNetta)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(metrics.totaleWIP)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-gray-100">{formatCurrency(metrics.credito)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{responsabile?.name || 'N/A'}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Visualizza Dettagli"><InformationCircleIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-green-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
                                             <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
                                         </div>
                                     </td>
@@ -179,57 +225,57 @@ const WbsPage: React.FC = () => {
                         {/* Sezione Identificazione */}
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Identificazione</legend>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" name="elementoWbs" value={editingTask.elementoWbs} onChange={handleChange} required className="form-input" placeholder="Elemento WBS *"/>
-                                <input type="text" name="periodo" value={editingTask.periodo} onChange={handleChange} className="form-input" placeholder="Periodo"/>
-                                <SearchableSelect name="clientId" value={editingTask.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Cliente" />
-                                <textarea name="descrizioneWbe" value={editingTask.descrizioneWbe} onChange={handleChange} className="form-textarea md:col-span-2" placeholder="Descrizione WBE" rows={2}/>
+                                <div><label className="block text-sm font-medium mb-1">Elemento WBS *</label><input type="text" name="elementoWbs" value={editingTask.elementoWbs} onChange={handleChange} required className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Periodo</label><input type="text" name="periodo" value={editingTask.periodo} onChange={handleChange} className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Cliente</label><SearchableSelect name="clientId" value={editingTask.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona Cliente" /></div>
+                                <div className="md:col-span-2"><label className="block text-sm font-medium mb-1">Descrizione WBE</label><textarea name="descrizioneWbe" value={editingTask.descrizioneWbe} onChange={handleChange} className="form-textarea" rows={2}/></div>
                             </div>
                         </fieldset>
                         {/* Sezione Dati Produzione */}
                          <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Produzione</legend>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                <input type="number" step="0.01" name="ore" value={editingTask.ore} onChange={handleChange} className="form-input" placeholder="Ore"/>
-                                <input type="number" step="0.01" name="produzioneLorda" value={editingTask.produzioneLorda} onChange={handleChange} className="form-input" placeholder="Produzione Lorda (€)"/>
-                                <input type="number" step="0.01" name="oreNetworkItalia" value={editingTask.oreNetworkItalia} onChange={handleChange} className="form-input" placeholder="Ore Network Italia"/>
-                                <input type="number" step="0.01" name="produzioneLordaNetworkItalia" value={editingTask.produzioneLordaNetworkItalia} onChange={handleChange} className="form-input" placeholder="Produzione Lorda Network (€)"/>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-center">
+                                <div><label className="block text-sm font-medium mb-1">Ore</label><input type="number" step="0.01" name="ore" value={editingTask.ore} onChange={handleChange} className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Produzione Lorda (€)</label><input type="number" step="0.01" name="produzioneLorda" value={editingTask.produzioneLorda} onChange={handleChange} className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Ore Network Italia</label><input type="number" step="0.01" name="oreNetworkItalia" value={editingTask.oreNetworkItalia} onChange={handleChange} className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Produzione Lorda Network (€)</label><input type="number" step="0.01" name="produzioneLordaNetworkItalia" value={editingTask.produzioneLordaNetworkItalia} onChange={handleChange} className="form-input"/></div>
                                 <div className="font-bold">Totale Ore: {calculatedValues.totaleOre?.toFixed(2)}</div>
                                 <div className="font-bold">Totale Produzione Lorda: {formatCurrency(calculatedValues.totaleProduzioneLorda)}</div>
                             </div>
                         </fieldset>
                         {/* Sezione Marginalità */}
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Marginalità</legend>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                <input type="number" step="0.01" name="perdite" value={editingTask.perdite} onChange={handleChange} className="form-input" placeholder="Perdite (valore negativo) (€)"/>
-                                <input type="number" step="0.01" name="realisation" value={editingTask.realisation} onChange={handleChange} className="form-input" placeholder="Realisation (%)"/>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-center">
+                                <div><label className="block text-sm font-medium mb-1">Perdite (€)</label><input type="number" step="0.01" name="perdite" value={editingTask.perdite} onChange={handleChange} className="form-input" placeholder="Valore negativo"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Realisation (%)</label><input type="number" step="0.01" name="realisation" value={editingTask.realisation} onChange={handleChange} className="form-input"/></div>
                                 <div className="md:col-span-2 font-bold">Produzione Netta: {formatCurrency(calculatedValues.produzioneNetta)}</div>
                             </div>
                         </fieldset>
                          {/* Sezione Costi e Spese */}
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Costi e Spese</legend>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                <input type="number" step="0.01" name="speseOnorariEsterni" value={editingTask.speseOnorariEsterni} onChange={handleChange} className="form-input" placeholder="Spese Onorari Esterni (€)"/>
-                                <input type="number" step="0.01" name="speseAltro" value={editingTask.speseAltro} onChange={handleChange} className="form-input" placeholder="Spese Altro (€)"/>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-center">
+                                <div><label className="block text-sm font-medium mb-1">Spese Onorari Esterni (€)</label><input type="number" step="0.01" name="speseOnorariEsterni" value={editingTask.speseOnorariEsterni} onChange={handleChange} className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Spese Altro (€)</label><input type="number" step="0.01" name="speseAltro" value={editingTask.speseAltro} onChange={handleChange} className="form-input"/></div>
                                 <div className="md:col-span-2 font-bold">Totale Spese: {formatCurrency(calculatedValues.totaleSpese)}</div>
                             </div>
                         </fieldset>
                         {/* Sezione Ciclo Attivo */}
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Ciclo Attivo e Situazione Economica</legend>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                                <input type="number" step="0.01" name="fattureOnorari" value={editingTask.fattureOnorari} onChange={handleChange} className="form-input" placeholder="Fatture Onorari (€)"/>
-                                <input type="number" step="0.01" name="fattureSpese" value={editingTask.fattureSpese} onChange={handleChange} className="form-input" placeholder="Fatture Spese (€)"/>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-center">
+                                <div><label className="block text-sm font-medium mb-1">Fatture Onorari (€)</label><input type="number" step="0.01" name="fattureOnorari" value={editingTask.fattureOnorari} onChange={handleChange} className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Fatture Spese (€)</label><input type="number" step="0.01" name="fattureSpese" value={editingTask.fattureSpese} onChange={handleChange} className="form-input"/></div>
                                 <div><span className="font-semibold">Fatture Onorari e Spese:</span> {formatCurrency(calculatedValues.fattureOnorariESpese)}</div>
                                 <div><span className="font-semibold">Totale WIP:</span> {formatCurrency(calculatedValues.totaleWIP)}</div>
-                                <input type="number" step="0.01" name="iva" value={editingTask.iva} onChange={handleChange} className="form-input" placeholder="IVA (€)"/>
+                                <div><label className="block text-sm font-medium mb-1">IVA (€)</label><input type="number" step="0.01" name="iva" value={editingTask.iva} onChange={handleChange} className="form-input"/></div>
                                 <div><span className="font-semibold">TOTALE Fatture:</span> {formatCurrency(calculatedValues.totaleFatture)}</div>
-                                <input type="number" step="0.01" name="incassi" value={editingTask.incassi} onChange={handleChange} className="form-input" placeholder="Incassi (€)"/>
+                                <div><label className="block text-sm font-medium mb-1">Incassi (€)</label><input type="number" step="0.01" name="incassi" value={editingTask.incassi} onChange={handleChange} className="form-input"/></div>
                                 <div><span className="font-semibold">Credito:</span> {formatCurrency(calculatedValues.credito)}</div>
                             </div>
                         </fieldset>
                         {/* Sezione Governance */}
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Governance</legend>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                 <SearchableSelect name="primoResponsabileId" value={editingTask.primoResponsabileId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Primo Responsabile" />
-                                 <SearchableSelect name="secondoResponsabileId" value={editingTask.secondoResponsabileId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Secondo Responsabile" />
+                                 <div><label className="block text-sm font-medium mb-1">Primo Responsabile</label><SearchableSelect name="primoResponsabileId" value={editingTask.primoResponsabileId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona Responsabile" /></div>
+                                 <div><label className="block text-sm font-medium mb-1">Secondo Responsabile</label><SearchableSelect name="secondoResponsabileId" value={editingTask.secondoResponsabileId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona Responsabile" /></div>
                             </div>
                         </fieldset>
 

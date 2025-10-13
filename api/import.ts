@@ -59,10 +59,11 @@ const formatDateForDB = (date: Date | null): string | null => {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
+        // Fix: Use req.method instead of undefined 'method' variable.
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 
-    const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects } = req.body;
+    const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects, wbsTasks: importedWbsTasks } = req.body;
     const client = await db.connect();
     const warnings: string[] = [];
 
@@ -72,14 +73,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Mappe per tenere traccia degli ID (per collegare le entità)
         const roleNameMap = new Map<string, string>();
         const clientNameMap = new Map<string, string>();
+        const resourceEmailMap = new Map<string, string>();
         
-        // Pre-carica ruoli e clienti esistenti per l'associazione
+        // Pre-carica entità esistenti per l'associazione
         const existingRoles = await client.query('SELECT id, name FROM roles');
         existingRoles.rows.forEach(r => roleNameMap.set(r.name, r.id));
 
         const existingClients = await client.query('SELECT id, name FROM clients');
         existingClients.rows.forEach(c => clientNameMap.set(c.name, c.id));
 
+        const existingResources = await client.query('SELECT id, email FROM resources');
+        existingResources.rows.forEach(r => resourceEmailMap.set(r.email, r.id));
 
         // Importa Ruoli
         if (Array.isArray(importedRoles)) {
@@ -128,8 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     warnings.push(`Risorsa '${resource.name || 'Senza nome'}' saltata perché non ha un'email.`);
                     continue;
                 }
-                const existing = await client.query('SELECT id FROM resources WHERE email = $1', [resource.email]);
-                if (existing.rows.length > 0) {
+                if (resourceEmailMap.has(resource.email)) {
                     warnings.push(`Risorsa con email '${resource.email}' già esistente, saltata.`);
                 } else {
                     const roleId = roleNameMap.get(resource.roleName);
@@ -137,11 +140,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         warnings.push(`Risorsa '${resource.name}' saltata: il ruolo '${resource.roleName}' non è stato trovato.`);
                         continue;
                     }
+                    const newId = uuidv4();
                     await client.query(
                         `INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                         [
-                            uuidv4(),
+                            newId,
                             resource.name,
                             resource.email,
                             roleId,
@@ -152,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                             resource.notes
                         ]
                     );
+                    resourceEmailMap.set(resource.email, newId);
                 }
             }
         }
@@ -192,6 +197,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
         }
+        
+        // Importa WBS Tasks
+        if (Array.isArray(importedWbsTasks)) {
+            for (const task of importedWbsTasks) {
+                if (!task.elementoWbs) {
+                    warnings.push(`Un incarico WBS è stato saltato perché non ha un Elemento WBS.`);
+                    continue;
+                }
+                const existing = await client.query('SELECT id FROM wbs_tasks WHERE elemento_wbs = $1', [task.elementoWbs]);
+                if (existing.rows.length > 0) {
+                    warnings.push(`Incarico WBS '${task.elementoWbs}' già esistente, saltato.`);
+                    continue;
+                }
+
+                const clientId = clientNameMap.get(task.clientName);
+                if (task.clientName && !clientId) {
+                    warnings.push(`Incarico WBS '${task.elementoWbs}' saltato: il cliente '${task.clientName}' non è stato trovato.`);
+                    continue;
+                }
+
+                const primoResponsabileId = resourceEmailMap.get(task.primoResponsabileEmail);
+                if (task.primoResponsabileEmail && !primoResponsabileId) {
+                    warnings.push(`Incarico WBS '${task.elementoWbs}' saltato: primo responsabile con email '${task.primoResponsabileEmail}' non trovato.`);
+                }
+                
+                const secondoResponsabileId = resourceEmailMap.get(task.secondoResponsabileEmail);
+                 if (task.secondoResponsabileEmail && !secondoResponsabileId) {
+                    warnings.push(`Incarico WBS '${task.elementoWbs}' saltato: secondo responsabile con email '${task.secondoResponsabileEmail}' non trovato.`);
+                }
+
+                 await client.query(
+                    `INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, ore_network_italia, produzione_lorda_network_italia, perdite, realisation, spese_onorari_esterni, spese_altro, fatture_onorari, fatture_spese, iva, incassi, primo_responsabile_id, secondo_responsabile_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+                    [
+                        uuidv4(),
+                        task.elementoWbs, task.descrizioneWbe, clientId || null, task.periodo,
+                        Number(task.ore) || 0, Number(task.produzioneLorda) || 0, Number(task.oreNetworkItalia) || 0, Number(task.produzioneLordaNetworkItalia) || 0,
+                        Number(task.perdite) || 0, Number(task.realisation) || 100, Number(task.speseOnorariEsterni) || 0, Number(task.speseAltro) || 0,
+                        Number(task.fattureOnorari) || 0, Number(task.fattureSpese) || 0, Number(task.iva) || 0, Number(task.incassi) || 0,
+                        primoResponsabileId || null, secondoResponsabileId || null
+                    ]
+                );
+            }
+        }
+
 
         await client.query('COMMIT');
         res.status(200).json({ message: 'Importazione completata.', warnings });
