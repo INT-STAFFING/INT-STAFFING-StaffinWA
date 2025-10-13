@@ -175,25 +175,25 @@ const TasksManagerPage: React.FC = () => {
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!editingTask) return;
-        
         const { name, value } = e.target;
         const numericFields = ['totalFees', 'internalFees', 'externalFees', 'expenses', 'realization', 'margin'];
-        const newPartialTask = { ...editingTask, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value };
-
-        if (name === 'totalFees' || name === 'externalFees') {
-            setEditingTask(calculateDependentFields(newPartialTask));
-        } else {
-            setEditingTask(newPartialTask);
-        }
+        setEditingTask({ 
+            ...editingTask, 
+            [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value 
+        });
     };
 
     const handleRoleEffortChange = (roleId: string, value: string) => {
         if (!editingTask) return;
-        
         const newEfforts = { ...(editingTask.roleEfforts || {}), [roleId]: Number(value) || 0 };
         if (!newEfforts[roleId]) delete newEfforts[roleId];
-        const newPartialTask = { ...editingTask, roleEfforts: newEfforts };
-        setEditingTask(calculateDependentFields(newPartialTask));
+        setEditingTask({ ...editingTask, roleEfforts: newEfforts });
+    };
+    
+    const handleRecalculate = () => {
+        if (editingTask) {
+            setEditingTask(calculateDependentFields(editingTask));
+        }
     };
 
     const handleSelectChange = (name: string, value: string) => {
@@ -344,7 +344,24 @@ const TasksManagerPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingTask.id ? 'Modifica Incarico' : 'Aggiungi Incarico'}>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-medium px-2">Anagrafica</legend><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2"><input type="text" name="wbs" value={editingTask.wbs || ''} onChange={handleChange} required className="form-input" placeholder="WBS *"/><input type="text" name="name" value={editingTask.name || ''} onChange={handleChange} required className="form-input" placeholder="Nome Incarico *"/><SearchableSelect name="projectId" value={editingTask.projectId || ''} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona Progetto *" required/><input type="text" value={selectedClient?.name || 'Nessun cliente selezionato'} readOnly className="form-input bg-gray-100 dark:bg-gray-700" placeholder="Cliente"/></div></fieldset>
-                        <fieldset className="border p-4 rounded-md"><legend className="text-lg font-medium px-2">Dati Economici</legend><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2"><div><label htmlFor="totalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Totali (€)</label><input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees ?? ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/></div><div><label htmlFor="externalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Esterni (€)</label><input id="externalFees" type="number" step="0.01" name="externalFees" value={editingTask.externalFees ?? ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/></div><div><label htmlFor="internalFees" className="block text-sm font-medium text-gray-500 dark:text-gray-400">Onorari Interni (€)</label><input id="internalFees" type="number" step="0.01" name="internalFees" value={(editingTask.internalFees ?? 0).toFixed(2)} readOnly className="form-input mt-1 bg-gray-100 dark:bg-gray-700"/></div><div><label htmlFor="expenses" className="block text-sm font-medium text-gray-500 dark:text-gray-400">Spese (€)</label><input id="expenses" type="number" step="0.01" name="expenses" value={(editingTask.expenses ?? 0).toFixed(2)} readOnly className="form-input mt-1 bg-gray-100 dark:bg-gray-700"/></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4"><div><label htmlFor="realization" className="block text-sm font-medium text-gray-500 dark:text-gray-400">Realizzo (%)</label><input id="realization" type="number" step="0.01" name="realization" value={(editingTask.realization ?? 0).toFixed(2)} readOnly className="form-input mt-1 bg-gray-100 dark:bg-gray-700"/></div><div><label htmlFor="margin" className="block text-sm font-medium text-gray-500 dark:text-gray-400">Margine (%)</label><input id="margin" type="number" step="0.01" name="margin" value={(editingTask.margin ?? 0).toFixed(2)} readOnly className="form-input mt-1 bg-gray-100 dark:bg-gray-700"/></div></div></fieldset>
+                        <fieldset className="border p-4 rounded-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <legend className="text-lg font-medium px-2">Dati Economici</legend>
+                                <button type="button" onClick={handleRecalculate} className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-md shadow-sm hover:bg-indigo-700">
+                                    Ricalcola Campi Derivati
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                                <div><label htmlFor="totalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Totali (€)</label><input id="totalFees" type="number" step="0.01" name="totalFees" value={editingTask.totalFees ?? ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/></div>
+                                <div><label htmlFor="externalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Esterni (€)</label><input id="externalFees" type="number" step="0.01" name="externalFees" value={editingTask.externalFees ?? ''} onChange={handleChange} className="form-input mt-1" placeholder="0"/></div>
+                                <div><label htmlFor="internalFees" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Onorari Interni (€)</label><input id="internalFees" type="number" step="0.01" name="internalFees" value={editingTask.internalFees ?? ''} onChange={handleChange} className="form-input mt-1"/></div>
+                                <div><label htmlFor="expenses" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Spese (€)</label><input id="expenses" type="number" step="0.01" name="expenses" value={editingTask.expenses ?? ''} onChange={handleChange} className="form-input mt-1"/></div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div><label htmlFor="realization" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Realizzo (%)</label><input id="realization" type="number" step="0.01" name="realization" value={editingTask.realization ?? ''} onChange={handleChange} className="form-input mt-1"/></div>
+                                <div><label htmlFor="margin" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Margine (%)</label><input id="margin" type="number" step="0.01" name="margin" value={editingTask.margin ?? ''} onChange={handleChange} className="form-input mt-1"/></div>
+                            </div>
+                        </fieldset>
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-medium px-2">Sforzo Previsto (giorni)</legend><div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2 max-h-48 overflow-y-auto p-1">{roles.map(role => (<div key={role.id}><label className="block text-sm text-gray-600 dark:text-gray-400">{role.name}</label><input type="number" value={(editingTask.roleEfforts || {})[role.id!] ?? ''} onChange={(e) => handleRoleEffortChange(role.id!, e.target.value)} className="form-input mt-1" placeholder="0"/></div>))}</div></fieldset>
                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-medium px-2">Risorse Assegnate</legend><div className="flex items-center gap-2 mt-2"><div className="flex-grow"><SearchableSelect name="resourceToAdd" value={resourceToAdd} onChange={(_, value) => setResourceToAdd(value)} options={resourceOptions.filter(opt => !assignedResources.has(opt.value))} placeholder="Aggiungi una risorsa..."/></div><button type="button" onClick={handleAddResource} disabled={!resourceToAdd} className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed">Aggiungi</button></div><div className="mt-4 max-h-48 overflow-y-auto space-y-2 p-1">{Array.from(assignedResources).map(resourceId => {const resource = resources.find(r => r.id === resourceId); return (<div key={resourceId} className="flex items-center justify-between p-2 rounded-md bg-gray-100 dark:bg-gray-700"><span className="text-sm text-gray-800 dark:text-gray-200">{resource?.name ?? 'Risorsa non trovata'}</span><button type="button" onClick={() => handleRemoveResource(resourceId)} className="text-red-500 hover:text-red-700" title="Rimuovi risorsa"><XCircleIcon className="w-5 h-5" /></button></div>);})}{assignedResources.size === 0 && (<p className="text-sm text-gray-500 text-center py-4">Nessuna risorsa assegnata.</p>)}</div></fieldset>
                         <div className="flex justify-end space-x-3 pt-4"><button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button></div>
