@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
-import { Task } from '../types';
+import { Task, Role } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, ArrowsUpDownIcon, XCircleIcon } from '../components/icons';
@@ -42,10 +42,8 @@ const TasksManagerPage: React.FC = () => {
         externalFees: 0, expenses: 0, realization: 100, margin: 0, roleEfforts: {}
     };
 
-    useEffect(() => {
-        if (!editingTask || !isModalOpen) return;
-
-        const { roleEfforts, totalFees, externalFees } = editingTask;
+    const calculateDependentFields = useCallback((task: Partial<Task>): Partial<Task> => {
+        const { roleEfforts, totalFees, externalFees } = task;
 
         const sumOfDailyCosts = Object.entries(roleEfforts || {}).reduce((acc, [roleId, days]) => {
             const role = roles.find(r => r.id === roleId);
@@ -63,22 +61,15 @@ const TasksManagerPage: React.FC = () => {
         const calculatedMargin = (Number(totalFees) || 0) > 0 
             ? (((Number(totalFees) || 0) - sumOfStandardCosts) / (Number(totalFees) || 0)) * 100 
             : 0;
-
-        setEditingTask(prev => {
-            if (!prev) return null;
-            if (prev.internalFees !== calculatedInternalFees || prev.expenses !== calculatedExpenses || prev.realization !== calculatedRealization || prev.margin !== calculatedMargin) {
-                return {
-                    ...prev,
-                    internalFees: calculatedInternalFees,
-                    expenses: calculatedExpenses,
-                    realization: calculatedRealization,
-                    margin: calculatedMargin,
-                };
-            }
-            return prev;
-        });
-
-    }, [editingTask?.roleEfforts, editingTask?.totalFees, editingTask?.externalFees, roles, isModalOpen]);
+        
+        return {
+            ...task,
+            internalFees: calculatedInternalFees,
+            expenses: calculatedExpenses,
+            realization: calculatedRealization,
+            margin: calculatedMargin
+        };
+    }, [roles]);
 
     const filteredTasks = useMemo(() => {
         return tasks.filter(task => {
@@ -130,10 +121,11 @@ const TasksManagerPage: React.FC = () => {
     }, [filteredTasks, sortConfig, projects, clients]);
     
     useEffect(() => {
-        if (sortedTasks.length > 0 && !selectedTaskId) {
-            setSelectedTaskId(sortedTasks[0].id!);
-        }
-        if (sortedTasks.length === 0) {
+        const isSelectedTaskVisible = sortedTasks.some(task => task.id === selectedTaskId);
+
+        if (sortedTasks.length > 0 && !isSelectedTaskVisible) {
+            setSelectedTaskId(sortedTasks[0]?.id ?? null);
+        } else if (sortedTasks.length === 0 && selectedTaskId !== null) {
             setSelectedTaskId(null);
         }
     }, [sortedTasks, selectedTaskId]);
@@ -182,19 +174,26 @@ const TasksManagerPage: React.FC = () => {
     };
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (editingTask) {
-            const { name, value } = e.target;
-            const numericFields = ['totalFees', 'internalFees', 'externalFees', 'expenses', 'realization', 'margin'];
-            setEditingTask({ ...editingTask, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value });
+        if (!editingTask) return;
+        
+        const { name, value } = e.target;
+        const numericFields = ['totalFees', 'internalFees', 'externalFees', 'expenses', 'realization', 'margin'];
+        const newPartialTask = { ...editingTask, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value };
+
+        if (name === 'totalFees' || name === 'externalFees') {
+            setEditingTask(calculateDependentFields(newPartialTask));
+        } else {
+            setEditingTask(newPartialTask);
         }
     };
 
     const handleRoleEffortChange = (roleId: string, value: string) => {
-        if (editingTask) {
-            const newEfforts = { ...(editingTask.roleEfforts || {}), [roleId]: Number(value) || 0 };
-            if (!newEfforts[roleId]) delete newEfforts[roleId];
-            setEditingTask({ ...editingTask, roleEfforts: newEfforts });
-        }
+        if (!editingTask) return;
+        
+        const newEfforts = { ...(editingTask.roleEfforts || {}), [roleId]: Number(value) || 0 };
+        if (!newEfforts[roleId]) delete newEfforts[roleId];
+        const newPartialTask = { ...editingTask, roleEfforts: newEfforts };
+        setEditingTask(calculateDependentFields(newPartialTask));
     };
 
     const handleSelectChange = (name: string, value: string) => {
