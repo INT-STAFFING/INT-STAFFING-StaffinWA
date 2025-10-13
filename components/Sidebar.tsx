@@ -90,11 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Incarichi</div>
                 <NavLink to="/tasks" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <ClipboardDocumentCheckIcon className="w-6 h-6 mr-3" />
-                    Incarichi
-                </NavLink>
-                <NavLink to="/task-details" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                    <InformationCircleIcon className="w-6 h-6 mr-3" />
-                    Dettagli Incarichi
+                    Gestione Incarichi
                 </NavLink>
 
                 <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>

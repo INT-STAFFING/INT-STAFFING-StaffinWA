@@ -20,8 +20,7 @@ import ForecastingPage from './pages/ForecastingPage';
 import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
-import TasksPage from './pages/TasksPage';
-import TaskDetailsPage from './pages/TaskDetailsPage';
+import TasksManagerPage from './pages/TasksManagerPage';
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -58,7 +57,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'workload': return 'Carico Risorse';
             case 'gantt': return 'Gantt Progetti';
             case 'tasks': return 'Gestione Incarichi';
-            case 'task-details': return 'Dettagli Incarichi';
             case 'resources': return 'Gestione Risorse';
             case 'projects': return 'Gestione Progetti';
             case 'clients': return 'Gestione Clienti';
@@ -130,8 +128,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/projects" element={<ProjectsPage />} />
                         <Route path="/clients" element={<ClientsPage />} />
                         <Route path="/roles" element={<RolesPage />} />
-                        <Route path="/tasks" element={<TasksPage />} />
-                        <Route path="/task-details" element={<TaskDetailsPage />} />
+                        <Route path="/tasks" element={<TasksManagerPage />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/forecasting" element={<ForecastingPage />} />
                         <Route path="/workload" element={<WorkloadPage />} />
