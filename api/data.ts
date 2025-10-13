@@ -6,7 +6,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -55,7 +55,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projectStatusesRes,
             clientSectorsRes,
             locationsRes,
-            calendarRes
+            calendarRes,
+            wbsTasksRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -68,7 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM project_statuses;`,
             db.sql`SELECT * FROM client_sectors;`,
             db.sql`SELECT * FROM locations;`,
-            db.sql`SELECT * FROM company_calendar;`
+            db.sql`SELECT * FROM company_calendar;`,
+            db.sql`SELECT * FROM wbs_tasks;`
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -101,6 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projects: projectsRes.rows.map(toCamelCase) as Project[],
             assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
             allocations,
+            wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
             horizontals: horizontalsRes.rows as ConfigOption[],
             seniorityLevels: seniorityLevelsRes.rows as ConfigOption[],
             projectStatuses: projectStatusesRes.rows as ConfigOption[],

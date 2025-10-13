@@ -103,6 +103,39 @@ export interface Project {
     notes?: string | null;
 }
 
+/**
+ * @interface WbsTask
+ * @description Rappresenta un incarico professionale (commessa) con dettagli economico-finanziari.
+ */
+export interface WbsTask {
+    id?: string;
+    // Identificazione
+    elementoWbs: string;
+    descrizioneWbe: string;
+    clientId: string | null;
+    periodo: string;
+    // Dati di Produzione
+    ore: number;
+    produzioneLorda: number;
+    oreNetworkItalia: number;
+    produzioneLordaNetworkItalia: number;
+    // Marginalità
+    perdite: number;
+    realisation: number; // Percentuale
+    // Costi e Spese
+    speseOnorariEsterni: number;
+    speseAltro: number;
+    // Ciclo Attivo
+    fattureOnorari: number;
+    fattureSpese: number;
+    iva: number;
+    // Situazione Economica
+    incassi: number;
+    // Governance
+    primoResponsabileId: string | null;
+    secondoResponsabileId: string | null;
+}
+
 
 /**
  * @interface Assignment

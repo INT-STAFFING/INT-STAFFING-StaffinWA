@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ClipboardDocumentCheckIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -85,6 +85,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <NavLink to="/gantt" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <Bars4Icon className="w-6 h-6 mr-3" />
                     Gantt Progetti
+                </NavLink>
+                 <NavLink to="/wbs" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                    <ClipboardDocumentCheckIcon className="w-6 h-6 mr-3" />
+                    WBS Incarichi
                 </NavLink>
                 
                 <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>

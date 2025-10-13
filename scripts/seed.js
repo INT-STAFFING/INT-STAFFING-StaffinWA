@@ -90,6 +90,11 @@ function generateSampleData() {
         { id: 'as5', resourceId: 'res3', projectId: 'p2' },
     ];
 
+    const wbsTasks = [
+        { id: 'wbs1', elementoWbs: '20240001-01-01-01', descrizioneWbe: 'Analisi Funzionale E-commerce', clientId: 'c1', periodo: 'YTD Ottobre 2024', ore: 80, produzioneLorda: 32000, perdite: -1500, realisation: 95, fattureOnorari: 25000, incassi: 20000, primoResponsabileId: 'res4', secondoResponsabileId: 'res1' },
+        { id: 'wbs2', elementoWbs: '20240002-01-01-01', descrizioneWbe: 'Sviluppo Core Banking App', clientId: 'c2', periodo: 'YTD Novembre 2024', ore: 120, produzioneLorda: 60000, perdite: 0, realisation: 100, fattureOnorari: 40000, incassi: 10000, primoResponsabileId: 'res4', secondoResponsabileId: 'res3' }
+    ];
+
     const allocations = {};
     const today = new Date();
     for (let i = 0; i < 15; i++) {
@@ -123,7 +128,7 @@ function generateSampleData() {
         }
     }
 
-    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar };
+    return { clients, roles, resources, projects, assignments, allocations, wbsTasks, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar };
 };
 
 async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors, locations) {
@@ -173,7 +178,7 @@ async function seedConfigTables(client, horizontals, seniorityLevels, projectSta
 }
 
 
-async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar) {
+async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, wbsTasks, companyCalendar) {
     console.log('Seeding main tables...');
 
     await client.sql`
@@ -250,6 +255,29 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             UNIQUE(date, location)
         );
     `;
+     await client.sql`
+        CREATE TABLE IF NOT EXISTS wbs_tasks (
+            id UUID PRIMARY KEY,
+            elemento_wbs VARCHAR(255) NOT NULL UNIQUE,
+            descrizione_wbe TEXT,
+            client_id UUID REFERENCES clients(id),
+            periodo VARCHAR(255),
+            ore NUMERIC(10, 2) DEFAULT 0,
+            produzione_lorda NUMERIC(10, 2) DEFAULT 0,
+            ore_network_italia NUMERIC(10, 2) DEFAULT 0,
+            produzione_lorda_network_italia NUMERIC(10, 2) DEFAULT 0,
+            perdite NUMERIC(10, 2) DEFAULT 0,
+            realisation NUMERIC(5, 2) DEFAULT 100,
+            spese_onorari_esterni NUMERIC(10, 2) DEFAULT 0,
+            spese_altro NUMERIC(10, 2) DEFAULT 0,
+            fatture_onorari NUMERIC(10, 2) DEFAULT 0,
+            fatture_spese NUMERIC(10, 2) DEFAULT 0,
+            iva NUMERIC(10, 2) DEFAULT 0,
+            incassi NUMERIC(10, 2) DEFAULT 0,
+            primo_responsabile_id UUID REFERENCES resources(id),
+            secondo_responsabile_id UUID REFERENCES resources(id)
+        );
+    `;
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
@@ -271,6 +299,14 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         assignments.map(a => client.sql`INSERT INTO assignments (id, resource_id, project_id) VALUES (${a.id}, ${a.resourceId}, ${a.projectId}) ON CONFLICT (id) DO NOTHING;`)
     );
 
+     // Seed wbsTasks after clients and resources
+    await Promise.all(
+        wbsTasks.map(w => client.sql`
+            INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, perdite, realisation, fatture_onorari, incassi, primo_responsabile_id, secondo_responsabile_id) 
+            VALUES (${w.id}, ${w.elementoWbs}, ${w.descrizioneWbe}, ${w.clientId}, ${w.periodo}, ${w.ore}, ${w.produzioneLorda}, ${w.perdite}, ${w.realisation}, ${w.fattureOnorari}, ${w.incassi}, ${w.primoResponsabileId}, ${w.secondoResponsabileId}) 
+            ON CONFLICT (id) DO NOTHING;
+        `)
+    );
 
     const allocationEntries = [];
     for (const assignmentId in allocations) {
@@ -326,6 +362,7 @@ async function main() {
             sampleData.projects,
             sampleData.assignments,
             sampleData.allocations,
+            sampleData.wbsTasks,
             sampleData.companyCalendar
         );
     } catch (err) {

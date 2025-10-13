@@ -1,0 +1,248 @@
+/**
+ * @file WbsPage.tsx
+ * @description Pagina per la gestione degli incarichi professionali (WBS).
+ */
+import React, { useState, useMemo, useCallback } from 'react';
+import { useStaffingContext } from '../context/StaffingContext';
+import { WbsTask } from '../types';
+import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
+import { PencilIcon, TrashIcon, ArrowsUpDownIcon } from '../components/icons';
+
+type SortConfig = { key: keyof WbsTask | 'clientName'; direction: 'ascending' | 'descending' } | null;
+
+const formatCurrency = (value: number | undefined): string => {
+    return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+};
+
+const WbsPage: React.FC = () => {
+    const { wbsTasks, clients, resources, addWbsTask, updateWbsTask, deleteWbsTask } = useStaffingContext();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState<WbsTask | Omit<WbsTask, 'id'> | null>(null);
+    const [filters, setFilters] = useState({ elementoWbs: '', clientId: '', responsabileId: '' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+
+    const emptyTask: Omit<WbsTask, 'id'> = {
+        elementoWbs: '', descrizioneWbe: '', clientId: null, periodo: '',
+        ore: 0, produzioneLorda: 0, oreNetworkItalia: 0, produzioneLordaNetworkItalia: 0,
+        perdite: 0, realisation: 100, speseOnorariEsterni: 0, speseAltro: 0,
+        fattureOnorari: 0, fattureSpese: 0, iva: 0, incassi: 0,
+        primoResponsabileId: null, secondoResponsabileId: null,
+    };
+
+    const filteredTasks = useMemo(() => {
+        return wbsTasks.filter(task => {
+            const wbsMatch = task.elementoWbs.toLowerCase().includes(filters.elementoWbs.toLowerCase());
+            const clientMatch = filters.clientId ? task.clientId === filters.clientId : true;
+            const responsabileMatch = filters.responsabileId ? (task.primoResponsabileId === filters.responsabileId || task.secondoResponsabileId === filters.responsabileId) : true;
+            return wbsMatch && clientMatch && responsabileMatch;
+        });
+    }, [wbsTasks, filters]);
+
+    const sortedTasks = useMemo(() => {
+        let sortableItems = [...filteredTasks];
+        if (sortConfig !== null) {
+            sortableItems.sort((a, b) => {
+                const aVal = sortConfig.key === 'clientName' ? clients.find(c => c.id === a.clientId)?.name || '' : a[sortConfig.key as keyof WbsTask];
+                const bVal = sortConfig.key === 'clientName' ? clients.find(c => c.id === b.clientId)?.name || '' : b[sortConfig.key as keyof WbsTask];
+                
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                     return sortConfig.direction === 'ascending' ? aVal - bVal : bVal - aVal;
+                }
+                 if (typeof aVal === 'string' && typeof bVal === 'string') {
+                    return sortConfig.direction === 'ascending' ? aVal.localeCompare(bVal) : bVal.localeCompare(bVal);
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [filteredTasks, sortConfig, clients]);
+
+    const requestSort = (key: SortConfig['key']) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
+    const resetFilters = () => setFilters({ elementoWbs: '', clientId: '', responsabileId: '' });
+
+    const openModalForNew = () => { setEditingTask(emptyTask); setIsModalOpen(true); };
+    const openModalForEdit = (task: WbsTask) => { setEditingTask(task); setIsModalOpen(true); };
+    const handleCloseModal = () => { setIsModalOpen(false); setEditingTask(null); };
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (editingTask) {
+            if ('id' in editingTask) updateWbsTask(editingTask as WbsTask);
+            else addWbsTask(editingTask as Omit<WbsTask, 'id'>);
+            handleCloseModal();
+        }
+    };
+    
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        if (editingTask) {
+            const { name, value, type } = e.target;
+            setEditingTask(prev => ({...prev!, [name]: type === 'number' ? parseFloat(value) || 0 : value }));
+        }
+    };
+    
+    const handleSelectChange = (name: string, value: string) => {
+        if (editingTask) setEditingTask(prev => ({ ...prev!, [name]: value }));
+    };
+
+    const getSortableHeader = (label: string, key: SortConfig['key']) => (
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
+                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
+                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+            </button>
+        </th>
+    );
+    
+    // --- Calculated Fields ---
+    const calculatedValues = useMemo(() => {
+        if (!editingTask) return {};
+        const p = editingTask;
+        const totaleOre = (p.ore || 0) + (p.oreNetworkItalia || 0);
+        const totaleProduzioneLorda = (p.produzioneLorda || 0) + (p.produzioneLordaNetworkItalia || 0);
+        const produzioneNetta = (totaleProduzioneLorda + (p.perdite || 0)) * ((p.realisation || 100) / 100);
+        const totaleSpese = (p.speseOnorariEsterni || 0) + (p.speseAltro || 0);
+        const fattureOnorariESpese = (p.fattureOnorari || 0) + (p.fattureSpese || 0);
+        const totaleFatture = fattureOnorariESpese + (p.iva || 0);
+        const totaleWIP = produzioneNetta - fattureOnorariESpese;
+        const credito = totaleFatture - (p.incassi || 0);
+        return { totaleOre, totaleProduzioneLorda, produzioneNetta, totaleSpese, fattureOnorariESpese, totaleFatture, totaleWIP, credito };
+    }, [editingTask]);
+
+    const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
+    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    
+    return (
+        <div>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Incarichi WBS</h1>
+                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Incarico</button>
+            </div>
+            
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <input type="text" name="elementoWbs" value={filters.elementoWbs} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per WBS..." />
+                    <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti" />
+                    <SearchableSelect name="responsabileId" value={filters.responsabileId} onChange={handleFilterSelectChange} options={resourceOptions} placeholder="Tutti i responsabili" />
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+                <table className="min-w-full">
+                    <thead className="border-b border-gray-200 dark:border-gray-700">
+                        <tr>
+                            {getSortableHeader('Elemento WBS', 'elementoWbs')}
+                            {getSortableHeader('Descrizione', 'descrizioneWbe')}
+                            {getSortableHeader('Cliente', 'clientName')}
+                            {getSortableHeader('Produzione Netta', 'produzioneLorda')}
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {sortedTasks.map(task => {
+                            const client = clients.find(c => c.id === task.clientId);
+                            const totaleProduzioneLorda = task.produzioneLorda + task.produzioneLordaNetworkItalia;
+                            const produzioneNetta = (totaleProduzioneLorda + task.perdite) * (task.realisation / 100);
+                            return (
+                                <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{task.elementoWbs}</div></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 truncate max-w-xs">{task.descrizioneWbe}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(produzioneNetta)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )
+                        })}
+                    </tbody>
+                </table>
+                 {sortedTasks.length === 0 && <div className="text-center py-8 text-gray-500">Nessun incarico trovato.</div>}
+            </div>
+
+            {editingTask && (
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingTask ? 'Modifica Incarico' : 'Aggiungi Incarico'}>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Sezione Identificazione */}
+                        <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Identificazione</legend>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input type="text" name="elementoWbs" value={editingTask.elementoWbs} onChange={handleChange} required className="form-input" placeholder="Elemento WBS *"/>
+                                <input type="text" name="periodo" value={editingTask.periodo} onChange={handleChange} className="form-input" placeholder="Periodo"/>
+                                <SearchableSelect name="clientId" value={editingTask.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Cliente" />
+                                <textarea name="descrizioneWbe" value={editingTask.descrizioneWbe} onChange={handleChange} className="form-textarea md:col-span-2" placeholder="Descrizione WBE" rows={2}/>
+                            </div>
+                        </fieldset>
+                        {/* Sezione Dati Produzione */}
+                         <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Produzione</legend>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                <input type="number" step="0.01" name="ore" value={editingTask.ore} onChange={handleChange} className="form-input" placeholder="Ore"/>
+                                <input type="number" step="0.01" name="produzioneLorda" value={editingTask.produzioneLorda} onChange={handleChange} className="form-input" placeholder="Produzione Lorda (€)"/>
+                                <input type="number" step="0.01" name="oreNetworkItalia" value={editingTask.oreNetworkItalia} onChange={handleChange} className="form-input" placeholder="Ore Network Italia"/>
+                                <input type="number" step="0.01" name="produzioneLordaNetworkItalia" value={editingTask.produzioneLordaNetworkItalia} onChange={handleChange} className="form-input" placeholder="Produzione Lorda Network (€)"/>
+                                <div className="font-bold">Totale Ore: {calculatedValues.totaleOre?.toFixed(2)}</div>
+                                <div className="font-bold">Totale Produzione Lorda: {formatCurrency(calculatedValues.totaleProduzioneLorda)}</div>
+                            </div>
+                        </fieldset>
+                        {/* Sezione Marginalità */}
+                        <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Marginalità</legend>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                <input type="number" step="0.01" name="perdite" value={editingTask.perdite} onChange={handleChange} className="form-input" placeholder="Perdite (valore negativo) (€)"/>
+                                <input type="number" step="0.01" name="realisation" value={editingTask.realisation} onChange={handleChange} className="form-input" placeholder="Realisation (%)"/>
+                                <div className="md:col-span-2 font-bold">Produzione Netta: {formatCurrency(calculatedValues.produzioneNetta)}</div>
+                            </div>
+                        </fieldset>
+                         {/* Sezione Costi e Spese */}
+                        <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Costi e Spese</legend>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                <input type="number" step="0.01" name="speseOnorariEsterni" value={editingTask.speseOnorariEsterni} onChange={handleChange} className="form-input" placeholder="Spese Onorari Esterni (€)"/>
+                                <input type="number" step="0.01" name="speseAltro" value={editingTask.speseAltro} onChange={handleChange} className="form-input" placeholder="Spese Altro (€)"/>
+                                <div className="md:col-span-2 font-bold">Totale Spese: {formatCurrency(calculatedValues.totaleSpese)}</div>
+                            </div>
+                        </fieldset>
+                        {/* Sezione Ciclo Attivo */}
+                        <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Ciclo Attivo e Situazione Economica</legend>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                                <input type="number" step="0.01" name="fattureOnorari" value={editingTask.fattureOnorari} onChange={handleChange} className="form-input" placeholder="Fatture Onorari (€)"/>
+                                <input type="number" step="0.01" name="fattureSpese" value={editingTask.fattureSpese} onChange={handleChange} className="form-input" placeholder="Fatture Spese (€)"/>
+                                <div><span className="font-semibold">Fatture Onorari e Spese:</span> {formatCurrency(calculatedValues.fattureOnorariESpese)}</div>
+                                <div><span className="font-semibold">Totale WIP:</span> {formatCurrency(calculatedValues.totaleWIP)}</div>
+                                <input type="number" step="0.01" name="iva" value={editingTask.iva} onChange={handleChange} className="form-input" placeholder="IVA (€)"/>
+                                <div><span className="font-semibold">TOTALE Fatture:</span> {formatCurrency(calculatedValues.totaleFatture)}</div>
+                                <input type="number" step="0.01" name="incassi" value={editingTask.incassi} onChange={handleChange} className="form-input" placeholder="Incassi (€)"/>
+                                <div><span className="font-semibold">Credito:</span> {formatCurrency(calculatedValues.credito)}</div>
+                            </div>
+                        </fieldset>
+                        {/* Sezione Governance */}
+                        <fieldset className="border p-4 rounded-md"><legend className="text-lg font-semibold px-2">Governance</legend>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 <SearchableSelect name="primoResponsabileId" value={editingTask.primoResponsabileId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Primo Responsabile" />
+                                 <SearchableSelect name="secondoResponsabileId" value={editingTask.secondoResponsabileId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Secondo Responsabile" />
+                            </div>
+                        </fieldset>
+
+                        <div className="flex justify-end space-x-3 pt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
+                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+        </div>
+    );
+};
+
+export default WbsPage;
