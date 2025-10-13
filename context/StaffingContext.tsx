@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, Task, TaskResource } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 
 /**
@@ -18,8 +18,6 @@ interface StaffingContextType {
     projects: Project[];
     assignments: Assignment[];
     allocations: Allocation;
-    tasks: Task[];
-    taskResources: TaskResource[];
     horizontals: ConfigOption[];
     seniorityLevels: ConfigOption[];
     projectStatuses: ConfigOption[];
@@ -43,9 +41,6 @@ interface StaffingContextType {
     deleteAssignment: (assignmentId: string) => Promise<void>;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
     bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
-    addTask: (task: Omit<Task, 'id'>, assignedResourceIds: string[]) => Promise<void>;
-    updateTask: (task: Task, assignedResourceIds: string[]) => Promise<void>;
-    deleteTask: (taskId: string) => Promise<void>;
     addConfigOption: (type: keyof ConfigLists, value: string) => Promise<void>;
     updateConfigOption: (type: keyof ConfigLists, option: ConfigOption) => Promise<void>;
     deleteConfigOption: (type: keyof ConfigLists, optionId: string) => Promise<void>;
@@ -111,8 +106,6 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [projects, setProjects] = useState<Project[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [allocations, setAllocations] = useState<Allocation>({});
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [taskResources, setTaskResources] = useState<TaskResource[]>([]);
     const [horizontals, setHorizontals] = useState<ConfigOption[]>([]);
     const [seniorityLevels, setSeniorityLevels] = useState<ConfigOption[]>([]);
     const [projectStatuses, setProjectStatuses] = useState<ConfigOption[]>([]);
@@ -134,8 +127,6 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
             setProjects(data.projects);
             setAssignments(data.assignments);
             setAllocations(data.allocations);
-            setTasks(data.tasks);
-            setTaskResources(data.taskResources);
             setHorizontals(data.horizontals);
             setSeniorityLevels(data.seniorityLevels);
             setProjectStatuses(data.projectStatuses);
@@ -246,12 +237,6 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         await handleApiCall(() => apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) }), 'Errore aggiornamento massivo');
     };
 
-    // --- Funzioni CRUD per gli Incarichi (Tasks) ---
-
-    const addTask = (task: Omit<Task, 'id'>, assignedResourceIds: string[]) => handleApiCall(() => apiFetch('/api/resources?entity=tasks', { method: 'POST', body: JSON.stringify({ task, assignedResourceIds }) }), 'Errore aggiunta incarico');
-    const updateTask = (task: Task, assignedResourceIds: string[]) => handleApiCall(() => apiFetch(`/api/resources?entity=tasks&id=${task.id}`, { method: 'PUT', body: JSON.stringify({ task, assignedResourceIds }) }), 'Errore modifica incarico');
-    const deleteTask = (taskId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=tasks&id=${taskId}`, { method: 'DELETE' }), 'Errore eliminazione incarico');
-
     // --- Funzioni CRUD per le opzioni di configurazione ---
 
     const addConfigOption = (type: keyof ConfigLists, value: string) => handleApiCall(() => apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }), 'Errore aggiunta opzione');
@@ -265,7 +250,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const deleteCalendarEvent = (eventId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=calendar&id=${eventId}`, { method: 'DELETE' }), 'Errore eliminazione evento');
 
     const contextValue: StaffingContextType = {
-        clients, roles, resources, projects, assignments, allocations, tasks, taskResources,
+        clients, roles, resources, projects, assignments, allocations,
         horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, loading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
@@ -273,7 +258,6 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         addProject, updateProject, deleteProject,
         addAssignment, deleteAssignment,
         updateAllocation, bulkUpdateAllocations,
-        addTask, updateTask, deleteTask,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         fetchData

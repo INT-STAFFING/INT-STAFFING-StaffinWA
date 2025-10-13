@@ -122,30 +122,8 @@ function generateSampleData() {
             allocations['as3'][dateStr] = 60;
         }
     }
-    
-    const tasks = [
-        { 
-            id: 'task1', wbs: 'P1.FE', name: 'Frontend Development', projectId: 'p1', 
-            totalFees: 50000, internalFees: 50000, externalFees: 0, expenses: 2000, 
-            realization: 100, margin: 20, 
-            roleEfforts: { 'r1': 20, 'r2': 30 }
-        },
-        { 
-            id: 'task2', wbs: 'P1.BE', name: 'Backend Services', projectId: 'p1', 
-            totalFees: 60000, internalFees: 60000, externalFees: 0, expenses: 1500, 
-            realization: 100, margin: 25, 
-            roleEfforts: { 'r2': 50 }
-        },
-    ];
 
-    const taskResources = [
-        { taskId: 'task1', resourceId: 'res1' },
-        { taskId: 'task1', resourceId: 'res2' },
-        { taskId: 'task2', resourceId: 'res1' },
-    ];
-
-
-    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, tasks, taskResources };
+    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar };
 };
 
 async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors, locations) {
@@ -195,7 +173,7 @@ async function seedConfigTables(client, horizontals, seniorityLevels, projectSta
 }
 
 
-async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar, tasks, taskResources) {
+async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar) {
     console.log('Seeding main tables...');
 
     await client.sql`
@@ -273,32 +251,6 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
 
-    await client.sql`
-        CREATE TABLE IF NOT EXISTS tasks (
-            id UUID PRIMARY KEY,
-            wbs VARCHAR(255) NOT NULL UNIQUE,
-            name VARCHAR(255) NOT NULL UNIQUE,
-            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-            total_fees NUMERIC(12, 2),
-            internal_fees NUMERIC(12, 2),
-            external_fees NUMERIC(12, 2),
-            expenses NUMERIC(12, 2),
-            realization NUMERIC(10, 2),
-            margin NUMERIC(10, 2),
-            role_efforts JSONB
-        );
-    `;
-    await client.sql`ALTER TABLE tasks ALTER COLUMN realization TYPE NUMERIC(10, 2);`;
-    await client.sql`ALTER TABLE tasks ALTER COLUMN margin TYPE NUMERIC(10, 2);`;
-
-    await client.sql`
-        CREATE TABLE IF NOT EXISTS task_resources (
-            task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
-            resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
-            PRIMARY KEY (task_id, resource_id)
-        );
-    `;
-
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
         ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}, ${r.dailyCost}, ${r.standardCost}, ${r.dailyExpenses}) ON CONFLICT (id) DO NOTHING;`)
@@ -348,24 +300,6 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             ON CONFLICT (id) DO NOTHING;
         `)
     );
-
-    // Seed tasks after projects
-     await Promise.all(
-        tasks.map(t => client.sql`
-            INSERT INTO tasks (id, wbs, name, project_id, total_fees, internal_fees, external_fees, expenses, realization, margin, role_efforts) 
-            VALUES (${t.id}, ${t.wbs}, ${t.name}, ${t.projectId}, ${t.totalFees}, ${t.internalFees}, ${t.externalFees}, ${t.expenses}, ${t.realization}, ${t.margin}, ${JSON.stringify(t.roleEfforts)}) 
-            ON CONFLICT (id) DO NOTHING;
-        `)
-    );
-
-    // Seed task_resources after tasks and resources
-    await Promise.all(
-        taskResources.map(tr => client.sql`
-            INSERT INTO task_resources (task_id, resource_id) 
-            VALUES (${tr.taskId}, ${tr.resourceId}) 
-            ON CONFLICT (task_id, resource_id) DO NOTHING;
-        `)
-    );
     
     console.log('Main tables seeded.');
 }
@@ -392,9 +326,7 @@ async function main() {
             sampleData.projects,
             sampleData.assignments,
             sampleData.allocations,
-            sampleData.companyCalendar,
-            sampleData.tasks,
-            sampleData.taskResources
+            sampleData.companyCalendar
         );
     } catch (err) {
         console.error('Error during seeding:', err);

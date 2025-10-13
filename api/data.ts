@@ -6,7 +6,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, Task, TaskResource } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -50,8 +50,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projectsRes,
             assignmentsRes,
             allocationsRes,
-            tasksRes,
-            taskResourcesRes,
             horizontalsRes,
             seniorityLevelsRes,
             projectStatusesRes,
@@ -65,8 +63,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM projects;`,
             db.sql`SELECT * FROM assignments;`,
             db.sql`SELECT * FROM allocations;`,
-            db.sql`SELECT * FROM tasks;`,
-            db.sql`SELECT * FROM task_resources;`,
             db.sql`SELECT * FROM horizontals;`,
             db.sql`SELECT * FROM seniority_levels;`,
             db.sql`SELECT * FROM project_statuses;`,
@@ -105,8 +101,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projects: projectsRes.rows.map(toCamelCase) as Project[],
             assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
             allocations,
-            tasks: tasksRes.rows.map(toCamelCase) as Task[],
-            taskResources: taskResourcesRes.rows.map(toCamelCase) as TaskResource[],
             horizontals: horizontalsRes.rows as ConfigOption[],
             seniorityLevels: seniorityLevelsRes.rows as ConfigOption[],
             projectStatuses: projectStatusesRes.rows as ConfigOption[],
