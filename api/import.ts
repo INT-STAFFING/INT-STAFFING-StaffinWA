@@ -63,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 
-    const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects, wbsTasks: importedWbsTasks } = req.body;
+    const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects } = req.body;
     const client = await db.connect();
     const warnings: string[] = [];
 
@@ -198,51 +198,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
         
-        // Importa WBS Tasks
-        if (Array.isArray(importedWbsTasks)) {
-            for (const task of importedWbsTasks) {
-                if (!task.elementoWbs) {
-                    warnings.push(`Un incarico WBS è stato saltato perché non ha un Elemento WBS.`);
-                    continue;
-                }
-                const existing = await client.query('SELECT id FROM wbs_tasks WHERE elemento_wbs = $1', [task.elementoWbs]);
-                if (existing.rows.length > 0) {
-                    warnings.push(`Incarico WBS '${task.elementoWbs}' già esistente, saltato.`);
-                    continue;
-                }
-
-                const clientId = clientNameMap.get(task.clientName);
-                if (task.clientName && !clientId) {
-                    warnings.push(`Incarico WBS '${task.elementoWbs}' saltato: il cliente '${task.clientName}' non è stato trovato.`);
-                    continue;
-                }
-
-                const primoResponsabileId = resourceEmailMap.get(task.primoResponsabileEmail);
-                if (task.primoResponsabileEmail && !primoResponsabileId) {
-                    warnings.push(`Incarico WBS '${task.elementoWbs}' saltato: primo responsabile con email '${task.primoResponsabileEmail}' non trovato.`);
-                }
-                
-                const secondoResponsabileId = resourceEmailMap.get(task.secondoResponsabileEmail);
-                 if (task.secondoResponsabileEmail && !secondoResponsabileId) {
-                    warnings.push(`Incarico WBS '${task.elementoWbs}' saltato: secondo responsabile con email '${task.secondoResponsabileEmail}' non trovato.`);
-                }
-
-                 await client.query(
-                    `INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, ore_network_italia, produzione_lorda_network_italia, perdite, realisation, spese_onorari_esterni, spese_altro, fatture_onorari, fatture_spese, iva, incassi, primo_responsabile_id, secondo_responsabile_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
-                    [
-                        uuidv4(),
-                        task.elementoWbs, task.descrizioneWbe, clientId || null, task.periodo,
-                        Number(task.ore) || 0, Number(task.produzioneLorda) || 0, Number(task.oreNetworkItalia) || 0, Number(task.produzioneLordaNetworkItalia) || 0,
-                        Number(task.perdite) || 0, Number(task.realisation) || 100, Number(task.speseOnorariEsterni) || 0, Number(task.speseAltro) || 0,
-                        Number(task.fattureOnorari) || 0, Number(task.fattureSpese) || 0, Number(task.iva) || 0, Number(task.incassi) || 0,
-                        primoResponsabileId || null, secondoResponsabileId || null
-                    ]
-                );
-            }
-        }
-
-
         await client.query('COMMIT');
         res.status(200).json({ message: 'Importazione completata.', warnings });
     } catch (error) {

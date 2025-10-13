@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
+// Fix: Import WbsTask type
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 
@@ -18,13 +19,14 @@ interface StaffingContextType {
     projects: Project[];
     assignments: Assignment[];
     allocations: Allocation;
-    wbsTasks: WbsTask[];
     horizontals: ConfigOption[];
     seniorityLevels: ConfigOption[];
     projectStatuses: ConfigOption[];
     clientSectors: ConfigOption[];
     locations: ConfigOption[];
     companyCalendar: CalendarEvent[];
+    // Fix: Add wbsTasks state and CRUD functions
+    wbsTasks: WbsTask[];
     loading: boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
@@ -110,13 +112,14 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [projects, setProjects] = useState<Project[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [allocations, setAllocations] = useState<Allocation>({});
-    const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
     const [horizontals, setHorizontals] = useState<ConfigOption[]>([]);
     const [seniorityLevels, setSeniorityLevels] = useState<ConfigOption[]>([]);
     const [projectStatuses, setProjectStatuses] = useState<ConfigOption[]>([]);
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
     const [locations, setLocations] = useState<ConfigOption[]>([]);
     const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
+    // Fix: Add state for WBS tasks
+    const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
 
     /**
      * Carica tutti i dati iniziali dall'API.
@@ -132,13 +135,14 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
             setProjects(data.projects);
             setAssignments(data.assignments);
             setAllocations(data.allocations);
-            setWbsTasks(data.wbsTasks);
             setHorizontals(data.horizontals);
             setSeniorityLevels(data.seniorityLevels);
             setProjectStatuses(data.projectStatuses);
             setClientSectors(data.clientSectors);
             setLocations(data.locations);
             setCompanyCalendar(data.companyCalendar);
+            // Fix: Set WBS tasks from fetched data
+            setWbsTasks(data.wbsTasks || []);
         } catch (error) {
             console.error("Failed to fetch initial data:", error);
         } finally {
@@ -254,16 +258,16 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const addCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=calendar', { method: 'POST', body: JSON.stringify(event) }), 'Errore aggiunta evento');
     const updateCalendarEvent = (event: CalendarEvent) => handleApiCall(() => apiFetch(`/api/resources?entity=calendar&id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) }), 'Errore modifica evento');
     const deleteCalendarEvent = (eventId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=calendar&id=${eventId}`, { method: 'DELETE' }), 'Errore eliminazione evento');
-
-    // --- Funzioni CRUD per WBS Tasks ---
+    
+    // Fix: Add CRUD functions for WBS tasks
     const addWbsTask = (task: Omit<WbsTask, 'id'>) => handleApiCall(() => apiFetch('/api/resources?entity=wbsTasks', { method: 'POST', body: JSON.stringify(task) }), 'Errore aggiunta incarico WBS');
     const updateWbsTask = (task: WbsTask) => handleApiCall(() => apiFetch(`/api/resources?entity=wbsTasks&id=${task.id}`, { method: 'PUT', body: JSON.stringify(task) }), 'Errore modifica incarico WBS');
     const deleteWbsTask = (taskId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=wbsTasks&id=${taskId}`, { method: 'DELETE' }), 'Errore eliminazione incarico WBS');
 
 
     const contextValue: StaffingContextType = {
-        clients, roles, resources, projects, assignments, allocations, wbsTasks,
-        horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, loading,
+        clients, roles, resources, projects, assignments, allocations,
+        horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,

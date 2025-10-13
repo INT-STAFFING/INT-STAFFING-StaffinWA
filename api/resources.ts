@@ -69,45 +69,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
         
-        // --- GESTORE ENTITÀ: WBS TASKS ---
-        case 'wbsTasks':
-            switch(method) {
-                case 'POST':
-                    try {
-                        const { elementoWbs, descrizioneWbe, clientId, periodo, ore, produzioneLorda, oreNetworkItalia, produzioneLordaNetworkItalia, perdite, realisation, speseOnorariEsterni, speseAltro, fattureOnorari, fattureSpese, iva, incassi, primoResponsabileId, secondoResponsabileId } = req.body;
-                        const newId = uuidv4();
-                        await db.sql`
-                            INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, ore_network_italia, produzione_lorda_network_italia, perdite, realisation, spese_onorari_esterni, spese_altro, fatture_onorari, fatture_spese, iva, incassi, primo_responsabile_id, secondo_responsabile_id)
-                            VALUES (${newId}, ${elementoWbs}, ${descrizioneWbe}, ${clientId || null}, ${periodo}, ${ore || 0}, ${produzioneLorda || 0}, ${oreNetworkItalia || 0}, ${produzioneLordaNetworkItalia || 0}, ${perdite || 0}, ${realisation || 100}, ${speseOnorariEsterni || 0}, ${speseAltro || 0}, ${fattureOnorari || 0}, ${fattureSpese || 0}, ${iva || 0}, ${incassi || 0}, ${primoResponsabileId || null}, ${secondoResponsabileId || null});
-                        `;
-                        return res.status(201).json({ id: newId, ...req.body });
-                    } catch (error) {
-                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un incarico con elemento WBS '${req.body.elementoWbs}' esiste già.` }); }
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'PUT':
-                    try {
-                         const { elementoWbs, descrizioneWbe, clientId, periodo, ore, produzioneLorda, oreNetworkItalia, produzioneLordaNetworkItalia, perdite, realisation, speseOnorariEsterni, speseAltro, fattureOnorari, fattureSpese, iva, incassi, primoResponsabileId, secondoResponsabileId } = req.body;
-                        await db.sql`
-                            UPDATE wbs_tasks SET
-                                elemento_wbs = ${elementoWbs}, descrizione_wbe = ${descrizioneWbe}, client_id = ${clientId || null}, periodo = ${periodo}, ore = ${ore || 0}, produzione_lorda = ${produzioneLorda || 0}, ore_network_italia = ${oreNetworkItalia || 0}, produzione_lorda_network_italia = ${produzioneLordaNetworkItalia || 0}, perdite = ${perdite || 0}, realisation = ${realisation || 100}, spese_onorari_esterni = ${speseOnorariEsterni || 0}, spese_altro = ${speseAltro || 0}, fatture_onorari = ${fattureOnorari || 0}, fatture_spese = ${fattureSpese || 0}, iva = ${iva || 0}, incassi = ${incassi || 0}, primo_responsabile_id = ${primoResponsabileId || null}, secondo_responsabile_id = ${secondoResponsabileId || null}
-                            WHERE id = ${id as string};
-                        `;
-                        return res.status(200).json({ id, ...req.body });
-                    } catch (error) {
-                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un incarico con elemento WBS '${req.body.elementoWbs}' esiste già.` }); }
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'DELETE':
-                     try {
-                        await db.sql`DELETE FROM wbs_tasks WHERE id = ${id as string};`;
-                        return res.status(204).end();
-                    } catch (error) { return res.status(500).json({ error: (error as Error).message }); }
-                default:
-                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-                    return res.status(405).end(`Method ${method} Not Allowed`);
-            }
-
         // --- GESTORE ENTITÀ: CLIENTI ---
         case 'clients':
              switch (method) {
@@ -258,6 +219,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         await db.sql`DELETE FROM company_calendar WHERE id = ${id as string};`;
                         return res.status(204).end();
                     } catch (error) { return res.status(500).json({ error: (error as Error).message }); }
+                default:
+                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+        
+        // Fix: Add handler for wbsTasks entity
+        case 'wbsTasks':
+            switch(method) {
+                case 'POST':
+                    try {
+                        const { elementoWbs, descrizioneWbe, clientId, periodo, ore, produzioneLorda, oreNetworkItalia, produzioneLordaNetworkItalia, perdite, realisation, speseOnorariEsterni, speseAltro, fattureOnorari, fattureSpese, iva, incassi, primoResponsabileId, secondoResponsabileId } = req.body;
+                        const newId = uuidv4();
+                        await db.sql`
+                            INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, ore_network_italia, produzione_lorda_network_italia, perdite, realisation, spese_onorari_esterni, spese_altro, fatture_onorari, fatture_spese, iva, incassi, primo_responsabile_id, secondo_responsabile_id)
+                            VALUES (${newId}, ${elementoWbs}, ${descrizioneWbe}, ${clientId || null}, ${periodo}, ${ore}, ${produzioneLorda}, ${oreNetworkItalia}, ${produzioneLordaNetworkItalia}, ${perdite}, ${realisation}, ${speseOnorariEsterni}, ${speseAltro}, ${fattureOnorari}, ${fattureSpese}, ${iva}, ${incassi}, ${primoResponsabileId || null}, ${secondoResponsabileId || null});
+                        `;
+                        return res.status(201).json({ id: newId, ...req.body });
+                    } catch (error) {
+                         if ((error as any).code === '23505') { return res.status(409).json({ error: `Un incarico con elemento WBS '${req.body.elementoWbs}' esiste già.` }); }
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'PUT':
+                    try {
+                        const { elementoWbs, descrizioneWbe, clientId, periodo, ore, produzioneLorda, oreNetworkItalia, produzioneLordaNetworkItalia, perdite, realisation, speseOnorariEsterni, speseAltro, fattureOnorari, fattureSpese, iva, incassi, primoResponsabileId, secondoResponsabileId } = req.body;
+                        await db.sql`
+                            UPDATE wbs_tasks
+                            SET elemento_wbs = ${elementoWbs}, descrizione_wbe = ${descrizioneWbe}, client_id = ${clientId || null}, periodo = ${periodo}, ore = ${ore}, produzione_lorda = ${produzioneLorda}, ore_network_italia = ${oreNetworkItalia}, produzione_lorda_network_italia = ${produzioneLordaNetworkItalia}, perdite = ${perdite}, realisation = ${realisation}, spese_onorari_esterni = ${speseOnorariEsterni}, spese_altro = ${speseAltro}, fatture_onorari = ${fattureOnorari}, fatture_spese = ${fattureSpese}, iva = ${iva}, incassi = ${incassi}, primo_responsabile_id = ${primoResponsabileId || null}, secondo_responsabile_id = ${secondoResponsabileId || null}
+                            WHERE id = ${id as string};
+                        `;
+                        return res.status(200).json({ id, ...req.body });
+                    } catch (error) {
+                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un incarico con elemento WBS '${req.body.elementoWbs}' esiste già.` }); }
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'DELETE':
+                    try {
+                        await db.sql`DELETE FROM wbs_tasks WHERE id = ${id as string};`;
+                        return res.status(204).end();
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
                 default:
                     res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
                     return res.status(405).end(`Method ${method} Not Allowed`);

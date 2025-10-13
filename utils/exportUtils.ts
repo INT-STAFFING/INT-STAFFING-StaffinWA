@@ -5,7 +5,6 @@
  */
 
 import { getWorkingDaysBetween } from './dateUtils';
-import { WbsTask } from '../types';
 
 // Dichiarazione per informare TypeScript che la variabile XLSX esiste a livello globale.
 declare var XLSX: any;
@@ -22,7 +21,6 @@ interface StaffingData {
     assignments: any[];
     allocations: any;
     companyCalendar: any[];
-    wbsTasks: WbsTask[];
 }
 
 /**
@@ -31,7 +29,7 @@ interface StaffingData {
  * @param {StaffingData} data - L'oggetto contenente tutti i dati dell'applicazione, solitamente dal contesto.
  */
 export const exportDataToExcel = (data: StaffingData) => {
-    const { clients, roles, resources, projects, assignments, allocations, companyCalendar, wbsTasks } = data;
+    const { clients, roles, resources, projects, assignments, allocations, companyCalendar } = data;
 
     /**
      * Calcola l'allocazione media di una risorsa per un dato mese.
@@ -140,47 +138,6 @@ export const exportDataToExcel = (data: StaffingData) => {
         return 0;
     });
 
-    // Aggiungi foglio per WBS
-    const wbsSheetData = wbsTasks.map(task => {
-        const p = task;
-        const totaleOre = (p.ore || 0) + (p.oreNetworkItalia || 0);
-        const totaleProduzioneLorda = (p.produzioneLorda || 0) + (p.produzioneLordaNetworkItalia || 0);
-        const produzioneNetta = (totaleProduzioneLorda + (p.perdite || 0)) * ((p.realisation || 100) / 100);
-        const totaleSpese = (p.speseOnorariEsterni || 0) + (p.speseAltro || 0);
-        const fattureOnorariESpese = (p.fattureOnorari || 0) + (p.fattureSpese || 0);
-        const totaleFatture = fattureOnorariESpese + (p.iva || 0);
-        const totaleWIP = produzioneNetta - fattureOnorariESpese;
-        const credito = totaleFatture + totaleWIP - (p.incassi || 0);
-        return {
-            'Elemento WBS': task.elementoWbs,
-            'Descrizione WBE': task.descrizioneWbe,
-            'Cliente': clients.find(c => c.id === task.clientId)?.name || 'N/A',
-            'Periodo': task.periodo,
-            'Ore': task.ore,
-            'Produzione Lorda': task.produzioneLorda,
-            'Ore Network Italia': task.oreNetworkItalia,
-            'Produzione Lorda Network Italia': task.produzioneLordaNetworkItalia,
-            'Totale Ore': totaleOre,
-            'Totale Produzione Lorda': totaleProduzioneLorda,
-            'Perdite': task.perdite,
-            'Realisation (%)': task.realisation,
-            'Produzione Netta': produzioneNetta,
-            'Spese Onorari Esterni': task.speseOnorariEsterni,
-            'Spese Altro': task.speseAltro,
-            'Totale Spese': totaleSpese,
-            'Fatture Onorari': task.fattureOnorari,
-            'Fatture Spese': task.fattureSpese,
-            'Fatture Onorari e Spese': fattureOnorariESpese,
-            'IVA': task.iva,
-            'TOTALE Fatture': totaleFatture,
-            'Totale WIP': totaleWIP,
-            'Incassi': task.incassi,
-            'Credito': credito,
-            'Primo Responsabile': resources.find(r => r.id === task.primoResponsabileId)?.name || 'N/A',
-            'Secondo Responsabile': resources.find(r => r.id === task.secondoResponsabileId)?.name || 'N/A',
-        }
-    });
-
     // 2. Crea un nuovo workbook e aggiunge i fogli di lavoro.
     const wb = XLSX.utils.book_new();
     
@@ -188,7 +145,6 @@ export const exportDataToExcel = (data: StaffingData) => {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(projectsSheetData), 'Progetti');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientsSheetData), 'Clienti');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rolesSheetData), 'Ruoli');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wbsSheetData), 'WBS Incarichi');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(staffingSheetData), 'Dettaglio Staffing');
     
     // 3. Avvia il download del file Excel.
@@ -207,13 +163,12 @@ export const exportTemplateToExcel = () => {
         ["Istruzioni per l'Importazione Massiva"],
         [], // Riga vuota
         ["1. Non modificare i nomi dei fogli (in basso) o i nomi delle colonne (la prima riga di ogni foglio)."],
-        ["2. Compila ogni foglio con i dati richiesti. L'ordine di importazione è: Ruoli, Clienti, Risorse, Progetti, WBS."],
-        ["3. I dati esistenti (con lo stesso nome/email/WBS) verranno saltati per evitare duplicati."],
+        ["2. Compila ogni foglio con i dati richiesti. L'ordine di importazione è: Ruoli, Clienti, Risorse, Progetti."],
+        ["3. I dati esistenti (con lo stesso nome/email) verranno saltati per evitare duplicati."],
         [],
         ["Formato Colonne:"],
         ["- roleName (nel foglio 'Risorse'): Deve corrispondere esattamente a un 'name' nel foglio 'Ruoli'."],
-        ["- clientName (nei fogli 'Progetti' e 'WBS Incarichi'): Deve corrispondere a un 'name' nel foglio 'Clienti'."],
-        ["- primoResponsabileEmail / secondoResponsabileEmail (foglio 'WBS Incarichi'): Deve corrispondere a una 'email' nel foglio 'Risorse'."],
+        ["- clientName (nel foglio 'Progetti'): Deve corrispondere a un 'name' nel foglio 'Clienti'."],
         ["- Date (hireDate, startDate, endDate): Usa il formato AAAA-MM-GG (es. 2024-12-31)."],
         ["- Campi numerici (dailyCost, budget, ecc.): Inserire solo numeri, senza simboli di valuta."],
     ];
@@ -227,26 +182,17 @@ export const exportTemplateToExcel = () => {
     const rolesHeaders = [["name", "seniorityLevel", "dailyCost"]];
     const resourcesHeaders = [["name", "email", "roleName", "horizontal", "location", "hireDate", "workSeniority", "notes"]];
     const projectsHeaders = [["name", "clientName", "status", "budget", "realizationPercentage", "startDate", "endDate", "projectManager", "notes"]];
-    const wbsHeaders = [[
-        "elementoWbs", "descrizioneWbe", "clientName", "periodo", "ore", "produzioneLorda", "oreNetworkItalia", 
-        "produzioneLordaNetworkItalia", "perdite", "realisation", "speseOnorariEsterni", "speseAltro",
-        "fattureOnorari", "fattureSpese", "iva", "incassi", "primoResponsabileEmail", "secondoResponsabileEmail"
-    ]];
-
-
+    
     const wsClients = XLSX.utils.aoa_to_sheet(clientsHeaders);
     const wsRoles = XLSX.utils.aoa_to_sheet(rolesHeaders);
     const wsResources = XLSX.utils.aoa_to_sheet(resourcesHeaders);
     const wsProjects = XLSX.utils.aoa_to_sheet(projectsHeaders);
-    const wsWbs = XLSX.utils.aoa_to_sheet(wbsHeaders);
-
+    
     XLSX.utils.book_append_sheet(wb, wsInstructions, 'Istruzioni');
     XLSX.utils.book_append_sheet(wb, wsClients, 'Clienti');
     XLSX.utils.book_append_sheet(wb, wsRoles, 'Ruoli');
     XLSX.utils.book_append_sheet(wb, wsResources, 'Risorse');
     XLSX.utils.book_append_sheet(wb, wsProjects, 'Progetti');
-    XLSX.utils.book_append_sheet(wb, wsWbs, 'WBS Incarichi');
-
 
     XLSX.writeFile(wb, 'Staffing_Import_Template.xlsx');
 };

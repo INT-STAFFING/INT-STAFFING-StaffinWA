@@ -104,40 +104,6 @@ export interface Project {
 }
 
 /**
- * @interface WbsTask
- * @description Rappresenta un incarico professionale (commessa) con dettagli economico-finanziari.
- */
-export interface WbsTask {
-    id?: string;
-    // Identificazione
-    elementoWbs: string;
-    descrizioneWbe: string;
-    clientId: string | null;
-    periodo: string;
-    // Dati di Produzione
-    ore: number;
-    produzioneLorda: number;
-    oreNetworkItalia: number;
-    produzioneLordaNetworkItalia: number;
-    // Marginalità
-    perdite: number;
-    realisation: number; // Percentuale
-    // Costi e Spese
-    speseOnorariEsterni: number;
-    speseAltro: number;
-    // Ciclo Attivo
-    fattureOnorari: number;
-    fattureSpese: number;
-    iva: number;
-    // Situazione Economica
-    incassi: number;
-    // Governance
-    primoResponsabileId: string | null;
-    secondoResponsabileId: string | null;
-}
-
-
-/**
  * @interface Assignment
  * @description Rappresenta l'assegnazione di una risorsa a un progetto.
  */
@@ -184,4 +150,50 @@ export interface CalendarEvent {
     type: CalendarEventType;
     /** @property {string | null} location - La sede specifica per l'evento, se di tipo 'LOCAL_HOLIDAY'. */
     location: string | null;
+}
+
+// Fix: Add WbsTask interface
+/**
+ * @interface WbsTask
+ * @description Rappresenta un incarico professionale (Work Breakdown Structure).
+ */
+export interface WbsTask {
+    /** @property {string} [id] - L'identificatore univoco, generato dal database. */
+    id?: string;
+    /** @property {string} elementoWbs - Il codice identificativo dell'elemento WBS. */
+    elementoWbs: string;
+    /** @property {string} descrizioneWbe - La descrizione dell'incarico. */
+    descrizioneWbe: string;
+    /** @property {string | null} clientId - L'ID del cliente associato. */
+    clientId: string | null;
+    /** @property {string} periodo - Il periodo di riferimento (es. "2024"). */
+    periodo: string;
+    /** @property {number} ore - Le ore di lavoro stimate/consuntivate. */
+    ore: number;
+    /** @property {number} produzioneLorda - Il valore della produzione lorda. */
+    produzioneLorda: number;
+    /** @property {number} oreNetworkItalia - Ore aggiuntive del network Italia. */
+    oreNetworkItalia: number;
+    /** @property {number} produzioneLordaNetworkItalia - Produzione lorda aggiuntiva del network. */
+    produzioneLordaNetworkItalia: number;
+    /** @property {number} perdite - Perdite stimate/consuntivate. */
+    perdite: number;
+    /** @property {number} realisation - Percentuale di "realisation". */
+    realisation: number;
+    /** @property {number} speseOnorariEsterni - Spese per onorari esterni. */
+    speseOnorariEsterni: number;
+    /** @property {number} speseAltro - Altre spese. */
+    speseAltro: number;
+    /** @property {number} fattureOnorari - Importo delle fatture per onorari. */
+    fattureOnorari: number;
+    /** @property {number} fattureSpese - Importo delle fatture per spese. */
+    fattureSpese: number;
+    /** @property {number} iva - Importo IVA. */
+    iva: number;
+    /** @property {number} incassi - Importo totale incassato. */
+    incassi: number;
+    /** @property {string | null} primoResponsabileId - ID del primo responsabile. */
+    primoResponsabileId: string | null;
+    /** @property {string | null} secondoResponsabileId - ID del secondo responsabile. */
+    secondoResponsabileId: string | null;
 }

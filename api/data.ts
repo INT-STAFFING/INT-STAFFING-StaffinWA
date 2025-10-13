@@ -6,6 +6,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+// Fix: Import WbsTask type
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
 
 /**
@@ -56,7 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             clientSectorsRes,
             locationsRes,
             calendarRes,
-            wbsTasksRes
+            // Fix: Fetch WBS tasks
+            wbsTasksRes,
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -70,7 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM client_sectors;`,
             db.sql`SELECT * FROM locations;`,
             db.sql`SELECT * FROM company_calendar;`,
-            db.sql`SELECT * FROM wbs_tasks;`
+            // Fix: Fetch WBS tasks
+            db.sql`SELECT * FROM wbs_tasks;`,
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -103,13 +106,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             projects: projectsRes.rows.map(toCamelCase) as Project[],
             assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
             allocations,
-            wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
             horizontals: horizontalsRes.rows as ConfigOption[],
             seniorityLevels: seniorityLevelsRes.rows as ConfigOption[],
             projectStatuses: projectStatusesRes.rows as ConfigOption[],
             clientSectors: clientSectorsRes.rows as ConfigOption[],
             locations: locationsRes.rows as ConfigOption[],
             companyCalendar,
+            // Fix: Add wbsTasks to the response
+            wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
         };
 
         return res.status(200).json(data);

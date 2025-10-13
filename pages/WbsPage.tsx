@@ -7,9 +7,9 @@ import { useStaffingContext } from '../context/StaffingContext';
 import { WbsTask } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, ArrowsUpDownIcon, InformationCircleIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, ArrowsUpDownIcon } from '../components/icons';
 
-type SortConfig = { key: keyof WbsTask | 'clientName' | 'produzioneNetta' | 'totaleWip' | 'credito' | 'primoResponsabileName'; direction: 'ascending' | 'descending' } | null;
+type SortConfig = { key: keyof WbsTask | 'clientName'; direction: 'ascending' | 'descending' } | null;
 
 const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -20,7 +20,7 @@ const WbsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<WbsTask | Omit<WbsTask, 'id'> | null>(null);
     const [filters, setFilters] = useState({ elementoWbs: '', clientId: '', responsabileId: '' });
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'elementoWbs', direction: 'ascending' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
     const emptyTask: Omit<WbsTask, 'id'> = {
         elementoWbs: '', descrizioneWbe: '', clientId: null, periodo: '',
@@ -29,17 +29,6 @@ const WbsPage: React.FC = () => {
         fattureOnorari: 0, fattureSpese: 0, iva: 0, incassi: 0,
         primoResponsabileId: null, secondoResponsabileId: null,
     };
-
-     const calculateWbsMetrics = useCallback((task: WbsTask) => {
-        const p = task;
-        const totaleProduzioneLorda = (p.produzioneLorda || 0) + (p.produzioneLordaNetworkItalia || 0);
-        const produzioneNetta = (totaleProduzioneLorda + (p.perdite || 0)) * ((p.realisation || 100) / 100);
-        const fattureOnorariESpese = (p.fattureOnorari || 0) + (p.fattureSpese || 0);
-        const totaleFatture = fattureOnorariESpese + (p.iva || 0);
-        const totaleWIP = produzioneNetta - fattureOnorariESpese;
-        const credito = totaleFatture + totaleWIP - (p.incassi || 0);
-        return { produzioneNetta, totaleWIP, credito };
-    }, []);
 
     const filteredTasks = useMemo(() => {
         return wbsTasks.filter(task => {
@@ -54,34 +43,8 @@ const WbsPage: React.FC = () => {
         let sortableItems = [...filteredTasks];
         if (sortConfig !== null) {
             sortableItems.sort((a, b) => {
-                let aVal: any;
-                let bVal: any;
-                
-                switch(sortConfig.key) {
-                    case 'clientName':
-                        aVal = clients.find(c => c.id === a.clientId)?.name || '';
-                        bVal = clients.find(c => c.id === b.clientId)?.name || '';
-                        break;
-                    case 'produzioneNetta':
-                        aVal = calculateWbsMetrics(a).produzioneNetta;
-                        bVal = calculateWbsMetrics(b).produzioneNetta;
-                        break;
-                    case 'totaleWip':
-                        aVal = calculateWbsMetrics(a).totaleWIP;
-                        bVal = calculateWbsMetrics(b).totaleWIP;
-                        break;
-                    case 'credito':
-                        aVal = calculateWbsMetrics(a).credito;
-                        bVal = calculateWbsMetrics(b).credito;
-                        break;
-                    case 'primoResponsabileName':
-                        aVal = resources.find(r => r.id === a.primoResponsabileId)?.name || '';
-                        bVal = resources.find(r => r.id === b.primoResponsabileId)?.name || '';
-                        break;
-                    default:
-                        aVal = a[sortConfig.key as keyof WbsTask];
-                        bVal = b[sortConfig.key as keyof WbsTask];
-                }
+                const aVal = sortConfig.key === 'clientName' ? clients.find(c => c.id === a.clientId)?.name || '' : a[sortConfig.key as keyof WbsTask];
+                const bVal = sortConfig.key === 'clientName' ? clients.find(c => c.id === b.clientId)?.name || '' : b[sortConfig.key as keyof WbsTask];
                 
                 if (typeof aVal === 'number' && typeof bVal === 'number') {
                      return sortConfig.direction === 'ascending' ? aVal - bVal : bVal - aVal;
@@ -93,7 +56,7 @@ const WbsPage: React.FC = () => {
             });
         }
         return sortableItems;
-    }, [filteredTasks, sortConfig, clients, resources, calculateWbsMetrics]);
+    }, [filteredTasks, sortConfig, clients]);
 
     const requestSort = (key: SortConfig['key']) => {
         let direction: 'ascending' | 'descending' = 'ascending';
@@ -140,7 +103,7 @@ const WbsPage: React.FC = () => {
         </th>
     );
     
-    // --- Calculated Fields for Modal ---
+    // --- Calculated Fields ---
     const calculatedValues = useMemo(() => {
         if (!editingTask) return {};
         const p = editingTask;
@@ -181,33 +144,24 @@ const WbsPage: React.FC = () => {
                             {getSortableHeader('Elemento WBS', 'elementoWbs')}
                             {getSortableHeader('Descrizione', 'descrizioneWbe')}
                             {getSortableHeader('Cliente', 'clientName')}
-                            {getSortableHeader('Periodo', 'periodo')}
-                            {getSortableHeader('Produzione Netta', 'produzioneNetta')}
-                            {getSortableHeader('Totale WIP', 'totaleWip')}
-                            {getSortableHeader('Credito', 'credito')}
-                            {getSortableHeader('Resp. Primario', 'primoResponsabileName')}
+                            {getSortableHeader('Produzione Netta', 'produzioneLorda')}
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Azioni</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {sortedTasks.map(task => {
                             const client = clients.find(c => c.id === task.clientId);
-                            const responsabile = resources.find(r => r.id === task.primoResponsabileId);
-                            const metrics = calculateWbsMetrics(task);
+                            const totaleProduzioneLorda = task.produzioneLorda + task.produzioneLordaNetworkItalia;
+                            const produzioneNetta = (totaleProduzioneLorda + task.perdite) * (task.realisation / 100);
                             return (
                                 <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                     <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{task.elementoWbs}</div></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 truncate max-w-[200px]">{task.descrizioneWbe}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 truncate max-w-xs">{task.descrizioneWbe}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{task.periodo}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(metrics.produzioneNetta)}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(metrics.totaleWIP)}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-gray-100">{formatCurrency(metrics.credito)}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{responsabile?.name || 'N/A'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(produzioneNetta)}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Visualizza Dettagli"><InformationCircleIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-green-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
                                             <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
                                         </div>
                                     </td>

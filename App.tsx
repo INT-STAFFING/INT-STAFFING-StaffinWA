@@ -20,7 +20,9 @@ import ForecastingPage from './pages/ForecastingPage';
 import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
+// Fix: Import WbsPage and ReportsPage
 import WbsPage from './pages/WbsPage';
+import ReportsPage from './pages/ReportsPage';
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -56,7 +58,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'forecasting': return 'Forecasting & Capacity';
             case 'workload': return 'Carico Risorse';
             case 'gantt': return 'Gantt Progetti';
-            case 'wbs': return 'WBS Incarichi';
             case 'resources': return 'Gestione Risorse';
             case 'projects': return 'Gestione Progetti';
             case 'clients': return 'Gestione Clienti';
@@ -65,6 +66,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'config': return 'Configurazioni';
             case 'export': return 'Esporta Dati';
             case 'import': return 'Importa Dati';
+            // Fix: Add titles for new pages
+            case 'wbs': return 'Incarichi WBS';
+            case 'reports': return 'Report';
             default: return 'Staffing Planner';
         }
     };
@@ -132,11 +136,13 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/forecasting" element={<ForecastingPage />} />
                         <Route path="/workload" element={<WorkloadPage />} />
                         <Route path="/gantt" element={<GanttPage />} />
-                        <Route path="/wbs" element={<WbsPage />} />
                         <Route path="/calendar" element={<CalendarPage />} />
                         <Route path="/export" element={<ExportPage />} />
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
+                        {/* Fix: Add routes for new pages */}
+                        <Route path="/wbs" element={<WbsPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
                     </Routes>
                 </div>
             </main>
