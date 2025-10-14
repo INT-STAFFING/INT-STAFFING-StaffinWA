@@ -5,8 +5,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-// Fix: Import ClipboardDocumentCheckIcon for WBS link
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ClipboardDocumentCheckIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -102,11 +101,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <NavLink to="/projects" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <BriefcaseIcon className="w-6 h-6 mr-3" />
                     Progetti
-                </NavLink>
-                {/* Fix: Add link to WBS page */}
-                <NavLink to="/wbs" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                    <ClipboardDocumentCheckIcon className="w-6 h-6 mr-3" />
-                    Incarichi WBS
                 </NavLink>
                 <NavLink to="/clients" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <BuildingOfficeIcon className="w-6 h-6 mr-3" />

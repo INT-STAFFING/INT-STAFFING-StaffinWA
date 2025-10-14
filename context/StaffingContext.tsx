@@ -12,7 +12,8 @@ import { isHoliday } from '../utils/dateUtils';
  * @interface StaffingContextType
  * @description Definisce la struttura del contesto, includendo gli array di dati, lo stato di caricamento e le funzioni per manipolare i dati.
  */
-interface StaffingContextType {
+// FIX: Export StaffingContextType to allow its use in other modules.
+export interface StaffingContextType {
     clients: Client[];
     roles: Role[];
     resources: Resource[];

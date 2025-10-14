@@ -5,12 +5,16 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useStaffingContext } from '../context/StaffingContext';
-import { Resource, Project, Assignment, CalendarEvent } from '../types';
+import { Resource, Project, Assignment } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 
+/**
+ * @type ViewMode
+ * @description Definisce i possibili valori per la modalità di visualizzazione della griglia temporale.
+ */
 type ViewMode = 'day' | 'week' | 'month';
 
 /**
@@ -69,6 +73,13 @@ const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isNon
 
 /**
  * Componente per la cella di carico aggregato di una singola assegnazione (settimana/mese).
+ * Mostra la percentuale di allocazione media in sola lettura per il periodo specificato.
+ * Il colore della cella indica il livello di carico medio.
+ * @param {object} props - Le prop del componente.
+ * @param {Assignment} props.assignment - L'assegnazione a cui si riferisce la cella.
+ * @param {Date} props.startDate - La data di inizio del periodo aggregato.
+ * @param {Date} props.endDate - La data di fine del periodo aggregato.
+ * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const ReadonlyAggregatedAllocationCell: React.FC<{
     assignment: Assignment;
@@ -78,6 +89,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     const { allocations, companyCalendar, resources } = useStaffingContext();
     const resource = resources.find(r => r.id === assignment.resourceId);
     
+    // Calcola l'allocazione media come (totale giorni/uomo) / (totale giorni lavorativi).
     const averageAllocation = useMemo(() => {
         if (!resource) return 0;
         const workingDays = getWorkingDaysBetween(startDate, endDate, companyCalendar, resource.location);
@@ -100,6 +112,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
         return (totalPersonDays / workingDays) * 100;
     }, [assignment.id, startDate, endDate, allocations, companyCalendar, resource]);
 
+    // Determina il colore della cella in base al carico medio.
     const cellColor = useMemo(() => {
         if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
         if (averageAllocation >= 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
@@ -171,6 +184,13 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWo
 
 /**
  * Componente per la cella di carico totale aggregato di una risorsa (settimana/mese).
+ * Mostra l'utilizzo medio totale della risorsa in sola lettura per il periodo specificato.
+ * Il colore della cella indica il livello di carico medio.
+ * @param {object} props - Le prop del componente.
+ * @param {Resource} props.resource - La risorsa per cui calcolare il totale.
+ * @param {Date} props.startDate - La data di inizio del periodo aggregato.
+ * @param {Date} props.endDate - La data di fine del periodo aggregato.
+ * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const ReadonlyAggregatedTotalCell: React.FC<{
     resource: Resource;
@@ -228,6 +248,9 @@ const ReadonlyAggregatedTotalCell: React.FC<{
 const StaffingPage: React.FC = () => {
     // Stato per la data di inizio della finestra temporale visualizzata.
     const [currentDate, setCurrentDate] = useState(new Date());
+    /**
+     * @state {ViewMode} viewMode - Controlla la vista corrente della griglia (giornaliera, settimanale, mensile).
+     */
     const [viewMode, setViewMode] = useState<ViewMode>('day');
     const { resources, projects, assignments, roles, clients, addAssignment, deleteAssignment, bulkUpdateAllocations, companyCalendar } = useStaffingContext();
     
@@ -238,9 +261,23 @@ const StaffingPage: React.FC = () => {
     const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
     const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string, projectId: string }>({ resourceId: '', projectId: '' });
     
-    // Stato per i filtri applicati alla griglia.
+    /**
+     * @state {object} filters - Contiene i valori correnti dei filtri applicati alla griglia.
+     * @property {string} resourceId - ID della risorsa selezionata.
+     * @property {string} projectId - ID del progetto selezionato.
+     * @property {string} clientId - ID del cliente selezionato.
+     * @property {string} projectManager - Nome del Project Manager selezionato.
+     */
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
 
+    /**
+     * @description Memoizza e calcola le colonne temporali da visualizzare nella griglia.
+     * La logica si adatta in base al `viewMode` selezionato:
+     * - 'day': Mostra 35 giorni consecutivi.
+     * - 'week': Mostra 12 settimane consecutive.
+     * - 'month': Mostra 12 mesi consecutivi.
+     * Per ogni colonna, calcola etichette, date di inizio/fine e se è un giorno non lavorativo (solo per la vista 'day').
+     */
     const timeColumns = useMemo(() => {
         const cols = [];
         let d = new Date(currentDate);
@@ -287,6 +324,10 @@ const StaffingPage: React.FC = () => {
     // Progetti a cui è possibile assegnare risorse (esclusi quelli completati).
     const assignableProjects = useMemo(() => projects.filter(p => p.status !== 'Completato'), [projects]);
 
+    /**
+     * @description Naviga indietro nel tempo. L'intervallo di salto dipende dal `viewMode` corrente
+     * (es. -7 giorni per 'day', -12 settimane per 'week', -12 mesi per 'month').
+     */
     const handlePrev = useCallback(() => setCurrentDate(prev => {
         const newDate = new Date(prev);
         if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7 * 12);
@@ -295,6 +336,10 @@ const StaffingPage: React.FC = () => {
         return newDate;
     }), [viewMode]);
 
+    /**
+     * @description Naviga avanti nel tempo. L'intervallo di salto dipende dal `viewMode` corrente
+     * (es. +7 giorni per 'day', +12 settimane per 'week', +12 mesi per 'month').
+     */
     const handleNext = useCallback(() => setCurrentDate(prev => {
         const newDate = new Date(prev);
         if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7 * 12);
@@ -358,7 +403,11 @@ const StaffingPage: React.FC = () => {
     const getRoleById = useCallback((id: string) => roles.find(r => r.id === id), [roles]);
     const getClientById = useCallback((id: string) => clients.find(c => c.id === id), [clients]);
 
-    // Calcola e memoizza i dati da visualizzare, applicando i filtri e raggruppando per risorsa.
+    /**
+     * @description Calcola e memoizza i dati da visualizzare nella griglia.
+     * Applica i filtri per risorsa, progetto, cliente e project manager,
+     * poi raggruppa le assegnazioni per risorsa e le ordina alfabeticamente.
+     */
     const displayData = useMemo(() => {
         let filteredAssignments = [...assignments];
 
@@ -372,6 +421,7 @@ const StaffingPage: React.FC = () => {
             const clientProjectIds = new Set(projects.filter(p => p.clientId === filters.clientId).map(p => p.id));
             filteredAssignments = filteredAssignments.filter(a => clientProjectIds.has(a.projectId));
         }
+        // Applica il nuovo filtro per Project Manager.
         if (filters.projectManager) {
             const projectIdsForPm = new Set(projects.filter(p => p.projectManager === filters.projectManager).map(p => p.id));
             filteredAssignments = filteredAssignments.filter(a => projectIdsForPm.has(a.projectId));
@@ -398,6 +448,9 @@ const StaffingPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
+    /**
+     * @description Memoizza le opzioni per il filtro Project Manager, estraendo i nomi unici dai progetti.
+     */
     const projectManagerOptions = useMemo(() => {
         const managers = [...new Set(projects.map(p => p.projectManager).filter(Boolean) as string[])];
         return managers.sort().map(pm => ({ value: pm, label: pm }));
@@ -413,6 +466,7 @@ const StaffingPage: React.FC = () => {
                     <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
                     <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
                 </div>
+                 {/* Selettore della vista temporale (giorno, settimana, mese). */}
                  <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
                     {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                         <button key={level} onClick={() => setViewMode(level)}
@@ -427,7 +481,7 @@ const StaffingPage: React.FC = () => {
                 </button>
             </div>
 
-            {/* Sezione Filtri */}
+            {/* Sezione Filtri con l'aggiunta del filtro per Project Manager. */}
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
@@ -446,6 +500,7 @@ const StaffingPage: React.FC = () => {
                             <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Risorsa</th>
                             <th className="sticky left-[150px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Ruolo</th>
                             <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Cliente</th>
+                            {/* Nuova colonna per il Project Manager, visibile su schermi medi e grandi. */}
                             <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Project Manager</th>
                             <th className="sticky left-[300px] md:left-[600px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>Progetto</th>
                             <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Azioni</th>
@@ -478,14 +533,16 @@ const StaffingPage: React.FC = () => {
                                             <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
                                             <td className="px-2 py-3 text-center">
                                                 <div className="flex items-center justify-center space-x-2">
+                                                    {/* L'assegnazione massiva è disabilitata nelle viste aggregate. */}
                                                      <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
-                                                        <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50' : ''}`}/>
+                                                        <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50 cursor-not-allowed' : ''}`}/>
                                                     </button>
                                                      <button onClick={() => deleteAssignment(assignment.id)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
                                                         <XCircleIcon className="w-5 h-5"/>
                                                     </button>
                                                 </div>
                                             </td>
+                                            {/* Rendering condizionale delle celle di allocazione in base alla vista. */}
                                             {timeColumns.map((col, index) => {
                                                 if (viewMode === 'day') {
                                                     const day = col.startDate;
@@ -504,6 +561,7 @@ const StaffingPage: React.FC = () => {
                                     <td colSpan={6} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
                                         Carico Totale {resource.name}
                                     </td>
+                                    {/* Rendering condizionale delle celle di totale in base alla vista. */}
                                     {timeColumns.map((col, index) => {
                                         if (viewMode === 'day') {
                                             const day = col.startDate;

@@ -33,15 +33,34 @@ const ImportPage: React.FC = () => {
                 // This assumes the xlsx library is loaded from a CDN in index.html
                 const workbook = (window as any).XLSX.read(data, { type: 'array' });
                 
+                // Estrae i dati da tutti i fogli pertinenti
                 const clients = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Clienti'] || {});
                 const roles = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Ruoli'] || {});
                 const resources = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Risorse'] || {});
                 const projects = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Progetti'] || {});
+                const calendar = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Calendario'] || {});
+                const horizontals = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Config_Horizontals'] || {});
+                const seniorityLevels = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Config_Seniority'] || {});
+                const projectStatuses = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Config_ProjectStatus'] || {});
+                const clientSectors = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Config_ClientSectors'] || {});
+                const locations = (window as any).XLSX.utils.sheet_to_json(workbook.Sheets['Config_Locations'] || {});
+
 
                 const response = await fetch('/api/import', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ clients, roles, resources, projects }),
+                    body: JSON.stringify({ 
+                        clients, 
+                        roles, 
+                        resources, 
+                        projects,
+                        calendar,
+                        horizontals,
+                        seniorityLevels,
+                        projectStatuses,
+                        clientSectors,
+                        locations
+                     }),
                 });
 
                 const result = await response.json();
