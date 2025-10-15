@@ -36,7 +36,7 @@ const formatDateForDisplay = (dateStr: string | null): string => {
  * @returns {React.ReactElement} La pagina di gestione dei progetti.
  */
 const ProjectsPage: React.FC = () => {
-    const { projects, clients, projectStatuses, addProject, updateProject, deleteProject } = useStaffingContext();
+    const { projects, clients, resources, projectStatuses, addProject, updateProject, deleteProject } = useStaffingContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
@@ -168,6 +168,7 @@ const ProjectsPage: React.FC = () => {
 
     const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
+    const projectManagerOptions = useMemo(() => resources.map(r => ({ value: r.name, label: r.name })).sort((a,b) => a.label.localeCompare(b.label)), [resources]);
     
     return (
         <div>
@@ -292,14 +293,20 @@ const ProjectsPage: React.FC = () => {
             {editingProject && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingProject ? 'Modifica Progetto' : 'Aggiungi Progetto'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Progetto *"/>
-                        <SearchableSelect
-                            name="clientId"
-                            value={editingProject.clientId || ''}
-                            onChange={handleSelectChange}
-                            options={clientOptions}
-                            placeholder="Seleziona un cliente"
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Progetto *</label>
+                            <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="w-full form-input"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
+                            <SearchableSelect
+                                name="clientId"
+                                value={editingProject.clientId || ''}
+                                onChange={handleSelectChange}
+                                options={clientOptions}
+                                placeholder="Seleziona un cliente"
+                            />
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio</label>
@@ -310,21 +317,41 @@ const ProjectsPage: React.FC = () => {
                                 <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="w-full form-input"/>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 items-center"><input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input" placeholder="Budget (€)"/>
+                        <div className="grid grid-cols-2 gap-4 items-end">
                             <div>
-                                <label className="block text-sm text-gray-500">% Realizzo: {editingProject.realizationPercentage}%</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Budget (€)</label>
+                                <input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">% Realizzazione</label>
                                 <input type="range" min="30" max="100" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="w-full"/>
+                                <div className="text-center text-sm text-gray-500">{editingProject.realizationPercentage}%</div>
                             </div>
                         </div>
-                         <input type="text" name="projectManager" value={editingProject.projectManager || ''} onChange={handleChange} className="w-full form-input" placeholder="Project Manager"/>
-                         <SearchableSelect
-                            name="status"
-                            value={editingProject.status || ''}
-                            onChange={handleSelectChange}
-                            options={statusOptions}
-                            placeholder="Nessuno stato"
-                        />
-                         <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea" placeholder="Note"></textarea>
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Manager</label>
+                            <SearchableSelect
+                                name="projectManager"
+                                value={editingProject.projectManager || ''}
+                                onChange={handleSelectChange}
+                                options={projectManagerOptions}
+                                placeholder="Seleziona un PM"
+                            />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato</label>
+                            <SearchableSelect
+                                name="status"
+                                value={editingProject.status || ''}
+                                onChange={handleSelectChange}
+                                options={statusOptions}
+                                placeholder="Seleziona uno stato"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                            <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea"></textarea>
+                        </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
                             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
