@@ -8,6 +8,7 @@ import { useStaffingContext } from '../context/StaffingContext';
 import { Resource } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -128,9 +129,9 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
 const WorkloadPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const { resources, projects, assignments, clients, companyCalendar } = useStaffingContext();
+    const { resources, projects, assignments, clients, companyCalendar, roles } = useStaffingContext();
     
-    const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '' });
+    const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', roleIds: [] as string[] });
     
     const timeColumns = useMemo(() => {
         const cols = [];
@@ -204,13 +205,21 @@ const WorkloadPage: React.FC = () => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleMultiSelectFilterChange = (name: string, values: string[]) => {
+        setFilters(prev => ({ ...prev, [name]: values }));
+    };
+
     const clearFilters = () => {
-        setFilters({ resourceId: '', projectId: '', clientId: '' });
+        setFilters({ resourceId: '', projectId: '', clientId: '', roleIds: [] });
     };
 
     // Calcola e memoizza le risorse da visualizzare, applicando i filtri.
     const displayResources = useMemo(() => {
         let finalResources = [...resources];
+
+        if (filters.roleIds.length > 0) {
+            finalResources = finalResources.filter(r => filters.roleIds.includes(r.roleId));
+        }
 
         if (filters.resourceId) {
             finalResources = finalResources.filter(r => r.id === filters.resourceId);
@@ -233,6 +242,7 @@ const WorkloadPage: React.FC = () => {
     }, [resources, assignments, projects, filters]);
 
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
 
@@ -259,10 +269,11 @@ const WorkloadPage: React.FC = () => {
 
             {/* Sezione Filtri */}
             <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
-                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                     <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                     <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
                     <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                  </div>
             </div>
@@ -309,6 +320,7 @@ const WorkloadPage: React.FC = () => {
                     <div className="text-center py-8 text-gray-500">Nessuna risorsa trovata con i filtri correnti.</div>
                 )}
             </div>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };
