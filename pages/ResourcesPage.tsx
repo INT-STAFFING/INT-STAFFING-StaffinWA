@@ -340,42 +340,66 @@ const ResourcesPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingResource ? 'Modifica Risorsa' : 'Aggiungi Risorsa'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className="form-input" placeholder="Nome e Cognome *"/>
-                            <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input" placeholder="Email *"/>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome e Cognome *</label>
+                                <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className="form-input"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                                <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input"/>
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <SearchableSelect
-                                name="roleId"
-                                value={editingResource.roleId}
-                                onChange={handleSelectChange}
-                                options={roleOptions}
-                                placeholder="Seleziona un ruolo *"
-                                required
-                            />
-                            <SearchableSelect
-                                name="horizontal"
-                                value={editingResource.horizontal}
-                                onChange={handleSelectChange}
-                                options={horizontalOptions}
-                                placeholder="Seleziona un horizontal *"
-                                required
-                            />
+                           <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo *</label>
+                                <SearchableSelect
+                                    name="roleId"
+                                    value={editingResource.roleId}
+                                    onChange={handleSelectChange}
+                                    options={roleOptions}
+                                    placeholder="Seleziona un ruolo"
+                                    required
+                                />
+                           </div>
+                           <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horizontal *</label>
+                                <SearchableSelect
+                                    name="horizontal"
+                                    value={editingResource.horizontal}
+                                    onChange={handleSelectChange}
+                                    options={horizontalOptions}
+                                    placeholder="Seleziona un horizontal"
+                                    required
+                                />
+                           </div>
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <SearchableSelect
-                                name="location"
-                                value={editingResource.location}
-                                onChange={handleSelectChange}
-                                options={locationOptions}
-                                placeholder="Seleziona una sede *"
-                                required
-                            />
-                             <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
+                                <SearchableSelect
+                                    name="location"
+                                    value={editingResource.location}
+                                    onChange={handleSelectChange}
+                                    options={locationOptions}
+                                    placeholder="Seleziona una sede"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
+                                <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
+                            </div>
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="form-input" placeholder="Anzianità (anni)"/>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Anzianità (anni)</label>
+                                <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="form-input"/>
+                            </div>
                         </div>
-                        <textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} rows={3} className="form-textarea" placeholder="Note"></textarea>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                            <textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
+                        </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
                             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>

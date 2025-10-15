@@ -628,8 +628,8 @@ const StaffingPage: React.FC = () => {
              
             {/* Modale per Nuova Assegnazione */}
             <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto">
-                <form onSubmit={handleNewAssignmentSubmit}>
-                    <div className="space-y-4">
+                <form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96">
+                    <div className="space-y-4 flex-grow">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
                             <SearchableSelect
