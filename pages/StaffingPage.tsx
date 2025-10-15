@@ -638,6 +638,7 @@ const StaffingPage: React.FC = () => {
             </Modal>
              <style>{`
                 .form-select {
+                    overflow: scroll;
                     display: block;
                     width: 100%;
                     border-radius: 0.375rem;
@@ -652,7 +653,8 @@ const StaffingPage: React.FC = () => {
                     background-color: #374151;
                     color: #F9FAFB;
                 }
-                .form-input { 
+                .form-input {
+                    overflow: scroll; 
                     display: block; 
                     width: 100%; 
                     border-radius: 0.375rem; 
