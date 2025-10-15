@@ -42,6 +42,7 @@ export interface StaffingContextType {
     updateProject: (project: Project) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
     addAssignment: (assignment: Omit<Assignment, 'id'>) => Promise<void>;
+    addMultipleAssignments: (assignments: Omit<Assignment, 'id'>[]) => Promise<void>;
     deleteAssignment: (assignmentId: string) => Promise<void>;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
     bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
@@ -189,6 +190,13 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
     const deleteProject = (projectId: string) => handleApiCall(() => apiFetch(`/api/resources?entity=projects&id=${projectId}`, { method: 'DELETE' }), 'Errore eliminazione progetto');
 
     const addAssignment = (assignment: Omit<Assignment, 'id'>) => handleApiCall(() => apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }), 'Errore aggiunta assegnazione');
+    const addMultipleAssignments = (assignments: Omit<Assignment, 'id'>[]) => {
+        if (assignments.length === 0) return Promise.resolve();
+        const apiCalls = assignments.map(assignment => 
+            apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) })
+        );
+        return handleApiCall(() => Promise.all(apiCalls), 'Errore durante l\'aggiunta di assegnazioni multiple');
+    };
     const deleteAssignment = (assignmentId: string) => handleApiCall(() => apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' }), 'Errore eliminazione assegnazione');
     
     /**
@@ -273,7 +281,7 @@ export const StaffingProvider: React.FC<{ children: ReactNode }> = ({ children }
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
         addProject, updateProject, deleteProject,
-        addAssignment, deleteAssignment,
+        addAssignment, addMultipleAssignments, deleteAssignment,
         updateAllocation, bulkUpdateAllocations,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,

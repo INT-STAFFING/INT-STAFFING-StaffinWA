@@ -10,6 +10,7 @@ import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween 
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
 /**
  * @type ViewMode
@@ -252,14 +253,14 @@ const StaffingPage: React.FC = () => {
      * @state {ViewMode} viewMode - Controlla la vista corrente della griglia (giornaliera, settimanale, mensile).
      */
     const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const { resources, projects, assignments, roles, clients, addAssignment, deleteAssignment, bulkUpdateAllocations, companyCalendar } = useStaffingContext();
+    const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, bulkUpdateAllocations, companyCalendar } = useStaffingContext();
     
     // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);
     const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
     const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
-    const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string, projectId: string }>({ resourceId: '', projectId: '' });
+    const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string, projectIds: string[] }>({ resourceId: '', projectIds: [] });
     
     /**
      * @state {object} filters - Contiene i valori correnti dei filtri applicati alla griglia.
@@ -358,6 +359,15 @@ const StaffingPage: React.FC = () => {
         setSelectedAssignment(assignment);
         setBulkModalOpen(true);
     };
+    
+    /**
+     * Apre la modale per una nuova assegnazione, pre-popolando opzionalmente l'ID della risorsa.
+     * @param {string} [resourceId=''] - L'ID della risorsa da pre-selezionare.
+     */
+    const openNewAssignmentModal = (resourceId: string = '') => {
+        setNewAssignmentData({ resourceId: resourceId, projectIds: [] });
+        setAssignmentModalOpen(true);
+    };
 
     /**
      * Gestisce l'invio del form di assegnazione massiva.
@@ -378,15 +388,23 @@ const StaffingPage: React.FC = () => {
      */
     const handleNewAssignmentSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (newAssignmentData.resourceId && newAssignmentData.projectId) {
-            addAssignment(newAssignmentData);
+        if (newAssignmentData.resourceId && newAssignmentData.projectIds.length > 0) {
+            const assignmentsToCreate = newAssignmentData.projectIds.map(projectId => ({
+                resourceId: newAssignmentData.resourceId,
+                projectId: projectId,
+            }));
+            addMultipleAssignments(assignmentsToCreate);
             setAssignmentModalOpen(false);
-            setNewAssignmentData({ resourceId: '', projectId: '' });
+            setNewAssignmentData({ resourceId: '', projectIds: [] });
         }
     };
     
     const handleNewAssignmentChange = (name: string, value: string) => {
         setNewAssignmentData(d => ({ ...d, [name]: value }));
+    };
+
+    const handleNewAssignmentMultiSelectChange = (name: string, values: string[]) => {
+        setNewAssignmentData(d => ({ ...d, [name]: values }));
     };
 
     const handleFilterChange = (name: string, value: string) => {
@@ -475,7 +493,7 @@ const StaffingPage: React.FC = () => {
                         </button>
                     ))}
                 </div>
-                 <button onClick={() => setAssignmentModalOpen(true)} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">
+                 <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">
                     <PlusCircleIcon className="w-5 h-5 mr-2"/>
                     Assegna Risorsa
                 </button>
@@ -558,8 +576,13 @@ const StaffingPage: React.FC = () => {
                                 })}
                                 {/* Riga del Totale */}
                                 <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
-                                    <td colSpan={6} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
+                                    <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
                                         Carico Totale {resource.name}
+                                    </td>
+                                    <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
+                                        <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
+                                            <PlusCircleIcon className="w-5 h-5"/>
+                                        </button>
                                     </td>
                                     {/* Rendering condizionale delle celle di totale in base alla vista. */}
                                     {timeColumns.map((col, index) => {
@@ -619,26 +642,24 @@ const StaffingPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
-                            <SearchableSelect
-                                name="projectId"
-                                value={newAssignmentData.projectId}
-                                onChange={handleNewAssignmentChange}
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto/i</label>
+                            <MultiSelectDropdown
+                                name="projectIds"
+                                selectedValues={newAssignmentData.projectIds}
+                                onChange={handleNewAssignmentMultiSelectChange}
                                 options={assignableProjects.map(p => ({ value: p.id!, label: p.name }))}
-                                placeholder="Seleziona un progetto"
-                                required
+                                placeholder="Seleziona uno o più progetti"
                             />
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
                         <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Aggiungi Assegnazione</button>
+                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Aggiungi Assegnazioni</button>
                     </div>
                 </form>
             </Modal>
              <style>{`
                 .form-select {
-                    overflow: scroll;
                     display: block;
                     width: 100%;
                     border-radius: 0.375rem;
@@ -654,7 +675,6 @@ const StaffingPage: React.FC = () => {
                     color: #F9FAFB;
                 }
                 .form-input {
-                    overflow: scroll; 
                     display: block; 
                     width: 100%; 
                     border-radius: 0.375rem; 
