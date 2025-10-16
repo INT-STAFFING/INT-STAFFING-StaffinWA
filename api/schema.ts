@@ -69,11 +69,13 @@ export async function ensureDbTablesExist(db: VercelPool) {
             horizontal VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
-            notes TEXT
+            notes TEXT,
+            max_staffing_percentage INT DEFAULT 100 NOT NULL
         );
     `;
     // Add columns if they don't exist to handle migration for existing databases.
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100 NOT NULL;`;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (

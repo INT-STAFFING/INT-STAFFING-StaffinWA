@@ -168,13 +168,14 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWo
         }, 0);
     }, [assignments, allocations, resource.id, date]);
 
-    // Determina il colore di sfondo della cella in base al carico totale.
+    // Determina il colore di sfondo della cella in base al carico totale e al massimo della risorsa.
     const cellColor = useMemo(() => {
-        if (total > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === 100) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (total > 0 && total < 100) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        const maxPercentage = resource.maxStaffingPercentage ?? 100;
+        if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (total === maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (total > 0 && total < maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
         return 'bg-gray-100 dark:bg-gray-800';
-    }, [total]);
+    }, [total, resource.maxStaffingPercentage]);
 
     return (
         <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
@@ -227,11 +228,12 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
     const cellColor = useMemo(() => {
-        if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        const maxPercentage = resource.maxStaffingPercentage ?? 100;
+        if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
         return 'bg-gray-100 dark:bg-gray-800';
-    }, [averageAllocation]);
+    }, [averageAllocation, resource.maxStaffingPercentage]);
 
     return (
         <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
@@ -577,7 +579,7 @@ const StaffingPage: React.FC = () => {
                                 {/* Riga del Totale */}
                                 <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
                                     <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
-                                        Carico Totale {resource.name}
+                                        Carico Totale {resource.name} (Max: {resource.maxStaffingPercentage}%)
                                     </td>
                                     <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
                                         <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">

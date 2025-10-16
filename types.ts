@@ -69,6 +69,8 @@ export interface Resource {
     hireDate: string; 
     /** @property {number} workSeniority - Gli anni di anzianità lavorativa. */
     workSeniority: number;
+    /** @property {number} maxStaffingPercentage - La percentuale massima di allocazione per questa risorsa. */
+    maxStaffingPercentage: number;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
 }

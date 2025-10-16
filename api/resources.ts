@@ -18,11 +18,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             switch (method) {
                 case 'POST':
                     try {
-                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes } = req.body;
+                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage } = req.body;
                         const newId = uuidv4();
                         await db.sql`
-                            INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes)
-                            VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate}, ${workSeniority}, ${notes});
+                            INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, max_staffing_percentage)
+                            VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate}, ${workSeniority}, ${notes}, ${maxStaffingPercentage || 100});
                         `;
                         return res.status(201).json({ id: newId, ...req.body });
                     } catch (error) {
@@ -32,11 +32,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 case 'PUT':
                     try {
-                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes } = req.body;
+                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage } = req.body;
                         await db.sql`
                             UPDATE resources
                             SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, location = ${location}, 
-                                hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}
+                                hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}, max_staffing_percentage = ${maxStaffingPercentage || 100}
                             WHERE id = ${id as string};
                         `;
                         return res.status(200).json({ id, ...req.body });

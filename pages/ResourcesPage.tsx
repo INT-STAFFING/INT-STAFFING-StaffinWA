@@ -46,7 +46,7 @@ const ResourcesPage: React.FC = () => {
     const emptyResource: Omit<Resource, 'id'> = {
         name: '', email: '', roleId: '', horizontal: horizontals[0]?.value || '',
         location: locations[0]?.value || '',
-        hireDate: '', workSeniority: 0, notes: '',
+        hireDate: '', workSeniority: 0, notes: '', maxStaffingPercentage: 100,
     };
     
     const filteredResources = useMemo(() => {
@@ -170,7 +170,7 @@ const ResourcesPage: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (editingResource) {
             const { name, value } = e.target;
-            const numericFields = ['workSeniority'];
+            const numericFields = ['workSeniority', 'maxStaffingPercentage'];
             setEditingResource({ ...editingResource, [name]: numericFields.includes(name) ? (value === '' ? undefined : parseFloat(value)) : value });
         }
     };
@@ -186,7 +186,8 @@ const ResourcesPage: React.FC = () => {
     const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) {
             const { name, value } = e.target;
-            setInlineEditingData({ ...inlineEditingData, [name]: value });
+            const numericFields = ['workSeniority', 'maxStaffingPercentage'];
+            setInlineEditingData({ ...inlineEditingData, [name]: numericFields.includes(name) ? parseFloat(value) : value });
         }
     };
     
@@ -238,9 +239,8 @@ const ResourcesPage: React.FC = () => {
                                 {getSortableHeader('Nome', 'name')}
                                 {getSortableHeader('Ruolo', 'roleId')}
                                 {getSortableHeader('Costo Giornaliero', 'dailyCost')}
-                                {getSortableHeader('Costo Standard (Ruolo)', 'roleStandardCost')}
-                                {getSortableHeader('Spese Giornaliere (Ruolo)', 'roleDailyExpenses')}
                                 {getSortableHeader('Alloc. Media', 'allocation')}
+                                {getSortableHeader('Max. Staffing %', 'maxStaffingPercentage')}
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
@@ -258,9 +258,8 @@ const ResourcesPage: React.FC = () => {
                                         <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
                                         <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
                                         <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyCost)}</td>
-                                        <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.standardCost)}</td>
-                                        <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyExpenses)}</td>
                                         <td className={`px-6 py-4 text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
+                                        <td className="px-6 py-4"><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-20 text-sm form-input p-1" /></td>
                                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
                                     </tr>
                                     )
@@ -271,9 +270,8 @@ const ResourcesPage: React.FC = () => {
                                     <td className="px-6 py-4 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{resource.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</div></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role?.name || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyCost)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.standardCost)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyExpenses)}</td>
                                     <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{resource.maxStaffingPercentage}%</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
                                             <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
@@ -301,6 +299,7 @@ const ResourcesPage: React.FC = () => {
                                         <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
                                         <div><label className="text-xs font-medium text-gray-500">Ruolo</label><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo"/></div>
+                                        <div><label className="text-xs font-medium text-gray-500">Max Staffing %</label><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
                                         <div className="flex justify-end space-x-2 pt-2">
                                             <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
                                             <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
@@ -327,8 +326,7 @@ const ResourcesPage: React.FC = () => {
                                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{role?.name || 'N/A'}</p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</p></div>
                                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyCost)}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.standardCost)}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyExpenses)}</p></div>
+                                    <div><p className="text-gray-500 dark:text-gray-400">Max Staffing</p><p className="text-gray-900 dark:text-white font-medium">{resource.maxStaffingPercentage}%</p></div>
                                 </div>
                             </div>
                         )
@@ -394,6 +392,10 @@ const ResourcesPage: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Anzianità (anni)</label>
                                 <input type="number" name="workSeniority" value={editingResource.workSeniority} onChange={handleChange} className="form-input"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
+                                <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="w-full"/>
                             </div>
                         </div>
                         <div>
