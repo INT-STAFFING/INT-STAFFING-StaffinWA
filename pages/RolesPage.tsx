@@ -4,40 +4,23 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
-/**
- * @type SortConfig
- * @description Configurazione per l'ordinamento della tabella.
- */
-type SortConfig = { key: keyof Role; direction: 'ascending' | 'descending' } | null;
-
-/**
- * Formatta un valore numerico come valuta EUR in formato italiano.
- * @param {number | undefined} value - Il valore numerico da formattare.
- * @returns {string} La stringa formattata (es. "€ 1.234,56").
- */
 const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
-/**
- * Componente per la pagina di gestione dei Ruoli.
- * Permette di visualizzare, filtrare, ordinare, aggiungere, modificare ed eliminare ruoli.
- * @returns {React.ReactElement} La pagina di gestione dei ruoli.
- */
 const RolesPage: React.FC = () => {
-    const { roles, seniorityLevels, addRole, updateRole, deleteRole } = useStaffingContext();
+    const { roles, seniorityLevels, addRole, updateRole, deleteRole, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | Omit<Role, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', seniorityLevel: '' });
-    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     
-    // Stati per la gestione della modifica inline.
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Role | null>(null);
 
@@ -51,34 +34,6 @@ const RolesPage: React.FC = () => {
         });
     }, [roles, filters]);
 
-    // Applica l'ordinamento ai dati filtrati
-    const sortedRoles = useMemo(() => {
-        let sortableItems = [...filteredRoles];
-        if (sortConfig !== null) {
-            sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-                
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-                }
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-                }
-                return 0;
-            });
-        }
-        return sortableItems;
-    }, [filteredRoles, sortConfig]);
-    
-    const requestSort = (key: keyof Role) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => setFilters({ name: '', seniorityLevel: '' });
@@ -87,12 +42,14 @@ const RolesPage: React.FC = () => {
     const openModalForEdit = (role: Role) => { setEditingRole(role); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingRole(null); };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingRole) {
-            if ('id' in editingRole) updateRole(editingRole);
-            else addRole(editingRole);
-            handleCloseModal();
+            try {
+                if ('id' in editingRole) await updateRole(editingRole);
+                else await addRole(editingRole);
+                handleCloseModal();
+            } catch (e) {}
         }
     };
 
@@ -105,9 +62,7 @@ const RolesPage: React.FC = () => {
     };
 
     const handleSelectChange = (name: string, value: string) => {
-        if (editingRole) {
-            setEditingRole({ ...editingRole, [name]: value });
-        }
+        if (editingRole) setEditingRole({ ...editingRole, [name]: value });
     };
     
     const handleStartInlineEdit = (role: Role) => { setInlineEditingId(role.id!); setInlineEditingData({ ...role }); };
@@ -122,151 +77,150 @@ const RolesPage: React.FC = () => {
     };
     
     const handleInlineSelectChange = (name: string, value: string) => {
-        if (inlineEditingData) {
-            setInlineEditingData({ ...inlineEditingData, [name]: value });
-        }
+        if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = () => { if (inlineEditingData) { updateRole(inlineEditingData); handleCancelInlineEdit(); } };
-
-    const getSortableHeader = (label: string, key: keyof Role) => (
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-            </button>
-        </th>
-    );
+    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateRole(inlineEditingData); handleCancelInlineEdit(); } };
 
     const seniorityOptions = useMemo(() => seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [seniorityLevels]);
 
+    const columns: ColumnDef<Role>[] = [
+        { header: 'Nome Ruolo', sortKey: 'name', cell: (role) => <span className="font-medium text-gray-900 dark:text-white">{role.name}</span> },
+        { header: 'Livello Seniority', sortKey: 'seniorityLevel', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{role.seniorityLevel}</span> },
+        { header: 'Costo Giornaliero', sortKey: 'dailyCost', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyCost)}</span> },
+        { header: 'Costo Standard', sortKey: 'standardCost', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.standardCost)}</span> },
+        { header: 'Spese Giornaliere', sortKey: 'dailyExpenses', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyExpenses)}</span> },
+    ];
+    
+    const renderRow = (role: Role) => {
+        const isEditing = inlineEditingId === role.id;
+        const isSaving = isActionLoading(`updateRole-${role.id}`);
+        if (isEditing) {
+            return (
+                <tr key={role.id}>
+                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
+                    <td className="px-6 py-4"><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></td>
+                    <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
+                    <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
+                    <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
+                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                        </button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                    </div></td>
+                </tr>
+            );
+        }
+        return (
+            <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(role)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-3">
+                        <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteRole(role.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        );
+    };
+
+    const renderMobileCard = (role: Role) => {
+        const isEditing = inlineEditingId === role.id;
+        const isSaving = isActionLoading(`updateRole-${role.id}`);
+        if (isEditing) {
+            return (
+                <div key={role.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                    <div className="space-y-3">
+                        <div><label className="text-xs font-medium text-gray-500">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                        <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
+                        <div><label className="text-xs font-medium text-gray-500">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                        <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                        <div className="flex justify-end space-x-2 pt-2">
+                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                            </button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        return (
+             <div key={role.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">{role.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{role.seniorityLevel}</p>
+                    </div>
+                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                        <button onClick={() => openModalForEdit(role)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteRole(role.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyCost)}</p></div>
+                     <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.standardCost)}</p></div>
+                     <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyExpenses)}</p></div>
+                </div>
+            </div>
+        );
+    };
+
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
+            <SearchableSelect name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
+            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+        </div>
+    );
+
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Ruoli</h1>
-                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Ruolo</button>
-            </div>
-
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <SearchableSelect name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                {getSortableHeader('Nome Ruolo', 'name')}
-                                {getSortableHeader('Livello Seniority', 'seniorityLevel')}
-                                {getSortableHeader('Costo Giornaliero', 'dailyCost')}
-                                {getSortableHeader('Costo Standard', 'standardCost')}
-                                {getSortableHeader('Spese Giornaliere', 'dailyExpenses')}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedRoles.map(role => {
-                                const isEditing = inlineEditingId === role.id;
-                                if (isEditing) {
-                                    return (
-                                    <tr key={role.id}>
-                                        <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
-                                        <td className="px-6 py-4"><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></td>
-                                        <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
-                                        <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
-                                        <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
-                                        <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
-                                    </tr>
-                                    )
-                                }
-                                return (
-                                <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{role.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role.seniorityLevel}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyCost)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.standardCost)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyExpenses)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => deleteRole(role.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )})}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Mobile Cards */}
-                 <div className="md:hidden p-4 space-y-4">
-                     {sortedRoles.map(role => {
-                        const isEditing = inlineEditingId === role.id;
-                        if (isEditing) {
-                             return (
-                                <div key={role.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
-                                    <div className="space-y-3">
-                                        <div><label className="text-xs font-medium text-gray-500">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                                        <div className="flex justify-end space-x-2 pt-2">
-                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
-                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        }
-                        return(
-                             <div key={role.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{role.name}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">{role.seniorityLevel}</p>
-                                    </div>
-                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                                        <button onClick={() => openModalForEdit(role)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteRole(role.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </div>
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyCost)}</p></div>
-                                     <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.standardCost)}</p></div>
-                                     <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyExpenses)}</p></div>
-                                </div>
-                            </div>
-                        )
-                     })}
-                 </div>
-            </div>
+            <DataTable
+                title="Gestione Ruoli"
+                addNewButtonLabel="Aggiungi Ruolo"
+                data={filteredRoles}
+                columns={columns}
+                filtersNode={filtersNode}
+                onAddNew={openModalForNew}
+                renderRow={renderRow}
+                renderMobileCard={renderMobileCard}
+                initialSortKey="name"
+            />
 
             {editingRole && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Ruolo *"/>
-                        <SearchableSelect
-                            name="seniorityLevel"
-                            value={editingRole.seniorityLevel}
-                            onChange={handleSelectChange}
-                            options={seniorityOptions}
-                            placeholder="Seleziona un livello"
-                            required
-                        />
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Ruolo *</label>
+                            <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Livello Seniority *</label>
+                            <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" required />
+                        </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input" placeholder="Costo Giornaliero (€)"/>
-                            <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input" placeholder="Costo Standard (€)"/>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
+                                <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
+                                <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input"/>
+                            </div>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                               {(isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>

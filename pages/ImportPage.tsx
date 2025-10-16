@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { ArrowUpOnSquareIcon, ArrowDownOnSquareIcon } from '../components/icons';
 import { exportTemplateToExcel } from '../utils/exportUtils';
 
@@ -11,7 +11,7 @@ const ImportPage: React.FC = () => {
         message: string;
         details?: string[];
     } | null>(null);
-    const { fetchData } = useStaffingContext(); 
+    const { fetchData } = useEntitiesContext(); 
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {

@@ -4,42 +4,34 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
-/**
- * @type SortConfig
- * @description Configurazione per l'ordinamento della tabella.
- */
-type SortConfig = { key: keyof Resource | 'dailyCost' | 'allocation' | 'roleStandardCost' | 'roleDailyExpenses'; direction: 'ascending' | 'descending' } | null;
+// --- Types ---
+type EnrichedResource = Resource & {
+    roleName: string;
+    dailyCost: number;
+    allocation: number;
+};
 
-
-/**
- * Formatta un valore numerico come valuta EUR in formato italiano.
- * @param {number | undefined} value - Il valore numerico da formattare.
- * @returns {string} La stringa formattata (es. "€ 1.234,56").
- */
+// --- Helper Functions ---
 const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
-/**
- * Componente per la pagina di gestione delle Risorse.
- * Permette di visualizzare, filtrare, ordinare, aggiungere, modificare ed eliminare risorse.
- * @returns {React.ReactElement} La pagina di gestione delle risorse.
- */
+// --- Component ---
 const ResourcesPage: React.FC = () => {
-    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, allocations, locations, companyCalendar } = useStaffingContext();
+    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '' });
-    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     
-    // Stati per la gestione della modifica inline.
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Resource | null>(null);
 
@@ -49,16 +41,6 @@ const ResourcesPage: React.FC = () => {
         hireDate: '', workSeniority: 0, notes: '', maxStaffingPercentage: 100,
     };
     
-    const filteredResources = useMemo(() => {
-        return resources.filter(resource => {
-            const nameMatch = resource.name.toLowerCase().includes(filters.name.toLowerCase());
-            const roleMatch = filters.roleId ? resource.roleId === filters.roleId : true;
-            const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
-            const locationMatch = filters.location ? resource.location === filters.location : true;
-            return nameMatch && roleMatch && horizontalMatch && locationMatch;
-        });
-    }, [resources, filters]);
-
     const calculateResourceAllocation = useCallback((resource: Resource): number => {
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -86,62 +68,25 @@ const ResourcesPage: React.FC = () => {
         return Math.round((totalPersonDays / workingDaysInMonth) * 100);
     }, [assignments, allocations, companyCalendar]);
     
-    // Applica l'ordinamento ai dati filtrati
-    const sortedResources = useMemo(() => {
-        let sortableItems = [...filteredResources];
-        if (sortConfig !== null) {
-            sortableItems.sort((a, b) => {
-                const aRole = roles.find(r => r.id === a.roleId);
-                const bRole = roles.find(r => r.id === b.roleId);
+    const dataForTable = useMemo<EnrichedResource[]>(() => {
+        const filtered = resources.filter(resource => {
+            const nameMatch = resource.name.toLowerCase().includes(filters.name.toLowerCase());
+            const roleMatch = filters.roleId ? resource.roleId === filters.roleId : true;
+            const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
+            const locationMatch = filters.location ? resource.location === filters.location : true;
+            return nameMatch && roleMatch && horizontalMatch && locationMatch;
+        });
 
-                let aValue: any;
-                let bValue: any;
-
-                switch(sortConfig.key) {
-                    case 'dailyCost':
-                        aValue = aRole?.dailyCost || 0;
-                        bValue = bRole?.dailyCost || 0;
-                        break;
-                    case 'roleStandardCost':
-                         aValue = aRole?.standardCost || 0;
-                         bValue = bRole?.standardCost || 0;
-                        break;
-                    case 'roleDailyExpenses':
-                         aValue = aRole?.dailyExpenses || 0;
-                         bValue = bRole?.dailyExpenses || 0;
-                        break;
-                    case 'allocation':
-                         aValue = calculateResourceAllocation(a);
-                         bValue = calculateResourceAllocation(b);
-                        break;
-                    case 'roleId':
-                        aValue = aRole?.name || '';
-                        bValue = bRole?.name || '';
-                        break;
-                    default:
-                        aValue = a[sortConfig.key as keyof Resource];
-                        bValue = b[sortConfig.key as keyof Resource];
-                }
-
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-                }
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-                }
-                return 0;
-            });
-        }
-        return sortableItems;
-    }, [filteredResources, sortConfig, roles, calculateResourceAllocation]);
-
-    const requestSort = (key: SortConfig['key']) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
+        return filtered.map(resource => {
+            const role = roles.find(r => r.id === resource.roleId);
+            return {
+                ...resource,
+                roleName: role?.name || 'N/A',
+                dailyCost: role?.dailyCost || 0,
+                allocation: calculateResourceAllocation(resource),
+            };
+        });
+    }, [resources, filters, roles, calculateResourceAllocation]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
@@ -158,12 +103,14 @@ const ResourcesPage: React.FC = () => {
     const openModalForEdit = (resource: Resource) => { setEditingResource(resource); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingResource(null); };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingResource) {
-            if ('id' in editingResource) updateResource(editingResource as Resource);
-            else addResource(editingResource as Omit<Resource, 'id'>);
-            handleCloseModal();
+            try {
+                if ('id' in editingResource) await updateResource(editingResource as Resource);
+                else await addResource(editingResource as Omit<Resource, 'id'>);
+                handleCloseModal();
+            } catch (e) {}
         }
     };
 
@@ -176,9 +123,7 @@ const ResourcesPage: React.FC = () => {
     };
     
     const handleSelectChange = (name: string, value: string) => {
-        if (editingResource) {
-            setEditingResource({ ...editingResource, [name]: value });
-        }
+        if (editingResource) setEditingResource({ ...editingResource, [name]: value });
     };
 
     const handleStartInlineEdit = (resource: Resource) => { setInlineEditingId(resource.id!); setInlineEditingData({ ...resource }); };
@@ -192,148 +137,130 @@ const ResourcesPage: React.FC = () => {
     };
     
     const handleInlineSelectChange = (name: string, value: string) => {
-        if (inlineEditingData) {
-            setInlineEditingData({ ...inlineEditingData, [name]: value });
-        }
+        if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
     
-    const handleSaveInlineEdit = () => { if (inlineEditingData) { updateResource(inlineEditingData); handleCancelInlineEdit(); } };
+    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateResource(inlineEditingData); handleCancelInlineEdit(); } };
     
-    const getSortableHeader = (label: string, key: SortConfig['key']) => (
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-            </button>
-        </th>
-    );
-
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
     const locationOptions = useMemo(() => locations.sort((a,b)=> a.value.localeCompare(b.value)).map(l => ({ value: l.value, label: l.value })), [locations]);
 
+    const columns: ColumnDef<EnrichedResource>[] = [
+        { header: 'Nome', sortKey: 'name', cell: r => <div><div className="font-medium text-gray-900 dark:text-white">{r.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{r.email}</div></div> },
+        { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
+        { header: 'Costo Giornaliero', sortKey: 'dailyCost', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(r.dailyCost)}</span> },
+        { header: 'Alloc. Media', sortKey: 'allocation', cell: r => <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span> },
+        { header: 'Max. Staffing %', sortKey: 'maxStaffingPercentage', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.maxStaffingPercentage}%</span> },
+    ];
+    
+    const renderRow = (resource: EnrichedResource) => {
+        const isEditing = inlineEditingId === resource.id;
+        const isSaving = isActionLoading(`updateResource-${resource.id}`);
+        if (isEditing) {
+            const editingRole = roles.find(r => r.id === inlineEditingData!.roleId);
+            return (
+                <tr key={resource.id}>
+                    <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
+                    <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
+                    <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyCost)}</td>
+                    <td className={`px-6 py-4 text-sm ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
+                    <td className="px-6 py-4"><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-20 text-sm form-input p-1" /></td>
+                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                        </button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                    </div></td>
+                </tr>
+            );
+        }
+        return (
+            <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(resource)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-3">
+                        <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        );
+    };
+
+    const renderMobileCard = (resource: EnrichedResource) => {
+        const isEditing = inlineEditingId === resource.id;
+        const isSaving = isActionLoading(`updateResource-${resource.id}`);
+        if (isEditing) {
+            return (
+                <div key={resource.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                    <div className="space-y-3">
+                        <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-gray-500">Ruolo</label><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo"/></div>
+                        <div><label className="text-xs font-medium text-gray-500">Max Staffing %</label><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
+                        <div className="flex justify-end space-x-2 pt-2">
+                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                            </button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</p>
+                    </div>
+                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(resource)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                    <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(resource.dailyCost)}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Max Staffing</p><p className="text-gray-900 dark:text-white font-medium">{resource.maxStaffingPercentage}%</p></div>
+                </div>
+            </div>
+        );
+    };
+
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
+            <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
+            <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterSelectChange} options={horizontalOptions} placeholder="Tutti gli horizontal" />
+            <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
+            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+        </div>
+    );
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Risorse</h1>
-                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Risorsa</button>
-            </div>
+            <DataTable<EnrichedResource>
+                title="Gestione Risorse"
+                addNewButtonLabel="Aggiungi Risorsa"
+                data={dataForTable}
+                columns={columns}
+                filtersNode={filtersNode}
+                onAddNew={openModalForNew}
+                renderRow={renderRow}
+                renderMobileCard={renderMobileCard}
+                initialSortKey="name"
+            />
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
-                    <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
-                    <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterSelectChange} options={horizontalOptions} placeholder="Tutti gli horizontal" />
-                    <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                {getSortableHeader('Nome', 'name')}
-                                {getSortableHeader('Ruolo', 'roleId')}
-                                {getSortableHeader('Costo Giornaliero', 'dailyCost')}
-                                {getSortableHeader('Alloc. Media', 'allocation')}
-                                {getSortableHeader('Max. Staffing %', 'maxStaffingPercentage')}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedResources.map(resource => {
-                                const role = roles.find(r => r.id === resource.roleId);
-                                const allocation = calculateResourceAllocation(resource);
-                                const isEditing = inlineEditingId === resource.id;
-
-                                if (isEditing) {
-                                    const editingRole = roles.find(r => r.id === inlineEditingData!.roleId);
-                                    
-                                    return (
-                                    <tr key={resource.id}>
-                                        <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
-                                        <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
-                                        <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyCost)}</td>
-                                        <td className={`px-6 py-4 text-sm ${getAllocationColor(allocation)}`}>{allocation}%</td>
-                                        <td className="px-6 py-4"><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-20 text-sm form-input p-1" /></td>
-                                        <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
-                                    </tr>
-                                    )
-                                }
-                                
-                                return (
-                                <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="px-6 py-4 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{resource.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</div></td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{role?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role?.dailyCost)}</td>
-                                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{resource.maxStaffingPercentage}%</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )})}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Mobile Cards */}
-                <div className="md:hidden p-4 space-y-4">
-                     {sortedResources.map(resource => {
-                        const role = roles.find(r => r.id === resource.roleId);
-                        const allocation = calculateResourceAllocation(resource);
-                        const isEditing = inlineEditingId === resource.id;
-
-                        if (isEditing) {
-                            return (
-                                <div key={resource.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
-                                    <div className="space-y-3">
-                                        <div><label className="text-xs font-medium text-gray-500">Nome</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Ruolo</label><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo"/></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Max Staffing %</label><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /></div>
-                                        <div className="flex justify-end space-x-2 pt-2">
-                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
-                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        }
-
-                        return (
-                            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</p>
-                                    </div>
-                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(resource)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </div>
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                                    <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{role?.name || 'N/A'}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(allocation)}`}>{allocation}%</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(role?.dailyCost)}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Max Staffing</p><p className="text-gray-900 dark:text-white font-medium">{resource.maxStaffingPercentage}%</p></div>
-                                </div>
-                            </div>
-                        )
-                     })}
-                </div>
-            </div>
-
             {editingResource && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingResource ? 'Modifica Risorsa' : 'Aggiungi Risorsa'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -350,38 +277,17 @@ const ResourcesPage: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo *</label>
-                                <SearchableSelect
-                                    name="roleId"
-                                    value={editingResource.roleId}
-                                    onChange={handleSelectChange}
-                                    options={roleOptions}
-                                    placeholder="Seleziona un ruolo"
-                                    required
-                                />
+                                <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required />
                            </div>
                            <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horizontal *</label>
-                                <SearchableSelect
-                                    name="horizontal"
-                                    value={editingResource.horizontal}
-                                    onChange={handleSelectChange}
-                                    options={horizontalOptions}
-                                    placeholder="Seleziona un horizontal"
-                                    required
-                                />
+                                <SearchableSelect name="horizontal" value={editingResource.horizontal} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona un horizontal" required />
                            </div>
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
-                                <SearchableSelect
-                                    name="location"
-                                    value={editingResource.location}
-                                    onChange={handleSelectChange}
-                                    options={locationOptions}
-                                    placeholder="Seleziona una sede"
-                                    required
-                                />
+                                <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
@@ -404,7 +310,9 @@ const ResourcesPage: React.FC = () => {
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                             <button type="submit" disabled={isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                               {(isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>

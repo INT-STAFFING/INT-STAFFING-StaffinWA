@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { exportDataToExcel } from '../utils/exportUtils';
 import { ArrowDownOnSquareIcon } from '../components/icons';
 
@@ -14,8 +14,9 @@ import { ArrowDownOnSquareIcon } from '../components/icons';
  * @returns {React.ReactElement} La pagina di esportazione.
  */
 const ExportPage: React.FC = () => {
-    // Ottiene l'intero stato dell'applicazione dal contesto.
-    const staffingData = useStaffingContext();
+    // Ottiene i dati dai contesti separati.
+    const entities = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
     // Stato per gestire la visualizzazione del feedback durante l'esportazione.
     const [isExporting, setIsExporting] = useState(false);
     // Stato per mostrare un messaggio di successo o fallimento dopo il tentativo di esportazione.
@@ -30,7 +31,8 @@ const ExportPage: React.FC = () => {
         setIsExporting(true);
         setExportSuccess(null);
         try {
-            exportDataToExcel(staffingData);
+            // Combina i dati dai due contesti prima di passarli alla funzione di export.
+            exportDataToExcel({ ...entities, allocations });
             setExportSuccess(true);
         } catch (error) {
             console.error("Failed to export data:", error);

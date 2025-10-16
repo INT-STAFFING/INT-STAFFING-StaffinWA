@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -32,7 +32,8 @@ interface DailyTotalCellProps {
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
-    const { assignments, allocations } = useStaffingContext();
+    const { assignments } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
 
     if (isNonWorkingDay) {
         return (
@@ -80,7 +81,8 @@ interface AggregatedWorkloadCellProps {
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({ resource, startDate, endDate }) => {
-    const { assignments, allocations, companyCalendar } = useStaffingContext();
+    const { assignments, companyCalendar } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
 
     const averageAllocation = useMemo(() => {
         const workingDays = getWorkingDaysBetween(startDate, endDate, companyCalendar, resource.location);
@@ -131,7 +133,7 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
 const WorkloadPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const { resources, projects, assignments, clients, companyCalendar, roles } = useStaffingContext();
+    const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
     
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', roleIds: [] as string[] });
     
@@ -249,7 +251,7 @@ const WorkloadPage: React.FC = () => {
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
 
     return (
-        <div className="flex flex-col" style={{ height: 'calc(100vh - 8.5rem)' }}>
+        <div className="flex flex-col h-[calc(100vh-8rem)]">
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
                     <div className="flex items-center justify-start space-x-2">

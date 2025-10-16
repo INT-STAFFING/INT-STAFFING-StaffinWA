@@ -3,11 +3,12 @@
  * @description Pagina per la gestione degli incarichi professionali (WBS).
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+// Fix: Use useEntitiesContext from AppContext
+import { useEntitiesContext } from '../context/AppContext';
 import { WbsTask } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, ArrowsUpDownIcon, SpinnerIcon } from '../components/icons';
 
 type SortConfig = { key: keyof WbsTask | 'clientName'; direction: 'ascending' | 'descending' } | null;
 
@@ -16,7 +17,8 @@ const formatCurrency = (value: number | undefined): string => {
 };
 
 const WbsPage: React.FC = () => {
-    const { wbsTasks, clients, resources, addWbsTask, updateWbsTask, deleteWbsTask } = useStaffingContext();
+    // Fix: Use useEntitiesContext from AppContext
+    const { wbsTasks, clients, resources, addWbsTask, updateWbsTask, deleteWbsTask, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<WbsTask | Omit<WbsTask, 'id'> | null>(null);
     const [filters, setFilters] = useState({ elementoWbs: '', clientId: '', responsabileId: '' });
@@ -74,12 +76,14 @@ const WbsPage: React.FC = () => {
     const openModalForEdit = (task: WbsTask) => { setEditingTask(task); setIsModalOpen(true); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingTask(null); };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingTask) {
-            if ('id' in editingTask) updateWbsTask(editingTask as WbsTask);
-            else addWbsTask(editingTask as Omit<WbsTask, 'id'>);
-            handleCloseModal();
+            try {
+                if ('id' in editingTask) await updateWbsTask(editingTask as WbsTask);
+                else await addWbsTask(editingTask as Omit<WbsTask, 'id'>);
+                handleCloseModal();
+            } catch (e) {}
         }
     };
     
@@ -162,7 +166,9 @@ const WbsPage: React.FC = () => {
                                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
                                             <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                                {isActionLoading(`deleteWbsTask-${task.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <TrashIcon className="w-5 h-5" />}
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -235,7 +241,9 @@ const WbsPage: React.FC = () => {
 
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                            <button type="submit" disabled={isActionLoading('addWbsTask') || isActionLoading(`updateWbsTask-${'id' in editingTask ? editingTask.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                               {(isActionLoading('addWbsTask') || isActionLoading(`updateWbsTask-${'id' in editingTask ? editingTask.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>

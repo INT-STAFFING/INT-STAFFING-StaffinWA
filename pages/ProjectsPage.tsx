@@ -4,45 +4,28 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
-/**
- * @type SortConfig
- * @description Configurazione per l'ordinamento della tabella.
- */
-type SortConfig = { key: keyof Project | 'clientName'; direction: 'ascending' | 'descending' } | null;
+type EnrichedProject = Project & { clientName: string };
 
-/**
- * Formatta una data per la visualizzazione.
- * @param {string | null} dateStr - La stringa della data (YYYY-MM-DD).
- * @returns {string} La data formattata (DD/MM/YYYY) o 'N/A'.
- */
 const formatDateForDisplay = (dateStr: string | null): string => {
     if (!dateStr) return 'N/A';
-    // Aggiunge un controllo per evitare 'Invalid Date' se la stringa non è un formato valido
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
-
-/**
- * Componente per la pagina di gestione dei Progetti.
- * Permette di visualizzare, filtrare, ordinare, aggiungere, modificare ed eliminare progetti.
- * @returns {React.ReactElement} La pagina di gestione dei progetti.
- */
 const ProjectsPage: React.FC = () => {
-    const { projects, clients, resources, projectStatuses, addProject, updateProject, deleteProject } = useStaffingContext();
+    const { projects, clients, resources, projectStatuses, addProject, updateProject, deleteProject, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
-    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
-    // Stati per la gestione della modifica inline.
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);
 
@@ -51,54 +34,20 @@ const ProjectsPage: React.FC = () => {
         realizationPercentage: 100, projectManager: '', status: projectStatuses[0]?.value || '', notes: '',
     };
     
-    const filteredProjects = useMemo(() => {
-        return projects.filter(project => {
-            const nameMatch = project.name.toLowerCase().includes(filters.name.toLowerCase());
-            const clientMatch = filters.clientId ? project.clientId === filters.clientId : true;
-            const statusMatch = filters.status ? project.status === filters.status : true;
-            return nameMatch && clientMatch && statusMatch;
-        });
-    }, [projects, filters]);
-
-    // Applica l'ordinamento ai dati filtrati
-    const sortedProjects = useMemo(() => {
-        let sortableItems = [...filteredProjects];
-        if (sortConfig !== null) {
-            sortableItems.sort((a, b) => {
-                let aValue: any;
-                let bValue: any;
-
-                if (sortConfig.key === 'clientName') {
-                    aValue = clients.find(c => c.id === a.clientId)?.name || '';
-                    bValue = clients.find(c => c.id === b.clientId)?.name || '';
-                } else {
-                    aValue = a[sortConfig.key as keyof Project];
-                    bValue = b[sortConfig.key as keyof Project];
-                }
-
-                if (aValue === null || aValue === undefined) aValue = '';
-                if (bValue === null || bValue === undefined) bValue = '';
-
-                if (typeof aValue === 'number' && typeof bValue === 'number') {
-                    return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-                }
-                if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-                }
-                return 0;
-            });
-        }
-        return sortableItems;
-    }, [filteredProjects, sortConfig, clients]);
+    const dataForTable = useMemo<EnrichedProject[]>(() => {
+        return projects
+            .filter(project => {
+                const nameMatch = project.name.toLowerCase().includes(filters.name.toLowerCase());
+                const clientMatch = filters.clientId ? project.clientId === filters.clientId : true;
+                const statusMatch = filters.status ? project.status === filters.status : true;
+                return nameMatch && clientMatch && statusMatch;
+            })
+            .map(project => ({
+                ...project,
+                clientName: clients.find(c => c.id === project.clientId)?.name || 'N/A',
+            }));
+    }, [projects, filters, clients]);
     
-    const requestSort = (key: SortConfig['key']) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => setFilters({ name: '', clientId: '', status: '' });
@@ -107,12 +56,14 @@ const ProjectsPage: React.FC = () => {
     const openModalForEdit = (project: Project) => { setEditingProject(project); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingProject(null); };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingProject) {
-            if ('id' in editingProject) updateProject(editingProject as Project);
-            else addProject(editingProject as Omit<Project, 'id'>);
-            handleCloseModal();
+            try {
+                if ('id' in editingProject) await updateProject(editingProject as Project);
+                else await addProject(editingProject as Omit<Project, 'id'>);
+                handleCloseModal();
+            } catch (e) {}
         }
     };
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -124,9 +75,7 @@ const ProjectsPage: React.FC = () => {
     };
 
     const handleSelectChange = (name: string, value: string) => {
-        if (editingProject) {
-            setEditingProject({ ...editingProject, [name]: value });
-        }
+        if (editingProject) setEditingProject({ ...editingProject, [name]: value });
     };
 
     const handleStartInlineEdit = (project: Project) => { setInlineEditingId(project.id!); setInlineEditingData({ ...project }); };
@@ -141,12 +90,10 @@ const ProjectsPage: React.FC = () => {
     };
     
     const handleInlineSelectChange = (name: string, value: string) => {
-        if (inlineEditingData) {
-            setInlineEditingData({ ...inlineEditingData, [name]: value });
-        }
+        if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = () => { if (inlineEditingData) { updateProject(inlineEditingData); handleCancelInlineEdit(); } };
+    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateProject(inlineEditingData); handleCancelInlineEdit(); } };
 
     const getStatusBadgeClass = (status: string | null): string => {
         switch (status) {
@@ -156,140 +103,128 @@ const ProjectsPage: React.FC = () => {
             default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
         }
     };
-
-    const getSortableHeader = (label: string, key: SortConfig['key']) => (
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-            </button>
-        </th>
-    );
-
+    
     const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
     const projectManagerOptions = useMemo(() => resources.map(r => ({ value: r.name, label: r.name })).sort((a,b) => a.label.localeCompare(b.label)), [resources]);
+
+    const columns: ColumnDef<EnrichedProject>[] = [
+        { header: 'Nome Progetto', sortKey: 'name', cell: p => <span className="font-medium text-gray-900 dark:text-white">{p.name}</span> },
+        { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.clientName}</span> },
+        { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
+        { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.startDate)}</span> },
+        { header: 'Data Fine', sortKey: 'endDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.endDate)}</span> },
+        { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span> },
+    ];
+    
+     const renderRow = (project: EnrichedProject) => {
+        const isEditing = inlineEditingId === project.id;
+        const isSaving = isActionLoading(`updateProject-${project.id}`);
+        if(isEditing){
+            return (
+                <tr key={project.id}>
+                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
+                    <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
+                    <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4"><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                        </button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                    </div></td>
+                </tr>
+            );
+        }
+        return (
+            <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(project)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-3">
+                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        );
+    };
+    
+    const renderMobileCard = (project: EnrichedProject) => {
+        const isEditing = inlineEditingId === project.id;
+        const isSaving = isActionLoading(`updateProject-${project.id}`);
+        if (isEditing) {
+            return (
+               <div key={project.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                   <div className="space-y-3">
+                       <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
+                       <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
+                       <div><label className="text-xs font-medium text-gray-500">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div><label className="text-xs font-medium text-gray-500">Data Fine</label><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div className="flex justify-end space-x-2 pt-2">
+                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                           </button>
+                           <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                       </div>
+                   </div>
+               </div>
+           );
+        }
+        return (
+            <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{project.clientName}</p>
+                    </div>
+                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                    <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.startDate)}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Data Fine</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.endDate)}</p></div>
+                </div>
+            </div>
+        );
+    };
+    
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
+            <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
+            <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati"/>
+            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+        </div>
+    );
     
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Progetti</h1>
-                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Progetto</button>
-            </div>
-
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
-                    <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati"/>
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                {getSortableHeader('Nome Progetto', 'name')}
-                                {getSortableHeader('Cliente', 'clientName')}
-                                {getSortableHeader('Stato', 'status')}
-                                {getSortableHeader('Data Inizio', 'startDate')}
-                                {getSortableHeader('Data Fine', 'endDate')}
-                                {getSortableHeader('Budget', 'budget')}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedProjects.map(project => {
-                                const client = clients.find(c => c.id === project.clientId);
-                                const isEditing = inlineEditingId === project.id;
-                                
-                                if(isEditing){
-                                    return (
-                                        <tr key={project.id}>
-                                            <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                            <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
-                                            <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
-                                            <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                            <td className="px-6 py-4"><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                            <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                            <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
-                                        </tr>
-                                    );
-                                }
-
-                                return (
-                                <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{project.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(project.startDate)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(project.endDate)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )})}
-                        </tbody>
-                    </table>
-                </div>
-                 {/* Mobile Cards */}
-                <div className="md:hidden p-4 space-y-4">
-                    {sortedProjects.map(project => {
-                        const client = clients.find(c => c.id === project.clientId);
-                        const isEditing = inlineEditingId === project.id;
-
-                        if (isEditing) {
-                             return (
-                                <div key={project.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
-                                    <div className="space-y-3">
-                                        <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Data Fine</label><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div className="flex justify-end space-x-2 pt-2">
-                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
-                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        }
-
-                        return (
-                            <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">{client?.name || 'N/A'}</p>
-                                    </div>
-                                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </div>
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                                    <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.startDate)}</p></div>
-                                    <div><p className="text-gray-500 dark:text-gray-400">Data Fine</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.endDate)}</p></div>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
-
+            <DataTable<EnrichedProject>
+                title="Gestione Progetti"
+                addNewButtonLabel="Aggiungi Progetto"
+                data={dataForTable}
+                columns={columns}
+                filtersNode={filtersNode}
+                onAddNew={openModalForNew}
+                renderRow={renderRow}
+                renderMobileCard={renderMobileCard}
+                initialSortKey="startDate"
+            />
+            
             {editingProject && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingProject ? 'Modifica Progetto' : 'Aggiungi Progetto'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -299,13 +234,7 @@ const ProjectsPage: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
-                            <SearchableSelect
-                                name="clientId"
-                                value={editingProject.clientId || ''}
-                                onChange={handleSelectChange}
-                                options={clientOptions}
-                                placeholder="Seleziona un cliente"
-                            />
+                            <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona un cliente" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -330,23 +259,11 @@ const ProjectsPage: React.FC = () => {
                         </div>
                          <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Manager</label>
-                            <SearchableSelect
-                                name="projectManager"
-                                value={editingProject.projectManager || ''}
-                                onChange={handleSelectChange}
-                                options={projectManagerOptions}
-                                placeholder="Seleziona un PM"
-                            />
+                            <SearchableSelect name="projectManager" value={editingProject.projectManager || ''} onChange={handleSelectChange} options={projectManagerOptions} placeholder="Seleziona un PM" />
                         </div>
                          <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato</label>
-                            <SearchableSelect
-                                name="status"
-                                value={editingProject.status || ''}
-                                onChange={handleSelectChange}
-                                options={statusOptions}
-                                placeholder="Seleziona uno stato"
-                            />
+                            <SearchableSelect name="status" value={editingProject.status || ''} onChange={handleSelectChange} options={statusOptions} placeholder="Seleziona uno stato" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
@@ -354,7 +271,9 @@ const ProjectsPage: React.FC = () => {
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                            <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                               {(isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>

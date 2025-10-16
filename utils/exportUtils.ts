@@ -5,26 +5,38 @@
  */
 
 import { getWorkingDaysBetween, isHoliday, formatDate, addDays } from './dateUtils';
-// FIX: Import StaffingContextType to correctly type the data. The previous type definition was incorrect.
-import type { StaffingContextType } from '../context/StaffingContext';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 
 // Dichiarazione per informare TypeScript che la variabile XLSX esiste a livello globale.
 declare var XLSX: any;
 
 /**
- * @type StaffingData
+ * @type ExportData
  * @description Definisce la struttura dei dati di staffing passati alla funzione di esportazione.
- * Corrisponde al tipo del valore del contesto di staffing.
+ * Corrisponde ai dati contenuti nei contesti dell'applicazione.
  */
-type StaffingData = StaffingContextType;
+type ExportData = {
+    clients: Client[];
+    roles: Role[];
+    resources: Resource[];
+    projects: Project[];
+    assignments: Assignment[];
+    allocations: Allocation;
+    companyCalendar: CalendarEvent[];
+    horizontals: ConfigOption[];
+    seniorityLevels: ConfigOption[];
+    projectStatuses: ConfigOption[];
+    clientSectors: ConfigOption[];
+    locations: ConfigOption[];
+};
 
 
 /**
  * Esporta tutti i dati principali dell'applicazione in un singolo file Excel con fogli multipli.
  * I fogli sono formattati per assomigliare il più possibile alla visualizzazione nell'app.
- * @param {StaffingData} data - L'oggetto contenente tutti i dati dell'applicazione, solitamente dal contesto.
+ * @param {ExportData} data - L'oggetto contenente tutti i dati dell'applicazione da esportare.
  */
-export const exportDataToExcel = (data: StaffingData) => {
+export const exportDataToExcel = (data: ExportData) => {
     if (!data) return;
     const { clients, roles, resources, projects, assignments, allocations, companyCalendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = data;
 

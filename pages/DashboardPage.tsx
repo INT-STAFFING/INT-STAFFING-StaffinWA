@@ -4,7 +4,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -26,7 +26,8 @@ const formatCurrency = (value: number | string): string => {
  * @returns {React.ReactElement} La pagina della dashboard.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, allocations, clientSectors, locations, companyCalendar } = useStaffingContext();
+    const { resources, roles, projects, clients, assignments, clientSectors, locations, companyCalendar } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
 
     // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });

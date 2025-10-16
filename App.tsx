@@ -5,7 +5,8 @@
 
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { StaffingProvider, useStaffingContext } from './context/StaffingContext';
+import { AppProvider, useEntitiesContext } from './context/AppContext';
+import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Sidebar';
 import StaffingPage from './pages/StaffingPage';
 import ResourcesPage from './pages/ResourcesPage';
@@ -107,7 +108,7 @@ interface AppContentProps {
  * @returns {React.ReactElement} Il contenuto principale dell'app.
  */
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
-    const { loading } = useStaffingContext();
+    const { loading } = useEntitiesContext();
 
     if (loading) {
         return (
@@ -161,21 +162,23 @@ const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     return (
-        <StaffingProvider>
-            <BrowserRouter>
-                 {/* Backdrop per la sidebar mobile: un overlay scuro che chiude la sidebar al click. */}
-                {isSidebarOpen && (
-                    <div 
-                        className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
-                        onClick={() => setIsSidebarOpen(false)}
-                    ></div>
-                )}
-                <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-                    <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                    <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
-                </div>
-            </BrowserRouter>
-        </StaffingProvider>
+        <ToastProvider>
+            <AppProvider>
+                <BrowserRouter>
+                     {/* Backdrop per la sidebar mobile: un overlay scuro che chiude la sidebar al click. */}
+                    {isSidebarOpen && (
+                        <div 
+                            className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
+                            onClick={() => setIsSidebarOpen(false)}
+                        ></div>
+                    )}
+                    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+                        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+                        <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
+                    </div>
+                </BrowserRouter>
+            </AppProvider>
+        </ToastProvider>
     );
 };
 

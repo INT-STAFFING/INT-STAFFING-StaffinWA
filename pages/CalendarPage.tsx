@@ -4,11 +4,11 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { CalendarEvent, CalendarEventType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
 
 /**
  * Formatta una data per la visualizzazione.
@@ -37,7 +37,7 @@ const formatEventType = (type: CalendarEventType): string => {
 }
 
 const CalendarPage: React.FC = () => {
-    const { companyCalendar, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, locations } = useStaffingContext();
+    const { companyCalendar, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, locations, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<CalendarEvent | Omit<CalendarEvent, 'id'> | null>(null);
 
@@ -67,20 +67,22 @@ const CalendarPage: React.FC = () => {
         setEditingEvent(null);
     };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingEvent) {
             const eventToSave = { ...editingEvent };
             if (eventToSave.type !== 'LOCAL_HOLIDAY') {
                 eventToSave.location = null;
             }
-
-            if ('id' in eventToSave) {
-                updateCalendarEvent(eventToSave as CalendarEvent);
-            } else {
-                addCalendarEvent(eventToSave as Omit<CalendarEvent, 'id'>);
-            }
-            handleCloseModal();
+            
+            try {
+                if ('id' in eventToSave) {
+                    await updateCalendarEvent(eventToSave as CalendarEvent);
+                } else {
+                    await addCalendarEvent(eventToSave as Omit<CalendarEvent, 'id'>);
+                }
+                handleCloseModal();
+            } catch(e) {}
         }
     };
 
@@ -132,7 +134,9 @@ const CalendarPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex items-center justify-end space-x-3">
                                         <button onClick={() => openModalForEdit(event)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteCalendarEvent(event.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => deleteCalendarEvent(event.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                            {isActionLoading(`deleteCalendarEvent-${event.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <TrashIcon className="w-5 h-5" />}
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -173,7 +177,9 @@ const CalendarPage: React.FC = () => {
 
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                                {(isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>

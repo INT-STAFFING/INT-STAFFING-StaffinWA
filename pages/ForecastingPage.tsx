@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -14,7 +14,8 @@ import SearchableSelect from '../components/SearchableSelect';
  * @returns {React.ReactElement} La pagina di Forecasting.
  */
 const ForecastingPage: React.FC = () => {
-    const { resources, assignments, allocations, horizontals, clients, projects, companyCalendar } = useStaffingContext();
+    const { resources, assignments, horizontals, clients, projects, companyCalendar } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
     

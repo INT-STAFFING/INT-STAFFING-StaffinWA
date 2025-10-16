@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -13,7 +13,7 @@ type ZoomLevel = 'month' | 'quarter' | 'year';
 const GANTT_COLUMN_WIDTH = 80; // Larghezza in pixel per ogni colonna della timeline
 
 const GanttPage: React.FC = () => {
-    const { projects, assignments, resources, clients } = useStaffingContext();
+    const { projects, assignments, resources, clients } = useEntitiesContext();
     const [zoom, setZoom] = useState<ZoomLevel>('month');
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState({ name: '', clientId: '' });

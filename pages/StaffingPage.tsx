@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Project, Assignment } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
@@ -38,7 +38,7 @@ interface AllocationCellProps {
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isNonWorkingDay }) => {
-    const { allocations, updateAllocation } = useStaffingContext();
+    const { allocations, updateAllocation } = useAllocationsContext();
     const percentage = allocations[assignment.id]?.[date] || 0;
 
     // Se è un giorno non lavorativo, mostra una cella disabilitata con sfondo grigio.
@@ -87,7 +87,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     startDate: Date;
     endDate: Date;
 }> = ({ assignment, startDate, endDate }) => {
-    const { allocations, companyCalendar, resources } = useStaffingContext();
+    const { companyCalendar, resources } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
     const resource = resources.find(r => r.id === assignment.resourceId);
     
     // Calcola l'allocazione media come (totale giorni/uomo) / (totale giorni lavorativi).
@@ -149,7 +150,8 @@ interface DailyTotalCellProps {
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
-    const { assignments, allocations } = useStaffingContext();
+    const { assignments } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
 
     // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
      if (isNonWorkingDay) {
@@ -199,7 +201,8 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     startDate: Date;
     endDate: Date;
 }> = ({ resource, startDate, endDate }) => {
-    const { assignments, allocations, companyCalendar } = useStaffingContext();
+    const { assignments, companyCalendar } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
 
     const averageAllocation = useMemo(() => {
         const workingDays = getWorkingDaysBetween(startDate, endDate, companyCalendar, resource.location);
@@ -255,7 +258,8 @@ const StaffingPage: React.FC = () => {
      * @state {ViewMode} viewMode - Controlla la vista corrente della griglia (giornaliera, settimanale, mensile).
      */
     const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, bulkUpdateAllocations, companyCalendar } = useStaffingContext();
+    const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, companyCalendar } = useEntitiesContext();
+    const { bulkUpdateAllocations } = useAllocationsContext();
     
     // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);
@@ -478,7 +482,7 @@ const StaffingPage: React.FC = () => {
 
 
     return (
-        <div className="flex flex-col" style={{ height: 'calc(100vh - 8.5rem)' }}>
+        <div className="flex flex-col h-[calc(100vh-8rem)]">
             {/* Contenitore fisso per controlli e filtri */}
             <div className="flex-shrink-0">
                 {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}

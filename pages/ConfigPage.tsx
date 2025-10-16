@@ -4,10 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { ConfigOption } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
 
 /** @type ConfigType - Definisce i tipi di configurazione gestibili. */
 type ConfigType = 'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations';
@@ -32,7 +32,7 @@ interface ConfigSectionProps {
  * @returns {React.ReactElement} Una card con la lista di opzioni e i controlli.
  */
 const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, options }) => {
-    const { addConfigOption, updateConfigOption, deleteConfigOption } = useStaffingContext();
+    const { addConfigOption, updateConfigOption, deleteConfigOption, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOption, setEditingOption] = useState<ConfigOption | { value: string } | null>(null);
 
@@ -54,15 +54,17 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
      * Gestisce l'invio del form nella modale.
      * @param {React.FormEvent} e - L'evento di submit.
      */
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (editingOption) {
-            if ('id' in editingOption) {
-                updateConfigOption(configType, editingOption);
-            } else {
-                addConfigOption(configType, editingOption.value);
-            }
-            handleCloseModal();
+            try {
+                if ('id' in editingOption) {
+                    await updateConfigOption(configType, editingOption);
+                } else {
+                    await addConfigOption(configType, editingOption.value);
+                }
+                handleCloseModal();
+            } catch (e) {}
         }
     };
 
@@ -85,19 +87,21 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                 </button>
             </div>
             <ul className="divide-y divide-gray-200 dark:divide-gray-700 max-h-60 overflow-y-auto">
-                {options.map(option => (
+                {options.map(option => {
+                    const isDeleting = isActionLoading(`deleteConfig-${configType}-${option.id}`);
+                    return (
                     <li key={option.id} className="py-2 flex justify-between items-center">
                         <span className="text-sm text-gray-800 dark:text-gray-200">{option.value}</span>
                         <div>
                             <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1" title="Modifica">
                                 <PencilIcon className="w-4 h-4" />
                             </button>
-                            <button onClick={() => deleteConfigOption(configType, option.id)} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1" title="Elimina">
-                                <TrashIcon className="w-4 h-4" />
+                            <button onClick={() => deleteConfigOption(configType, option.id!)} disabled={isDeleting} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 disabled:opacity-50" title="Elimina">
+                                {isDeleting ? <SpinnerIcon className="w-4 h-4" /> : <TrashIcon className="w-4 h-4" />}
                             </button>
                         </div>
                     </li>
-                ))}
+                )})}
             </ul>
              {editingOption && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingOption ? `Modifica ${title}` : `Aggiungi ${title}`}>
@@ -112,7 +116,9 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                         />
                         <div className="flex justify-end space-x-3 pt-5">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Salva</button>
+                             <button type="submit" disabled={isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                                {(isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>
@@ -127,7 +133,7 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
  * @returns {React.ReactElement} La pagina delle configurazioni.
  */
 const ConfigPage: React.FC = () => {
-    const { horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = useStaffingContext();
+    const { horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = useEntitiesContext();
 
     return (
         <div>

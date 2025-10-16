@@ -4,30 +4,23 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useStaffingContext } from '../context/StaffingContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, ArrowsUpDownIcon } from '../components/icons';
-
-/**
- * @type SortConfig
- * @description Configurazione per l'ordinamento della tabella.
- */
-type SortConfig = { key: keyof Client; direction: 'ascending' | 'descending' } | null;
-
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 /**
  * Componente per la pagina di gestione dei Clienti.
- * Permette di visualizzare, filtrare, ordinare, aggiungere, modificare ed eliminare clienti.
+ * Permette di visualizzare, filtrare, aggiungere, modificare ed eliminare clienti.
  * @returns {React.ReactElement} La pagina di gestione dei clienti.
  */
 const ClientsPage: React.FC = () => {
-    const { clients, clientSectors, addClient, updateClient, deleteClient } = useStaffingContext();
+    const { clients, clientSectors, addClient, updateClient, deleteClient, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', sector: '' });
-    const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     
     // Stati per la gestione della modifica inline.
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
@@ -42,30 +35,7 @@ const ClientsPage: React.FC = () => {
             return nameMatch && sectorMatch;
         });
     }, [clients, filters]);
-
-    // Applica l'ordinamento ai dati filtrati
-    const sortedClients = useMemo(() => {
-        let sortableItems = [...filteredClients];
-        if (sortConfig !== null) {
-            sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-                if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
-                if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
-                return 0;
-            });
-        }
-        return sortableItems;
-    }, [filteredClients, sortConfig]);
-
-    const requestSort = (key: keyof Client) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
+    
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => setFilters({ name: '', sector: '' });
@@ -74,12 +44,16 @@ const ClientsPage: React.FC = () => {
     const openModalForEdit = (client: Client) => { setEditingClient(client); setIsModalOpen(true); handleCancelInlineEdit(); };
     const handleCloseModal = () => { setIsModalOpen(false); setEditingClient(null); };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingClient) {
-            if ('id' in editingClient) updateClient(editingClient);
-            else addClient(editingClient);
-            handleCloseModal();
+            try {
+                if ('id' in editingClient) await updateClient(editingClient);
+                else await addClient(editingClient);
+                handleCloseModal();
+            } catch (error) {
+                // L'errore è già gestito nel contesto, non serve fare altro qui
+            }
         }
     };
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,133 +78,142 @@ const ClientsPage: React.FC = () => {
         }
     };
 
-    const handleSaveInlineEdit = () => { if (inlineEditingData) { updateClient(inlineEditingData); handleCancelInlineEdit(); } };
-
-    const getSortableHeader = (label: string, key: keyof Client) => (
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-            </button>
-        </th>
-    );
-
+    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateClient(inlineEditingData); handleCancelInlineEdit(); } };
+    
     const sectorOptions = useMemo(() => clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [clientSectors]);
 
+    const columns: ColumnDef<Client>[] = [
+        { header: 'Nome Cliente', sortKey: 'name', cell: (client) => <span className="font-medium text-gray-900 dark:text-white">{client.name}</span> },
+        { header: 'Settore', sortKey: 'sector', cell: (client) => <span className="text-sm text-gray-600 dark:text-gray-300">{client.sector}</span> },
+        { header: 'Email Contatto', sortKey: 'contactEmail', cell: (client) => <span className="text-sm text-gray-600 dark:text-gray-300">{client.contactEmail}</span> },
+    ];
+    
+    const renderRow = (client: Client) => {
+        const isEditing = inlineEditingId === client.id;
+        if (isEditing) {
+            const isSaving = isActionLoading(`updateClient-${client.id}`);
+            return (
+                <tr key={client.id}>
+                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4"><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></td>
+                    <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                            </button>
+                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                        </div>
+                    </td>
+                </tr>
+            );
+        }
+        return (
+             <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(client)}</td>)}
+                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex items-center justify-end space-x-3">
+                        <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteClient(client.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        );
+    };
+
+    const renderMobileCard = (client: Client) => {
+        const isEditing = inlineEditingId === client.id;
+        const isSaving = isActionLoading(`updateClient-${client.id}`);
+        if (isEditing) {
+            return (
+                <div key={client.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                    <div className="space-y-3">
+                        <div><label className="text-xs font-medium text-gray-500">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-gray-500">Settore</label><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></div>
+                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div className="flex justify-end space-x-2 pt-2">
+                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                            </button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <div key={client.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">{client.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{client.contactEmail}</p>
+                    </div>
+                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteClient(client.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
+                    <div><p className="text-gray-500 dark:text-gray-400">Settore</p><p className="font-medium text-gray-900 dark:text-white">{client.sector}</p></div>
+                </div>
+            </div>
+        );
+    };
+
+    const filtersNode = (
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
+            <SearchableSelect name="sector" value={filters.sector} onChange={handleFilterSelectChange} options={sectorOptions} placeholder="Tutti i settori" />
+            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+        </div>
+    );
+    
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Clienti</h1>
-                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Cliente</button>
-            </div>
+            <DataTable
+                title="Gestione Clienti"
+                addNewButtonLabel="Aggiungi Cliente"
+                data={filteredClients}
+                columns={columns}
+                filtersNode={filtersNode}
+                onAddNew={openModalForNew}
+                renderRow={renderRow}
+                renderMobileCard={renderMobileCard}
+                initialSortKey="name"
+            />
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-                    <SearchableSelect name="sector" value={filters.sector} onChange={handleFilterSelectChange} options={sectorOptions} placeholder="Tutti i settori" />
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
-                            <tr>
-                                {getSortableHeader('Nome Cliente', 'name')}
-                                {getSortableHeader('Settore', 'sector')}
-                                {getSortableHeader('Email Contatto', 'contactEmail')}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedClients.map(client => {
-                                const isEditing = inlineEditingId === client.id;
-                                if (isEditing) {
-                                    return (
-                                    <tr key={client.id}>
-                                        <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                        <td className="px-6 py-4"><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></td>
-                                        <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                                        <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={handleSaveInlineEdit} className="p-1 text-green-600 hover:text-green-500"><CheckIcon className="w-5 h-5"/></button><button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button></div></td>
-                                    </tr>
-                                    )
-                                }
-                                return (
-                                <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">{client.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client.sector}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client.contactEmail}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => deleteClient(client.id!)} className="text-gray-500 hover:text-red-600" title="Elimina"><TrashIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )})}
-                        </tbody>
-                    </table>
-                </div>
-
-                 {/* Mobile Cards */}
-                 <div className="md:hidden p-4 space-y-4">
-                     {sortedClients.map(client => {
-                        const isEditing = inlineEditingId === client.id;
-                         if (isEditing) {
-                            return (
-                                <div key={client.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
-                                    <div className="space-y-3">
-                                        <div><label className="text-xs font-medium text-gray-500">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Settore</label><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></div>
-                                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                                        <div className="flex justify-end space-x-2 pt-2">
-                                            <button onClick={handleSaveInlineEdit} className="p-2 bg-green-100 text-green-700 rounded-full"><CheckIcon className="w-5 h-5"/></button>
-                                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        }
-                        return(
-                            <div key={client.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-bold text-lg text-gray-900 dark:text-white">{client.name}</p>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">{client.contactEmail}</p>
-                                    </div>
-                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => deleteClient(client.id!)} className="p-1 text-gray-500 hover:text-red-600"><TrashIcon className="w-5 h-5"/></button>
-                                    </div>
-                                </div>
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
-                                    <div><p className="text-gray-500 dark:text-gray-400">Settore</p><p className="font-medium text-gray-900 dark:text-white">{client.sector}</p></div>
-                                </div>
-                            </div>
-                        )
-                     })}
-                 </div>
-            </div>
-
             {editingClient && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input" placeholder="Nome Cliente *"/>
-                        <SearchableSelect
-                            name="sector"
-                            value={editingClient.sector}
-                            onChange={handleSelectChange}
-                            options={sectorOptions}
-                            placeholder="Seleziona un settore"
-                        />
-                        <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input" placeholder="Email Contatto *"/>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Cliente *</label>
+                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Settore</label>
+                             <SearchableSelect
+                                name="sector"
+                                value={editingClient.sector}
+                                onChange={handleSelectChange}
+                                options={sectorOptions}
+                                placeholder="Seleziona un settore"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Contatto *</label>
+                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input"/>
+                        </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Salva</button>
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                                {(isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>
