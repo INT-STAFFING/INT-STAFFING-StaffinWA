@@ -44,9 +44,9 @@ const ExportPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Esporta Dati</h1>
+            <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light mb-6">Esporta Dati</h1>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-2xl mx-auto text-center">
+            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-8 max-w-2xl mx-auto text-center">
                 <h2 className="text-xl font-semibold mb-2">Esporta in Formato Excel</h2>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                     Scarica tutti i dati dell'applicazione in un singolo file Excel. Il file conterrà fogli separati per Clienti, Ruoli, Risorse, Progetti, Assegnazioni e Allocazioni giornaliere.
@@ -55,11 +55,11 @@ const ExportPage: React.FC = () => {
                 <button
                     onClick={handleExport}
                     disabled={isExporting}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors duration-200"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
                     {isExporting ? (
                         <>
-                           <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                           <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -74,10 +74,10 @@ const ExportPage: React.FC = () => {
                 </button>
 
                 {exportSuccess === true && (
-                    <p className="mt-4 text-green-600 dark:text-green-400">Esportazione completata con successo!</p>
+                    <p className="mt-4 text-accent-teal">Esportazione completata con successo!</p>
                 )}
                 {exportSuccess === false && (
-                    <p className="mt-4 text-red-600 dark:text-red-400">Errore durante l'esportazione. Controlla la console per i dettagli.</p>
+                    <p className="mt-4 text-accent-red">Errore durante l'esportazione. Controlla la console per i dettagli.</p>
                 )}
             </div>
         </div>

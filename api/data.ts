@@ -3,8 +3,8 @@
  * @description Endpoint API per recuperare tutti i dati iniziali necessari all'applicazione con una singola richiesta.
  */
 
-import { db } from './db.js';
-import { ensureDbTablesExist } from './schema.js';
+import { db } from './db';
+import { ensureDbTablesExist } from './schema';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Fix: Import WbsTask type
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';

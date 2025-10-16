@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Staffing Allocation Planner</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'primary-dark': '#011627',
+              'primary-light': '#FDFFFC',
+              'accent-teal': '#2EC4B6',
+              'accent-red': '#E71D36',
+              'accent-orange': '#FF9F1C',
+            }
+          }
+        }
+      }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="importmap">
 {
@@ -50,7 +65,7 @@
 }
 </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+<body class="bg-primary-light dark:bg-primary-dark text-primary-dark dark:text-primary-light">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

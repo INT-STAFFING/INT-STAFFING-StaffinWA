@@ -97,9 +97,9 @@ const ProjectsPage: React.FC = () => {
 
     const getStatusBadgeClass = (status: string | null): string => {
         switch (status) {
-            case 'Completato': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-            case 'In pausa': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-            case 'In corso': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+            case 'Completato': return 'bg-accent-teal/20 text-accent-teal';
+            case 'In pausa': return 'bg-accent-orange/20 text-accent-orange';
+            case 'In corso': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'; // Kept blue for variety
             default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
         }
     };
@@ -109,7 +109,7 @@ const ProjectsPage: React.FC = () => {
     const projectManagerOptions = useMemo(() => resources.map(r => ({ value: r.name, label: r.name })).sort((a,b) => a.label.localeCompare(b.label)), [resources]);
 
     const columns: ColumnDef<EnrichedProject>[] = [
-        { header: 'Nome Progetto', sortKey: 'name', cell: p => <span className="font-medium text-gray-900 dark:text-white">{p.name}</span> },
+        { header: 'Nome Progetto', sortKey: 'name', cell: p => <span className="font-medium text-primary-dark dark:text-primary-light">{p.name}</span> },
         { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.clientName}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
         { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.startDate)}</span> },
@@ -130,7 +130,7 @@ const ProjectsPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-accent-teal hover:opacity-80 disabled:opacity-50">
                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
                         </button>
                         <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
@@ -139,13 +139,13 @@ const ProjectsPage: React.FC = () => {
             );
         }
         return (
-            <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+            <tr key={project.id} className="hover:bg-accent-teal/5 dark:hover:bg-accent-teal/10">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(project)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-accent-teal" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-accent-teal" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-accent-red" title="Elimina">
                              {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
                         </button>
                     </div>
@@ -159,7 +159,7 @@ const ProjectsPage: React.FC = () => {
         const isSaving = isActionLoading(`updateProject-${project.id}`);
         if (isEditing) {
             return (
-               <div key={project.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+               <div key={project.id} className="p-4 rounded-lg shadow-md bg-primary-light dark:bg-primary-dark border border-accent-teal">
                    <div className="space-y-3">
                        <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
@@ -168,7 +168,7 @@ const ProjectsPage: React.FC = () => {
                        <div><label className="text-xs font-medium text-gray-500">Data Fine</label><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div className="flex justify-end space-x-2 pt-2">
-                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
+                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-accent-teal/20 text-accent-teal rounded-full disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
                            </button>
                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
@@ -178,25 +178,25 @@ const ProjectsPage: React.FC = () => {
            );
         }
         return (
-            <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+            <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-white/5">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
+                        <p className="font-bold text-lg text-primary-dark dark:text-primary-light">{project.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{project.clientName}</p>
                     </div>
                      <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-accent-teal"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-accent-teal"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-accent-red">
                              {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
                         </button>
                     </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/20 grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.startDate)}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Data Fine</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.endDate)}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-primary-dark dark:text-primary-light">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-primary-dark dark:text-primary-light">{formatDateForDisplay(project.startDate)}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Data Fine</p><p className="font-medium text-primary-dark dark:text-primary-light">{formatDateForDisplay(project.endDate)}</p></div>
                 </div>
             </div>
         );
@@ -207,7 +207,7 @@ const ProjectsPage: React.FC = () => {
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati"/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full md:w-auto">Reset</button>
         </div>
     );
     
@@ -270,15 +270,29 @@ const ProjectsPage: React.FC = () => {
                             <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea"></textarea>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md hover:opacity-90 disabled:opacity-50">
                                {(isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`
+                .form-input, .form-select, .form-textarea {
+                    border-color: #D1D5DB; 
+                    background-color: #FDFFFC;
+                }
+                .dark .form-input, .dark .form-select, .dark .form-textarea {
+                    border-color: #4B5563;
+                    background-color: #011627;
+                    color: #FDFFFC;
+                }
+                .form-input:focus, .form-select:focus, .form-textarea:focus {
+                    --tw-ring-color: #2EC4B6;
+                    border-color: #2EC4B6;
+                }
+            `}</style>
         </div>
     );
 };

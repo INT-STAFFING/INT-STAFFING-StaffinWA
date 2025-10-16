@@ -110,7 +110,7 @@ export function DataTable<T extends { id?: string }>({
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
             {key ? (
                 <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                    <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
+                    <span className={sortConfig?.key === key ? 'font-bold text-primary-dark dark:text-primary-light' : ''}>{label}</span>
                     <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
                 </button>
             ) : (
@@ -122,25 +122,25 @@ export function DataTable<T extends { id?: string }>({
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">{title}</h1>
-                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">{addNewButtonLabel}</button>
+                <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light self-start">{title}</h1>
+                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90">{addNewButtonLabel}</button>
             </div>
 
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="mb-6 p-4 bg-primary-light dark:bg-primary-dark rounded-lg shadow">
                 {filtersNode}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-gray-700">
+                        <thead className="border-b border-gray-200 dark:border-white/20">
                             <tr>
                                 {columns.map(col => getSortableHeader(col.header, col.sortKey))}
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        <tbody className="divide-y divide-gray-200 dark:divide-white/20">
                             {sortedData.map(item => renderRow(item))}
                         </tbody>
                     </table>

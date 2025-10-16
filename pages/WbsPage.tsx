@@ -101,7 +101,7 @@ const WbsPage: React.FC = () => {
     const getSortableHeader = (label: string, key: SortConfig['key']) => (
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
             <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === key ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
+                <span className={sortConfig?.key === key ? 'font-bold text-primary-dark dark:text-primary-light' : ''}>{label}</span>
                 <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
             </button>
         </th>
@@ -128,22 +128,22 @@ const WbsPage: React.FC = () => {
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white self-start">Gestione Incarichi WBS</h1>
-                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">Aggiungi Incarico</button>
+                <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light self-start">Gestione Incarichi WBS</h1>
+                <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90">Aggiungi Incarico</button>
             </div>
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="mb-6 p-4 bg-primary-light dark:bg-primary-dark rounded-lg shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <input type="text" name="elementoWbs" value={filters.elementoWbs} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per WBS..." />
                     <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti" />
                     <SearchableSelect name="responsabileId" value={filters.responsabileId} onChange={handleFilterSelectChange} options={resourceOptions} placeholder="Tutti i responsabili" />
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+                    <button onClick={resetFilters} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full md:w-auto">Reset</button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow overflow-x-auto">
                 <table className="min-w-full">
-                    <thead className="border-b border-gray-200 dark:border-gray-700">
+                    <thead className="border-b border-gray-200 dark:border-white/20">
                         <tr>
                             {getSortableHeader('Elemento WBS', 'elementoWbs')}
                             {getSortableHeader('Descrizione', 'descrizioneWbe')}
@@ -152,21 +152,21 @@ const WbsPage: React.FC = () => {
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Azioni</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-gray-200 dark:divide-white/20">
                         {sortedTasks.map(task => {
                             const client = clients.find(c => c.id === task.clientId);
                             const totaleProduzioneLorda = task.produzioneLorda + task.produzioneLordaNetworkItalia;
                             const produzioneNetta = (totaleProduzioneLorda + task.perdite) * (task.realisation / 100);
                             return (
-                                <tr key={task.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-gray-900 dark:text-white">{task.elementoWbs}</div></td>
+                                <tr key={task.id} className="hover:bg-accent-teal/5 dark:hover:bg-accent-teal/10">
+                                    <td className="px-4 py-3 whitespace-nowrap"><div className="font-medium text-primary-dark dark:text-primary-light">{task.elementoWbs}</div></td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 truncate max-w-xs">{task.descrizioneWbe}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{client?.name || 'N/A'}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatCurrency(produzioneNetta)}</td>
                                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
-                                            <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                            <button onClick={() => openModalForEdit(task)} className="text-gray-500 hover:text-accent-teal" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => deleteWbsTask(task.id!)} className="text-gray-500 hover:text-accent-red" title="Elimina">
                                                 {isActionLoading(`deleteWbsTask-${task.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <TrashIcon className="w-5 h-5" />}
                                             </button>
                                         </div>
@@ -240,15 +240,29 @@ const WbsPage: React.FC = () => {
                         </fieldset>
 
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addWbsTask') || isActionLoading(`updateWbsTask-${'id' in editingTask ? editingTask.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addWbsTask') || isActionLoading(`updateWbsTask-${'id' in editingTask ? editingTask.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md hover:opacity-90 disabled:opacity-50">
                                {(isActionLoading('addWbsTask') || isActionLoading(`updateWbsTask-${'id' in editingTask ? editingTask.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`
+                .form-input, .form-select, .form-textarea {
+                    border-color: #D1D5DB; 
+                    background-color: #FDFFFC;
+                }
+                .dark .form-input, .dark .form-select, .dark .form-textarea {
+                    border-color: #4B5563;
+                    background-color: #011627;
+                    color: #FDFFFC;
+                }
+                .form-input:focus, .form-select:focus, .form-textarea:focus {
+                    --tw-ring-color: #2EC4B6;
+                    border-color: #2EC4B6;
+                }
+            `}</style>
         </div>
     );
 };

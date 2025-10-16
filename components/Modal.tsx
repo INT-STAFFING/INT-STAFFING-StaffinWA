@@ -35,12 +35,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in" onClick={onClose}>
             <div 
                 // Contenitore della modale: impedisce la propagazione del click, gestisce il layout verticale e l'overflow.
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full animate-scale-in" 
+                className="bg-primary-light dark:bg-primary-dark rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full animate-scale-in" 
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header: non si restringe e rimane sempre visibile in alto. */}
-                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b dark:border-gray-700">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h3>
+                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-200 dark:border-white/20">
+                    <h3 className="text-xl font-semibold text-primary-dark dark:text-primary-light">{title}</h3>
                     <button 
                         onClick={onClose} 
                         className="text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-gray-900 dark:hover:text-white rounded-lg text-sm p-1.5"

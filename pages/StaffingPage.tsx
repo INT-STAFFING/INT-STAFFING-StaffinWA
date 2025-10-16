@@ -45,7 +45,7 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
     // Se è un giorno non lavorativo, mostra una cella disabilitata con sfondo grigio.
     if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
+            <td className="border-t border-gray-200 dark:border-white/20 p-0 text-center bg-gray-50 dark:bg-white/5">
                 <span className="text-sm text-gray-400">-</span>
             </td>
         );
@@ -61,7 +61,7 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
     const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
 
     return (
-        <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
+        <td className="border-t border-gray-200 dark:border-white/20 p-0 text-center">
             <select
                 value={percentage}
                 onChange={handleChange}
@@ -117,14 +117,14 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
 
     // Determina il colore della cella in base al carico medio.
     const cellColor = useMemo(() => {
-        if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (averageAllocation > 100) return 'bg-accent-red/20 text-accent-red';
+        if (averageAllocation >= 95) return 'bg-accent-orange/20 text-accent-orange';
+        if (averageAllocation > 0) return 'bg-accent-teal/20 text-accent-teal';
         return 'bg-transparent';
     }, [averageAllocation]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-gray-200 dark:border-white/20 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -157,7 +157,7 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
      if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+            <td className="border-t border-gray-200 dark:border-white/20 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-white/10 text-gray-400">
                 -
             </td>
         );
@@ -174,14 +174,14 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     // Determina il colore di sfondo della cella in base al carico totale e al massimo della risorsa.
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
-        if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (total > 0 && total < maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        return 'bg-gray-100 dark:bg-gray-800';
+        if (total > maxPercentage) return 'bg-accent-red/20 text-accent-red';
+        if (total === maxPercentage) return 'bg-accent-orange/20 text-accent-orange';
+        if (total > 0 && total < maxPercentage) return 'bg-accent-teal/20 text-accent-teal';
+        return 'bg-gray-100 dark:bg-white/10';
     }, [total, resource.maxStaffingPercentage]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-gray-200 dark:border-white/20 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {total > 0 ? `${total}%` : '-'}
         </td>
     );
@@ -233,14 +233,14 @@ const ReadonlyAggregatedTotalCell: React.FC<{
 
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
-        if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        return 'bg-gray-100 dark:bg-gray-800';
+        if (averageAllocation > maxPercentage) return 'bg-accent-red/20 text-accent-red';
+        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-accent-orange/20 text-accent-orange';
+        if (averageAllocation > 0) return 'bg-accent-teal/20 text-accent-teal';
+        return 'bg-gray-100 dark:bg-white/10';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-gray-200 dark:border-white/20 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -490,60 +490,60 @@ const StaffingPage: React.FC = () => {
                 {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
                     <div className="flex items-center justify-center space-x-2">
-                        <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
-                        <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                        <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
+                        <button onClick={handlePrev} className="px-3 py-2 bg-primary-light dark:bg-white/10 border dark:border-white/20 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-white/20 text-sm">← Prec.</button>
+                        <button onClick={handleToday} className="px-4 py-2 bg-primary-light dark:bg-white/10 border dark:border-white/20 rounded-md shadow-sm font-semibold text-accent-teal dark:text-accent-teal hover:bg-gray-50 dark:hover:bg-white/20">Oggi</button>
+                        <button onClick={handleNext} className="px-3 py-2 bg-primary-light dark:bg-white/10 border dark:border-white/20 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-white/20 text-sm">Succ. →</button>
                     </div>
                     {/* Selettore della vista temporale (giorno, settimana, mese). */}
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-white/5 p-1 rounded-md">
                         {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button key={level} onClick={() => setViewMode(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-primary-light dark:bg-primary-dark text-accent-teal shadow' : 'text-gray-600 dark:text-gray-300'}`}>
                                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
                             </button>
                         ))}
                     </div>
-                    <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700">
+                    <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90">
                         <PlusCircleIcon className="w-5 h-5 mr-2"/>
                         Assegna Risorsa
                     </button>
                 </div>
 
                 {/* Sezione Filtri con l'aggiunta del filtro per Project Manager. */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
+                <div className="mb-4 p-4 bg-primary-light dark:bg-primary-dark rounded-lg shadow relative z-20">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Project Manager</label><SearchableSelect name="projectManager" value={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                        <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                        <button onClick={clearFilters} className="px-4 py-2 border border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 w-full md:w-auto">Reset Filtri</button>
                     </div>
                 </div>
             </div>
 
             {/* Griglia di Staffing */}
-            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+            <div className="flex-grow overflow-auto bg-primary-light dark:bg-primary-dark rounded-lg shadow">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
+                    <thead className="bg-gray-50 dark:bg-white/5 sticky top-0 z-10">
                         <tr>
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Risorsa</th>
-                            <th className="sticky left-[150px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Ruolo</th>
-                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Cliente</th>
+                            <th className="sticky left-0 bg-gray-50 dark:bg-white/5 px-3 py-3.5 text-left text-sm font-semibold text-primary-dark dark:text-primary-light" style={{ minWidth: '150px' }}>Risorsa</th>
+                            <th className="sticky left-[150px] bg-gray-50 dark:bg-white/5 px-3 py-3.5 text-left text-sm font-semibold text-primary-dark dark:text-primary-light" style={{ minWidth: '150px' }}>Ruolo</th>
+                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-white/5 px-3 py-3.5 text-left text-sm font-semibold text-primary-dark dark:text-primary-light" style={{ minWidth: '150px' }}>Cliente</th>
                             {/* Nuova colonna per il Project Manager, visibile su schermi medi e grandi. */}
-                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Project Manager</th>
-                            <th className="sticky left-[300px] md:left-[600px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>Progetto</th>
-                            <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Azioni</th>
+                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-white/5 px-3 py-3.5 text-left text-sm font-semibold text-primary-dark dark:text-primary-light" style={{ minWidth: '150px' }}>Project Manager</th>
+                            <th className="sticky left-[300px] md:left-[600px] bg-gray-50 dark:bg-white/5 px-3 py-3.5 text-left text-sm font-semibold text-primary-dark dark:text-primary-light" style={{ minWidth: '200px' }}>Progetto</th>
+                            <th className="sticky left-[500px] md:left-[800px] bg-gray-50 dark:bg-white/5 px-2 py-3.5 text-center text-sm font-semibold text-primary-dark dark:text-primary-light" style={{ minWidth: '100px' }}>Azioni</th>
                             {timeColumns.map((col, index) => (
-                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-white/5' : ''}`}>
                                     <div className="flex flex-col items-center">
-                                        <span className={col.isNonWorkingDay ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{col.label}</span>
+                                        <span className={col.isNonWorkingDay ? 'text-gray-500' : 'text-primary-dark dark:text-primary-light'}>{col.label}</span>
                                         {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-gray-200 dark:divide-white/20">
                          {displayData.map(({ resource, assignments: resourceAssignments }) => (
                              <React.Fragment key={resource.id}>
                                 {resourceAssignments.map((assignment, assignIndex) => {
@@ -555,19 +555,19 @@ const StaffingPage: React.FC = () => {
                                     const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
 
                                     return (
-                                        <tr key={assignment.id} className={`transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-                                            {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{resource.name}</td>) : null}
-                                            {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-[150px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>) : null}
-                                            <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
-                                            <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
-                                            <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
-                                            <td className="px-2 py-3 text-center">
+                                        <tr key={assignment.id} className={`group transition-opacity duration-300 hover:bg-accent-teal/5 dark:hover:bg-accent-teal/10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-0 bg-primary-light dark:bg-primary-dark group-hover:bg-accent-teal/5 dark:group-hover:bg-accent-teal/10 px-3 py-4 text-sm font-medium text-primary-dark dark:text-primary-light border-t border-gray-200 dark:border-white/20 align-top" style={{ minWidth: '150px' }}>{resource.name}</td>) : null}
+                                            {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-[150px] bg-primary-light dark:bg-primary-dark group-hover:bg-accent-teal/5 dark:group-hover:bg-accent-teal/10 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-white/20 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>) : null}
+                                            <td className="hidden md:table-cell sticky left-[300px] bg-primary-light dark:bg-primary-dark group-hover:bg-accent-teal/5 dark:group-hover:bg-accent-teal/10 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
+                                            <td className="hidden md:table-cell sticky left-[450px] bg-primary-light dark:bg-primary-dark group-hover:bg-accent-teal/5 dark:group-hover:bg-accent-teal/10 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
+                                            <td className="sticky left-[300px] md:left-[600px] bg-primary-light dark:bg-primary-dark group-hover:bg-accent-teal/5 dark:group-hover:bg-accent-teal/10 px-3 py-4 text-sm font-medium text-primary-dark dark:text-primary-light" style={{ minWidth: '200px' }}>{project.name}</td>
+                                            <td className="sticky left-[500px] md:left-[800px] bg-primary-light dark:bg-primary-dark px-2 py-3 text-center group-hover:bg-accent-teal/5 dark:group-hover:bg-accent-teal/10" style={{ minWidth: '100px' }}>
                                                 <div className="flex items-center justify-center space-x-2">
                                                     {/* L'assegnazione massiva è disabilitata nelle viste aggregate. */}
-                                                     <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
+                                                     <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-accent-teal hover:opacity-80" disabled={viewMode !== 'day'}>
                                                         <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50 cursor-not-allowed' : ''}`}/>
                                                     </button>
-                                                     <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                                     <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-accent-red hover:opacity-80">
                                                         <XCircleIcon className="w-5 h-5"/>
                                                     </button>
                                                 </div>
@@ -587,12 +587,12 @@ const StaffingPage: React.FC = () => {
                                     );
                                 })}
                                 {/* Riga del Totale */}
-                                <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
-                                    <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
+                                <tr className="bg-gray-100 dark:bg-white/10 font-bold">
+                                    <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-white/10 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
                                         Carico Totale {resource.name} (Max: {resource.maxStaffingPercentage}%)
                                     </td>
-                                    <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
-                                        <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
+                                    <td className="sticky left-[500px] md:left-[800px] bg-gray-100 dark:bg-white/10 px-2 py-3 text-center" style={{ minWidth: '100px' }}>
+                                        <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-accent-teal hover:opacity-80">
                                             <PlusCircleIcon className="w-5 h-5"/>
                                         </button>
                                     </td>
@@ -643,11 +643,11 @@ const StaffingPage: React.FC = () => {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Inizio</label>
-                            <input type="date" required value={bulkFormData.startDate} onChange={e => setBulkFormData(f => ({...f, startDate: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"/>
+                            <input type="date" required value={bulkFormData.startDate} onChange={e => setBulkFormData(f => ({...f, startDate: e.target.value}))} className="mt-1 block w-full form-input"/>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Fine</label>
-                            <input type="date" required value={bulkFormData.endDate} onChange={e => setBulkFormData(f => ({...f, endDate: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"/>
+                            <input type="date" required value={bulkFormData.endDate} onChange={e => setBulkFormData(f => ({...f, endDate: e.target.value}))} className="mt-1 block w-full form-input"/>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Percentuale ({bulkFormData.percentage}%)</label>
@@ -655,8 +655,8 @@ const StaffingPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
-                        <button type="button" onClick={() => setBulkModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Salva</button>
+                        <button type="button" onClick={() => setBulkModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Annulla</button>
+                        <button type="submit" className="px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md hover:opacity-90">Salva</button>
                     </div>
                 </form>
             </Modal>
@@ -688,41 +688,24 @@ const StaffingPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
-                        <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Aggiungi Assegnazioni</button>
+                        <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">Annulla</button>
+                        <button type="submit" className="px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md hover:opacity-90">Aggiungi Assegnazioni</button>
                     </div>
                 </form>
             </Modal>
              <style>{`
-                .form-select {
-                    display: block;
-                    width: 100%;
-                    border-radius: 0.375rem;
-                    border: 1px solid #D1D5DB;
-                    background-color: #FFFFFF;
-                    padding: 0.5rem 0.75rem;
-                    font-size: 0.875rem;
-                    line-height: 1.25rem;
+                .form-select, .form-input, .form-textarea {
+                    border-color: #D1D5DB; 
+                    background-color: #FDFFFC;
                 }
-                .dark .form-select {
+                .dark .form-select, .dark .form-input, .dark .form-textarea {
                     border-color: #4B5563;
-                    background-color: #374151;
-                    color: #F9FAFB;
+                    background-color: #011627;
+                    color: #FDFFFC;
                 }
-                .form-input {
-                    display: block; 
-                    width: 100%; 
-                    border-radius: 0.375rem; 
-                    border: 1px solid #D1D5DB; 
-                    background-color: #FFFFFF; 
-                    padding: 0.5rem 0.75rem; 
-                    font-size: 0.875rem; 
-                    line-height: 1.25rem; 
-                } 
-                .dark .form-input { 
-                    border-color: #4B5563; 
-                    background-color: #374151; 
-                    color: #F9FAFB; 
+                .form-select:focus, .form-input:focus, .form-textarea:focus {
+                    --tw-ring-color: #2EC4B6;
+                    border-color: #2EC4B6;
                 }
             `}</style>
         </div>

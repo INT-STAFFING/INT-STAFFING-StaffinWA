@@ -3,7 +3,7 @@
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
  */
 
-import { db } from './db.js';
+import { db } from './db';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 

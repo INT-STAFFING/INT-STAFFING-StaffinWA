@@ -57,7 +57,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
-                <span className={selectedOption ? 'text-gray-900 dark:text-white' : 'text-gray-500'}>
+                <span className={selectedOption ? 'text-primary-dark dark:text-primary-light' : 'text-gray-500'}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
                 <svg className="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -68,7 +68,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             <input type="hidden" name={name} value={value} required={required} />
 
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md border border-gray-200 dark:border-gray-600">
+                <div className="absolute z-10 mt-1 w-full bg-primary-light dark:bg-primary-dark shadow-lg rounded-md border border-gray-200 dark:border-gray-600">
                     <div className="p-2">
                         <input
                             type="text"
@@ -82,7 +82,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                     <ul className="max-h-60 overflow-y-auto" role="listbox">
                          {/* Aggiunta dell'opzione placeholder per resettare il filtro */}
                         <li
-                            className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
+                            className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer"
                             onClick={() => handleSelect('')}
                         >
                             {placeholder}
@@ -91,7 +91,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                             filteredOptions.map(option => (
                                 <li
                                     key={option.value}
-                                    className={`px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer ${value === option.value ? 'bg-blue-50 dark:bg-blue-900/50' : ''}`}
+                                    className={`px-4 py-2 text-sm text-primary-dark dark:text-primary-light hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer ${value === option.value ? 'bg-accent-teal/20' : ''}`}
                                     onClick={() => handleSelect(option.value)}
                                     role="option"
                                     aria-selected={value === option.value}

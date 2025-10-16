@@ -33,7 +33,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     type="button"
                     onClick={onClose}
                     disabled={isConfirming}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50"
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
                 >
                     {cancelButtonText}
                 </button>
@@ -41,7 +41,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     type="button"
                     onClick={onConfirm}
                     disabled={isConfirming}
-                    className="flex justify-center items-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-400"
+                    className="flex justify-center items-center px-4 py-2 bg-accent-red text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 >
                     {isConfirming ? (
                        <SpinnerIcon className="w-5 h-5"/>

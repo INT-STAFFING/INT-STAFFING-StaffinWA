@@ -12,12 +12,12 @@ interface ToastProps {
 
 const icons = {
   success: (
-    <svg className="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-6 h-6 text-accent-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
   error: (
-    <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-6 h-6 text-accent-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
@@ -34,8 +34,8 @@ const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
     };
   }, [onDismiss]);
 
-  const bgColor = type === 'success' ? 'bg-green-50 dark:bg-green-900/50' : 'bg-red-50 dark:bg-red-900/50';
-  const borderColor = type === 'success' ? 'border-green-300 dark:border-green-700' : 'border-red-300 dark:border-red-700';
+  const bgColor = type === 'success' ? 'bg-accent-teal/10 dark:bg-accent-teal/20' : 'bg-accent-red/10 dark:bg-accent-red/20';
+  const borderColor = type === 'success' ? 'border-accent-teal/30 dark:border-accent-teal/40' : 'border-accent-red/30 dark:border-accent-red/40';
 
   return (
     <div className={`w-full max-w-sm p-4 rounded-lg shadow-lg border ${bgColor} ${borderColor} flex items-start space-x-4 animate-fade-in-right`}>
@@ -43,7 +43,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
         {icons[type]}
       </div>
       <div className="flex-1">
-        <p className="text-sm font-medium text-gray-900 dark:text-white">{message}</p>
+        <p className="text-sm font-medium text-primary-dark dark:text-primary-light">{message}</p>
       </div>
       <div className="flex-shrink-0">
         <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
