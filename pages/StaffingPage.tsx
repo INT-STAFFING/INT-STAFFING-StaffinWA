@@ -38,7 +38,7 @@ interface AllocationCellProps {
  * @param {AllocationCellProps} props - Le prop del componente.
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isNonWorkingDay }) => {
+const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, date, isNonWorkingDay }) => {
     const { allocations, updateAllocation } = useAllocationsContext();
     const percentage = allocations[assignment.id]?.[date] || 0;
 
@@ -71,7 +71,7 @@ const AllocationCell: React.FC<AllocationCellProps> = ({ assignment, date, isNon
             </select>
         </td>
     );
-};
+});
 
 /**
  * Componente per la cella di carico aggregato di una singola assegnazione (settimana/mese).
@@ -87,7 +87,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     assignment: Assignment;
     startDate: Date;
     endDate: Date;
-}> = ({ assignment, startDate, endDate }) => {
+}> = React.memo(({ assignment, startDate, endDate }) => {
     const { companyCalendar, resources } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const resource = resources.find(r => r.id === assignment.resourceId);
@@ -128,7 +128,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
-};
+});
 
 
 /**
@@ -150,7 +150,7 @@ interface DailyTotalCellProps {
  * @param {DailyTotalCellProps} props - Le prop del componente.
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
+const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, date, isNonWorkingDay }) => {
     const { assignments } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
 
@@ -185,7 +185,7 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWo
             {total > 0 ? `${total}%` : '-'}
         </td>
     );
-};
+});
 
 /**
  * Componente per la cella di carico totale aggregato di una risorsa (settimana/mese).
@@ -201,7 +201,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     resource: Resource;
     startDate: Date;
     endDate: Date;
-}> = ({ resource, startDate, endDate }) => {
+}> = React.memo(({ resource, startDate, endDate }) => {
     const { assignments, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
 
@@ -244,7 +244,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
-};
+});
 
 
 /**

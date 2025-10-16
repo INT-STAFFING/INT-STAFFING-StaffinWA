@@ -20,6 +20,7 @@ interface MultiSelectDropdownProps {
 
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, selectedValues, onChange, name, placeholder = 'Seleziona...' }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
     const wrapperRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -34,12 +35,22 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
         };
     }, []);
 
+    useEffect(() => {
+        if (isOpen) {
+            setSearchTerm('');
+        }
+    }, [isOpen]);
+
     const handleSelect = (value: string) => {
         const newSelectedValues = selectedValues.includes(value)
             ? selectedValues.filter(v => v !== value)
             : [...selectedValues, value];
         onChange(name, newSelectedValues);
     };
+
+    const filteredOptions = options.filter(option =>
+        option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const getButtonLabel = () => {
         if (selectedValues.length === 0) {
@@ -48,7 +59,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
         if (selectedValues.length === 1) {
             return options.find(o => o.value === selectedValues[0])?.label || placeholder;
         }
-        return `${selectedValues.length} ruoli selezionati`;
+        return `${selectedValues.length} elementi selezionati`;
     };
 
     return (
@@ -70,24 +81,38 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
 
             {isOpen && (
                 <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md border border-gray-200 dark:border-gray-600">
+                    <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+                        <input
+                            type="text"
+                            placeholder="Cerca..."
+                            className="w-full form-input"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
                     <ul className="max-h-60 overflow-y-auto" role="listbox">
-                        {options.map(option => (
-                            <li
-                                key={option.value}
-                                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center"
-                                onClick={() => handleSelect(option.value)}
-                                role="option"
-                                aria-selected={selectedValues.includes(option.value)}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectedValues.includes(option.value)}
-                                    readOnly
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
-                                />
-                                {option.label}
-                            </li>
-                        ))}
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map(option => (
+                                <li
+                                    key={option.value}
+                                    className="px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center"
+                                    onClick={() => handleSelect(option.value)}
+                                    role="option"
+                                    aria-selected={selectedValues.includes(option.value)}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedValues.includes(option.value)}
+                                        readOnly
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3 pointer-events-none"
+                                    />
+                                    {option.label}
+                                </li>
+                            ))
+                        ) : (
+                            <li className="px-4 py-2 text-sm text-gray-500">Nessun risultato</li>
+                        )}
                     </ul>
                 </div>
             )}
