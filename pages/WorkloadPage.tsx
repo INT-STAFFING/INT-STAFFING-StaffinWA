@@ -50,11 +50,12 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     }, [assignments, allocations, resource.id, date]);
 
     const cellColor = useMemo(() => {
-        if (total > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === 100) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (total > 0 && total < 100) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        const maxPercentage = resource.maxStaffingPercentage ?? 100;
+        if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (total === maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (total > 0 && total < maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
         return 'bg-transparent';
-    }, [total]);
+    }, [total, resource.maxStaffingPercentage]);
 
     return (
         <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
@@ -107,11 +108,12 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
     const cellColor = useMemo(() => {
-        if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        const maxPercentage = resource.maxStaffingPercentage ?? 100;
+        if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
         return 'bg-transparent';
-    }, [averageAllocation]);
+    }, [averageAllocation, resource.maxStaffingPercentage]);
 
     return (
         <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
@@ -247,39 +249,41 @@ const WorkloadPage: React.FC = () => {
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
 
     return (
-        <div>
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-                <div className="flex items-center justify-start space-x-2">
-                    <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
-                    <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                    <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
+        <div className="flex flex-col" style={{ height: 'calc(100vh - 8.5rem)' }}>
+            <div className="flex-shrink-0">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+                    <div className="flex items-center justify-start space-x-2">
+                        <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
+                        <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
+                        <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
+                    </div>
+                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        {(['day', 'week', 'month'] as ViewMode[]).map(level => (
+                            <button key={level} onClick={() => setViewMode(level)}
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
+                        Vista di sola lettura. <a href="/staffing" className="text-blue-500 hover:underline">Vai a Staffing per modifiche</a>.
+                    </div>
                 </div>
-                 <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                    {(['day', 'week', 'month'] as ViewMode[]).map(level => (
-                        <button key={level} onClick={() => setViewMode(level)}
-                            className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
-                            {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
-                        </button>
-                    ))}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
-                    Vista di sola lettura. <a href="/staffing" className="text-blue-500 hover:underline">Vai a Staffing per modifiche</a>.
-                </div>
-            </div>
 
-            {/* Sezione Filtri */}
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
-                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
-                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                    <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                    <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
-                 </div>
+                {/* Sezione Filtri */}
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                        <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                    </div>
+                </div>
             </div>
 
             {/* Griglia Carico */}
-            <div className="overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                         <tr>
@@ -297,7 +301,7 @@ const WorkloadPage: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {displayResources.map((resource) => (
                             <tr key={resource.id} className="bg-gray-100/50 dark:bg-gray-900/50 font-bold">
-                                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300">{resource.name}</td>
+                                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300">{resource.name} (Max: {resource.maxStaffingPercentage}%)</td>
                                 {timeColumns.map((col, index) => {
                                     if (viewMode === 'day') {
                                         const day = col.startDate;
