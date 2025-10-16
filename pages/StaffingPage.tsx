@@ -11,6 +11,7 @@ import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/ico
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 /**
  * @type ViewMode
@@ -258,13 +259,14 @@ const StaffingPage: React.FC = () => {
      * @state {ViewMode} viewMode - Controlla la vista corrente della griglia (giornaliera, settimanale, mensile).
      */
     const [viewMode, setViewMode] = useState<ViewMode>('day');
-    const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, companyCalendar } = useEntitiesContext();
+    const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, companyCalendar, isActionLoading } = useEntitiesContext();
     const { bulkUpdateAllocations } = useAllocationsContext();
     
     // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);
     const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
     const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+    const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
     const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
     const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string, projectIds: string[] }>({ resourceId: '', projectIds: [] });
     
@@ -550,9 +552,10 @@ const StaffingPage: React.FC = () => {
                                     const client = getClientById(project.clientId);
                                     const role = getRoleById(resource.roleId);
                                     const isFirstAssignmentOfResource = assignIndex === 0;
+                                    const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
 
                                     return (
-                                        <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <tr key={assignment.id} className={`transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                             {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{resource.name}</td>) : null}
                                             {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-[150px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>) : null}
                                             <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
@@ -564,7 +567,7 @@ const StaffingPage: React.FC = () => {
                                                      <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
                                                         <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50 cursor-not-allowed' : ''}`}/>
                                                     </button>
-                                                     <button onClick={() => deleteAssignment(assignment.id)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                                     <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
                                                         <XCircleIcon className="w-5 h-5"/>
                                                     </button>
                                                 </div>
@@ -610,6 +613,29 @@ const StaffingPage: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+            
+            {/* Modale di Conferma Eliminazione */}
+            {assignmentToDelete && (
+                <ConfirmationModal
+                    isOpen={!!assignmentToDelete}
+                    onClose={() => setAssignmentToDelete(null)}
+                    onConfirm={() => {
+                        if (assignmentToDelete) {
+                            deleteAssignment(assignmentToDelete.id!);
+                            setAssignmentToDelete(null);
+                        }
+                    }}
+                    title="Conferma Rimozione Assegnazione"
+                    message={
+                        <>
+                            Sei sicuro di voler rimuovere l'assegnazione di <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong> dal progetto <strong>{getProjectById(assignmentToDelete.projectId)?.name}</strong>?
+                            <br />
+                            Tutte le allocazioni associate verranno eliminate.
+                        </>
+                    }
+                    isConfirming={isActionLoading(`deleteAssignment-${assignmentToDelete.id}`)}
+                />
+            )}
 
             {/* Modale per Assegnazione Massiva */}
             <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva">

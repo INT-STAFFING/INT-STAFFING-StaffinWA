@@ -32,10 +32,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
 
     return (
         // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in" onClick={onClose}>
             <div 
                 // Contenitore della modale: impedisce la propagazione del click, gestisce il layout verticale e l'overflow.
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full" 
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full animate-scale-in" 
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header: non si restringe e rimane sempre visibile in alto. */}
