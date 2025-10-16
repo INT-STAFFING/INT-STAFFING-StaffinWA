@@ -7,8 +7,10 @@ import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
+import { ArrowsUpDownIcon } from '../components/icons';
 
 type ZoomLevel = 'month' | 'quarter' | 'year';
+type SortDirection = 'ascending' | 'descending';
 
 const GANTT_COLUMN_WIDTH = 80; // Larghezza in pixel per ogni colonna della timeline
 
@@ -17,6 +19,7 @@ const GanttPage: React.FC = () => {
     const [zoom, setZoom] = useState<ZoomLevel>('month');
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState({ name: '', clientId: '' });
+    const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -26,6 +29,10 @@ const GanttPage: React.FC = () => {
     };
     const resetFilters = () => {
         setFilters({ name: '', clientId: '' });
+    };
+
+    const toggleSortDirection = () => {
+        setSortDirection(prev => (prev === 'ascending' ? 'descending' : 'ascending'));
     };
 
     const toggleProjectExpansion = (projectId: string) => {
@@ -118,43 +125,50 @@ const GanttPage: React.FC = () => {
             return nameMatch && clientMatch;
         });
 
-        return [...filtered].sort((a,b) => {
-            if (!a.startDate) return 1;
-            if (!b.startDate) return -1;
-            return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+        return [...filtered].sort((a, b) => {
+            const nameA = a.name.toLowerCase();
+            const nameB = b.name.toLowerCase();
+            if (nameA < nameB) return sortDirection === 'ascending' ? -1 : 1;
+            if (nameA > nameB) return sortDirection === 'ascending' ? 1 : -1;
+            return 0;
         });
-    }, [projects, filters]);
+    }, [projects, filters, sortDirection]);
     
     const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
 
     return (
-        <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gantt Progetti</h1>
-                 <div className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                    {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
-                        <button key={level} onClick={() => setZoom(level)}
-                            className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${zoom === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
-                            {level === 'month' ? 'Mese' : level === 'quarter' ? 'Trim.' : 'Anno'}
-                        </button>
-                    ))}
+        <div className="flex flex-col h-[calc(100vh-8rem)]">
+            <div className="flex-shrink-0">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gantt Progetti</h1>
+                    <div className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
+                            <button key={level} onClick={() => setZoom(level)}
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${zoom === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                {level === 'month' ? 'Mese' : level === 'quarter' ? 'Trim.' : 'Anno'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per progetto..."/>
+                        <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
+                        <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+                    </div>
                 </div>
             </div>
 
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per progetto..."/>
-                    <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
-                </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <div style={{ minWidth: `calc(300px + ${ganttChartWidth}px)` }}>
+            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="relative" style={{ minWidth: `calc(300px + ${ganttChartWidth}px)` }}>
                     {/* Header */}
                     <div className="grid grid-cols-[300px_1fr] sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16">
                         <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center">
-                            Progetto
+                            <button onClick={toggleSortDirection} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
+                                <span>Progetto</span>
+                                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                            </button>
                         </div>
                         <div className="relative border-b border-gray-200 dark:border-gray-700">
                             <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${timeScale.length}, ${GANTT_COLUMN_WIDTH}px)` }}>
@@ -168,15 +182,15 @@ const GanttPage: React.FC = () => {
                     </div>
 
                     {/* Body */}
-                    <div className="relative">
+                    <div>
                         {sortedAndFilteredProjects.map(project => {
                             const projectResources = getProjectResources(project.id!);
                             const isExpanded = expandedProjects.has(project.id!);
                             const barStyle = getBarPosition(project.startDate, project.endDate);
                             
                             return (
-                                <div key={project.id} className="grid grid-cols-[300px_1fr] border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
-                                    <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 z-10">
+                                <div key={project.id} className="grid grid-cols-[300px_1fr] border-b border-gray-200 dark:border-gray-700 group">
+                                    <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50">
                                         <button onClick={() => toggleProjectExpansion(project.id!)} className="flex items-center w-full text-left">
                                             <svg className={`w-4 h-4 mr-2 flex-shrink-0 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
                                             <span className="font-medium text-sm text-gray-800 dark:text-white truncate">{project.name}</span>
@@ -204,10 +218,11 @@ const GanttPage: React.FC = () => {
                                 </div>
                             )
                         })}
-                        {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
-                            <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" style={{ left: `calc(300px + ${todayPosition}px)` }} title="Oggi"></div>
-                        )}
                     </div>
+                     {/* Today Marker */}
+                     {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-5" style={{ left: `calc(300px + ${todayPosition}px)` }} title="Oggi"></div>
+                    )}
                 </div>
             </div>
              <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
