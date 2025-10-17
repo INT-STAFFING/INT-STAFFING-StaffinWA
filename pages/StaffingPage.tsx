@@ -118,8 +118,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     // Determina il colore della cella in base al carico medio.
     const cellColor = useMemo(() => {
         if (averageAllocation > 100) return 'bg-accent-red/20 text-accent-red';
-        if (averageAllocation >= 95) return 'bg-accent-orange/20 text-accent-orange';
-        if (averageAllocation > 0) return 'bg-accent-teal/20 text-accent-teal';
+        if (averageAllocation >= 95) return 'bg-accent-teal/20 text-accent-teal';
+        if (averageAllocation > 0) return 'bg-accent-orange/20 text-accent-orange';
         return 'bg-transparent';
     }, [averageAllocation]);
 
@@ -175,8 +175,8 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (total > maxPercentage) return 'bg-accent-red/20 text-accent-red';
-        if (total === maxPercentage) return 'bg-accent-orange/20 text-accent-orange';
-        if (total > 0 && total < maxPercentage) return 'bg-accent-teal/20 text-accent-teal';
+        if (total === maxPercentage) return 'bg-accent-teal/20 text-accent-teal';
+        if (total > 0 && total < maxPercentage) return 'bg-accent-orange/20 text-accent-orange';
         return 'bg-gray-100 dark:bg-white/10';
     }, [total, resource.maxStaffingPercentage]);
 
@@ -234,8 +234,8 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (averageAllocation > maxPercentage) return 'bg-accent-red/20 text-accent-red';
-        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-accent-orange/20 text-accent-orange';
-        if (averageAllocation > 0) return 'bg-accent-teal/20 text-accent-teal';
+        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-accent-teal/20 text-accent-teal';
+        if (averageAllocation > 0) return 'bg-accent-orange/20 text-accent-orange';
         return 'bg-gray-100 dark:bg-white/10';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
