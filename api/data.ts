@@ -4,6 +4,7 @@
  */
 
 import { db } from './db';
+import { ensureDbTablesExist } from './schema';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 
@@ -40,9 +41,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 
-    const client = await db.connect();
     try {
-        // Esegue le query in parallelo per maggiore efficienza
+        // Ensure all database tables exist before proceeding. This makes the app self-initializing.
+        await ensureDbTablesExist(db);
+    } catch (schemaError) {
+        console.error('Failed to ensure DB schema exists:', schemaError);
+        return res.status(500).json({ error: 'Failed to initialize database schema' });
+    }
+
+    try {
+        // Esegue le query in parallelo per maggiore efficienza, utilizzando il pool di connessioni.
         const [
             clientsRes,
             rolesRes,
@@ -57,18 +65,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             locationsRes,
             calendarRes,
         ] = await Promise.all([
-            client.query('SELECT * FROM clients;'),
-            client.query('SELECT * FROM roles;'),
-            client.query('SELECT * FROM resources;'),
-            client.query('SELECT * FROM projects;'),
-            client.query('SELECT * FROM assignments;'),
-            client.query('SELECT * FROM allocations;'),
-            client.query('SELECT * FROM horizontals;'),
-            client.query('SELECT * FROM seniority_levels;'),
-            client.query('SELECT * FROM project_statuses;'),
-            client.query('SELECT * FROM client_sectors;'),
-            client.query('SELECT * FROM locations;'),
-            client.query('SELECT * FROM company_calendar;'),
+            db.query('SELECT * FROM clients;'),
+            db.query('SELECT * FROM roles;'),
+            db.query('SELECT * FROM resources;'),
+            db.query('SELECT * FROM projects;'),
+            db.query('SELECT * FROM assignments;'),
+            db.query('SELECT * FROM allocations;'),
+            db.query('SELECT * FROM horizontals;'),
+            db.query('SELECT * FROM seniority_levels;'),
+            db.query('SELECT * FROM project_statuses;'),
+            db.query('SELECT * FROM client_sectors;'),
+            db.query('SELECT * FROM locations;'),
+            db.query('SELECT * FROM company_calendar;'),
         ]);
 
 
@@ -129,7 +137,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
         console.error('Failed to fetch all data:', error);
         return res.status(500).json({ error: 'Failed to fetch data' });
-    } finally {
-        client.release();
     }
 }

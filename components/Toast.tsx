@@ -38,7 +38,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
   const borderColor = type === 'success' ? 'border-success/30 dark:border-success/40' : 'border-destructive/30 dark:border-destructive/40';
 
   return (
-    <div className={`w-full max-w-sm p-4 rounded-lg shadow-lg border ${bgColor} ${borderColor} flex items-start space-x-4 animate-fade-in-right`}>
+    <div className={`w-full max-w-lg p-4 rounded-lg shadow-lg border ${bgColor} ${borderColor} flex items-start space-x-4 animate-fade-in-right`}>
       <div className="flex-shrink-0">
         {icons[type]}
       </div>
