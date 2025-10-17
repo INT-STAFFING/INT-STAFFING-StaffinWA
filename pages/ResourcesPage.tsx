@@ -3,7 +3,7 @@
  * @description Pagina per la gestione delle risorse umane (CRUD e visualizzazione).
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource } from '../types';
 import Modal from '../components/Modal';
@@ -11,12 +11,14 @@ import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedResource = Resource & {
     roleName: string;
     dailyCost: number;
     allocation: number;
+    isAssigned: boolean;
 };
 
 // --- Helper Functions ---
@@ -31,6 +33,18 @@ const ResourcesPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '' });
+    const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
+    
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    useEffect(() => {
+        if (searchParams.get('filter') === 'unassigned') {
+            setShowOnlyUnassigned(true);
+            // Optional: remove the query param after applying the filter
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
+
     
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Resource | null>(null);
@@ -69,7 +83,12 @@ const ResourcesPage: React.FC = () => {
     }, [assignments, allocations, companyCalendar]);
     
     const dataForTable = useMemo<EnrichedResource[]>(() => {
+        const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
+
         const filtered = resources.filter(resource => {
+            if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) {
+                return false;
+            }
             const nameMatch = resource.name.toLowerCase().includes(filters.name.toLowerCase());
             const roleMatch = filters.roleId ? resource.roleId === filters.roleId : true;
             const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
@@ -84,13 +103,17 @@ const ResourcesPage: React.FC = () => {
                 roleName: role?.name || 'N/A',
                 dailyCost: role?.dailyCost || 0,
                 allocation: calculateResourceAllocation(resource),
+                isAssigned: assignedResourceIds.has(resource.id!)
             };
         });
-    }, [resources, filters, roles, calculateResourceAllocation]);
+    }, [resources, filters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ name: '', roleId: '', horizontal: '', location: '' });
+    const resetFilters = () => {
+        setFilters({ name: '', roleId: '', horizontal: '', location: '' });
+        setShowOnlyUnassigned(false);
+    };
     
     const getAllocationColor = (avg: number): string => {
         if (avg > 100) return 'text-red-600 dark:text-red-400 font-bold';
@@ -150,7 +173,11 @@ const ResourcesPage: React.FC = () => {
         { header: 'Nome', sortKey: 'name', cell: r => <div><div className="font-medium text-gray-900 dark:text-white">{r.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{r.email}</div></div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
         { header: 'Costo Giornaliero', sortKey: 'dailyCost', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(r.dailyCost)}</span> },
-        { header: 'Alloc. Media', sortKey: 'allocation', cell: r => <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span> },
+        { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
+            r.isAssigned 
+                ? <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span>
+                : <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</span>
+        )},
         { header: 'Max. Staffing %', sortKey: 'maxStaffingPercentage', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.maxStaffingPercentage}%</span> },
     ];
     
@@ -229,7 +256,13 @@ const ResourcesPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Alloc. Media</p><p className={`font-semibold ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</p></div>
+                    <div>
+                        <p className="text-gray-500 dark:text-gray-400">Alloc. Media</p>
+                        {resource.isAssigned
+                            ? <p className={`font-semibold ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</p>
+                            : <p className="font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</p>
+                        }
+                    </div>
                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(resource.dailyCost)}</p></div>
                     <div><p className="text-gray-500 dark:text-gray-400">Max Staffing</p><p className="text-gray-900 dark:text-white font-medium">{resource.maxStaffingPercentage}%</p></div>
                 </div>
@@ -243,7 +276,13 @@ const ResourcesPage: React.FC = () => {
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
             <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterSelectChange} options={horizontalOptions} placeholder="Tutti gli horizontal" />
             <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <div className="flex items-center space-x-4">
+                 <div className="flex items-center">
+                    <input id="unassigned-filter" type="checkbox" checked={showOnlyUnassigned} onChange={(e) => setShowOnlyUnassigned(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <label htmlFor="unassigned-filter" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Solo non allocate</label>
+                </div>
+                <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            </div>
         </div>
     );
 

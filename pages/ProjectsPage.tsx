@@ -3,15 +3,17 @@
  * @description Pagina per la gestione dei progetti (CRUD e visualizzazione).
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import { useSearchParams } from 'react-router-dom';
 
-type EnrichedProject = Project & { clientName: string };
+
+type EnrichedProject = Project & { clientName: string; isStaffed: boolean; };
 
 const formatDateForDisplay = (dateStr: string | null): string => {
     if (!dateStr) return 'N/A';
@@ -21,10 +23,19 @@ const formatDateForDisplay = (dateStr: string | null): string => {
 };
 
 const ProjectsPage: React.FC = () => {
-    const { projects, clients, resources, projectStatuses, addProject, updateProject, deleteProject, isActionLoading } = useEntitiesContext();
+    const { projects, clients, resources, projectStatuses, addProject, updateProject, deleteProject, isActionLoading, assignments } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
+    const [showOnlyUnstaffed, setShowOnlyUnstaffed] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+
+     useEffect(() => {
+        if (searchParams.get('filter') === 'unstaffed') {
+            setShowOnlyUnstaffed(true);
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);
@@ -35,8 +46,13 @@ const ProjectsPage: React.FC = () => {
     };
     
     const dataForTable = useMemo<EnrichedProject[]>(() => {
+        const staffedProjectIds = new Set(assignments.map(a => a.projectId));
         return projects
             .filter(project => {
+                const isStaffed = staffedProjectIds.has(project.id!);
+                if(showOnlyUnstaffed && isStaffed) {
+                    return false;
+                }
                 const nameMatch = project.name.toLowerCase().includes(filters.name.toLowerCase());
                 const clientMatch = filters.clientId ? project.clientId === filters.clientId : true;
                 const statusMatch = filters.status ? project.status === filters.status : true;
@@ -45,12 +61,16 @@ const ProjectsPage: React.FC = () => {
             .map(project => ({
                 ...project,
                 clientName: clients.find(c => c.id === project.clientId)?.name || 'N/A',
+                isStaffed: staffedProjectIds.has(project.id!),
             }));
-    }, [projects, filters, clients]);
+    }, [projects, filters, clients, assignments, showOnlyUnstaffed]);
     
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ name: '', clientId: '', status: '' });
+    const resetFilters = () => {
+        setFilters({ name: '', clientId: '', status: '' });
+        setShowOnlyUnstaffed(false);
+    };
 
     const openModalForNew = () => { setEditingProject(emptyProject); setIsModalOpen(true); };
     const openModalForEdit = (project: Project) => { setEditingProject(project); setIsModalOpen(true); handleCancelInlineEdit(); };
@@ -109,7 +129,12 @@ const ProjectsPage: React.FC = () => {
     const projectManagerOptions = useMemo(() => resources.map(r => ({ value: r.name, label: r.name })).sort((a,b) => a.label.localeCompare(b.label)), [resources]);
 
     const columns: ColumnDef<EnrichedProject>[] = [
-        { header: 'Nome Progetto', sortKey: 'name', cell: p => <span className="font-medium text-gray-900 dark:text-white">{p.name}</span> },
+        { header: 'Nome Progetto', sortKey: 'name', cell: p => (
+            <div className="flex items-center">
+                <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
+                {!p.isStaffed && p.status === 'In corso' && <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-amber-800 bg-amber-100 dark:text-amber-100 dark:bg-amber-800 rounded-full">Senza Staff</span>}
+            </div>
+        )},
         { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.clientName}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
         { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.startDate)}</span> },
@@ -181,7 +206,10 @@ const ProjectsPage: React.FC = () => {
             <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
+                             {!project.isStaffed && project.status === 'In corso' && <span className="px-2 py-0.5 text-xs font-semibold text-amber-800 bg-amber-100 dark:text-amber-100 dark:bg-amber-800 rounded-full">Senza Staff</span>}
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{project.clientName}</p>
                     </div>
                      <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
@@ -207,7 +235,13 @@ const ProjectsPage: React.FC = () => {
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati"/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <div className="flex items-center space-x-4">
+                <div className="flex items-center">
+                    <input id="unstaffed-filter" type="checkbox" checked={showOnlyUnstaffed} onChange={(e) => setShowOnlyUnstaffed(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <label htmlFor="unstaffed-filter" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Solo senza staff</label>
+                </div>
+                <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            </div>
         </div>
     );
     

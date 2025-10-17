@@ -7,6 +7,9 @@ import React, { useMemo, useState } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
+import { useNavigate } from 'react-router-dom';
+import { UsersIcon, BriefcaseIcon } from '../components/icons';
+
 
 /**
  * Formatta un valore numerico o stringa come valuta EUR in formato italiano.
@@ -28,6 +31,7 @@ const formatCurrency = (value: number | string): string => {
 const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, clientSectors, locations, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
+    const navigate = useNavigate();
 
     // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
@@ -58,8 +62,15 @@ const DashboardPage: React.FC = () => {
                 }
             }
         }
+        
+        const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
+        const unassignedResourcesCount = resources.filter(r => !assignedResourceIds.has(r.id!)).length;
 
-        return { totalBudget, totalPersonDays };
+        const staffedProjectIds = new Set(assignments.map(a => a.projectId));
+        const unstaffedProjectsCount = projects.filter(p => p.status === 'In corso' && !staffedProjectIds.has(p.id!)).length;
+
+
+        return { totalBudget, totalPersonDays, unassignedResourcesCount, unstaffedProjectsCount };
     }, [projects, allocations, assignments, resources, companyCalendar]);
 
     /**
@@ -455,11 +466,40 @@ const DashboardPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Dashboard</h1>
             
             {/* Nuove Card Aggregate */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(overallKPIs.totalBudget)}</p></div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Totale Giorni-Uomo Allocati</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{overallKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p></div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(currentMonthKPIs.totalCost)}</p></div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(overallKPIs.totalBudget)}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(currentMonthKPIs.totalCost)}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
+                </div>
+
+                <div 
+                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex items-center justify-between cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80"
+                    onClick={() => navigate('/resources?filter=unassigned')}
+                >
+                    <div>
+                        <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
+                        <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResourcesCount}</p>
+                    </div>
+                    <UsersIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
+                </div>
+                 <div 
+                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex items-center justify-between cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80"
+                    onClick={() => navigate('/projects?filter=unstaffed')}
+                >
+                    <div>
+                        <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
+                        <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjectsCount}</p>
+                    </div>
+                    <BriefcaseIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
