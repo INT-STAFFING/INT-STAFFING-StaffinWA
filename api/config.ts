@@ -3,7 +3,7 @@
  * @description Endpoint API generico per la gestione delle operazioni CRUD sulle tabelle di configurazione.
  */
 
-import { db } from './db';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 

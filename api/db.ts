@@ -1,15 +1,21 @@
 import { createPool } from '@vercel/postgres';
 
-/**
- * Creates and exports the database connection pool.
- * When deployed on Vercel with a Vercel Postgres database linked,
- * `@vercel/postgres` automatically uses the correct connection string
- * from the environment. This "zero-config" approach is the most robust method.
- *
- * For local development, it will read the `POSTGRES_URL` from the
- * `.env.development.local` file.
- */
-export const db = createPool();
+// Questo è il punto centrale per leggere la variabile d'ambiente corretta.
+// Diamo priorità alla variabile standard di Vercel (POSTGRES_URL) con un fallback.
+const connectionString = process.env.POSTGRES_URL || process.env.NEON_POSTGRES_URL;
 
-// By not specifying a connection string, we let the library handle
-// the connection automatically, which is the recommended practice for Vercel deployments.
+
+if (!connectionString) {
+  // In un ambiente serverless, lanciare un errore è un buon modo per fallire rapidamente
+  // se la configurazione manca. Questo sarà visibile nei log di Vercel.
+  throw new Error('Database connection string is not set. Please set the POSTGRES_URL or NEON_POSTGRES_URL environment variable.');
+}
+
+// createPool di @vercel/postgres restituisce un'istanza di Pool estesa 
+// con il template literal tag `sql`.
+export const db = createPool({
+  connectionString,
+});
+
+// NON esportiamo `sql` separatamente per evitare potenziali problemi di contesto (`this`).
+// Tutti i moduli devono importare `db` e usare `db.sql` o `db.connect()`.

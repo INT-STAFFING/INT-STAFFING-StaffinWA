@@ -118,4 +118,28 @@ export async function ensureDbTablesExist(db: VercelPool) {
             UNIQUE(date, location)
         );
     `;
+    // Fix: Add wbs_tasks table schema
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS wbs_tasks (
+            id UUID PRIMARY KEY,
+            elemento_wbs VARCHAR(255) NOT NULL UNIQUE,
+            descrizione_wbe TEXT,
+            client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+            periodo VARCHAR(50),
+            ore NUMERIC(10, 2),
+            produzione_lorda NUMERIC(12, 2),
+            ore_network_italia NUMERIC(10, 2),
+            produzione_lorda_network_italia NUMERIC(12, 2),
+            perdite NUMERIC(12, 2),
+            realisation INT,
+            spese_onorari_esterni NUMERIC(12, 2),
+            spese_altro NUMERIC(12, 2),
+            fatture_onorari NUMERIC(12, 2),
+            fatture_spese NUMERIC(12, 2),
+            iva NUMERIC(12, 2),
+            incassi NUMERIC(12, 2),
+            primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+            secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL
+        );
+    `;
 }

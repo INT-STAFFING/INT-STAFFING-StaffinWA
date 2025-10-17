@@ -441,9 +441,9 @@ const DashboardPage: React.FC = () => {
      * @returns {string} La classe CSS per il colore.
      */
     const getAvgAllocationColor = (avg: number): string => {
-        if (avg > 90) return 'text-accent-red font-bold';
-        if (avg >= 70) return 'text-accent-orange font-semibold';
-        return 'text-accent-teal';
+        if (avg > 90) return 'text-red-600 dark:text-red-400 font-bold';
+        if (avg >= 70) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
+        return 'text-green-600 dark:text-green-400';
     };
 
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
@@ -452,33 +452,33 @@ const DashboardPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light mb-8">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Dashboard</h1>
             
             {/* Nuove Card Aggregate */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3><p className="mt-1 text-3xl font-semibold text-primary-dark dark:text-primary-light">{formatCurrency(overallKPIs.totalBudget)}</p></div>
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Totale Giorni-Uomo Allocati</h3><p className="mt-1 text-3xl font-semibold text-primary-dark dark:text-primary-light">{overallKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p></div>
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3><p className="mt-1 text-3xl font-semibold text-primary-dark dark:text-primary-light">{formatCurrency(currentMonthKPIs.totalCost)}</p></div>
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3><p className="mt-1 text-3xl font-semibold text-primary-dark dark:text-primary-light">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(overallKPIs.totalBudget)}</p></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Totale Giorni-Uomo Allocati</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{overallKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(currentMonthKPIs.totalCost)}</p></div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5"><h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3><p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p></div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Card Allocazione Media */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div className="flex justify-between items-start mb-4">
                         <h2 className="text-xl font-semibold">Allocazione Media</h2>
                         <div className="w-48"><SearchableSelect name="resourceId" value={avgAllocFilter.resourceId} onChange={(_, v) => setAvgAllocFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                     </div>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Mese Corrente</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Mese Prossimo</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-white/20">
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {averageAllocationData.map((data, index) => (
                                 <tr key={index}>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm">
@@ -495,7 +495,7 @@ const DashboardPage: React.FC = () => {
                                 ))}
                             </tbody>
                              <tfoot>
-                                 <tr className="bg-gray-100 dark:bg-white/10 font-bold">
+                                 <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
                                      <td className="px-4 py-2 text-left text-sm">Media Totale</td>
                                      <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.currentMonth)}`}>
                                         {avgAllocationTotals.currentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
@@ -510,82 +510,82 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card FTE per Progetto */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                      <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={fteFilter.clientId} onChange={(_, v) => setFteFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/></div></div>
                      <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni Alloc.</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">FTE</th></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-white/20">{fteData.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{data.name}</div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-accent-teal">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-white/10 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni Alloc.</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">FTE</th></tr></thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{fteData.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{data.name}</div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-blue-600 dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Analisi Budget */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={budgetFilter.clientId} onChange={(_, v) => setBudgetFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/></div></div>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Budget</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Varianza</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-white/20">{budgetAnalysisData.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-primary-light">{p.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-accent-teal' : 'text-accent-red'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-white/10 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-accent-teal' : 'text-accent-red'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Budget</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Varianza</th></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{budgetAnalysisData.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{p.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Risorse Sottoutilizzate */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={underutilizedFilter} onChange={(e) => setUnderutilizedFilter(e.target.value)} className="form-input text-sm py-1 w-48"/></div>
                     <div className="overflow-y-auto max-h-96">
-                         <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                             <thead className="bg-gray-50 dark:bg-white/5 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Media</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-white/20">{underutilizedResourcesData.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{r.name}</div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-accent-orange font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
+                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Media</th></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{underutilizedResourcesData.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{r.name}</div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
                          </table>
                     </div>
                 </div>
 
                 {/* Card Sforzo per Cliente */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                      <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Sforzo per Cliente</h2><div className="w-48"><SearchableSelect name="sector" value={effortByClientFilter.sector} onChange={(_, v) => setEffortByClientFilter({ sector: v })} options={sectorOptions} placeholder="Tutti i Settori"/></div></div>
                      <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Valore Budget</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-white/20">{effortByClientData.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-primary-light">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-white/10 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Valore Budget</th></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByClientData.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Costo Mensile per Cliente */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Costo Mensile per Cliente</h2>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-white/20">{currentMonthKPIs.clientCostArray.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-primary-light">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
-                            <tfoot><tr className="bg-gray-100 dark:bg-white/10 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th></tr></thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{currentMonthKPIs.clientCostArray.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
+                            <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Sforzo per Horizontal */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
                      <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Horizontal</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-white/20">{effortByHorizontalData.map(h => (<tr key={h.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-primary-light">{h.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-semibold">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-white/10 font-bold"><td className="px-4 py-2 text-left text-sm">Totale</td><td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Horizontal</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByHorizontalData.map(h => (<tr key={h.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{h.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-semibold">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale</td><td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Analisi per Sede */}
-                <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi per Sede (Mese Corrente)</h2>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                            <thead className="bg-gray-50 dark:bg-white/5 sticky top-0">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                                 <tr>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Sede</th>
                                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorse</th>
@@ -593,10 +593,10 @@ const DashboardPage: React.FC = () => {
                                     <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Utilizzo Medio</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-white/20">
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                 {analysisByLocationData.map(data => (
                                     <tr key={data.locationName}>
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-primary-light">{data.locationName}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{data.locationName}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.resourceCount}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.personDays.toFixed(1)}</td>
                                         <td className={`px-4 py-2 whitespace-nowrap text-sm text-center font-semibold ${getAvgAllocationColor(data.utilization)}`}>
@@ -610,18 +610,35 @@ const DashboardPage: React.FC = () => {
                 </div>
             </div>
              <style>{`
-                .form-input, .form-select {
-                    border-color: #D1D5DB; 
-                    background-color: #FDFFFC;
+                .form-select {
+                    display: block;
+                    width: 100%;
+                    border-radius: 0.375rem;
+                    border: 1px solid #D1D5DB;
+                    background-color: #FFFFFF;
+                    padding: 0.5rem 0.75rem;
+                    font-size: 0.875rem;
+                    line-height: 1.25rem;
                 }
-                .dark .form-input, .dark .form-select {
+                .dark .form-select {
                     border-color: #4B5563;
-                    background-color: #011627;
-                    color: #FDFFFC;
+                    background-color: #374151;
+                    color: #F9FAFB;
                 }
-                .form-input:focus, .form-select:focus {
-                    --tw-ring-color: #2EC4B6;
-                    border-color: #2EC4B6;
+                .form-input { 
+                    display: block; 
+                    width: 100%; 
+                    border-radius: 0.375rem; 
+                    border: 1px solid #D1D5DB; 
+                    background-color: #FFFFFF; 
+                    padding: 0.5rem 0.75rem; 
+                    font-size: 0.875rem; 
+                    line-height: 1.25rem; 
+                } 
+                .dark .form-input { 
+                    border-color: #4B5563; 
+                    background-color: #374151; 
+                    color: #F9FAFB; 
                 }
             `}</style>
         </div>

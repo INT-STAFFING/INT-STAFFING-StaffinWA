@@ -53,8 +53,8 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (total > 0 && total < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (total === maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (total > 0 && total < maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
         return 'bg-transparent';
     }, [total, resource.maxStaffingPercentage]);
 
@@ -112,8 +112,8 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (averageAllocation > 0) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
         return 'bg-transparent';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 

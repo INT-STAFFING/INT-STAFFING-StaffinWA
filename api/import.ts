@@ -3,7 +3,7 @@
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
  */
 
-import { db } from './db';
+import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -197,11 +197,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         await client.query('COMMIT');
-        return res.status(200).json({ message: 'Importazione completata con successo.', warnings });
+        res.status(200).json({ message: 'Importazione completata con successo.', warnings });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Import failed:', error);
-        return res.status(500).json({ error: (error as Error).message });
+        res.status(500).json({ error: (error as Error).message });
     } finally {
         client.release();
     }
