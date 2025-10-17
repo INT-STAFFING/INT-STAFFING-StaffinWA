@@ -71,7 +71,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
-                <span className={selectedValues.length > 0 ? 'text-primary-dark dark:text-primary-light' : 'text-gray-500'}>
+                <span className={selectedValues.length > 0 ? 'text-foreground dark:text-dark-foreground' : 'text-muted-foreground'}>
                     {getButtonLabel()}
                 </span>
                 <svg className="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -80,8 +80,8 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             </button>
 
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-primary-light dark:bg-primary-dark shadow-lg rounded-md border border-gray-200 dark:border-gray-600">
-                    <div className="p-2 border-b border-gray-200 dark:border-white/20">
+                <div className="absolute z-10 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
+                    <div className="p-2 border-b border-border dark:border-dark-border">
                         <input
                             type="text"
                             placeholder="Cerca..."
@@ -96,7 +96,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                             filteredOptions.map(option => (
                                 <li
                                     key={option.value}
-                                    className="px-4 py-2 text-sm text-primary-dark dark:text-primary-light hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer flex items-center"
+                                    className="px-4 py-2 text-sm text-foreground dark:text-dark-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer flex items-center"
                                     onClick={() => handleSelect(option.value)}
                                     role="option"
                                     aria-selected={selectedValues.includes(option.value)}
@@ -105,13 +105,13 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                                         type="checkbox"
                                         checked={selectedValues.includes(option.value)}
                                         readOnly
-                                        className="h-4 w-4 rounded border-gray-300 text-accent-teal focus:ring-accent-teal mr-3 pointer-events-none"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mr-3 pointer-events-none"
                                     />
                                     {option.label}
                                 </li>
                             ))
                         ) : (
-                            <li className="px-4 py-2 text-sm text-gray-500">Nessun risultato</li>
+                            <li className="px-4 py-2 text-sm text-muted-foreground">Nessun risultato</li>
                         )}
                     </ul>
                 </div>

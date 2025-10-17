@@ -107,10 +107,10 @@ export function DataTable<T extends { id?: string }>({
     }, [data, sortConfig]);
 
     const getSortableHeader = (label: string, key?: string) => (
-        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
             {key ? (
-                <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                    <span className={sortConfig?.key === key ? 'font-bold text-primary-dark dark:text-primary-light' : ''}>{label}</span>
+                <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                    <span className={sortConfig?.key === key ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
                     <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
                 </button>
             ) : (
@@ -122,35 +122,35 @@ export function DataTable<T extends { id?: string }>({
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light self-start">{title}</h1>
-                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90">{addNewButtonLabel}</button>
+                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">{title}</h1>
+                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">{addNewButtonLabel}</button>
             </div>
 
-            <div className="mb-6 p-4 bg-primary-light dark:bg-primary-dark rounded-lg shadow">
+            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
                 {filtersNode}
             </div>
 
-            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow">
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full">
-                        <thead className="border-b border-gray-200 dark:border-white/20">
+                        <thead className="border-b border-border dark:border-dark-border">
                             <tr>
                                 {columns.map(col => getSortableHeader(col.header, col.sortKey))}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-white/20">
+                        <tbody className="divide-y divide-border dark:divide-dark-border">
                             {sortedData.map(item => renderRow(item))}
                         </tbody>
                     </table>
-                     {sortedData.length === 0 && <p className="text-center py-8 text-gray-500">Nessun dato trovato.</p>}
+                     {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
                 </div>
 
                 {/* Mobile Cards */}
                 <div className="md:hidden p-4 space-y-4">
                     {sortedData.map(item => renderMobileCard(item))}
-                    {sortedData.length === 0 && <p className="text-center py-8 text-gray-500">Nessun dato trovato.</p>}
+                    {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
                 </div>
             </div>
         </div>

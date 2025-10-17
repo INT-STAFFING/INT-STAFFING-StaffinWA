@@ -50,9 +50,9 @@ const useSort = <T extends string>() => {
     };
 
     const SortableHeader: React.FC<{ label: string; sortKey: T }> = ({ label, sortKey }) => (
-        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === sortKey ? 'font-bold text-primary-dark dark:text-primary-light' : ''}>{label}</span>
+        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                <span className={sortConfig?.key === sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
                 <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
             </button>
         </th>
@@ -146,21 +146,21 @@ const ProjectCostsReport: React.FC = () => {
 
     return (
         <div>
-            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-lg mb-6">
+            <div className="p-4 bg-muted dark:bg-dark-muted rounded-lg mb-6">
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
                     <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90">
+                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">
                         <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" /> Esporta CSV
                     </button>
                  </div>
             </div>
              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                    <thead className="bg-gray-50 dark:bg-white/5"><tr><SortableHeader label="Progetto" sortKey="projectName" /><SortableHeader label="Cliente" sortKey="clientName" /><SortableHeader label="Budget" sortKey="budget" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /><SortableHeader label="Varianza" sortKey="variance" /><SortableHeader label="G/U Allocati" sortKey="personDays" /><SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" /></tr></thead>
-                    <tbody className="bg-primary-light dark:bg-primary-dark divide-y divide-gray-200 dark:divide-white/20">
+                <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                    <thead className="bg-muted dark:bg-dark-muted"><tr><SortableHeader label="Progetto" sortKey="projectName" /><SortableHeader label="Cliente" sortKey="clientName" /><SortableHeader label="Budget" sortKey="budget" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /><SortableHeader label="Varianza" sortKey="variance" /><SortableHeader label="G/U Allocati" sortKey="personDays" /><SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" /></tr></thead>
+                    <tbody className="bg-card dark:bg-dark-card divide-y divide-border dark:divide-dark-border">
                         {sortedData.map(d => (
-                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark dark:text-primary-light">{d.projectName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{d.clientName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.budget)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.variance >= 0 ? 'text-accent-teal' : 'text-accent-red'}`}>{formatCurrency(d.variance)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.personDays.toFixed(2)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.avgCostPerDay)}</td></tr>
+                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground dark:text-dark-foreground">{d.projectName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{d.clientName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.budget)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.variance >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(d.variance)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.personDays.toFixed(2)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.avgCostPerDay)}</td></tr>
                         ))}
                     </tbody>
                 </table>
@@ -250,22 +250,22 @@ const ResourceUtilizationReport: React.FC = () => {
 
     return (
         <div>
-            <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-lg mb-6">
+            <div className="p-4 bg-muted dark:bg-dark-muted rounded-lg mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
                     <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
                     <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90">
+                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">
                         <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" /> Esporta CSV
                     </button>
                 </div>
             </div>
              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-white/20">
-                    <thead className="bg-gray-50 dark:bg-white/5"><tr><SortableHeader label="Risorsa" sortKey="resourceName" /><SortableHeader label="Ruolo" sortKey="roleName" /><SortableHeader label="G/U Disponibili" sortKey="availableDays" /><SortableHeader label="G/U Allocati" sortKey="allocatedDays" /><SortableHeader label="Utilizzo" sortKey="utilization" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /></tr></thead>
-                    <tbody className="bg-primary-light dark:bg-primary-dark divide-y divide-gray-200 dark:divide-white/20">
+                <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                    <thead className="bg-muted dark:bg-dark-muted"><tr><SortableHeader label="Risorsa" sortKey="resourceName" /><SortableHeader label="Ruolo" sortKey="roleName" /><SortableHeader label="G/U Disponibili" sortKey="availableDays" /><SortableHeader label="G/U Allocati" sortKey="allocatedDays" /><SortableHeader label="Utilizzo" sortKey="utilization" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /></tr></thead>
+                    <tbody className="bg-card dark:bg-dark-card divide-y divide-border dark:divide-dark-border">
                          {sortedData.map(d => (
-                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-primary-dark dark:text-primary-light">{d.resourceName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{d.roleName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.availableDays.toFixed(1)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.allocatedDays.toFixed(2)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.utilization > 100 ? 'text-accent-red' : d.utilization >= 90 ? 'text-accent-orange' : 'text-accent-teal'}`}>{d.utilization.toFixed(1)}%</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td></tr>
+                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-foreground dark:text-dark-foreground">{d.resourceName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{d.roleName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.availableDays.toFixed(1)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.allocatedDays.toFixed(2)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.utilization > 100 ? 'text-destructive' : d.utilization >= 90 ? 'text-warning' : 'text-success'}`}>{d.utilization.toFixed(1)}%</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td></tr>
                         ))}
                     </tbody>
                 </table>
@@ -279,36 +279,38 @@ const ReportsPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light mb-6">Report</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-6">Report</h1>
 
-            <div className="mb-6 border-b border-gray-200 dark:border-white/20">
+            <div className="mb-6 border-b border-border dark:border-dark-border">
                 <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                    <button onClick={() => setActiveTab('projectCosts')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-accent-teal text-accent-teal' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                    <button onClick={() => setActiveTab('projectCosts')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}>
                         Report Costi Progetto
                     </button>
-                    <button onClick={() => setActiveTab('resourceUtilization')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-accent-teal text-accent-teal' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                    <button onClick={() => setActiveTab('resourceUtilization')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'}`}>
                         Report Utilizzo Risorse
                     </button>
                 </nav>
             </div>
             
-            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-6">
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                 {activeTab === 'projectCosts' && <ProjectCostsReport />}
                 {activeTab === 'resourceUtilization' && <ResourceUtilizationReport />}
             </div>
              <style>{`
                 .form-input, .form-select {
-                    border-color: #D1D5DB; 
-                    background-color: #FDFFFC;
+                   display: block; width: 100%; border-radius: 0.375rem; border-width: 1px;
+                   background-color: transparent;
+                   padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem;
+                   --tw-border-opacity: 1;
+                   border-color: rgb(226 232 240 / var(--tw-border-opacity));
                 }
                 .dark .form-input, .dark .form-select {
-                    border-color: #4B5563;
-                    background-color: #011627;
-                    color: #FDFFFC;
+                    --tw-border-opacity: 1;
+                    border-color: rgb(30 41 59 / var(--tw-border-opacity));
                 }
                 .form-input:focus, .form-select:focus {
-                    --tw-ring-color: #2EC4B6;
-                    border-color: #2EC4B6;
+                    --tw-ring-color: #2563eb;
+                    border-color: #2563eb;
                 }
             `}</style>
         </div>

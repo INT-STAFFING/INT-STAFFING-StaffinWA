@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ClipboardDocumentListIcon, DocumentTextIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -26,8 +26,8 @@ interface SidebarProps {
  * @returns {React.ReactElement} Il componente Sidebar.
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-    const navLinkClasses = "flex items-center px-4 py-2 text-gray-400 rounded-md hover:bg-white/10 hover:text-primary-light transition-colors duration-200";
-    const activeNavLinkClasses = "bg-accent-teal text-primary-dark font-semibold";
+    const navLinkClasses = "flex items-center px-4 py-2 text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200";
+    const activeNavLinkClasses = "bg-gray-700 text-white";
 
     /**
      * Determina le classi CSS per un NavLink in base al suo stato (attivo o non).
@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     // Classi condizionali per mostrare/nascondere la sidebar con una transizione.
     const sidebarClasses = `
-        flex flex-col w-64 bg-primary-dark text-primary-light transition-transform duration-300 ease-in-out
+        flex flex-col w-64 bg-gray-800 text-white transition-transform duration-300 ease-in-out
         fixed inset-y-0 left-0 z-30
         md:relative md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -57,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     return (
         <div className={sidebarClasses}>
-            <div className="flex items-center justify-between h-20 border-b border-white/10 px-4">
+            <div className="flex items-center justify-between h-20 shadow-md px-4">
                 <h1 className="text-2xl font-bold tracking-wider">Staffing App</h1>
                  <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white">
                     <XMarkIcon className="w-6 h-6" />
@@ -71,10 +71,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <NavLink to="/workload" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <UserGroupIcon className="w-6 h-6 mr-3" />
                     Carico Risorse
-                </NavLink>
-                <NavLink to="/audit" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                    <ClipboardDocumentListIcon className="w-6 h-6 mr-3" />
-                    Audit Assegnazioni
                 </NavLink>
                 <NavLink to="/dashboard" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <ChartBarIcon className="w-6 h-6 mr-3" />

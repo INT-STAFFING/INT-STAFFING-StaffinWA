@@ -11,11 +11,32 @@
         theme: {
           extend: {
             colors: {
-              'primary-dark': '#111827',
-              'primary-light': '#ffffff',
-              'accent-teal': '#14b8a6',
-              'accent-red': '#f43f5e',
-              'accent-orange': '#f59e0b',
+                // Main Palette
+                'primary': '#2563eb', // blue-600
+                'primary-darker': '#1d4ed8', // blue-700 for hover
+                'destructive': '#dc2626', // red-600
+                'success': '#16a34a', // green-600
+                'warning': '#f59e0b', // amber-500
+
+                // Light Mode
+                'background': '#f8fafc', // slate-50
+                'foreground': '#0f172a', // slate-900
+                'card': '#ffffff',
+                'border': '#e2e8f0', // slate-200
+                'muted': '#f1f5f9', // slate-100
+                'muted-foreground': '#64748b', // slate-500
+
+                // Dark Mode
+                'dark-background': '#020617', // slate-950
+                'dark-foreground': '#f8fafc', // slate-50
+                'dark-card': '#0f172a', // slate-900
+                'dark-border': '#1e293b', // slate-800
+                'dark-muted': '#1e293b', // slate-800
+                'dark-muted-foreground': '#94a3b8', // slate-400
+                
+                // Sidebar
+                'sidebar': '#0f172a', // slate-900
+                'sidebar-foreground': '#94a3b8', // slate-400
             }
           }
         }
@@ -65,7 +86,7 @@
 }
 </style>
 </head>
-<body class="bg-primary-light dark:bg-primary-dark text-primary-dark dark:text-primary-light">
+<body class="bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

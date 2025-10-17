@@ -44,18 +44,18 @@ const ExportPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light mb-6">Esporta Dati</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-6">Esporta Dati</h1>
             
-            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-8 max-w-2xl mx-auto text-center">
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-8 max-w-2xl mx-auto text-center">
                 <h2 className="text-xl font-semibold mb-2">Esporta in Formato Excel</h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
+                <p className="text-muted-foreground dark:text-dark-muted-foreground mb-6">
                     Scarica tutti i dati dell'applicazione in un singolo file Excel. Il file conterrà fogli separati per Clienti, Ruoli, Risorse, Progetti, Assegnazioni e Allocazioni giornaliere.
                 </p>
 
                 <button
                     onClick={handleExport}
                     disabled={isExporting}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                    className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
                     {isExporting ? (
                         <>
@@ -74,10 +74,10 @@ const ExportPage: React.FC = () => {
                 </button>
 
                 {exportSuccess === true && (
-                    <p className="mt-4 text-accent-teal">Esportazione completata con successo!</p>
+                    <p className="mt-4 text-success">Esportazione completata con successo!</p>
                 )}
                 {exportSuccess === false && (
-                    <p className="mt-4 text-accent-red">Errore durante l'esportazione. Controlla la console per i dettagli.</p>
+                    <p className="mt-4 text-destructive">Errore durante l'esportazione. Controlla la console per i dettagli.</p>
                 )}
             </div>
         </div>

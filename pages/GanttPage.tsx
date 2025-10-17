@@ -140,40 +140,40 @@ const GanttPage: React.FC = () => {
         <div className="flex flex-col h-[calc(100vh-8rem)]">
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light">Gantt Progetti</h1>
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-white/5 p-1 rounded-md">
+                    <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground">Gantt Progetti</h1>
+                    <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
                         {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
                             <button key={level} onClick={() => setZoom(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${zoom === level ? 'bg-primary-light dark:bg-primary-dark text-accent-teal shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${zoom === level ? 'bg-card dark:bg-dark-card text-primary shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
                                 {level === 'month' ? 'Mese' : level === 'quarter' ? 'Trim.' : 'Anno'}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="mb-6 p-4 bg-primary-light dark:bg-primary-dark rounded-lg shadow relative z-30">
+                <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-30">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per progetto..."/>
                         <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
-                        <button onClick={resetFilters} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 w-full md:w-auto">Reset</button>
+                        <button onClick={resetFilters} className="px-4 py-2 border border-border dark:border-dark-border rounded-md text-foreground dark:text-dark-foreground hover:bg-muted dark:hover:bg-dark-muted w-full md:w-auto">Reset</button>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-grow overflow-auto bg-primary-light dark:bg-primary-dark rounded-lg shadow">
+            <div className="flex-grow overflow-auto bg-card dark:bg-dark-card rounded-lg shadow">
                 <div className="relative" style={{ minWidth: `calc(300px + ${ganttChartWidth}px)` }}>
                     {/* Header */}
-                    <div className="grid grid-cols-[300px_1fr] sticky top-0 z-20 bg-gray-50 dark:bg-white/5 h-16">
-                        <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-white/20 sticky left-0 bg-gray-50 dark:bg-white/5 z-30 flex items-center">
-                            <button onClick={toggleSortDirection} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
+                    <div className="grid grid-cols-[300px_1fr] sticky top-0 z-20 bg-muted dark:bg-dark-muted h-16">
+                        <div className="p-3 font-semibold border-r border-b border-border dark:border-dark-border sticky left-0 bg-muted dark:bg-dark-muted z-30 flex items-center">
+                            <button onClick={toggleSortDirection} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
                                 <span>Progetto</span>
-                                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                                <ArrowsUpDownIcon className="w-4 h-4 text-muted-foreground" />
                             </button>
                         </div>
-                        <div className="relative border-b border-gray-200 dark:border-white/20">
+                        <div className="relative border-b border-border dark:border-dark-border">
                             <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${timeScale.length}, ${GANTT_COLUMN_WIDTH}px)` }}>
                                 {timeScale.map((ts, i) => (
-                                    <div key={i} className="flex items-center justify-center p-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-white/20">
+                                    <div key={i} className="flex items-center justify-center p-3 text-center text-xs font-semibold text-muted-foreground dark:text-dark-muted-foreground border-r border-border dark:border-dark-border">
                                         <span>{ts.label}</span>
                                     </div>
                                 ))}
@@ -189,14 +189,14 @@ const GanttPage: React.FC = () => {
                             const barStyle = getBarPosition(project.startDate, project.endDate);
                             
                             return (
-                                <div key={project.id} className="grid grid-cols-[300px_1fr] border-b border-gray-200 dark:border-white/20 group">
-                                    <div className="p-3 border-r border-gray-200 dark:border-white/20 sticky left-0 bg-primary-light dark:bg-primary-dark z-10 group-hover:bg-gray-50 dark:group-hover:bg-white/5">
+                                <div key={project.id} className="grid grid-cols-[300px_1fr] border-b border-border dark:border-dark-border group">
+                                    <div className="p-3 border-r border-border dark:border-dark-border sticky left-0 bg-card dark:bg-dark-card z-10 group-hover:bg-muted dark:group-hover:bg-dark-muted">
                                         <button onClick={() => toggleProjectExpansion(project.id!)} className="flex items-center w-full text-left">
                                             <svg className={`w-4 h-4 mr-2 flex-shrink-0 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
-                                            <span className="font-medium text-sm text-primary-dark dark:text-primary-light truncate">{project.name}</span>
+                                            <span className="font-medium text-sm text-foreground dark:text-dark-foreground truncate">{project.name}</span>
                                         </button>
                                         {isExpanded && (
-                                            <ul className="mt-2 pl-6 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                                            <ul className="mt-2 pl-6 text-xs text-muted-foreground dark:text-dark-muted-foreground space-y-1">
                                                 {projectResources.length > 0 ? projectResources.map(r => <li key={r.id}>{r.name}</li>) : <li>Nessuna risorsa assegnata</li>}
                                             </ul>
                                         )}
@@ -204,11 +204,11 @@ const GanttPage: React.FC = () => {
                                     <div className="relative">
                                         <div className="grid h-full" style={{ gridTemplateColumns: `repeat(${timeScale.length}, ${GANTT_COLUMN_WIDTH}px)` }}>
                                             {Array.from({ length: timeScale.length }).map((_, i) => (
-                                                <div key={i} className={`h-full border-r border-gray-200 dark:border-white/20 ${isExpanded ? 'min-h-[60px]' : 'min-h-[48px]'}`}></div>
+                                                <div key={i} className={`h-full border-r border-border dark:border-dark-border ${isExpanded ? 'min-h-[60px]' : 'min-h-[48px]'}`}></div>
                                             ))}
                                         </div>
                                         {project.startDate && project.endDate && (
-                                            <div className="absolute h-3/5 top-1/2 -translate-y-1/2 rounded-md bg-accent-teal hover:opacity-90 group/bar" style={barStyle}>
+                                            <div className="absolute h-3/5 top-1/2 -translate-y-1/2 rounded-md bg-primary hover:opacity-90 group/bar" style={barStyle}>
                                                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
                                                     {new Date(project.startDate).toLocaleDateString('it-IT')} - {new Date(project.endDate).toLocaleDateString('it-IT')}
                                                 </div>
@@ -221,23 +221,21 @@ const GanttPage: React.FC = () => {
                     </div>
                      {/* Today Marker */}
                      {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
-                        <div className="absolute top-0 bottom-0 w-0.5 bg-accent-red z-5" style={{ left: `calc(300px + ${todayPosition}px)` }} title="Oggi"></div>
+                        <div className="absolute top-0 bottom-0 w-0.5 bg-destructive z-5" style={{ left: `calc(300px + ${todayPosition}px)` }} title="Oggi"></div>
                     )}
                 </div>
             </div>
              <style>{`
                 .form-input, .form-select {
-                    border-color: #D1D5DB; 
-                    background-color: #FDFFFC;
+                   display: block; width: 100%; border-radius: 0.375rem; border-width: 1px;
+                   background-color: transparent;
+                   padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem;
+                   --tw-border-opacity: 1;
+                   border-color: rgb(226 232 240 / var(--tw-border-opacity));
                 }
                 .dark .form-input, .dark .form-select {
-                    border-color: #4B5563;
-                    background-color: #011627;
-                    color: #FDFFFC;
-                }
-                .form-input:focus, .form-select:focus {
-                    --tw-ring-color: #2EC4B6;
-                    border-color: #2EC4B6;
+                    --tw-border-opacity: 1;
+                    border-color: rgb(30 41 59 / var(--tw-border-opacity));
                 }
              `}</style>
         </div>

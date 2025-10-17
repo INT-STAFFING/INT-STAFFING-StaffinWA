@@ -82,19 +82,19 @@ const ImportPage: React.FC = () => {
 
     const getResultMessageColor = () => {
         if (!importResult) return '';
-        return importResult.success ? 'text-accent-teal' : 'text-accent-red';
+        return importResult.success ? 'text-success' : 'text-destructive';
     };
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-primary-dark dark:text-primary-light mb-6">Importazione Massiva Dati</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-6">Importazione Massiva Dati</h1>
             
-            <div className="bg-primary-light dark:bg-primary-dark rounded-lg shadow p-8 max-w-4xl mx-auto">
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-8 max-w-4xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Instructions and Template */}
                     <div>
                         <h2 className="text-xl font-semibold mb-3">Istruzioni</h2>
-                        <ol className="list-decimal list-inside space-y-2 text-gray-600 dark:text-gray-400 mb-6">
+                        <ol className="list-decimal list-inside space-y-2 text-muted-foreground dark:text-dark-muted-foreground mb-6">
                             <li>Scarica il file template Excel.</li>
                             <li>Compila i fogli con i tuoi dati, rispettando i nomi delle colonne. Non modificare i nomi dei fogli o delle colonne.</li>
                             <li>Carica il file compilato usando il modulo a destra.</li>
@@ -102,7 +102,7 @@ const ImportPage: React.FC = () => {
                         </ol>
                          <button
                             onClick={exportTemplateToExcel}
-                            className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-md shadow-sm hover:bg-gray-700 transition-colors duration-200"
+                            className="inline-flex items-center justify-center px-4 py-2 bg-slate-600 text-white font-semibold rounded-md shadow-sm hover:bg-slate-700 transition-colors duration-200"
                         >
                             <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" />
                             Scarica Template
@@ -110,21 +110,21 @@ const ImportPage: React.FC = () => {
                     </div>
 
                     {/* Upload Form */}
-                    <div className="border-t md:border-t-0 md:border-l border-gray-200 dark:border-white/20 pt-8 md:pt-0 md:pl-8">
+                    <div className="border-t md:border-t-0 md:border-l border-border dark:border-dark-border pt-8 md:pt-0 md:pl-8">
                         <h2 className="text-xl font-semibold mb-3">Carica File</h2>
                         <div className="flex flex-col space-y-4">
                             <div>
-                                <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-primary-light dark:bg-primary-dark hover:bg-gray-50 dark:hover:bg-white/10">
+                                <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-border dark:border-dark-border rounded-md shadow-sm text-sm font-medium text-foreground dark:text-dark-foreground bg-card dark:bg-dark-card hover:bg-muted dark:hover:bg-dark-muted">
                                     <span>Seleziona un file...</span>
                                     <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".xlsx, .xls" onChange={handleFileChange} />
                                 </label>
-                                {file && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{file.name}</p>}
+                                {file && <p className="mt-2 text-sm text-muted-foreground dark:text-dark-muted-foreground">{file.name}</p>}
                             </div>
 
                             <button
                                 onClick={handleImport}
                                 disabled={!file || isImporting}
-                                className="inline-flex items-center justify-center px-6 py-3 bg-accent-teal text-primary-dark font-semibold rounded-md shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                className="inline-flex items-center justify-center px-6 py-3 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                             >
                                 {isImporting ? (
                                     <>
@@ -146,12 +146,12 @@ const ImportPage: React.FC = () => {
                 </div>
 
                 {importResult && (
-                    <div className="mt-8 pt-6 border-t border-gray-200 dark:border-white/20">
+                    <div className="mt-8 pt-6 border-t border-border dark:border-dark-border">
                         <h3 className={`text-lg font-semibold ${getResultMessageColor()}`}>{importResult.message}</h3>
                         {importResult.details && importResult.details.length > 0 && (
-                             <div className="mt-2 p-3 bg-accent-orange/10 border border-accent-orange/30 rounded-md">
-                                <h4 className="font-semibold text-accent-orange">Dettagli e Avvisi:</h4>
-                                <ul className="list-disc list-inside mt-1 text-sm text-accent-orange/90 max-h-40 overflow-y-auto">
+                             <div className="mt-2 p-3 bg-warning/10 border border-warning/30 rounded-md">
+                                <h4 className="font-semibold text-warning">Dettagli e Avvisi:</h4>
+                                <ul className="list-disc list-inside mt-1 text-sm text-warning/90 max-h-40 overflow-y-auto">
                                     {importResult.details.map((detail, i) => <li key={i}>{detail}</li>)}
                                 </ul>
                             </div>
