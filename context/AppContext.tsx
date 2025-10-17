@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -33,7 +33,6 @@ export interface EntitiesContextType {
     clientSectors: ConfigOption[];
     locations: ConfigOption[];
     companyCalendar: CalendarEvent[];
-    wbsTasks: WbsTask[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -57,9 +56,6 @@ export interface EntitiesContextType {
     addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
     updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
     deleteCalendarEvent: (eventId: string) => Promise<void>;
-    addWbsTask: (task: Omit<WbsTask, 'id'>) => Promise<void>;
-    updateWbsTask: (task: WbsTask) => Promise<void>;
-    deleteWbsTask: (taskId: string) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -108,7 +104,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
     const [locations, setLocations] = useState<ConfigOption[]>([]);
     const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
-    const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -128,7 +123,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setClientSectors(data.clientSectors);
             setLocations(data.locations);
             setCompanyCalendar(data.companyCalendar);
-            setWbsTasks(data.wbsTasks || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -341,10 +335,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const actionKey = 'addAssignment';
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            const newAssignment = await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) });
+            const resultAssignment = await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) });
             setAssignments(prev => {
-                const existing = new Set(prev.map(a => a.id));
-                return existing.has(newAssignment.id) ? prev : [...prev, newAssignment];
+                if (prev.some(a => a.id === resultAssignment.id)) {
+                    return prev; // Already exists, do nothing.
+                }
+                return [...prev, resultAssignment];
             });
             addToast('Assegnazione aggiunta.', 'success');
         } catch (error) {
@@ -354,6 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast]);
+
     const addMultipleAssignments = useCallback(async (assignmentsToAdd: Omit<Assignment, 'id'>[]) => {
         if (assignmentsToAdd.length === 0) return;
         const actionKey = 'addMultipleAssignments';
@@ -364,18 +361,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             );
             setAssignments(prev => {
                 const existingIds = new Set(prev.map(a => a.id));
-                const newUniqueAssignments = createdAssignments.filter(a => !existingIds.has(a.id));
+                const newUniqueAssignments = createdAssignments.filter(a => a && a.id && !existingIds.has(a.id));
                 return [...prev, ...newUniqueAssignments];
             });
-            addToast(`${assignmentsToAdd.length} assegnazioni aggiunte con successo.`, 'success');
+            addToast(`${createdAssignments.length} assegnazioni aggiunte/verificate con successo.`, 'success');
         } catch (error) {
             addToast(`Errore durante l'aggiunta di assegnazioni multiple: ${(error as Error).message}`, 'error');
-            await fetchData();
+            await fetchData(); // Refresh data to ensure consistency after partial failure
             throw error;
         } finally {
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast, fetchData]);
+
     const deleteAssignment = useCallback(async (assignmentId: string) => {
         const actionKey = `deleteAssignment-${assignmentId}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
@@ -486,50 +484,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [addToast, companyCalendar]);
     
-    const addWbsTask = useCallback(async (task: Omit<WbsTask, 'id'>) => {
-        const actionKey = 'addWbsTask';
-        setActionLoading(prev => new Set(prev).add(actionKey));
-        try {
-            const newTask = await apiFetch('/api/resources?entity=wbsTasks', { method: 'POST', body: JSON.stringify(task) });
-            setWbsTasks(prev => [...prev, newTask]);
-            addToast(`Incarico '${newTask.elementoWbs}' aggiunto.`, 'success');
-        } catch (error) {
-            addToast(`Errore aggiunta incarico WBS: ${(error as Error).message}`, 'error');
-            throw error;
-        } finally {
-            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
-        }
-    }, [addToast]);
-    const updateWbsTask = useCallback(async (task: WbsTask) => {
-        const actionKey = `updateWbsTask-${task.id}`;
-        setActionLoading(prev => new Set(prev).add(actionKey));
-        try {
-            const updatedTask = await apiFetch(`/api/resources?entity=wbsTasks&id=${task.id}`, { method: 'PUT', body: JSON.stringify(task) });
-            setWbsTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-            addToast(`Incarico '${updatedTask.elementoWbs}' aggiornato.`, 'success');
-        } catch (error) {
-            addToast(`Errore modifica incarico WBS: ${(error as Error).message}`, 'error');
-            throw error;
-        } finally {
-            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
-        }
-    }, [addToast]);
-    const deleteWbsTask = useCallback(async (taskId: string) => {
-        const taskName = wbsTasks.find(t => t.id === taskId)?.elementoWbs || 'sconosciuto';
-        const actionKey = `deleteWbsTask-${taskId}`;
-        setActionLoading(prev => new Set(prev).add(actionKey));
-        try {
-            await apiFetch(`/api/resources?entity=wbsTasks&id=${taskId}`, { method: 'DELETE' });
-            setWbsTasks(prev => prev.filter(t => t.id !== taskId));
-            addToast(`Incarico '${taskName}' eliminato.`, 'success');
-        } catch (error) {
-            addToast(`Errore eliminazione incarico WBS: ${(error as Error).message}`, 'error');
-            throw error;
-        } finally {
-            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
-        }
-    }, [addToast, wbsTasks]);
-    
     // --- Allocations-specific functions ---
 
     const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number) => {
@@ -601,7 +555,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading, isActionLoading,
+        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -609,9 +563,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addAssignment, addMultipleAssignments, deleteAssignment,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
-        addWbsTask, updateWbsTask, deleteWbsTask,
         fetchData
-    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, fetchData]);
+    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

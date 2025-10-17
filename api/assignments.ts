@@ -24,11 +24,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 // Controlla se un'assegnazione identica esiste già per evitare duplicati.
                 const { rows } = await db.sql`
-                    SELECT id FROM assignments WHERE resource_id = ${resourceId} AND project_id = ${projectId};
+                    SELECT * FROM assignments WHERE resource_id = ${resourceId} AND project_id = ${projectId};
                 `;
 
                 if (rows.length > 0) {
-                    return res.status(200).json({ message: 'Assignment already exists.', assignment: rows[0] });
+                    const existing = rows[0];
+                    return res.status(200).json({ id: existing.id, resourceId: existing.resource_id, projectId: existing.project_id });
                 }
 
                 // Se non esiste, crea una nuova assegnazione.
@@ -37,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     INSERT INTO assignments (id, resource_id, project_id)
                     VALUES (${newId}, ${resourceId}, ${projectId});
                 `;
-                return res.status(201).json({ id: newId, ...req.body });
+                return res.status(201).json({ id: newId, resourceId, projectId });
             } catch (error) {
                 return res.status(500).json({ error: (error as Error).message });
             }

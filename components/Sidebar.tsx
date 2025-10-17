@@ -114,10 +114,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <TagIcon className="w-6 h-6 mr-3" />
                     Ruoli
                 </NavLink>
-                <NavLink to="/wbs" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                    <DocumentTextIcon className="w-6 h-6 mr-3" />
-                    Incarichi WBS
-                </NavLink>
                  <NavLink to="/calendar" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <CalendarIcon className="w-6 h-6 mr-3" />
                     Calendario

@@ -4,10 +4,8 @@
  */
 
 import { db } from './db';
-import { ensureDbTablesExist } from './schema';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-// Fix: Import WbsTask type
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -16,6 +14,9 @@ import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
  */
 const toCamelCase = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+    if (obj instanceof Date) {
         return obj;
     }
     const newObj: any = {};
@@ -29,7 +30,7 @@ const toCamelCase = (obj: any): any => {
 /**
  * Gestore della richiesta API per l'endpoint /api/data.
  * Risponde solo a richieste GET.
- * Assicura che le tabelle del database esistano, poi recupera e restituisce tutti i dati necessari.
+ * Recupera e restituisce tutti i dati necessari in modo sequenziale per maggiore stabilità.
  * @param {VercelRequest} req - L'oggetto della richiesta Vercel.
  * @param {VercelResponse} res - L'oggetto della risposta Vercel.
  */
@@ -38,43 +39,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Allow', ['GET']);
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
-    try {
-        // Assicura che lo schema del database sia creato prima di recuperare i dati.
-        // Questo rende l'app resiliente a database vuoti su nuovi deployment.
-        await ensureDbTablesExist(db);
 
-        // Esegue tutte le query in parallelo per efficienza.
-        const [
-            clientsRes,
-            rolesRes,
-            resourcesRes,
-            projectsRes,
-            assignmentsRes,
-            allocationsRes,
-            horizontalsRes,
-            seniorityLevelsRes,
-            projectStatusesRes,
-            clientSectorsRes,
-            locationsRes,
-            calendarRes,
-            // Fix: Fetch WBS tasks
-            wbsTasksRes,
-        ] = await Promise.all([
-            db.sql`SELECT * FROM clients;`,
-            db.sql`SELECT * FROM roles;`,
-            db.sql`SELECT * FROM resources;`,
-            db.sql`SELECT * FROM projects;`,
-            db.sql`SELECT * FROM assignments;`,
-            db.sql`SELECT * FROM allocations;`,
-            db.sql`SELECT * FROM horizontals;`,
-            db.sql`SELECT * FROM seniority_levels;`,
-            db.sql`SELECT * FROM project_statuses;`,
-            db.sql`SELECT * FROM client_sectors;`,
-            db.sql`SELECT * FROM locations;`,
-            db.sql`SELECT * FROM company_calendar;`,
-            // Fix: Fetch WBS tasks
-            db.sql`SELECT * FROM wbs_tasks;`,
-        ]);
+    const client = await db.connect();
+    try {
+        // Esegue le query in sequenza su un singolo client per evitare problemi di concorrenza del pool.
+        const clientsRes = await client.query('SELECT * FROM clients;');
+        const rolesRes = await client.query('SELECT * FROM roles;');
+        const resourcesRes = await client.query('SELECT * FROM resources;');
+        const projectsRes = await client.query('SELECT * FROM projects;');
+        const assignmentsRes = await client.query('SELECT * FROM assignments;');
+        const allocationsRes = await client.query('SELECT * FROM allocations;');
+        const horizontalsRes = await client.query('SELECT * FROM horizontals;');
+        const seniorityLevelsRes = await client.query('SELECT * FROM seniority_levels;');
+        const projectStatusesRes = await client.query('SELECT * FROM project_statuses;');
+        const clientSectorsRes = await client.query('SELECT * FROM client_sectors;');
+        const locationsRes = await client.query('SELECT * FROM locations;');
+        const calendarRes = await client.query('SELECT * FROM company_calendar;');
+
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
         // al formato annidato { assignmentId: { date: percentage } } usato dal frontend.
@@ -102,8 +83,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = {
             clients: clientsRes.rows.map(toCamelCase) as Client[],
             roles: rolesRes.rows.map(toCamelCase) as Role[],
-            resources: resourcesRes.rows.map(toCamelCase) as Resource[],
-            projects: projectsRes.rows.map(toCamelCase) as Project[],
+            resources: resourcesRes.rows.map(row => {
+                const resource = toCamelCase(row);
+                if (resource.hireDate) {
+                    resource.hireDate = new Date(resource.hireDate).toISOString().split('T')[0];
+                }
+                return resource;
+            }) as Resource[],
+            projects: projectsRes.rows.map(row => {
+                const project = toCamelCase(row);
+                if (project.startDate) {
+                    project.startDate = new Date(project.startDate).toISOString().split('T')[0];
+                }
+                if (project.endDate) {
+                    project.endDate = new Date(project.endDate).toISOString().split('T')[0];
+                }
+                return project;
+            }) as Project[],
             assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
             allocations,
             horizontals: horizontalsRes.rows as ConfigOption[],
@@ -112,13 +108,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             clientSectors: clientSectorsRes.rows as ConfigOption[],
             locations: locationsRes.rows as ConfigOption[],
             companyCalendar,
-            // Fix: Add wbsTasks to the response
-            wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
         };
 
         return res.status(200).json(data);
     } catch (error) {
         console.error('Failed to fetch all data:', error);
         return res.status(500).json({ error: 'Failed to fetch data' });
+    } finally {
+        client.release();
     }
 }

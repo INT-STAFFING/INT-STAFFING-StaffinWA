@@ -16,7 +16,6 @@ Un'applicazione web completa per la pianificazione e il monitoraggio dell'alloca
     - Report sull'utilizzo delle risorse per periodo e filtri.
 - **Forecasting & Capacity**: Analisi previsionale del carico di lavoro e della capacità del team su un orizzonte di 12 mesi.
 - **Carico Risorse**: Una vista focalizzata sul carico di lavoro totale di ogni risorsa, per identificare facilmente sovraccarichi.
-- **Gestione Incarichi (WBS)**: Modulo per la gestione dettagliata degli incarichi professionali e del loro stato economico.
 - **Gantt Progetti**: Visualizzazione temporale dei progetti in stile Gantt per monitorare le tempistiche.
 - **Import/Export Dati**: Funzionalità per esportare tutti i dati in Excel e importare massivamente da un template predefinito.
 - **Configurabilità**: Gestione centralizzata delle opzioni utilizzate nell'applicazione (es. sedi, livelli di seniority, stati progetto).

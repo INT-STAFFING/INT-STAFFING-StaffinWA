@@ -21,8 +21,7 @@ import ForecastingPage from './pages/ForecastingPage';
 import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
-// Fix: Import WbsPage and ReportsPage
-import WbsPage from './pages/WbsPage';
+// Fix: Import ReportsPage
 import ReportsPage from './pages/ReportsPage';
 import AuditPage from './pages/AuditPage';
 import { Bars3Icon } from './components/icons';
@@ -70,7 +69,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'export': return 'Esporta Dati';
             case 'import': return 'Importa Dati';
             // Fix: Add titles for new pages
-            case 'wbs': return 'Incarichi WBS';
             case 'reports': return 'Report';
             default: return 'Staffing Planner';
         }
@@ -144,7 +142,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
                         {/* Fix: Add routes for new pages */}
-                        <Route path="/wbs" element={<WbsPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/audit" element={<AuditPage />} />
                     </Routes>
