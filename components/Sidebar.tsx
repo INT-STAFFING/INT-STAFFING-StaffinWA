@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ClipboardDocumentListIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ClipboardDocumentListIcon, DocumentTextIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -113,6 +113,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 <NavLink to="/roles" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <TagIcon className="w-6 h-6 mr-3" />
                     Ruoli
+                </NavLink>
+                <NavLink to="/wbs" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                    <DocumentTextIcon className="w-6 h-6 mr-3" />
+                    Incarichi WBS
                 </NavLink>
                  <NavLink to="/calendar" className={getNavLinkClass} onClick={handleNavLinkClick}>
                     <CalendarIcon className="w-6 h-6 mr-3" />
