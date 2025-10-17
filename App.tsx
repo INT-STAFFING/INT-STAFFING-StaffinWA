@@ -22,7 +22,6 @@ import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
 // Fix: Import WbsPage and ReportsPage
-import WbsPage from './pages/WbsPage';
 import ReportsPage from './pages/ReportsPage';
 import { Bars3Icon } from './components/icons';
 
@@ -142,7 +141,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
                         {/* Fix: Add routes for new pages */}
-                        <Route path="/wbs" element={<WbsPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                     </Routes>
                 </div>
