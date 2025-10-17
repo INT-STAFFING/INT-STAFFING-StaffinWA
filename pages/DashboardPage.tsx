@@ -64,13 +64,13 @@ const DashboardPage: React.FC = () => {
         }
         
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
-        const unassignedResourcesCount = resources.filter(r => !assignedResourceIds.has(r.id!)).length;
+        const unassignedResources = resources.filter(r => !assignedResourceIds.has(r.id!));
 
         const staffedProjectIds = new Set(assignments.map(a => a.projectId));
-        const unstaffedProjectsCount = projects.filter(p => p.status === 'In corso' && !staffedProjectIds.has(p.id!)).length;
+        const unstaffedProjects = projects.filter(p => p.status === 'In corso' && !staffedProjectIds.has(p.id!));
 
 
-        return { totalBudget, totalPersonDays, unassignedResourcesCount, unstaffedProjectsCount };
+        return { totalBudget, totalPersonDays, unassignedResources, unstaffedProjects };
     }, [projects, allocations, assignments, resources, companyCalendar]);
 
     /**
@@ -481,24 +481,42 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 <div 
-                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex items-center justify-between cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80"
+                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]"
                     onClick={() => navigate('/resources?filter=unassigned')}
                 >
-                    <div>
-                        <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
-                        <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResourcesCount}</p>
+                    <div className="flex justify-between items-start w-full">
+                        <div>
+                            <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
+                            <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResources.length}</p>
+                        </div>
+                        <UsersIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
                     </div>
-                    <UsersIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
+                    {overallKPIs.unassignedResources.length > 0 && (
+                        <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
+                            <ul className="list-disc list-inside">
+                                {overallKPIs.unassignedResources.map(r => <li key={r.id} className="truncate">{r.name}</li>)}
+                            </ul>
+                        </div>
+                    )}
                 </div>
                  <div 
-                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex items-center justify-between cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80"
+                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]"
                     onClick={() => navigate('/projects?filter=unstaffed')}
                 >
-                    <div>
-                        <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
-                        <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjectsCount}</p>
+                    <div className="flex justify-between items-start w-full">
+                        <div>
+                            <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
+                            <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjects.length}</p>
+                        </div>
+                        <BriefcaseIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
                     </div>
-                    <BriefcaseIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
+                     {overallKPIs.unstaffedProjects.length > 0 && (
+                        <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
+                            <ul className="list-disc list-inside">
+                                {overallKPIs.unstaffedProjects.map(p => <li key={p.id} className="truncate">{p.name}</li>)}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             </div>
 

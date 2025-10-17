@@ -118,8 +118,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     // Determina il colore della cella in base al carico medio.
     const cellColor = useMemo(() => {
         if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (averageAllocation >= 95 && averageAllocation <= 100) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (averageAllocation > 0 && averageAllocation < 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-transparent';
     }, [averageAllocation]);
 
@@ -175,8 +175,8 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (total > 0 && total < maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (total >= (maxPercentage * 0.95) && total <= maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (total > 0 && total < (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-gray-100 dark:bg-gray-800';
     }, [total, resource.maxStaffingPercentage]);
 
@@ -234,8 +234,8 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        if (averageAllocation > 0) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (averageAllocation >= (maxPercentage * 0.95) && averageAllocation <= maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (averageAllocation > 0 && averageAllocation < (maxPercentage * 0.95)) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-gray-100 dark:bg-gray-800';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
