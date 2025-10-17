@@ -30,7 +30,7 @@ const toCamelCase = (obj: any): any => {
 /**
  * Gestore della richiesta API per l'endpoint /api/data.
  * Risponde solo a richieste GET.
- * Recupera e restituisce tutti i dati necessari in modo sequenziale per maggiore stabilità.
+ * Recupera e restituisce tutti i dati necessari eseguendo le query in parallelo per ottimizzare le performance.
  * @param {VercelRequest} req - L'oggetto della richiesta Vercel.
  * @param {VercelResponse} res - L'oggetto della risposta Vercel.
  */
@@ -42,19 +42,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const client = await db.connect();
     try {
-        // Esegue le query in sequenza su un singolo client per evitare problemi di concorrenza del pool.
-        const clientsRes = await client.query('SELECT * FROM clients;');
-        const rolesRes = await client.query('SELECT * FROM roles;');
-        const resourcesRes = await client.query('SELECT * FROM resources;');
-        const projectsRes = await client.query('SELECT * FROM projects;');
-        const assignmentsRes = await client.query('SELECT * FROM assignments;');
-        const allocationsRes = await client.query('SELECT * FROM allocations;');
-        const horizontalsRes = await client.query('SELECT * FROM horizontals;');
-        const seniorityLevelsRes = await client.query('SELECT * FROM seniority_levels;');
-        const projectStatusesRes = await client.query('SELECT * FROM project_statuses;');
-        const clientSectorsRes = await client.query('SELECT * FROM client_sectors;');
-        const locationsRes = await client.query('SELECT * FROM locations;');
-        const calendarRes = await client.query('SELECT * FROM company_calendar;');
+        // Esegue le query in parallelo per maggiore efficienza
+        const [
+            clientsRes,
+            rolesRes,
+            resourcesRes,
+            projectsRes,
+            assignmentsRes,
+            allocationsRes,
+            horizontalsRes,
+            seniorityLevelsRes,
+            projectStatusesRes,
+            clientSectorsRes,
+            locationsRes,
+            calendarRes,
+        ] = await Promise.all([
+            client.query('SELECT * FROM clients;'),
+            client.query('SELECT * FROM roles;'),
+            client.query('SELECT * FROM resources;'),
+            client.query('SELECT * FROM projects;'),
+            client.query('SELECT * FROM assignments;'),
+            client.query('SELECT * FROM allocations;'),
+            client.query('SELECT * FROM horizontals;'),
+            client.query('SELECT * FROM seniority_levels;'),
+            client.query('SELECT * FROM project_statuses;'),
+            client.query('SELECT * FROM client_sectors;'),
+            client.query('SELECT * FROM locations;'),
+            client.query('SELECT * FROM company_calendar;'),
+        ]);
 
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
