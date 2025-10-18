@@ -51,12 +51,11 @@ export async function ensureDbTablesExist(db: VercelPool) {
             id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL UNIQUE,
             seniority_level VARCHAR(255),
-            daily_cost NUMERIC(10, 2)
+            daily_cost NUMERIC(10, 2),
+            standard_cost NUMERIC(10, 2),
+            daily_expenses NUMERIC(10, 2)
         );
     `;
-     // Add columns if they don't exist to handle migration for existing databases.
-    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(10, 2);`;
-    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC(10, 2);`;
     
     await db.sql`
         CREATE TABLE IF NOT EXISTS resources (
@@ -67,12 +66,11 @@ export async function ensureDbTablesExist(db: VercelPool) {
             horizontal VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
-            notes TEXT
+            notes TEXT,
+            location VARCHAR(255),
+            max_staffing_percentage INT DEFAULT 100 NOT NULL
         );
     `;
-    // Add columns if they don't exist to handle migration for existing databases.
-    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
-    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100 NOT NULL;`;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (
