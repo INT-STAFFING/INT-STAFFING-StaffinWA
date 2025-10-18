@@ -90,6 +90,11 @@ function generateSampleData() {
         { id: 'as5', resourceId: 'res3', projectId: 'p2' },
     ];
 
+    const candidates = [
+        { id: 'cand1', firstName: 'Marco', lastName: 'Gialli', birthYear: 1998, horizontal: 'Web Development', roleId: 'r1', cvSummary: 'Neolaureato con esperienza in React.', interviewers: ['res1'], nextInterviewDate: `${currentYear}-10-25`, interviewFeedback: 'Positivo', notes: 'Molto promettente.', entryDate: null, status: 'Aperto', pipelineStatus: 'Colloquio Tecnico' },
+        { id: 'cand2', firstName: 'Serena', lastName: 'Azzurri', birthYear: 1995, horizontal: 'Design', roleId: null, cvSummary: 'Designer UX/UI con 4 anni di esperienza.', interviewers: [], nextInterviewDate: null, interviewFeedback: null, notes: '', entryDate: null, status: 'Aperto', pipelineStatus: 'Candidature Ricevute e screening CV' }
+    ];
+
     const allocations = {};
     const today = new Date();
     for (let i = 0; i < 15; i++) {
@@ -123,7 +128,7 @@ function generateSampleData() {
         }
     }
 
-    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar };
+    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, candidates };
 };
 
 async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors, locations) {
@@ -173,7 +178,7 @@ async function seedConfigTables(client, horizontals, seniorityLevels, projectSta
 }
 
 
-async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar) {
+async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar, candidates) {
     console.log('Seeding main tables...');
 
     await client.sql`
@@ -253,6 +258,26 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
 
+    // Added candidates table creation
+    await client.sql`
+        CREATE TABLE IF NOT EXISTS candidates (
+            id UUID PRIMARY KEY,
+            first_name VARCHAR(255) NOT NULL,
+            last_name VARCHAR(255) NOT NULL,
+            birth_year INT,
+            horizontal VARCHAR(255),
+            role_id UUID REFERENCES roles(id) ON DELETE SET NULL,
+            cv_summary TEXT,
+            interviewers UUID[],
+            next_interview_date DATE,
+            interview_feedback VARCHAR(50),
+            notes TEXT,
+            entry_date DATE,
+            status VARCHAR(50),
+            pipeline_status VARCHAR(100) NOT NULL
+        );
+    `;
+
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
         ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}, ${r.dailyCost}, ${r.standardCost}, ${r.dailyExpenses}) ON CONFLICT (id) DO NOTHING;`)
@@ -301,6 +326,15 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             ON CONFLICT (id) DO NOTHING;
         `)
     );
+
+    // Seed candidates after roles
+     await Promise.all(
+        candidates.map(c => client.sql`
+            INSERT INTO candidates (id, first_name, last_name, birth_year, horizontal, role_id, cv_summary, interviewers, next_interview_date, interview_feedback, notes, entry_date, status, pipeline_status)
+            VALUES (${c.id}, ${c.firstName}, ${c.lastName}, ${c.birthYear}, ${c.horizontal}, ${c.roleId}, ${c.cvSummary}, ${c.interviewers.length > 0 ? c.interviewers : null}, ${c.nextInterviewDate}, ${c.interviewFeedback}, ${c.notes}, ${c.entryDate}, ${c.status}, ${c.pipelineStatus})
+            ON CONFLICT (id) DO NOTHING;
+        `)
+    );
     
     console.log('Main tables seeded.');
 }
@@ -327,7 +361,8 @@ async function main() {
             sampleData.projects,
             sampleData.assignments,
             sampleData.allocations,
-            sampleData.companyCalendar
+            sampleData.companyCalendar,
+            sampleData.candidates
         );
     } catch (err) {
         console.error('Error during seeding:', err);
