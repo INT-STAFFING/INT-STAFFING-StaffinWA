@@ -118,28 +118,24 @@ export async function ensureDbTablesExist(db: VercelPool) {
             UNIQUE(date, location)
         );
     `;
-    // Fix: Add wbs_tasks table schema
+
+    // Recruitment Module Table
     await db.sql`
-        CREATE TABLE IF NOT EXISTS wbs_tasks (
+        CREATE TABLE IF NOT EXISTS candidates (
             id UUID PRIMARY KEY,
-            elemento_wbs VARCHAR(255) NOT NULL UNIQUE,
-            descrizione_wbe TEXT,
-            client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
-            periodo VARCHAR(50),
-            ore NUMERIC(10, 2),
-            produzione_lorda NUMERIC(12, 2),
-            ore_network_italia NUMERIC(10, 2),
-            produzione_lorda_network_italia NUMERIC(12, 2),
-            perdite NUMERIC(12, 2),
-            realisation INT,
-            spese_onorari_esterni NUMERIC(12, 2),
-            spese_altro NUMERIC(12, 2),
-            fatture_onorari NUMERIC(12, 2),
-            fatture_spese NUMERIC(12, 2),
-            iva NUMERIC(12, 2),
-            incassi NUMERIC(12, 2),
-            primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL,
-            secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL
+            first_name VARCHAR(255) NOT NULL,
+            last_name VARCHAR(255) NOT NULL,
+            birth_year INT,
+            horizontal VARCHAR(255),
+            role_id UUID REFERENCES roles(id) ON DELETE SET NULL,
+            cv_summary TEXT,
+            interviewers UUID[],
+            next_interview_date DATE,
+            interview_feedback VARCHAR(50),
+            notes TEXT,
+            entry_date DATE,
+            status VARCHAR(50),
+            pipeline_status VARCHAR(100) NOT NULL
         );
     `;
 }

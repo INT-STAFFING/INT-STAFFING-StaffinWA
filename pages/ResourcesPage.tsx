@@ -5,13 +5,13 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource } from '../types';
+import { Candidate, Resource } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -36,11 +36,35 @@ const ResourcesPage: React.FC = () => {
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
+    const navigate = useNavigate();
+
+
+    // Handle pre-filling form from candidate conversion
+    useEffect(() => {
+        if (location.state?.candidateToConvert) {
+            const candidate = location.state.candidateToConvert as Candidate;
+            const resourceFromCandidate: Omit<Resource, 'id'> = {
+                name: `${candidate.firstName} ${candidate.lastName}`,
+                email: '', // Email is mandatory, user needs to fill it.
+                roleId: candidate.roleId || '',
+                horizontal: candidate.horizontal || '',
+                location: '', // Candidate doesn't have this field.
+                hireDate: candidate.entryDate || new Date().toISOString().split('T')[0],
+                workSeniority: 0, 
+                notes: `Convertito da candidato. Riepilogo CV: ${candidate.cvSummary || 'N/A'}`,
+                maxStaffingPercentage: 100,
+            };
+            setEditingResource(resourceFromCandidate);
+            setIsModalOpen(true);
+            // Clear the state to prevent re-triggering on re-render
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+    }, [location.state, navigate]);
 
     useEffect(() => {
         if (searchParams.get('filter') === 'unassigned') {
             setShowOnlyUnassigned(true);
-            // Optional: remove the query param after applying the filter
             setSearchParams({}, { replace: true });
         }
     }, [searchParams, setSearchParams]);

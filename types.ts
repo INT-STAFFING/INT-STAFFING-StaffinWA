@@ -154,48 +154,29 @@ export interface CalendarEvent {
     location: string | null;
 }
 
-// Fix: Add WbsTask interface
+
+// --- Recruitment Module Types ---
+
+export type PipelineStatus = 'Candidature Ricevute e screening CV' | 'Colloquio HR' | 'Colloquio Tecnico' | 'Proposta Inviata' | 'Assunto' | 'Scartato';
+export type InterviewFeedback = 'Positivo' | 'Positivo On Hold' | 'Negativo';
+
 /**
- * @interface WbsTask
- * @description Rappresenta un incarico professionale (Work Breakdown Structure).
+ * @interface Candidate
+ * @description Represents a job candidate in the recruitment pipeline.
  */
-export interface WbsTask {
-    /** @property {string} [id] - L'identificatore univoco, generato dal database. */
+export interface Candidate {
     id?: string;
-    /** @property {string} elementoWbs - Il codice identificativo dell'elemento WBS. */
-    elementoWbs: string;
-    /** @property {string} descrizioneWbe - La descrizione dell'incarico. */
-    descrizioneWbe: string;
-    /** @property {string | null} clientId - L'ID del cliente associato. */
-    clientId: string | null;
-    /** @property {string} periodo - Il periodo di riferimento (es. "2024"). */
-    periodo: string;
-    /** @property {number} ore - Le ore di lavoro stimate/consuntivate. */
-    ore: number;
-    /** @property {number} produzioneLorda - Il valore della produzione lorda. */
-    produzioneLorda: number;
-    /** @property {number} oreNetworkItalia - Ore aggiuntive del network Italia. */
-    oreNetworkItalia: number;
-    /** @property {number} produzioneLordaNetworkItalia - Produzione lorda aggiuntiva del network. */
-    produzioneLordaNetworkItalia: number;
-    /** @property {number} perdite - Perdite stimate/consuntivate. */
-    perdite: number;
-    /** @property {number} realisation - Percentuale di "realisation". */
-    realisation: number;
-    /** @property {number} speseOnorariEsterni - Spese per onorari esterni. */
-    speseOnorariEsterni: number;
-    /** @property {number} speseAltro - Altre spese. */
-    speseAltro: number;
-    /** @property {number} fattureOnorari - Importo delle fatture per onorari. */
-    fattureOnorari: number;
-    /** @property {number} fattureSpese - Importo delle fatture per spese. */
-    fattureSpese: number;
-    /** @property {number} iva - Importo IVA. */
-    iva: number;
-    /** @property {number} incassi - Importo totale incassato. */
-    incassi: number;
-    /** @property {string | null} primoResponsabileId - ID del primo responsabile. */
-    primoResponsabileId: string | null;
-    /** @property {string | null} secondoResponsabileId - ID del secondo responsabile. */
-    secondoResponsabileId: string | null;
+    firstName: string;
+    lastName: string;
+    birthYear: number | null;
+    horizontal: string;
+    roleId: string | null;
+    cvSummary: string | null;
+    interviewers: string[]; // Array of resource IDs
+    nextInterviewDate: string | null;
+    interviewFeedback: InterviewFeedback | null;
+    notes: string | null;
+    entryDate: string | null;
+    status: 'Aperto' | 'Chiuso';
+    pipelineStatus: PipelineStatus;
 }

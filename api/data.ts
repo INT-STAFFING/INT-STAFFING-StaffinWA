@@ -6,8 +6,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-// Fix: Import WbsTask type
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, Candidate } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -18,10 +17,13 @@ const toCamelCase = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
         return obj;
     }
+     if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+    }
     const newObj: any = {};
     for (const key in obj) {
         const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
-        newObj[newKey] = obj[key];
+        newObj[newKey] = toCamelCase(obj[key]);
     }
     return newObj;
 }
@@ -57,8 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             clientSectorsRes,
             locationsRes,
             calendarRes,
-            // Fix: Fetch WBS tasks
-            wbsTasksRes,
+            candidatesRes,
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -72,8 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM client_sectors;`,
             db.sql`SELECT * FROM locations;`,
             db.sql`SELECT * FROM company_calendar;`,
-            // Fix: Fetch WBS tasks
-            db.sql`SELECT * FROM wbs_tasks;`,
+            db.sql`SELECT * FROM candidates;`,
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -88,14 +88,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             allocations[assignment_id][dateStr] = percentage;
         });
 
-        // Formatta le date del calendario
-        const companyCalendar = calendarRes.rows.map(row => {
-            const event = toCamelCase(row);
-            if (event.date) {
-                event.date = new Date(event.date).toISOString().split('T')[0];
+        const formatDateFields = (row: any, dateFields: string[]) => {
+            const camelCased = toCamelCase(row);
+            for (const field of dateFields) {
+                if (camelCased[field]) {
+                    camelCased[field] = new Date(camelCased[field]).toISOString().split('T')[0];
+                }
             }
-            return event;
-        }) as CalendarEvent[];
+            return camelCased;
+        }
+
+        const companyCalendar = calendarRes.rows.map(row => formatDateFields(row, ['date'])) as CalendarEvent[];
+        const candidates = candidatesRes.rows.map(row => formatDateFields(row, ['nextInterviewDate', 'entryDate'])) as Candidate[];
 
 
         // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
@@ -112,8 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             clientSectors: clientSectorsRes.rows as ConfigOption[],
             locations: locationsRes.rows as ConfigOption[],
             companyCalendar,
-            // Fix: Add wbsTasks to the response
-            wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
+            candidates,
         };
 
         return res.status(200).json(data);
