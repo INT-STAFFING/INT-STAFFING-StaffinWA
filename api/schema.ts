@@ -51,9 +51,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
             id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL UNIQUE,
             seniority_level VARCHAR(255),
-            daily_cost NUMERIC(10, 2),
-            standard_cost NUMERIC(10, 2),
-            daily_expenses NUMERIC(10, 2)
+            daily_cost NUMERIC(10, 2)
         );
     `;
      // Add columns if they don't exist to handle migration for existing databases.
@@ -69,8 +67,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
             horizontal VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
-            notes TEXT,
-            max_staffing_percentage INT DEFAULT 100 NOT NULL
+            notes TEXT
         );
     `;
     // Add columns if they don't exist to handle migration for existing databases.

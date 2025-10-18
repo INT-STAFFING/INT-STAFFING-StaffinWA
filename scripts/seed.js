@@ -209,8 +209,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             horizontal VARCHAR(255),
             hire_date DATE,
             work_seniority INT,
-            notes TEXT,
-            max_staffing_percentage INT DEFAULT 100 NOT NULL
+            notes TEXT
         );
     `;
     await client.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
