@@ -89,12 +89,6 @@ function generateSampleData() {
         { id: 'as4', resourceId: 'res3', projectId: 'p3' },
         { id: 'as5', resourceId: 'res3', projectId: 'p2' },
     ];
-    
-    const candidates = [
-        { id: 'cand1', firstName: 'Giovanni', lastName: 'Rana', birthYear: 1990, horizontal: 'Web Development', roleId: 'r2', cvSummary: 'Sviluppatore full-stack con 5 anni di esperienza.', interviewers: ['res1', 'res3'], nextInterviewDate: `${currentYear}-10-25`, interviewFeedback: 'Positivo', notes: 'Ottima impressione, buone capacità tecniche.', entryDate: null, status: 'Aperto', pipelineStatus: 'Colloquio Tecnico' },
-        { id: 'cand2', firstName: 'Elisa', lastName: 'Pinto', birthYear: 1995, horizontal: 'Design', roleId: null, cvSummary: 'UX/UI designer specializzata in app mobile.', interviewers: ['res4'], nextInterviewDate: null, interviewFeedback: null, notes: '', status: 'Aperto', pipelineStatus: 'Candidature Ricevute e screening CV' },
-        { id: 'cand3', firstName: 'Marco', lastName: 'Gialli', birthYear: 1988, horizontal: 'DevOps', roleId: 'r3', cvSummary: 'Esperto cloud e automazione.', interviewers: ['res3'], nextInterviewDate: `${currentYear}-11-05`, interviewFeedback: null, notes: 'Da valutare per posizione Tech Lead', status: 'Aperto', pipelineStatus: 'Colloquio HR' },
-    ];
 
     const allocations = {};
     const today = new Date();
@@ -129,7 +123,7 @@ function generateSampleData() {
         }
     }
 
-    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, candidates };
+    return { clients, roles, resources, projects, assignments, allocations, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar };
 };
 
 async function seedConfigTables(client, horizontals, seniorityLevels, projectStatuses, clientSectors, locations) {
@@ -179,7 +173,7 @@ async function seedConfigTables(client, horizontals, seniorityLevels, projectSta
 }
 
 
-async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar, candidates) {
+async function seedMainTables(client, clients, roles, resources, projects, assignments, allocations, companyCalendar) {
     console.log('Seeding main tables...');
 
     await client.sql`
@@ -258,7 +252,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             UNIQUE(date, location)
         );
     `;
-    
+
     // --- ADDED FOR RECRUITMENT ---
     await client.sql`
         CREATE TABLE IF NOT EXISTS candidates (
@@ -278,7 +272,6 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             pipeline_status VARCHAR(100)
         );
     `;
-
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
@@ -328,8 +321,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             ON CONFLICT (id) DO NOTHING;
         `)
     );
-    
-     // --- ADDED FOR RECRUITMENT ---
+ // --- ADDED FOR RECRUITMENT ---
     // Seed candidates after roles and resources
     await Promise.all(
         candidates.map(c => client.sql`
@@ -338,7 +330,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             ON CONFLICT (id) DO NOTHING;
         `)
     );
-
+    
     console.log('Main tables seeded.');
 }
 
@@ -364,8 +356,7 @@ async function main() {
             sampleData.projects,
             sampleData.assignments,
             sampleData.allocations,
-            sampleData.companyCalendar,
-            sampleData.candidates
+            sampleData.companyCalendar
         );
     } catch (err) {
         console.error('Error during seeding:', err);
