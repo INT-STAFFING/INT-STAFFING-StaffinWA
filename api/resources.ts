@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const newId = uuidv4();
                         await db.sql`
                             INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, max_staffing_percentage)
-                            VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate || null}, ${workSeniority || null}, ${notes || null}, ${maxStaffingPercentage || 100});
+                            VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate}, ${workSeniority}, ${notes}, ${maxStaffingPercentage || 100});
                         `;
                         return res.status(201).json({ id: newId, ...req.body });
                     } catch (error) {
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         await db.sql`
                             UPDATE resources
                             SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, location = ${location}, 
-                                hire_date = ${hireDate || null}, work_seniority = ${workSeniority || null}, notes = ${notes || null}, max_staffing_percentage = ${maxStaffingPercentage || 100}
+                                hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}, max_staffing_percentage = ${maxStaffingPercentage || 100}
                             WHERE id = ${id as string};
                         `;
                         return res.status(200).json({ id, ...req.body });
@@ -223,49 +223,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
-
-        // --- GESTORE ENTITÀ: CANDIDATI ---
-        case 'candidates':
+        
+        // Fix: Add handler for wbsTasks entity
+        case 'wbsTasks':
             switch(method) {
                 case 'POST':
                     try {
-                        const { firstName, lastName, birthYear, horizontal, roleId, cvSummary, interviewers, nextInterviewDate, interviewFeedback, notes, entryDate, status, pipelineStatus } = req.body;
+                        const { elementoWbs, descrizioneWbe, clientId, periodo, ore, produzioneLorda, oreNetworkItalia, produzioneLordaNetworkItalia, perdite, realisation, speseOnorariEsterni, speseAltro, fattureOnorari, fattureSpese, iva, incassi, primoResponsabileId, secondoResponsabileId } = req.body;
                         const newId = uuidv4();
                         await db.sql`
-                            INSERT INTO candidates (id, first_name, last_name, birth_year, horizontal, role_id, cv_summary, interviewers, next_interview_date, interview_feedback, notes, entry_date, status, pipeline_status)
-                            VALUES (${newId}, ${firstName}, ${lastName}, ${birthYear || null}, ${horizontal || null}, ${roleId || null}, ${cvSummary || null}, ${interviewers || null}, ${nextInterviewDate || null}, ${interviewFeedback || null}, ${notes || null}, ${entryDate || null}, ${status}, ${pipelineStatus});
-                        `;
-                        return res.status(201).json({ id: newId, ...req.body });
-                    } catch (error) {
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'PUT':
-                    try {
-                         const { firstName, lastName, birthYear, horizontal, roleId, cvSummary, interviewers, nextInterviewDate, interviewFeedback, notes, entryDate, status, pipelineStatus } = req.body;
-                        await db.sql`
-                            UPDATE candidates SET
-                                first_name = ${firstName}, last_name = ${lastName}, birth_year = ${birthYear || null}, horizontal = ${horizontal || null}, role_id = ${roleId || null}, cv_summary = ${cvSummary || null}, 
-                                interviewers = ${interviewers || null}, next_interview_date = ${nextInterviewDate || null}, interview_feedback = ${interviewFeedback || null}, notes = ${notes || null}, entry_date = ${entryDate || null}, 
-                                status = ${status}, pipeline_status = ${pipelineStatus}
-                            WHERE id = ${id as string};
-                        `;
-                        return res.status(200).json({ id, ...req.body });
-                    } catch (error) {
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'DELETE':
-                    try {
-                        await db.sql`DELETE FROM candidates WHERE id = ${id as string};`;
-                        return res.status(204).end();
-                    } catch (error) {
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                default:
-                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-                    return res.status(405).end(`Method ${method} Not Allowed`);
-            }
-
-        default:
-            return res.status(404).json({ error: `Entity '${entity}' not found.` });
-    }
-}
+                            INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, ore_network_italia, produzione_lorda_network_italia, perdite, realisation, spese_onorari_esterni, spese_altro, fatture_onorari, fatture_spese, iva, incassi, primo_responsabile_id, secondo_responsabile_id)
+                            VALUES (${newId}, ${elementoWbs}, ${descrizioneWbe}, ${clientId || null}, ${periodo}, ${ore}, ${produzioneLorda}, ${oreNetworkItalia}, ${produzioneLordaNetworkItalia}, ${perdite}, ${realisation}, ${speseOnorariEsterni}, ${speseAltro}, ${fattureOnorari}, ${fattureSpese}, ${iva}, ${

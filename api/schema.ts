@@ -142,24 +142,4 @@ export async function ensureDbTablesExist(db: VercelPool) {
             secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL
         );
     `;
- // --- ADDED FOR RECRUITMENT MODULE ---
-    await db.sql`
-        CREATE TABLE IF NOT EXISTS candidates (
-            id UUID PRIMARY KEY,
-            first_name VARCHAR(255) NOT NULL,
-            last_name VARCHAR(255) NOT NULL,
-            birth_year INT,
-            horizontal VARCHAR(255),
-            role_id UUID REFERENCES roles(id) ON DELETE SET NULL,
-            cv_summary TEXT,
-            interviewers UUID[],
-            next_interview_date DATE,
-            interview_feedback VARCHAR(50),
-            notes TEXT,
-            entry_date DATE,
-            status VARCHAR(50),
-            pipeline_status VARCHAR(100)
-        );
-    `;
-
 }

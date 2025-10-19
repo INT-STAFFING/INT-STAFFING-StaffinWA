@@ -21,8 +21,8 @@ import ForecastingPage from './pages/ForecastingPage';
 import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
+// Fix: Import WbsPage and ReportsPage
 import ReportsPage from './pages/ReportsPage';
-import RecruitmentPage from './pages/RecruitmentPage';
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -62,11 +62,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'projects': return 'Gestione Progetti';
             case 'clients': return 'Gestione Clienti';
             case 'roles': return 'Gestione Ruoli';
-            case 'colloqui': return 'Gestione Assunzioni e Colloqui';
             case 'calendar': return 'Calendario Aziendale';
             case 'config': return 'Configurazioni';
             case 'export': return 'Esporta Dati';
             case 'import': return 'Importa Dati';
+            // Fix: Add titles for new pages
+            case 'wbs': return 'Incarichi WBS';
             case 'reports': return 'Report';
             default: return 'Staffing Planner';
         }
@@ -131,7 +132,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/projects" element={<ProjectsPage />} />
                         <Route path="/clients" element={<ClientsPage />} />
                         <Route path="/roles" element={<RolesPage />} />
-                        <Route path="/colloqui" element={<RecruitmentPage />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/forecasting" element={<ForecastingPage />} />
                         <Route path="/workload" element={<WorkloadPage />} />
@@ -140,6 +140,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/export" element={<ExportPage />} />
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
+                        {/* Fix: Add routes for new pages */}
                         <Route path="/reports" element={<ReportsPage />} />
                     </Routes>
                 </div>

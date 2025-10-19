@@ -253,26 +253,6 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
 
-    // --- ADDED FOR RECRUITMENT ---
-    await client.sql`
-        CREATE TABLE IF NOT EXISTS candidates (
-            id UUID PRIMARY KEY,
-            first_name VARCHAR(255) NOT NULL,
-            last_name VARCHAR(255) NOT NULL,
-            birth_year INT,
-            horizontal VARCHAR(255),
-            role_id UUID REFERENCES roles(id) ON DELETE SET NULL,
-            cv_summary TEXT,
-            interviewers UUID[],
-            next_interview_date DATE,
-            interview_feedback VARCHAR(50),
-            notes TEXT,
-            entry_date DATE,
-            status VARCHAR(50),
-            pipeline_status VARCHAR(100)
-        );
-    `;
-
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
         ...roles.map(r => client.sql`INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) VALUES (${r.id}, ${r.name}, ${r.seniorityLevel}, ${r.dailyCost}, ${r.standardCost}, ${r.dailyExpenses}) ON CONFLICT (id) DO NOTHING;`)
@@ -318,15 +298,6 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         companyCalendar.map(e => client.sql`
             INSERT INTO company_calendar (id, name, date, type, location)
             VALUES (${e.id}, ${e.name}, ${e.date}, ${e.type}, ${e.location})
-            ON CONFLICT (id) DO NOTHING;
-        `)
-    );
- // --- ADDED FOR RECRUITMENT ---
-    // Seed candidates after roles and resources
-    await Promise.all(
-        candidates.map(c => client.sql`
-            INSERT INTO candidates (id, first_name, last_name, birth_year, horizontal, role_id, cv_summary, interviewers, next_interview_date, interview_feedback, notes, entry_date, status, pipeline_status) 
-            VALUES (${c.id}, ${c.firstName}, ${c.lastName}, ${c.birthYear}, ${c.horizontal}, ${c.roleId}, ${c.cvSummary}, ${c.interviewers.length > 0 ? `{${c.interviewers.join(',')}}` : null}, ${c.nextInterviewDate}, ${c.interviewFeedback}, ${c.notes}, ${c.entryDate}, ${c.status}, ${c.pipelineStatus})
             ON CONFLICT (id) DO NOTHING;
         `)
     );

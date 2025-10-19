@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, Candidate } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -33,7 +33,7 @@ export interface EntitiesContextType {
     clientSectors: ConfigOption[];
     locations: ConfigOption[];
     companyCalendar: CalendarEvent[];
-    candidates: Candidate[];
+    wbsTasks: WbsTask[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -57,9 +57,9 @@ export interface EntitiesContextType {
     addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
     updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
     deleteCalendarEvent: (eventId: string) => Promise<void>;
-    addCandidate: (candidate: Omit<Candidate, 'id'>) => Promise<void>;
-    updateCandidate: (candidate: Candidate) => Promise<void>;
-    deleteCandidate: (candidateId: string) => Promise<void>;
+    addWbsTask: (task: Omit<WbsTask, 'id'>) => Promise<void>;
+    updateWbsTask: (task: WbsTask) => Promise<void>;
+    deleteWbsTask: (taskId: string) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -108,8 +108,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [clientSectors, setClientSectors] = useState<ConfigOption[]>([]);
     const [locations, setLocations] = useState<ConfigOption[]>([]);
     const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
-    const [candidates, setCandidates] = useState<Candidate[]>([]);
-
+    const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -129,7 +128,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setClientSectors(data.clientSectors);
             setLocations(data.locations);
             setCompanyCalendar(data.companyCalendar);
-            setCandidates(data.candidates);
+            setWbsTasks(data.wbsTasks || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -273,7 +272,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setAssignments(prev => prev.filter(a => a.resourceId !== resourceId));
             setAllocations(prev => {
                 const newAllocations = { ...prev };
-                assignmentIdsToRemove.forEach(id => { if(id) delete (newAllocations as any)[id]; });
+                assignmentIdsToRemove.forEach(id => { if(id) delete newAllocations[id]; });
                 return newAllocations;
             });
             addToast(`Risorsa '${resourceName}' eliminata.`, 'success');
@@ -326,7 +325,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setAssignments(prev => prev.filter(a => a.projectId !== projectId));
             setAllocations(prev => {
                 const newAllocations = { ...prev };
-                assignmentIdsToRemove.forEach(id => { if(id) delete (newAllocations as any)[id]; });
+                assignmentIdsToRemove.forEach(id => { if(id) delete newAllocations[id]; });
                 return newAllocations;
             });
             addToast(`Progetto '${projectName}' eliminato.`, 'success');
@@ -486,50 +485,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast, companyCalendar]);
-
-    const addCandidate = useCallback(async (candidate: Omit<Candidate, 'id'>) => {
-        const actionKey = 'addCandidate';
+    
+    const addWbsTask = useCallback(async (task: Omit<WbsTask, 'id'>) => {
+        const actionKey = 'addWbsTask';
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            const newCandidate = await apiFetch('/api/resources?entity=candidates', { method: 'POST', body: JSON.stringify(candidate) });
-            setCandidates(prev => [...prev, newCandidate]);
-            addToast(`Candidato '${newCandidate.firstName} ${newCandidate.lastName}' aggiunto.`, 'success');
+            const newTask = await apiFetch('/api/resources?entity=wbsTasks', { method: 'POST', body: JSON.stringify(task) });
+            setWbsTasks(prev => [...prev, newTask]);
+            addToast(`Incarico '${newTask.elementoWbs}' aggiunto.`, 'success');
         } catch (error) {
-            addToast(`Errore aggiunta candidato: ${(error as Error).message}`, 'error');
+            addToast(`Errore aggiunta incarico WBS: ${(error as Error).message}`, 'error');
             throw error;
         } finally {
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast]);
-    const updateCandidate = useCallback(async (candidate: Candidate) => {
-        const actionKey = `updateCandidate-${candidate.id}`;
+    const updateWbsTask = useCallback(async (task: WbsTask) => {
+        const actionKey = `updateWbsTask-${task.id}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            const updatedCandidate = await apiFetch(`/api/resources?entity=candidates&id=${candidate.id}`, { method: 'PUT', body: JSON.stringify(candidate) });
-            setCandidates(prev => prev.map(c => c.id === updatedCandidate.id ? updatedCandidate : c));
-            addToast(`Candidato '${updatedCandidate.firstName} ${updatedCandidate.lastName}' aggiornato.`, 'success');
+            const updatedTask = await apiFetch(`/api/resources?entity=wbsTasks&id=${task.id}`, { method: 'PUT', body: JSON.stringify(task) });
+            setWbsTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+            addToast(`Incarico '${updatedTask.elementoWbs}' aggiornato.`, 'success');
         } catch (error) {
-            addToast(`Errore modifica candidato: ${(error as Error).message}`, 'error');
+            addToast(`Errore modifica incarico WBS: ${(error as Error).message}`, 'error');
             throw error;
         } finally {
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast]);
-    const deleteCandidate = useCallback(async (candidateId: string) => {
-        const candidateName = candidates.find(c => c.id === candidateId);
-        const actionKey = `deleteCandidate-${candidateId}`;
+    const deleteWbsTask = useCallback(async (taskId: string) => {
+        const taskName = wbsTasks.find(t => t.id === taskId)?.elementoWbs || 'sconosciuto';
+        const actionKey = `deleteWbsTask-${taskId}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            await apiFetch(`/api/resources?entity=candidates&id=${candidateId}`, { method: 'DELETE' });
-            setCandidates(prev => prev.filter(c => c.id !== candidateId));
-            addToast(`Candidato '${candidateName?.firstName} ${candidateName?.lastName}' eliminato.`, 'success');
+            await apiFetch(`/api/resources?entity=wbsTasks&id=${taskId}`, { method: 'DELETE' });
+            setWbsTasks(prev => prev.filter(t => t.id !== taskId));
+            addToast(`Incarico '${taskName}' eliminato.`, 'success');
         } catch (error) {
-            addToast(`Errore eliminazione candidato: ${(error as Error).message}`, 'error');
+            addToast(`Errore eliminazione incarico WBS: ${(error as Error).message}`, 'error');
             throw error;
         } finally {
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
-    }, [addToast, candidates]);
+    }, [addToast, wbsTasks]);
     
     // --- Allocations-specific functions ---
 
@@ -602,7 +601,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, candidates, loading, isActionLoading,
+        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -610,9 +609,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addAssignment, addMultipleAssignments, deleteAssignment,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
-        addCandidate, updateCandidate, deleteCandidate,
+        addWbsTask, updateWbsTask, deleteWbsTask,
         fetchData
-    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, candidates, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addCandidate, updateCandidate, deleteCandidate, fetchData]);
+    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,
