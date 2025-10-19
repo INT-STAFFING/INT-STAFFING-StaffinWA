@@ -18,13 +18,10 @@ const toCamelCase = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
         return obj;
     }
-     if (Array.isArray(obj)) {
-        return obj.map(v => toCamelCase(v));
-    }
     const newObj: any = {};
     for (const key in obj) {
         const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
-        newObj[newKey] = toCamelCase(obj[key]);
+        newObj[newKey] = obj[key];
     }
     return newObj;
 }
