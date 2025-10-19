@@ -118,7 +118,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
             UNIQUE(date, location)
         );
     `;
-    // Fix: Add wbs_tasks table schema
     await db.sql`
         CREATE TABLE IF NOT EXISTS wbs_tasks (
             id UUID PRIMARY KEY,
@@ -140,6 +139,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
             incassi NUMERIC(12, 2),
             primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL,
             secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL
+        );
+    `;
+
+    // Application Configuration Table
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS app_config (
+            key VARCHAR(255) PRIMARY KEY,
+            value VARCHAR(255) NOT NULL
         );
     `;
 }

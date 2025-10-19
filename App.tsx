@@ -3,9 +3,10 @@
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useEntitiesContext } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Sidebar from './components/Sidebar';
 import StaffingPage from './pages/StaffingPage';
@@ -21,8 +22,8 @@ import ForecastingPage from './pages/ForecastingPage';
 import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
-// Fix: Import WbsPage and ReportsPage
 import ReportsPage from './pages/ReportsPage';
+import LoginPage from './pages/LoginPage'; // Importa la nuova pagina di login
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -66,7 +67,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'config': return 'Configurazioni';
             case 'export': return 'Esporta Dati';
             case 'import': return 'Importa Dati';
-            // Fix: Add titles for new pages
             case 'wbs': return 'Incarichi WBS';
             case 'reports': return 'Report';
             default: return 'Staffing Planner';
@@ -98,9 +98,8 @@ interface AppContentProps {
     onToggleSidebar: () => void;
 }
 
-
 /**
- * Gestisce il contenuto principale dell'applicazione.
+ * Gestisce il contenuto principale dell'applicazione (le pagine).
  * Mostra un indicatore di caricamento mentre i dati vengono recuperati,
  * altrimenti renderizza l'header e le route definite.
  * @param {AppContentProps} props - Le prop del componente.
@@ -140,7 +139,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/export" element={<ExportPage />} />
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
-                        {/* Fix: Add routes for new pages */}
                         <Route path="/reports" element={<ReportsPage />} />
                     </Routes>
                 </div>
@@ -150,31 +148,86 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
 }
 
 /**
- * Componente radice dell'applicazione.
- * Configura il provider di contesto, il router e la gestione del layout responsive,
- * inclusa la visibilità della sidebar su schermi piccoli.
- * @returns {React.ReactElement} L'applicazione completa.
+ * Componente che gestisce il layout principale dell'applicazione (sidebar + contenuto).
+ * @returns {React.ReactElement} Il layout principale.
  */
-const App: React.FC = () => {
-    // Stato per controllare l'apertura e la chiusura della sidebar su mobile.
+const MainLayout: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     return (
+        <>
+            {/* Backdrop per la sidebar mobile */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                ></div>
+            )}
+            <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+                <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+                <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
+            </div>
+        </>
+    );
+};
+
+/**
+ * Componente "Wrapper" che protegge le route.
+ * Se la protezione è attiva e l'utente non è autenticato, reindirizza alla pagina di login.
+ * @param {{ children: React.ReactElement }} props - I componenti figli da proteggere.
+ * @returns {React.ReactElement} I figli o un reindirizzamento.
+ */
+const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+    const { isAuthLoading, isLoginProtectionEnabled, isAuthenticated } = useAuth();
+    
+    if (isAuthLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
+                <svg className="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        );
+    }
+    
+    if (isLoginProtectionEnabled && !isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return children;
+};
+
+/**
+ * Componente radice dell'applicazione che gestisce il routing principale.
+ * @returns {React.ReactElement} L'applicazione completa.
+ */
+const AppRoutes: React.FC = () => (
+    <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route 
+            path="/*" 
+            element={
+                <ProtectedRoute>
+                    <MainLayout />
+                </ProtectedRoute>
+            } 
+        />
+    </Routes>
+);
+
+/**
+ * Componente radice dell'applicazione che imposta tutti i provider.
+ */
+const App: React.FC = () => {
+    return (
         <ToastProvider>
             <AppProvider>
-                <BrowserRouter>
-                     {/* Backdrop per la sidebar mobile: un overlay scuro che chiude la sidebar al click. */}
-                    {isSidebarOpen && (
-                        <div 
-                            className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
-                            onClick={() => setIsSidebarOpen(false)}
-                        ></div>
-                    )}
-                    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-                        <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
-                        <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
-                    </div>
-                </BrowserRouter>
+                <AuthProvider>
+                    <BrowserRouter>
+                        <AppRoutes />
+                    </BrowserRouter>
+                </AuthProvider>
             </AppProvider>
         </ToastProvider>
     );

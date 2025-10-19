@@ -252,6 +252,40 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             UNIQUE(date, location)
         );
     `;
+     await client.sql`
+        CREATE TABLE IF NOT EXISTS wbs_tasks (
+            id UUID PRIMARY KEY,
+            elemento_wbs VARCHAR(255) NOT NULL UNIQUE,
+            descrizione_wbe TEXT,
+            client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+            periodo VARCHAR(50),
+            ore NUMERIC(10, 2),
+            produzione_lorda NUMERIC(12, 2),
+            ore_network_italia NUMERIC(10, 2),
+            produzione_lorda_network_italia NUMERIC(12, 2),
+            perdite NUMERIC(12, 2),
+            realisation INT,
+            spese_onorari_esterni NUMERIC(12, 2),
+            spese_altro NUMERIC(12, 2),
+            fatture_onorari NUMERIC(12, 2),
+            fatture_spese NUMERIC(12, 2),
+            iva NUMERIC(12, 2),
+            incassi NUMERIC(12, 2),
+            primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+            secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL
+        );
+    `;
+    await client.sql`
+        CREATE TABLE IF NOT EXISTS app_config (
+            key VARCHAR(255) PRIMARY KEY,
+            value VARCHAR(255) NOT NULL
+        );
+    `;
+     await client.sql`
+        INSERT INTO app_config (key, value) 
+        VALUES ('login_protection_enabled', 'false') 
+        ON CONFLICT (key) DO NOTHING;
+    `;
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
