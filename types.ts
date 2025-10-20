@@ -201,6 +201,12 @@ export interface WbsTask {
 }
 
 /**
+ * @enum ResourceRequestStatus
+ * @description Definisce i possibili stati di una richiesta di risorsa.
+ */
+export type ResourceRequestStatus = 'ATTIVA' | 'STANDBY' | 'CHIUSA';
+
+/**
  * @interface ResourceRequest
  * @description Rappresenta una richiesta di risorsa per un progetto.
  */
@@ -211,6 +217,8 @@ export interface ResourceRequest {
     projectId: string;
     /** @property {string} roleId - L'ID del ruolo richiesto. */
     roleId: string;
+    /** @property {string | null} requestorId - L'ID della risorsa che ha effettuato la richiesta. */
+    requestorId: string | null;
     /** @property {string} startDate - Data di inizio attività richiesta. */
     startDate: string;
     /** @property {string} endDate - Data di fine attività richiesta. */
@@ -225,6 +233,6 @@ export interface ResourceRequest {
     isTechRequest: boolean;
     /** @property {string} [notes] - Note facoltative. */
     notes?: string;
-    /** @property {string} status - Stato della richiesta (es. 'APERTA', 'APPROVATA'). */
-    status: string;
+    /** @property {ResourceRequestStatus} status - Stato della richiesta (es. 'ATTIVA', 'STANDBY', 'CHIUSA'). */
+    status: ResourceRequestStatus;
 }

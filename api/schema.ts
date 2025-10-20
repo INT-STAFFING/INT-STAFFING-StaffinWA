@@ -146,6 +146,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
             id UUID PRIMARY KEY,
             project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
             role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+            requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL,
             start_date DATE NOT NULL,
             end_date DATE NOT NULL,
             commitment_percentage INT NOT NULL,
