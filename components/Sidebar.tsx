@@ -27,7 +27,7 @@ interface SidebarProps {
  * @returns {React.ReactElement} Il componente Sidebar.
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-    const { logout, isAuthenticated, isLoginProtectionEnabled } = useAuth();
+    const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
     const navLinkClasses = "flex items-center px-4 py-2 text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200";
     const activeNavLinkClasses = "bg-gray-700 text-white";
 
@@ -129,6 +129,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         <ArrowUpOnSquareIcon className="w-6 h-6 mr-3" />
                         Importa Dati
                     </NavLink>
+                    
+                    {isAdmin && (
+                        <>
+                            <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amministrazione</div>
+                            <NavLink to="/admin-settings" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                                <Cog6ToothIcon className="w-6 h-6 mr-3" />
+                                Impostazioni Admin
+                            </NavLink>
+                        </>
+                    )}
                 </div>
                 {/* Logout Button */}
                 {isAuthenticated && isLoginProtectionEnabled && (

@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
     const [username, setUsername] = useState(''); // Campo puramente estetico
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const { login, isAuthenticated, isAdmin, isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
+    const { login, isAuthenticated, isLoginProtectionEnabled } = useAuth();
     const navigate = useNavigate();
 
     // Reindirizza se l'utente è già loggato e la protezione è attiva
@@ -34,14 +34,6 @@ const LoginPage: React.FC = () => {
             setError((err as Error).message);
         } finally {
             setIsLoading(false);
-        }
-    };
-    
-    const handleToggleProtection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        try {
-            await toggleLoginProtection(e.target.checked);
-        } catch {
-            // L'errore è già gestito nel contesto
         }
     };
 
@@ -74,7 +66,7 @@ const LoginPage: React.FC = () => {
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                                placeholder="Utente (estetico)"
+                                placeholder="Utente"
                             />
                         </div>
                         <div>
@@ -105,30 +97,6 @@ const LoginPage: React.FC = () => {
                         </button>
                     </div>
                 </form>
-
-                {isAdmin && (
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-medium text-center text-gray-900 dark:text-white">Pannello Admin</h3>
-                         <div className="flex items-center justify-center mt-4">
-                            <label htmlFor="protection-toggle" className="flex items-center cursor-pointer">
-                                <div className="relative">
-                                    <input 
-                                        type="checkbox" 
-                                        id="protection-toggle" 
-                                        className="sr-only"
-                                        checked={isLoginProtectionEnabled}
-                                        onChange={handleToggleProtection}
-                                    />
-                                    <div className="block bg-gray-600 w-14 h-8 rounded-full"></div>
-                                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${isLoginProtectionEnabled ? 'transform translate-x-6 bg-blue-400' : ''}`}></div>
-                                </div>
-                                <div className="ml-3 text-gray-700 dark:text-gray-300 font-medium">
-                                    Attiva Protezione Login
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

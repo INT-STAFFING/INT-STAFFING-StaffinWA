@@ -23,7 +23,8 @@ import GanttPage from './pages/GanttPage';
 import CalendarPage from './pages/CalendarPage';
 import WorkloadPage from './pages/WorkloadPage';
 import ReportsPage from './pages/ReportsPage';
-import LoginPage from './pages/LoginPage'; // Importa la nuova pagina di login
+import LoginPage from './pages/LoginPage';
+import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova pagina Admin
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -69,6 +70,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'import': return 'Importa Dati';
             case 'wbs': return 'Incarichi WBS';
             case 'reports': return 'Report';
+            case 'admin-settings': return 'Impostazioni Admin';
             default: return 'Staffing Planner';
         }
     };
@@ -140,6 +142,14 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
+                        <Route 
+                            path="/admin-settings" 
+                            element={
+                                <AdminRoute>
+                                    <AdminSettingsPage />
+                                </AdminRoute>
+                            } 
+                        />
                     </Routes>
                 </div>
             </main>
@@ -193,6 +203,36 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
     
     if (isLoginProtectionEnabled && !isAuthenticated) {
         return <Navigate to="/login" replace />;
+    }
+
+    return children;
+};
+
+/**
+ * Componente "Wrapper" che protegge le route di amministrazione.
+ * @param {{ children: React.ReactElement }} props - I componenti figli da proteggere.
+ * @returns {React.ReactElement} I figli o un reindirizzamento.
+ */
+const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+    const { isAuthLoading, isLoginProtectionEnabled, isAuthenticated, isAdmin } = useAuth();
+    
+    if (isAuthLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
+                <svg className="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        );
+    }
+
+    if (isLoginProtectionEnabled && !isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+    
+    if (!isAdmin) {
+        return <Navigate to="/" replace />;
     }
 
     return children;
