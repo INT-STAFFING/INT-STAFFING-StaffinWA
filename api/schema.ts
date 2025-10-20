@@ -141,6 +141,22 @@ export async function ensureDbTablesExist(db: VercelPool) {
             secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL
         );
     `;
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS resource_requests (
+            id UUID PRIMARY KEY,
+            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+            role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            commitment_percentage INT NOT NULL,
+            is_urgent BOOLEAN DEFAULT FALSE,
+            is_long_term BOOLEAN DEFAULT FALSE,
+            is_tech_request BOOLEAN DEFAULT FALSE,
+            notes TEXT,
+            status VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
 
     // Application Configuration Table
     await db.sql`

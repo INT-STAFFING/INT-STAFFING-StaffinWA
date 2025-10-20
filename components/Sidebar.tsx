@@ -6,7 +6,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ArrowLeftOnRectangleIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ArrowLeftOnRectangleIcon, ClipboardDocumentListIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -95,6 +95,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     </NavLink>
                     
                     <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>
+                    <NavLink to="/resource-requests" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <ClipboardDocumentListIcon className="w-6 h-6 mr-3" />
+                        Richiesta Risorse
+                    </NavLink>
                     <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <UsersIcon className="w-6 h-6 mr-3" />
                         Risorse

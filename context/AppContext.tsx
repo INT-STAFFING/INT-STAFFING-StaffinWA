@@ -7,7 +7,8 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask } from '../types';
+// FIX: Add ResourceRequest to import
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -34,6 +35,8 @@ export interface EntitiesContextType {
     locations: ConfigOption[];
     companyCalendar: CalendarEvent[];
     wbsTasks: WbsTask[];
+    // FIX: Add resourceRequests and related CRUD functions
+    resourceRequests: ResourceRequest[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -60,6 +63,9 @@ export interface EntitiesContextType {
     addWbsTask: (task: Omit<WbsTask, 'id'>) => Promise<void>;
     updateWbsTask: (task: WbsTask) => Promise<void>;
     deleteWbsTask: (taskId: string) => Promise<void>;
+    addResourceRequest: (request: Omit<ResourceRequest, 'id'>) => Promise<void>;
+    updateResourceRequest: (request: ResourceRequest) => Promise<void>;
+    deleteResourceRequest: (requestId: string) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -109,6 +115,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [locations, setLocations] = useState<ConfigOption[]>([]);
     const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
     const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
+    // FIX: Add state for resourceRequests
+    const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -129,6 +137,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setLocations(data.locations);
             setCompanyCalendar(data.companyCalendar);
             setWbsTasks(data.wbsTasks || []);
+            // FIX: Set resourceRequests from fetched data
+            setResourceRequests(data.resourceRequests || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -530,6 +540,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [addToast, wbsTasks]);
     
+    // FIX: Add CRUD functions for ResourceRequest
+    const addResourceRequest = useCallback(async (request: Omit<ResourceRequest, 'id'>) => {
+        const actionKey = 'addResourceRequest';
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const newRequest = await apiFetch('/api/resource-requests', { method: 'POST', body: JSON.stringify(request) });
+            setResourceRequests(prev => [...prev, newRequest]);
+            addToast(`Richiesta di risorsa creata con successo.`, 'success');
+        } catch (error) {
+            addToast(`Errore creazione richiesta: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    const updateResourceRequest = useCallback(async (request: ResourceRequest) => {
+        const actionKey = `updateResourceRequest-${request.id}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const updatedRequest = await apiFetch(`/api/resource-requests?id=${request.id}`, { method: 'PUT', body: JSON.stringify(request) });
+            setResourceRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
+            addToast(`Richiesta di risorsa aggiornata.`, 'success');
+        } catch (error) {
+            addToast(`Errore modifica richiesta: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+    
+    const deleteResourceRequest = useCallback(async (requestId: string) => {
+        const actionKey = `deleteResourceRequest-${requestId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch(`/api/resource-requests?id=${requestId}`, { method: 'DELETE' });
+            setResourceRequests(prev => prev.filter(r => r.id !== requestId));
+            addToast(`Richiesta di risorsa eliminata.`, 'success');
+        } catch (error) {
+            addToast(`Errore eliminazione richiesta: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+    
     // --- Allocations-specific functions ---
 
     const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number) => {
@@ -601,7 +657,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading, isActionLoading,
+        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -610,8 +666,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         addWbsTask, updateWbsTask, deleteWbsTask,
+        addResourceRequest, updateResourceRequest, deleteResourceRequest,
         fetchData
-    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, fetchData]);
+    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

@@ -199,3 +199,32 @@ export interface WbsTask {
     /** @property {string | null} secondoResponsabileId - ID del secondo responsabile. */
     secondoResponsabileId: string | null;
 }
+
+/**
+ * @interface ResourceRequest
+ * @description Rappresenta una richiesta di risorsa per un progetto.
+ */
+export interface ResourceRequest {
+    /** @property {string} [id] - L'identificatore univoco, generato dal database. */
+    id?: string;
+    /** @property {string} projectId - L'ID del progetto di riferimento. */
+    projectId: string;
+    /** @property {string} roleId - L'ID del ruolo richiesto. */
+    roleId: string;
+    /** @property {string} startDate - Data di inizio attività richiesta. */
+    startDate: string;
+    /** @property {string} endDate - Data di fine attività richiesta. */
+    endDate: string;
+    /** @property {number} commitmentPercentage - Percentuale di impegno richiesta. */
+    commitmentPercentage: number;
+    /** @property {boolean} isUrgent - Flag "urgente". */
+    isUrgent: boolean;
+    /** @property {boolean} isLongTerm - Flag "lunga durata" (calcolato > 2 mesi). */
+    isLongTerm: boolean;
+    /** @property {boolean} isTechRequest - Flag "richiesta TECH". */
+    isTechRequest: boolean;
+    /** @property {string} [notes] - Note facoltative. */
+    notes?: string;
+    /** @property {string} status - Stato della richiesta (es. 'APERTA', 'APPROVATA'). */
+    status: string;
+}

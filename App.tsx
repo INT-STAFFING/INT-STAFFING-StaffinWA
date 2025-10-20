@@ -25,6 +25,7 @@ import WorkloadPage from './pages/WorkloadPage';
 import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova pagina Admin
+import ResourceRequestPage from './pages/ResourceRequestPage'; // Importa la nuova pagina
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -71,6 +72,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'wbs': return 'Incarichi WBS';
             case 'reports': return 'Report';
             case 'admin-settings': return 'Impostazioni Admin';
+            case 'resource-requests': return 'Richiesta Risorse';
             default: return 'Staffing Planner';
         }
     };
@@ -142,6 +144,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/import" element={<ImportPage />} />
                         <Route path="/config" element={<ConfigPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/resource-requests" element={<ResourceRequestPage />} />
                         <Route 
                             path="/admin-settings" 
                             element={
