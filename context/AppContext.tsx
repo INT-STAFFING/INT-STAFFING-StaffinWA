@@ -540,7 +540,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const actionKey = 'addResourceRequest';
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            const newRequest = await apiFetch('/api/resource-requests', { method: 'POST', body: JSON.stringify(request) });
+            const newRequest = await apiFetch('/api/resources?entity=resource-requests', { method: 'POST', body: JSON.stringify(request) });
             setResourceRequests(prev => [...prev, newRequest]);
             addToast(`Richiesta di risorsa creata con successo.`, 'success');
         } catch (error) {
@@ -555,7 +555,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const actionKey = `updateResourceRequest-${request.id}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            const updatedRequest = await apiFetch(`/api/resource-requests?id=${request.id}`, { method: 'PUT', body: JSON.stringify(request) });
+            const updatedRequest = await apiFetch(`/api/resources?entity=resource-requests&id=${request.id}`, { method: 'PUT', body: JSON.stringify(request) });
             setResourceRequests(prev => prev.map(r => r.id === updatedRequest.id ? updatedRequest : r));
             addToast(`Richiesta di risorsa aggiornata.`, 'success');
         } catch (error) {
@@ -570,7 +570,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const actionKey = `deleteResourceRequest-${requestId}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            await apiFetch(`/api/resource-requests?id=${requestId}`, { method: 'DELETE' });
+            await apiFetch(`/api/resources?entity=resource-requests&id=${requestId}`, { method: 'DELETE' });
             setResourceRequests(prev => prev.filter(r => r.id !== requestId));
             addToast(`Richiesta di risorsa eliminata.`, 'success');
         } catch (error) {
