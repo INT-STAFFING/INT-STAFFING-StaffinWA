@@ -78,14 +78,17 @@ const ResourceRequestPage: React.FC = () => {
         const fteByRole: { [roleName: string]: number } = {};
         const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
 
-        dataForTable.forEach(req => {
-            // FTE per role calculation
+        // Escludi le richieste in standby da entrambi i riepiloghi
+        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY');
+
+        relevantRequests.forEach(req => {
+            // Calcolo FTE per ruolo
             if (!fteByRole[req.roleName]) {
                 fteByRole[req.roleName] = 0;
             }
             fteByRole[req.roleName] += req.commitmentPercentage / 100;
 
-            // Grouping by project
+            // Raggruppamento per progetto
             if (!requestsByProject[req.projectName]) {
                 requestsByProject[req.projectName] = [];
             }
