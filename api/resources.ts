@@ -399,6 +399,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         return res.status(500).json({ error: (error as Error).message });
                     }
 
+                case 'delete_all_rows':
+                    if (method !== 'DELETE') return res.status(405).end();
+                    if (typeof table !== 'string') return res.status(400).json({ error: 'Table name is required.' });
+                    
+                    try {
+                        if (!TABLE_WHITELIST.includes(table)) {
+                            return res.status(403).json({ error: `Access to table '${table}' is forbidden.` });
+                        }
+                        await db.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE;`);
+                        return res.status(200).json({ success: true, message: `All rows from table ${table} have been deleted.` });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+
                 default:
                     return res.status(400).json({ error: 'Invalid or missing action for db_inspector.' });
             }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon, PencilIcon, CheckIcon, XMarkIcon } from '../components/icons';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 interface Column {
     column_name: string;
@@ -20,6 +21,7 @@ const DbInspectorPage: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [editingRowId, setEditingRowId] = useState<string | null>(null);
     const [editingRowData, setEditingRowData] = useState<any | null>(null);
+    const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
     const { addToast } = useToast();
 
     useEffect(() => {
@@ -107,6 +109,28 @@ const DbInspectorPage: React.FC = () => {
         }
     };
 
+    const handleDeleteAll = async () => {
+        if (!selectedTable) return;
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/api/resources?entity=db_inspector&action=delete_all_rows&table=${selectedTable}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete all rows');
+            }
+            addToast(`Tutte le righe dalla tabella '${selectedTable}' sono state eliminate.`, 'success');
+            setTableData(prev => prev ? { ...prev, rows: [] } : null); // Clear the data locally
+            handleCancel(); // Close any inline editing
+        } catch (error) {
+            addToast((error as Error).message, 'error');
+        } finally {
+            setIsSaving(false);
+            setIsDeleteAllModalOpen(false);
+        }
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, colName: string, colType: string) => {
         if (!editingRowData) return;
         let value: any = e.target.value;
@@ -178,17 +202,28 @@ const DbInspectorPage: React.FC = () => {
         <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Database Inspector</h1>
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow max-w-md">
-                <label htmlFor="table-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Seleziona una Tabella</label>
-                <select
-                    id="table-select"
-                    value={selectedTable}
-                    onChange={e => setSelectedTable(e.target.value)}
-                    className="form-select w-full"
-                    disabled={isLoading}
-                >
-                    {tables.map(table => <option key={table} value={table}>{table}</option>)}
-                </select>
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow max-w-2xl">
+                <div className="flex items-end gap-4">
+                    <div className="flex-grow">
+                        <label htmlFor="table-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Seleziona una Tabella</label>
+                        <select
+                            id="table-select"
+                            value={selectedTable}
+                            onChange={e => setSelectedTable(e.target.value)}
+                            className="form-select w-full"
+                            disabled={isLoading}
+                        >
+                            {tables.map(table => <option key={table} value={table}>{table}</option>)}
+                        </select>
+                    </div>
+                    <button
+                        onClick={() => setIsDeleteAllModalOpen(true)}
+                        disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
+                        className="px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                    >
+                        Elimina Tutte le Righe
+                    </button>
+                </div>
             </div>
 
             {isLoading && !tableData && (
@@ -244,8 +279,27 @@ const DbInspectorPage: React.FC = () => {
                             ))}
                         </tbody>
                     </table>
+                     {tableData.rows.length === 0 && (
+                        <p className="text-center text-gray-500 py-8">La tabella è vuota.</p>
+                    )}
                 </div>
             )}
+            
+            <ConfirmationModal
+                isOpen={isDeleteAllModalOpen}
+                onClose={() => setIsDeleteAllModalOpen(false)}
+                onConfirm={handleDeleteAll}
+                title={`Conferma Eliminazione Totale`}
+                message={
+                    <>
+                        Sei assolutamente sicuro di voler eliminare <strong>tutte le righe</strong> dalla tabella <strong>{selectedTable}</strong>?
+                        <br />
+                        <strong className="text-destructive">Questa azione è irreversibile.</strong>
+                    </>
+                }
+                isConfirming={isSaving}
+            />
+
             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
