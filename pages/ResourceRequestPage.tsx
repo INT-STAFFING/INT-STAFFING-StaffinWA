@@ -74,6 +74,39 @@ const ResourceRequestPage: React.FC = () => {
             }));
     }, [resourceRequests, projects, roles, resources, filters]);
 
+     const summaryData = useMemo(() => {
+        const fteByRole: { [roleName: string]: number } = {};
+        const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
+
+        dataForTable.forEach(req => {
+            // FTE per role calculation
+            if (!fteByRole[req.roleName]) {
+                fteByRole[req.roleName] = 0;
+            }
+            fteByRole[req.roleName] += req.commitmentPercentage / 100;
+
+            // Grouping by project
+            if (!requestsByProject[req.projectName]) {
+                requestsByProject[req.projectName] = [];
+            }
+            requestsByProject[req.projectName].push({
+                roleName: req.roleName,
+                commitmentPercentage: req.commitmentPercentage,
+            });
+        });
+
+        const fteArray = Object.entries(fteByRole)
+            .map(([roleName, fte]) => ({ roleName, fte }))
+            .sort((a, b) => b.fte - a.fte);
+
+        const projectArray = Object.entries(requestsByProject)
+            .map(([projectName, requests]) => ({ projectName, requests }))
+            .sort((a, b) => a.projectName.localeCompare(b.projectName));
+
+        return { fteArray, projectArray };
+    }, [dataForTable]);
+
+
     const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
@@ -240,6 +273,46 @@ const ResourceRequestPage: React.FC = () => {
             
              <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
                 {filtersNode}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
+                    <h2 className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">Riepilogo Risorse Richieste (FTE)</h2>
+                    {summaryData.fteArray.length > 0 ? (
+                        <ul className="space-y-2 max-h-48 overflow-y-auto">
+                            {summaryData.fteArray.map(({ roleName, fte }) => (
+                                <li key={roleName} className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">{roleName}</span>
+                                    <span className="font-bold text-primary">{fte.toFixed(2)}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Nessun dato da aggregare in base ai filtri correnti.</p>
+                    )}
+                </div>
+
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
+                    <h2 className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">Dettaglio Richieste per Progetto</h2>
+                     {summaryData.projectArray.length > 0 ? (
+                        <div className="space-y-4 max-h-48 overflow-y-auto">
+                            {summaryData.projectArray.map(({ projectName, requests }) => (
+                                <div key={projectName}>
+                                    <h3 className="font-semibold text-foreground dark:text-dark-foreground text-sm">{projectName}</h3>
+                                    <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
+                                        {requests.map((req, index) => (
+                                            <li key={index} className="text-sm text-muted-foreground">
+                                                {req.roleName} <span className="font-medium text-foreground dark:text-dark-foreground">({req.commitmentPercentage}%)</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                         <p className="text-sm text-muted-foreground">Nessun dato da aggregare in base ai filtri correnti.</p>
+                    )}
+                </div>
             </div>
 
             {view === 'table' ? (
