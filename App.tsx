@@ -68,8 +68,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'roles': return 'Gestione Ruoli';
             case 'calendar': return 'Calendario Aziendale';
             case 'config': return 'Configurazioni';
-            case 'export': return 'Esporta Dati';
-            case 'import': return 'Importa Dati';
+            case 'export': return 'Esportazione Dati';
+            case 'import': return 'Importazione Massiva';
             case 'wbs': return 'Incarichi WBS';
             case 'reports': return 'Report';
             case 'admin-settings': return 'Impostazioni Admin';

@@ -1,84 +1,125 @@
 /**
  * @file ExportPage.tsx
- * @description Pagina dedicata all'esportazione dei dati dell'applicazione in un file Excel.
+ * @description Pagina dedicata all'esportazione dei dati dell'applicazione in file Excel separati.
  */
 
 import React, { useState } from 'react';
+// Fix: Import useAllocationsContext to get allocations data.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { exportDataToExcel } from '../utils/exportUtils';
-import { ArrowDownOnSquareIcon } from '../components/icons';
+import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews } from '../utils/exportUtils';
+import { ArrowDownOnSquareIcon, BriefcaseIcon, CalendarDaysIcon, ClipboardDocumentListIcon, UserGroupIcon } from '../components/icons';
 
-/**
- * Componente per la pagina di esportazione.
- * Fornisce un pulsante per scaricare tutti i dati dell'applicazione in un file Excel.
- * @returns {React.ReactElement} La pagina di esportazione.
- */
+type ExportType = 'core' | 'staffing' | 'requests' | 'interviews';
+
+interface ExportCardProps {
+    title: string;
+    description: string;
+    onExport: () => void;
+    isExporting: boolean;
+    icon: React.ReactNode;
+}
+
+const ExportCard: React.FC<ExportCardProps> = ({ title, description, onExport, isExporting, icon }) => (
+    <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 flex flex-col">
+        <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 text-primary">{icon}</div>
+            <div>
+                <h2 className="text-xl font-semibold mb-2">{title}</h2>
+                <p className="text-muted-foreground text-sm flex-grow">{description}</p>
+            </div>
+        </div>
+        <div className="mt-6 text-right">
+            <button
+                onClick={onExport}
+                disabled={isExporting}
+                className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+                {isExporting ? (
+                    <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Esportazione...
+                    </>
+                ) : (
+                    <>
+                        <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" />
+                        Scarica File
+                    </>
+                )}
+            </button>
+        </div>
+    </div>
+);
+
+
 const ExportPage: React.FC = () => {
-    // Ottiene i dati dai contesti separati.
-    const entities = useEntitiesContext();
+    const allData = useEntitiesContext();
+    // Fix: Get allocations from context.
     const { allocations } = useAllocationsContext();
-    // Stato per gestire la visualizzazione del feedback durante l'esportazione.
-    const [isExporting, setIsExporting] = useState(false);
-    // Stato per mostrare un messaggio di successo o fallimento dopo il tentativo di esportazione.
-    const [exportSuccess, setExportSuccess] = useState<boolean | null>(null);
+    const [exportingType, setExportingType] = useState<ExportType | null>(null);
 
-    /**
-     * Gestisce il click sul pulsante di esportazione.
-     * Chiama la funzione di utility per creare e scaricare il file Excel.
-     * Aggiorna lo stato per fornire feedback all'utente.
-     */
-    const handleExport = () => {
-        setIsExporting(true);
-        setExportSuccess(null);
+    const handleExport = async (type: ExportType) => {
+        setExportingType(type);
         try {
-            // Combina i dati dai due contesti prima di passarli alla funzione di export.
-            exportDataToExcel({ ...entities, allocations });
-            setExportSuccess(true);
+            switch (type) {
+                case 'core':
+                    await exportCoreEntities(allData);
+                    break;
+                case 'staffing':
+                    // Fix: Pass allocations data to the export function.
+                    await exportStaffing({ ...allData, allocations });
+                    break;
+                case 'requests':
+                    await exportResourceRequests(allData);
+                    break;
+                case 'interviews':
+                    await exportInterviews(allData);
+                    break;
+            }
         } catch (error) {
-            console.error("Failed to export data:", error);
-            setExportSuccess(false);
+            console.error(`Failed to export ${type}:`, error);
+            // In un'app reale, useremmo un sistema di notifiche (toast)
+            alert(`Errore durante l'esportazione di ${type}. Controlla la console.`);
         } finally {
-            setIsExporting(false);
+            setExportingType(null);
         }
     };
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Esporta Dati</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-8">Esportazione Dati</h1>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-2xl mx-auto text-center">
-                <h2 className="text-xl font-semibold mb-2">Esporta in Formato Excel</h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                    Scarica tutti i dati dell'applicazione in un singolo file Excel. Il file conterrà fogli separati per Clienti, Ruoli, Risorse, Progetti, Assegnazioni e Allocazioni giornaliere.
-                </p>
-
-                <button
-                    onClick={handleExport}
-                    disabled={isExporting}
-                    className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors duration-200"
-                >
-                    {isExporting ? (
-                        <>
-                           <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Esportazione...
-                        </>
-                    ) : (
-                        <>
-                            <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" />
-                            Scarica File Excel
-                        </>
-                    )}
-                </button>
-
-                {exportSuccess === true && (
-                    <p className="mt-4 text-green-600 dark:text-green-400">Esportazione completata con successo!</p>
-                )}
-                {exportSuccess === false && (
-                    <p className="mt-4 text-red-600 dark:text-red-400">Errore durante l'esportazione. Controlla la console per i dettagli.</p>
-                )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <ExportCard
+                    title="Entità Principali"
+                    description="Esporta un file contenente Risorse, Progetti, Clienti, Ruoli, Calendario e tutte le opzioni di configurazione. Ideale per un backup completo."
+                    onExport={() => handleExport('core')}
+                    isExporting={exportingType === 'core'}
+                    icon={<BriefcaseIcon className="w-8 h-8"/>}
+                />
+                <ExportCard
+                    title="Staffing"
+                    description="Esporta la griglia di staffing con le allocazioni giornaliere. Utile per modifiche massicce e re-importazione delle allocazioni."
+                    onExport={() => handleExport('staffing')}
+                    isExporting={exportingType === 'staffing'}
+                    icon={<CalendarDaysIcon className="w-8 h-8"/>}
+                />
+                 <ExportCard
+                    title="Richieste Risorse"
+                    description="Esporta l'elenco completo di tutte le richieste di risorse aperte e chiuse, con tutti i dettagli associati."
+                    onExport={() => handleExport('requests')}
+                    isExporting={exportingType === 'requests'}
+                    icon={<ClipboardDocumentListIcon className="w-8 h-8"/>}
+                />
+                 <ExportCard
+                    title="Colloqui"
+                    description="Esporta l'elenco completo di tutti i colloqui di selezione registrati nel sistema, inclusi feedback e stati."
+                    onExport={() => handleExport('interviews')}
+                    isExporting={exportingType === 'interviews'}
+                    icon={<UserGroupIcon className="w-8 h-8"/>}
+                />
             </div>
         </div>
     );

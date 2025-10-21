@@ -131,7 +131,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                      <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dati</div>
                      <NavLink to="/export" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <ArrowDownOnSquareIcon className="w-6 h-6 mr-3" />
-                        Esporta Excel
+                        Esporta Dati
                     </NavLink>
                     <NavLink to="/import" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <ArrowUpOnSquareIcon className="w-6 h-6 mr-3" />
