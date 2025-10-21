@@ -435,41 +435,47 @@ const StaffingPage: React.FC = () => {
      * poi raggruppa le assegnazioni per risorsa e le ordina alfabeticamente.
      */
     const displayData = useMemo(() => {
-        let filteredAssignments = [...assignments];
-
+        // 1. Filter resources based on resource-specific filters
+        let visibleResources = [...resources];
         if (filters.resourceId) {
-            filteredAssignments = filteredAssignments.filter(a => a.resourceId === filters.resourceId);
+            visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
         }
+
+        // 2. Filter assignments based on project-specific filters
+        let relevantAssignments = [...assignments];
         if (filters.projectId) {
-            filteredAssignments = filteredAssignments.filter(a => a.projectId === filters.projectId);
+            relevantAssignments = relevantAssignments.filter(a => a.projectId === filters.projectId);
         }
         if (filters.clientId) {
             const clientProjectIds = new Set(projects.filter(p => p.clientId === filters.clientId).map(p => p.id));
-            filteredAssignments = filteredAssignments.filter(a => clientProjectIds.has(a.projectId));
+            relevantAssignments = relevantAssignments.filter(a => clientProjectIds.has(a.projectId));
         }
-        // Applica il nuovo filtro per Project Manager.
         if (filters.projectManager) {
             const projectIdsForPm = new Set(projects.filter(p => p.projectManager === filters.projectManager).map(p => p.id));
-            filteredAssignments = filteredAssignments.filter(a => projectIdsForPm.has(a.projectId));
+            relevantAssignments = relevantAssignments.filter(a => projectIdsForPm.has(a.projectId));
         }
-        
-        const groupedByResource: { [resourceId: string]: Assignment[] } = {};
-        filteredAssignments.forEach(a => {
-            if (!groupedByResource[a.resourceId]) {
-                groupedByResource[a.resourceId] = [];
-            }
-            groupedByResource[a.resourceId].push(a);
-        });
 
-        return Object.entries(groupedByResource)
-            .map(([resourceId, resourceAssignments]) => ({
-                resource: getResourceById(resourceId)!,
-                assignments: resourceAssignments
+        // 3. Determine which resources to show based on assignment filters
+        const resourceIdsFromAssignments = new Set(relevantAssignments.map(a => a.resourceId));
+        if (filters.projectId || filters.clientId || filters.projectManager) {
+            visibleResources = visibleResources.filter(r => resourceIdsFromAssignments.has(r.id!));
+        }
+
+        // 4. Group relevant assignments by resource and build final structure
+        return visibleResources
+            .map(resource => ({
+                resource,
+                assignments: relevantAssignments.filter(a => a.resourceId === resource.id)
             }))
-            .filter(item => item.resource)
+            .filter(item => {
+                // If a specific resource is selected, always show it.
+                if (filters.resourceId) return true;
+                // Otherwise, only show resources that have assignments.
+                return item.assignments.length > 0;
+            })
             .sort((a,b) => a.resource.name.localeCompare(b.resource.name));
 
-    }, [assignments, filters, getResourceById, projects]);
+    }, [assignments, resources, filters, projects]);
 
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
@@ -544,72 +550,113 @@ const StaffingPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                         {displayData.map(({ resource, assignments: resourceAssignments }) => (
-                             <React.Fragment key={resource.id}>
-                                {resourceAssignments.map((assignment, assignIndex) => {
-                                    const project = getProjectById(assignment.projectId);
-                                    if (!project) return null;
-                                    const client = getClientById(project.clientId);
-                                    const role = getRoleById(resource.roleId);
-                                    const isFirstAssignmentOfResource = assignIndex === 0;
-                                    const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
+                         {displayData.map(({ resource, assignments: resourceAssignments }) => {
+                            const role = getRoleById(resource.roleId);
+                            const rowCount = Math.max(1, resourceAssignments.length);
 
-                                    return (
-                                        <tr key={assignment.id} className={`transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-                                            {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{resource.name}</td>) : null}
-                                            {isFirstAssignmentOfResource ? (<td rowSpan={resourceAssignments.length} className="sticky left-[150px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>) : null}
-                                            <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
-                                            <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
-                                            <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
-                                            <td className="px-2 py-3 text-center">
-                                                <div className="flex items-center justify-center space-x-2">
-                                                    {/* L'assegnazione massiva è disabilitata nelle viste aggregate. */}
-                                                     <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
-                                                        <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50 cursor-not-allowed' : ''}`}/>
-                                                    </button>
-                                                     <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
-                                                        <XCircleIcon className="w-5 h-5"/>
-                                                    </button>
-                                                </div>
+                            return (
+                                <React.Fragment key={resource.id}>
+                                    {/* First row for the resource, containing either the first assignment or a placeholder */}
+                                    <tr className={`hover:bg-gray-50 dark:hover:bg-gray-700/50`}>
+                                        <td rowSpan={rowCount} className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{resource.name}</td>
+                                        <td rowSpan={rowCount} className="sticky left-[150px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>
+
+                                        {resourceAssignments.length > 0 ? (
+                                            (() => {
+                                                const assignment = resourceAssignments[0];
+                                                const project = getProjectById(assignment.projectId)!;
+                                                const client = getClientById(project.clientId);
+                                                const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
+                                                return (
+                                                    <>
+                                                        <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
+                                                        <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
+                                                        <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
+                                                        <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                            <div className="flex items-center justify-center space-x-2">
+                                                                <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
+                                                                    <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50 cursor-not-allowed' : ''}`}/>
+                                                                </button>
+                                                                <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                                                    <XCircleIcon className="w-5 h-5"/>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                        {timeColumns.map((col, index) => {
+                                                            if (viewMode === 'day') {
+                                                                const day = col.startDate;
+                                                                const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                                                                return <AllocationCell key={index} assignment={assignment} date={formatDate(day, 'iso')} isNonWorkingDay={col.isNonWorkingDay || isDayHoliday}/>;
+                                                            } else {
+                                                                return <ReadonlyAggregatedAllocationCell key={index} assignment={assignment} startDate={col.startDate} endDate={col.endDate} />;
+                                                            }
+                                                        })}
+                                                    </>
+                                                );
+                                            })()
+                                        ) : (
+                                            <td colSpan={3 + 1 + timeColumns.length} className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 italic">
+                                                Nessuna assegnazione trovata per i filtri correnti.
                                             </td>
-                                            {/* Rendering condizionale delle celle di allocazione in base alla vista. */}
-                                            {timeColumns.map((col, index) => {
-                                                if (viewMode === 'day') {
-                                                    const day = col.startDate;
-                                                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                                                    const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
-                                                    return (<AllocationCell key={index} assignment={assignment} date={formatDate(day, 'iso')} isNonWorkingDay={isWeekend || isDayHoliday}/>);
-                                                } else {
-                                                    return (<ReadonlyAggregatedAllocationCell key={index} assignment={assignment} startDate={col.startDate} endDate={col.endDate} />);
-                                                }
-                                            })}
-                                        </tr>
-                                    );
-                                })}
-                                {/* Riga del Totale */}
-                                <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
-                                    <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
-                                        Carico Totale {resource.name} (Max: {resource.maxStaffingPercentage}%)
-                                    </td>
-                                    <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
-                                        <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
-                                            <PlusCircleIcon className="w-5 h-5"/>
-                                        </button>
-                                    </td>
-                                    {/* Rendering condizionale delle celle di totale in base alla vista. */}
-                                    {timeColumns.map((col, index) => {
-                                        if (viewMode === 'day') {
-                                            const day = col.startDate;
-                                            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                                            const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
-                                            return (<DailyTotalCell key={index} resource={resource} date={formatDate(day, 'iso')} isNonWorkingDay={isWeekend || isDayHoliday} />);
-                                        } else {
-                                            return (<ReadonlyAggregatedTotalCell key={index} resource={resource} startDate={col.startDate} endDate={col.endDate} />);
-                                        }
+                                        )}
+                                    </tr>
+
+                                    {/* Rows for subsequent assignments of the same resource */}
+                                    {resourceAssignments.slice(1).map(assignment => {
+                                        const project = getProjectById(assignment.projectId)!;
+                                        const client = getClientById(project.clientId);
+                                        const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
+                                        return (
+                                            <tr key={assignment.id} className={`transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50`}>
+                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
+                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
+                                                <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
+                                                <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    <div className="flex items-center justify-center space-x-2">
+                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
+                                                            <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'opacity-50 cursor-not-allowed' : ''}`}/>
+                                                        </button>
+                                                        <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                                            <XCircleIcon className="w-5 h-5"/>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                                {timeColumns.map((col, index) => {
+                                                    if (viewMode === 'day') {
+                                                        const day = col.startDate;
+                                                        const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                                                        return <AllocationCell key={index} assignment={assignment} date={formatDate(day, 'iso')} isNonWorkingDay={col.isNonWorkingDay || isDayHoliday}/>;
+                                                    } else {
+                                                        return <ReadonlyAggregatedAllocationCell key={index} assignment={assignment} startDate={col.startDate} endDate={col.endDate} />;
+                                                    }
+                                                })}
+                                            </tr>
+                                        );
                                     })}
-                                </tr>
-                             </React.Fragment>
-                         ))}
+                                    
+                                    {/* Total row for the resource */}
+                                    <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
+                                        <td colSpan={5} className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-right text-sm text-gray-600 dark:text-gray-300">
+                                            Carico Totale {resource.name} (Max: {resource.maxStaffingPercentage}%)
+                                        </td>
+                                        <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
+                                            <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
+                                                <PlusCircleIcon className="w-5 h-5"/>
+                                            </button>
+                                        </td>
+                                        {timeColumns.map((col, index) => {
+                                            if (viewMode === 'day') {
+                                                const day = col.startDate;
+                                                const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                                                return <DailyTotalCell key={index} resource={resource} date={formatDate(day, 'iso')} isNonWorkingDay={col.isNonWorkingDay || isDayHoliday} />;
+                                            } else {
+                                                return <ReadonlyAggregatedTotalCell key={index} resource={resource} startDate={col.startDate} endDate={col.endDate} />;
+                                            }
+                                        })}
+                                    </tr>
+                                </React.Fragment>
+                            );
+                         })}
                     </tbody>
                 </table>
             </div>

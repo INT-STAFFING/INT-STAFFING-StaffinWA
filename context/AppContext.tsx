@@ -7,7 +7,6 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-// FIX: Add ResourceRequest to import
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
@@ -35,7 +34,6 @@ export interface EntitiesContextType {
     locations: ConfigOption[];
     companyCalendar: CalendarEvent[];
     wbsTasks: WbsTask[];
-    // FIX: Add resourceRequests and related CRUD functions
     resourceRequests: ResourceRequest[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
@@ -115,7 +113,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [locations, setLocations] = useState<ConfigOption[]>([]);
     const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
     const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
-    // FIX: Add state for resourceRequests
     const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
@@ -137,7 +134,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setLocations(data.locations);
             setCompanyCalendar(data.companyCalendar);
             setWbsTasks(data.wbsTasks || []);
-            // FIX: Set resourceRequests from fetched data
             setResourceRequests(data.resourceRequests || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
@@ -540,7 +536,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [addToast, wbsTasks]);
     
-    // FIX: Add CRUD functions for ResourceRequest
     const addResourceRequest = useCallback(async (request: Omit<ResourceRequest, 'id'>) => {
         const actionKey = 'addResourceRequest';
         setActionLoading(prev => new Set(prev).add(actionKey));

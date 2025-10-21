@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useMemo } from 'react';
-// Fix: Use useEntitiesContext and useAllocationsContext from AppContext
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
@@ -64,7 +63,6 @@ const useSort = <T extends string>() => {
 // --- Componenti Principali dei Report ---
 
 const ProjectCostsReport: React.FC = () => {
-    // Fix: Use useEntitiesContext and useAllocationsContext from AppContext
     const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
@@ -171,7 +169,6 @@ const ProjectCostsReport: React.FC = () => {
 
 
 const ResourceUtilizationReport: React.FC = () => {
-    // Fix: Use useEntitiesContext and useAllocationsContext from AppContext
     const { resources, roles, assignments, companyCalendar, horizontals } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));

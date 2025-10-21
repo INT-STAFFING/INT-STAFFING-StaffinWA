@@ -139,7 +139,6 @@ const ResourceRequestPage: React.FC = () => {
 
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
-    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
     const statusOptions: { value: ResourceRequestStatus, label: string }[] = [
         { value: 'ATTIVA', label: 'Attiva' },
         { value: 'STANDBY', label: 'Standby' },
@@ -149,7 +148,6 @@ const ResourceRequestPage: React.FC = () => {
     const columns: ColumnDef<EnrichedRequest>[] = [
         { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-gray-900 dark:text-white">{r.projectName}</span> },
         { header: 'Ruolo Richiesto', sortKey: 'roleName', cell: r => r.roleName },
-        { header: 'Richiedente', sortKey: 'requestorName', cell: r => r.requestorName || 'N/A' },
         { header: 'Periodo', sortKey: 'startDate', cell: r => `${formatDate(r.startDate)} - ${formatDate(r.endDate)}` },
         { header: 'Impegno', sortKey: 'commitmentPercentage', cell: r => `${r.commitmentPercentage}%` },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
@@ -189,7 +187,6 @@ const ResourceRequestPage: React.FC = () => {
                 <div><p className="text-gray-500">Impegno</p><p className="font-medium text-gray-900 dark:text-white">{request.commitmentPercentage}%</p></div>
                 <div><p className="text-gray-500">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span></p></div>
                 <div><p className="text-gray-500">Urgenza</p><p className={request.isUrgent ? 'font-bold text-red-500' : ''}>{request.isUrgent ? 'Sì' : 'No'}</p></div>
-                <div className="col-span-2"><p className="text-gray-500">Richiedente</p><p className="font-medium text-gray-900 dark:text-white">{request.requestorName || 'N/A'}</p></div>
             </div>
         </div>
     );
@@ -229,10 +226,6 @@ const ResourceRequestPage: React.FC = () => {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo Richiesto *</label>
                                 <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} required />
                             </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Richiedente</label>
-                            <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona chi richiede"/>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div>
