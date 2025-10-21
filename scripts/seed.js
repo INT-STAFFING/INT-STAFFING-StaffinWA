@@ -6,7 +6,7 @@ if (process.env.NEON_POSTGRES_URL && !process.env.POSTGRES_URL) {
 }
 
 import { createPool } from '@vercel/postgres';
-
+ 
 const db = createPool({
     connectionString: process.env.POSTGRES_URL,
 });
