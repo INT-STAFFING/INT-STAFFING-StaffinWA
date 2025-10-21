@@ -295,6 +295,27 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
     await client.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
 
     await client.sql`
+        CREATE TABLE IF NOT EXISTS interviews (
+            id UUID PRIMARY KEY,
+            resource_request_id UUID REFERENCES resource_requests(id) ON DELETE SET NULL,
+            candidate_name VARCHAR(255) NOT NULL,
+            candidate_surname VARCHAR(255) NOT NULL,
+            birth_date DATE,
+            horizontal VARCHAR(255),
+            role_id UUID REFERENCES roles(id) ON DELETE SET NULL,
+            cv_summary TEXT,
+            interviewers_ids UUID[],
+            interview_date DATE,
+            feedback VARCHAR(50),
+            notes TEXT,
+            hiring_status VARCHAR(50),
+            entry_date DATE,
+            status VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+
+    await client.sql`
         CREATE TABLE IF NOT EXISTS app_config (
             key VARCHAR(255) PRIMARY KEY,
             value VARCHAR(255) NOT NULL

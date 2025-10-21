@@ -262,7 +262,20 @@ const ResourceRequestPage: React.FC = () => {
         <div>
              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Richieste Risorse</h1>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                 <div className="flex items-center gap-4 w-full md:w-auto">
+                     <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                    </div>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Nuova Richiesta</button>
+                </div>
+            </div>
+            
+             <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+                {filtersNode}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <h2 className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">Riepilogo Risorse Richieste (FTE)</h2>
                     {summaryData.fteArray.length > 0 ? (
@@ -301,20 +314,6 @@ const ResourceRequestPage: React.FC = () => {
                     )}
                 </div>
             </div>
-                 <div className="flex items-center gap-4 w-full md:w-auto">
-                     <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
-                    </div>
-                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Nuova Richiesta</button>
-                </div>
-            </div>
-            
-             <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
-                {filtersNode}
-            </div>
-
-            
 
             {view === 'table' ? (
                 <DataTable<EnrichedRequest>

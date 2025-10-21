@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -35,6 +35,7 @@ export interface EntitiesContextType {
     companyCalendar: CalendarEvent[];
     wbsTasks: WbsTask[];
     resourceRequests: ResourceRequest[];
+    interviews: Interview[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -64,6 +65,9 @@ export interface EntitiesContextType {
     addResourceRequest: (request: Omit<ResourceRequest, 'id'>) => Promise<void>;
     updateResourceRequest: (request: ResourceRequest) => Promise<void>;
     deleteResourceRequest: (requestId: string) => Promise<void>;
+    addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
+    updateInterview: (interview: Interview) => Promise<void>;
+    deleteInterview: (interviewId: string) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -114,6 +118,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [companyCalendar, setCompanyCalendar] = useState<CalendarEvent[]>([]);
     const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
     const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
+    const [interviews, setInterviews] = useState<Interview[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -135,6 +140,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setCompanyCalendar(data.companyCalendar);
             setWbsTasks(data.wbsTasks || []);
             setResourceRequests(data.resourceRequests || []);
+            setInterviews(data.interviews || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -580,6 +586,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast]);
+
+    const addInterview = useCallback(async (interview: Omit<Interview, 'id'>) => {
+        const actionKey = 'addInterview';
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const newInterview = await apiFetch('/api/resources?entity=interviews', { method: 'POST', body: JSON.stringify(interview) });
+            setInterviews(prev => [...prev, newInterview]);
+            addToast(`Colloquio per '${newInterview.candidateName} ${newInterview.candidateSurname}' aggiunto.`, 'success');
+        } catch (error) {
+            addToast(`Errore aggiunta colloquio: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+    const updateInterview = useCallback(async (interview: Interview) => {
+        const actionKey = `updateInterview-${interview.id}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const updatedInterview = await apiFetch(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) });
+            setInterviews(prev => prev.map(i => i.id === updatedInterview.id ? updatedInterview : i));
+            addToast(`Colloquio per '${updatedInterview.candidateName} ${updatedInterview.candidateSurname}' aggiornato.`, 'success');
+        } catch (error) {
+            addToast(`Errore modifica colloquio: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+    const deleteInterview = useCallback(async (interviewId: string) => {
+        const interviewName = interviews.find(i => i.id === interviewId)?.candidateName || 'sconosciuto';
+        const actionKey = `deleteInterview-${interviewId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch(`/api/resources?entity=interviews&id=${interviewId}`, { method: 'DELETE' });
+            setInterviews(prev => prev.filter(i => i.id !== interviewId));
+            addToast(`Colloquio per '${interviewName}' eliminato.`, 'success');
+        } catch (error) {
+            addToast(`Errore eliminazione colloquio: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast, interviews]);
     
     // --- Allocations-specific functions ---
 
@@ -652,7 +702,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, loading, isActionLoading,
+        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -662,8 +712,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         addWbsTask, updateWbsTask, deleteWbsTask,
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
+        addInterview, updateInterview, deleteInterview,
         fetchData
-    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, fetchData]);
+    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

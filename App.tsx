@@ -26,6 +26,7 @@ import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova pagina Admin
 import ResourceRequestPage from './pages/ResourceRequestPage'; // Importa la nuova pagina
+import InterviewsPage from './pages/InterviewsPage'; // Importa la nuova pagina
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -73,6 +74,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'reports': return 'Report';
             case 'admin-settings': return 'Impostazioni Admin';
             case 'resource-requests': return 'Richiesta Risorse';
+            case 'interviews': return 'Gestione Colloqui';
             default: return 'Staffing Planner';
         }
     };
@@ -145,6 +147,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/config" element={<ConfigPage />} />
                         <Route path="/reports" element={<ReportsPage />} />
                         <Route path="/resource-requests" element={<ResourceRequestPage />} />
+                        <Route path="/interviews" element={<InterviewsPage />} />
                         <Route 
                             path="/admin-settings" 
                             element={

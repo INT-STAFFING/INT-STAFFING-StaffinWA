@@ -307,6 +307,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
+        
+        // --- GESTORE ENTITÀ: COLLOQUI ---
+        case 'interviews':
+             switch (method) {
+                case 'POST':
+                    try {
+                        const { resourceRequestId, candidateName, candidateSurname, birthDate, horizontal, roleId, cvSummary, interviewersIds, interviewDate, feedback, notes, hiringStatus, entryDate, status } = req.body;
+                        const newId = uuidv4();
+                        await db.sql`
+                            INSERT INTO interviews (id, resource_request_id, candidate_name, candidate_surname, birth_date, horizontal, role_id, cv_summary, interviewers_ids, interview_date, feedback, notes, hiring_status, entry_date, status)
+                            VALUES (${newId}, ${resourceRequestId || null}, ${candidateName}, ${candidateSurname}, ${birthDate || null}, ${horizontal || null}, ${roleId || null}, ${cvSummary || null}, ${interviewersIds && interviewersIds.length > 0 ? `{${interviewersIds.join(',')}}` : null}, ${interviewDate || null}, ${feedback || null}, ${notes || null}, ${hiringStatus || null}, ${entryDate || null}, ${status});
+                        `;
+                        return res.status(201).json({ id: newId, ...req.body });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+
+                case 'PUT':
+                    try {
+                        const { resourceRequestId, candidateName, candidateSurname, birthDate, horizontal, roleId, cvSummary, interviewersIds, interviewDate, feedback, notes, hiringStatus, entryDate, status } = req.body;
+                        await db.sql`
+                            UPDATE interviews
+                            SET resource_request_id = ${resourceRequestId || null}, candidate_name = ${candidateName}, candidate_surname = ${candidateSurname}, birth_date = ${birthDate || null}, horizontal = ${horizontal || null}, role_id = ${roleId || null}, cv_summary = ${cvSummary || null}, interviewers_ids = ${interviewersIds && interviewersIds.length > 0 ? `{${interviewersIds.join(',')}}` : null}, interview_date = ${interviewDate || null}, feedback = ${feedback || null}, notes = ${notes || null}, hiring_status = ${hiringStatus || null}, entry_date = ${entryDate || null}, status = ${status}
+                            WHERE id = ${id as string};
+                        `;
+                        return res.status(200).json({ id, ...req.body });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+
+                case 'DELETE':
+                    try {
+                        await db.sql`DELETE FROM interviews WHERE id = ${id as string};`;
+                        return res.status(204).end();
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                
+                default:
+                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
 
         default:
             return res.status(400).json({ error: 'Invalid or missing entity type specified' });

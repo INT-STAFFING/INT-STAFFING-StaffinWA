@@ -99,6 +99,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         <ClipboardDocumentListIcon className="w-6 h-6 mr-3" />
                         Richiesta Risorse
                     </NavLink>
+                    <NavLink to="/interviews" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <UserGroupIcon className="w-6 h-6 mr-3" />
+                        Gestione Colloqui
+                    </NavLink>
                     <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <UsersIcon className="w-6 h-6 mr-3" />
                         Risorse

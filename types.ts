@@ -236,3 +236,58 @@ export interface ResourceRequest {
     /** @property {ResourceRequestStatus} status - Stato della richiesta (es. 'ATTIVA', 'STANDBY', 'CHIUSA'). */
     status: ResourceRequestStatus;
 }
+
+/**
+ * @enum InterviewFeedback
+ * @description Definisce i possibili feedback di un colloquio.
+ */
+export type InterviewFeedback = 'Positivo' | 'Positivo On Hold' | 'Negativo';
+
+/**
+ * @enum InterviewHiringStatus
+ * @description Definisce i possibili stati di assunzione di un candidato.
+ */
+export type InterviewHiringStatus = 'SI' | 'NO' | 'No Rifiutato' | 'In Fase di Offerta';
+
+/**
+ * @enum InterviewStatus
+ * @description Definisce i possibili stati di un processo di selezione.
+ */
+export type InterviewStatus = 'Aperto' | 'Chiuso' | 'StandBy' | 'Non Contattabile';
+
+/**
+ * @interface Interview
+ * @description Rappresenta un colloquio di selezione per un candidato.
+ */
+export interface Interview {
+    /** @property {string} [id] - L'identificatore univoco, generato dal database. */
+    id?: string;
+    /** @property {string | null} resourceRequestId - L'ID della richiesta di risorsa associata (opzionale). */
+    resourceRequestId: string | null;
+    /** @property {string} candidateName - Nome del candidato. */
+    candidateName: string;
+    /** @property {string} candidateSurname - Cognome del candidato. */
+    candidateSurname: string;
+    /** @property {string | null} birthDate - Data di nascita del candidato. */
+    birthDate: string | null;
+    /** @property {string | null} horizontal - L'Horizontal di possibile inserimento. */
+    horizontal: string | null;
+    /** @property {string | null} roleId - L'ID del ruolo di possibile inserimento. */
+    roleId: string | null;
+    /** @property {string | null} cvSummary - Breve riassunto del CV. */
+    cvSummary: string | null;
+    /** @property {string[] | null} interviewersIds - Array di ID delle risorse che hanno partecipato al colloquio. */
+    interviewersIds: string[] | null;
+    /** @property {string | null} interviewDate - Data del colloquio. */
+    interviewDate: string | null;
+    /** @property {InterviewFeedback | null} feedback - Feedback del colloquio. */
+    feedback: InterviewFeedback | null;
+    /** @property {string | null} notes - Note aggiuntive sul colloquio. */
+    notes: string | null;
+    /** @property {InterviewHiringStatus | null} hiringStatus - Stato dell'assunzione. */
+    hiringStatus: InterviewHiringStatus | null;
+    /** @property {string | null} entryDate - Data di ingresso prevista. */
+    entryDate: string | null;
+    /** @property {InterviewStatus} status - Stato del processo di selezione. */
+    status: InterviewStatus;
+}
