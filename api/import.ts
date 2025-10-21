@@ -52,18 +52,19 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     const resourceEmailMap = new Map<string, string>();
     const locationValueMap = new Map<string, string>();
     
-    const importConfig = async (tableName: string, items: { value: string }[], map?: Map<string, string>, label: string = 'Configurazione') => {
+    const importConfig = async (tableName: string, items: { Valore: string }[], map?: Map<string, string>, label: string = 'Configurazione') => {
         if (!Array.isArray(items)) return;
         const existing = await client.query(`SELECT id, value FROM ${tableName}`);
         existing.rows.forEach((item: { value: string; id: string; }) => map?.set(item.value, item.id));
 
         for (const item of items) {
-            if (!item.value) { warnings.push(`${label}: una riga è stata saltata perché non ha un valore.`); continue; }
-            if (map ? map.has(item.value) : existing.rows.some((r: { value: string; }) => r.value === item.value)) { warnings.push(`${label} '${item.value}' già esistente, saltato.`);
+            const value = item.Valore;
+            if (!value) { warnings.push(`${label}: una riga è stata saltata perché non ha un valore.`); continue; }
+            if (map ? map.has(value) : existing.rows.some((r: { value: string; }) => r.value === value)) { warnings.push(`${label} '${value}' già esistente, saltato.`);
             } else {
                 const newId = uuidv4();
-                await client.query(`INSERT INTO ${tableName} (id, value) VALUES ($1, $2)`, [newId, item.value]);
-                map?.set(item.value, newId);
+                await client.query(`INSERT INTO ${tableName} (id, value) VALUES ($1, $2)`, [newId, value]);
+                map?.set(value, newId);
             }
         }
     };
@@ -146,11 +147,124 @@ const importStaffing = async (client: any, body: any, warnings: string[]) => {
 };
 
 const importResourceRequests = async (client: any, body: any, warnings: string[]) => {
-    // Implement logic for importing resource requests
+    const { resource_requests: importedRequests } = body;
+    if (!Array.isArray(importedRequests)) return;
+
+    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [p.name, p.id]));
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [r.name, r.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name, r.id]));
+    
+    for (const req of importedRequests) {
+        const { projectName, roleName, requestorName, startDate, endDate, commitmentPercentage, isUrgent, isTechRequest, notes, status } = req;
+        
+        if (!projectName || !roleName || !startDate || !endDate || commitmentPercentage == null || !status) {
+            warnings.push(`Richiesta saltata: mancano dati obbligatori (progetto, ruolo, date, impegno, stato).`);
+            continue;
+        }
+
+        const projectId = projectMap.get(projectName);
+        if (!projectId) {
+            warnings.push(`Richiesta per progetto '${projectName}' saltata: progetto non trovato.`);
+            continue;
+        }
+
+        const roleId = roleMap.get(roleName);
+        if (!roleId) {
+            warnings.push(`Richiesta per ruolo '${roleName}' saltata: ruolo non trovato.`);
+            continue;
+        }
+        
+        let requestorId = null;
+        if (requestorName) {
+            requestorId = resourceMap.get(requestorName);
+            if (!requestorId) {
+                warnings.push(`Richiedente '${requestorName}' non trovato per una richiesta, verrà lasciato vuoto.`);
+            }
+        }
+        
+        const parsedStartDate = parseDate(startDate);
+        const parsedEndDate = parseDate(endDate);
+
+        if (!parsedStartDate || !parsedEndDate) {
+            warnings.push(`Richiesta per '${projectName}' saltata: formato data non valido.`);
+            continue;
+        }
+        
+        const diffTime = Math.abs(parsedEndDate.getTime() - parsedStartDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const isLongTerm = diffDays > 60;
+        
+        const newId = uuidv4();
+        await client.query(
+            `INSERT INTO resource_requests (id, project_id, role_id, requestor_id, start_date, end_date, commitment_percentage, is_urgent, is_long_term, is_tech_request, notes, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [
+                newId, projectId, roleId, requestorId, formatDateForDB(parsedStartDate), formatDateForDB(parsedEndDate),
+                Number(commitmentPercentage), String(isUrgent).toLowerCase() === 'si' || isUrgent === true, isLongTerm,
+                String(isTechRequest).toLowerCase() === 'si' || isTechRequest === true, notes, status
+            ]
+        );
+    }
 };
 
 const importInterviews = async (client: any, body: any, warnings: string[]) => {
-    // Implement logic for importing interviews
+    const { interviews: importedInterviews } = body;
+    if (!Array.isArray(importedInterviews)) return;
+    
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [r.name, r.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name, r.id]));
+    const horizontalSet = new Set((await client.query('SELECT value FROM horizontals')).rows.map((h: any) => h.value));
+
+    for (const interview of importedInterviews) {
+        const { candidateName, candidateSurname, birthDate, horizontal, roleName, interviewersNames, interviewDate, feedback, notes, hiringStatus, entryDate, status } = interview;
+
+        if (!candidateName || !candidateSurname || !status) {
+            warnings.push(`Colloquio per '${candidateName || ''} ${candidateSurname || ''}' saltato: mancano nome, cognome o stato processo.`);
+            continue;
+        }
+        
+        let roleId = null;
+        if (roleName) {
+            roleId = roleMap.get(String(roleName));
+            if (!roleId) {
+                warnings.push(`Ruolo '${roleName}' non trovato per ${candidateName}, sarà lasciato vuoto.`);
+            }
+        }
+        
+        let validHorizontal = null;
+        if (horizontal) {
+            if (horizontalSet.has(String(horizontal))) {
+                validHorizontal = String(horizontal);
+            } else {
+                warnings.push(`Horizontal '${horizontal}' non trovato per ${candidateName}, sarà lasciato vuoto.`);
+            }
+        }
+
+        let interviewersIds: string[] = [];
+        if (interviewersNames && typeof interviewersNames === 'string') {
+            const names = interviewersNames.split(',').map(name => name.trim());
+            for (const name of names) {
+                const id = resourceMap.get(name);
+                if (id) {
+                    // Fix: The value 'id' from the map is of type 'unknown' and needs to be cast to a string.
+                    interviewersIds.push(String(id));
+                } else {
+                    warnings.push(`Intervistatore '${name}' non trovato per colloquio di ${candidateName}.`);
+                }
+            }
+        }
+
+        const newId = uuidv4();
+        await client.query(
+            `INSERT INTO interviews (id, candidate_name, candidate_surname, birth_date, horizontal, role_id, interviewers_ids, interview_date, feedback, notes, hiring_status, entry_date, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            [
+                newId, candidateName, candidateSurname, formatDateForDB(parseDate(birthDate)), validHorizontal, roleId,
+                interviewersIds.length > 0 ? interviewersIds : null,
+                formatDateForDB(parseDate(interviewDate)), feedback, notes, hiringStatus, formatDateForDB(parseDate(entryDate)), status
+            ]
+        );
+    }
 };
 
 
@@ -175,12 +289,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await importStaffing(client, req.body, warnings);
                 break;
             case 'resource_requests':
-                await importResourceRequests(client, req.body, warnings); // Placeholder
-                 warnings.push("L'importazione per le Richieste Risorse non è ancora implementata.");
+                await importResourceRequests(client, req.body, warnings);
                 break;
             case 'interviews':
-                await importInterviews(client, req.body, warnings); // Placeholder
-                 warnings.push("L'importazione per i Colloqui non è ancora implementata.");
+                await importInterviews(client, req.body, warnings);
                 break;
             default:
                 throw new Error('Tipo di importazione non valido.');
