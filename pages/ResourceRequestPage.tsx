@@ -41,7 +41,7 @@ const ResourceRequestPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRequest, setEditingRequest] = useState<ResourceRequest | Omit<ResourceRequest, 'id'> | null>(null);
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
-    const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '' });
+    const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
     const [view, setView] = useState<'table' | 'card'>('table');
 
     const emptyRequest: Omit<ResourceRequest, 'id'> = {
@@ -63,7 +63,8 @@ const ResourceRequestPage: React.FC = () => {
             .filter(req => 
                 (!filters.projectId || req.projectId === filters.projectId) &&
                 (!filters.roleId || req.roleId === filters.roleId) &&
-                (!filters.status || req.status === filters.status)
+                (!filters.status || req.status === filters.status) &&
+                (!filters.requestorId || req.requestorId === filters.requestorId)
             )
             .map(req => ({
                 ...req,
@@ -78,7 +79,7 @@ const ResourceRequestPage: React.FC = () => {
     };
 
     const resetFilters = () => {
-        setFilters({ projectId: '', roleId: '', status: '' });
+        setFilters({ projectId: '', roleId: '', status: '', requestorId: '' });
     };
 
     const openModalForNew = () => {
@@ -215,9 +216,10 @@ const ResourceRequestPage: React.FC = () => {
     
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
+            <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions.map(s => ({ value: s.value, label: s.label }))} placeholder="Tutti gli Stati"/>
             <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
         </div>
