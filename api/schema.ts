@@ -158,6 +158,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
     `;
+    await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
 
     // Application Configuration Table
     await db.sql`

@@ -15,7 +15,13 @@ type EnrichedRequest = ResourceRequest & {
 };
 
 // --- Helper Functions ---
-const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    // Le date dal DB possono avere l'orario, lo togliamo per sicurezza
+    const date = new Date(dateStr.split('T')[0]);
+    return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+}
+
 
 const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     switch (status) {
@@ -36,6 +42,7 @@ const ResourceRequestPage: React.FC = () => {
     const [editingRequest, setEditingRequest] = useState<ResourceRequest | Omit<ResourceRequest, 'id'> | null>(null);
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
     const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '' });
+    const [view, setView] = useState<'table' | 'card'>('table');
 
     const emptyRequest: Omit<ResourceRequest, 'id'> = {
         projectId: '',
@@ -80,7 +87,13 @@ const ResourceRequestPage: React.FC = () => {
     };
 
     const openModalForEdit = (request: ResourceRequest) => {
-        setEditingRequest(request);
+        // Fix: Format dates to YYYY-MM-DD for the date input
+        const formattedRequest = {
+            ...request,
+            startDate: request.startDate ? request.startDate.split('T')[0] : '',
+            endDate: request.endDate ? request.endDate.split('T')[0] : '',
+        };
+        setEditingRequest(formattedRequest);
         setIsModalOpen(true);
     };
 
@@ -169,30 +182,37 @@ const ResourceRequestPage: React.FC = () => {
             </td>
         </tr>
     );
-
-    const renderMobileCard = (request: EnrichedRequest) => (
-        <div key={request.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
-            <div className="flex justify-between items-start">
-                <div>
-                    <p className="font-bold text-lg text-gray-900 dark:text-white">{request.projectName}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{request.roleName}</p>
+    
+    // Vista Card per mobile e per la nuova visualizzazione a card
+    const renderCard = (request: EnrichedRequest) => (
+        <div key={request.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card flex flex-col md:flex-row gap-4 justify-between">
+            <div className="flex-grow">
+                <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{request.projectName}</p>
+                <p className="text-sm text-muted-foreground">{request.roleName}</p>
+                <div className="mt-4 pt-4 border-t border-border dark:border-dark-border grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div><p className="text-muted-foreground">Periodo</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatDate(request.startDate)} - {formatDate(request.endDate)}</p></div>
+                    <div><p className="text-muted-foreground">Impegno</p><p className="font-medium text-foreground dark:text-dark-foreground">{request.commitmentPercentage}%</p></div>
+                    <div className="col-span-2"><p className="text-muted-foreground">Richiedente</p><p className="font-medium text-foreground dark:text-dark-foreground">{request.requestorName || 'N/A'}</p></div>
                 </div>
-                <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                    <button onClick={() => openModalForEdit(request)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-1 text-gray-500 hover:text-red-600">
+            </div>
+            <div className="flex flex-col items-start md:items-end justify-between flex-shrink-0 md:pl-4 md:border-l border-border dark:border-dark-border md:w-48">
+                <div className="flex flex-col md:items-end gap-2 w-full">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
+                    <div className="flex gap-2 mt-1">
+                        {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 dark:text-red-100 dark:bg-red-800 rounded-full">URGENTE</span>}
+                        {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-purple-800 bg-purple-100 dark:text-purple-100 dark:bg-purple-800 rounded-full">TECH</span>}
+                    </div>
+                </div>
+                <div className="flex items-center space-x-2 mt-4 md:mt-0 self-end">
+                    <button onClick={() => openModalForEdit(request)} className="p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-muted-foreground hover:text-destructive rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Elimina">
                          {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
                     </button>
                 </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                <div><p className="text-gray-500">Periodo</p><p className="font-medium text-gray-900 dark:text-white">{formatDate(request.startDate)} - {formatDate(request.endDate)}</p></div>
-                <div><p className="text-gray-500">Impegno</p><p className="font-medium text-gray-900 dark:text-white">{request.commitmentPercentage}%</p></div>
-                <div><p className="text-gray-500">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span></p></div>
-                <div><p className="text-gray-500">Urgenza</p><p className={request.isUrgent ? 'font-bold text-red-500' : ''}>{request.isUrgent ? 'Sì' : 'No'}</p></div>
-                <div className="col-span-2"><p className="text-gray-500">Richiedente</p><p className="font-medium text-gray-900 dark:text-white">{request.requestorName || 'N/A'}</p></div>
-            </div>
         </div>
     );
+    
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -205,17 +225,40 @@ const ResourceRequestPage: React.FC = () => {
     
     return (
         <div>
-            <DataTable<EnrichedRequest>
-                title="Richieste Risorse"
-                addNewButtonLabel="Nuova Richiesta"
-                data={dataForTable}
-                columns={columns}
-                filtersNode={filtersNode}
-                onAddNew={openModalForNew}
-                renderRow={renderRow}
-                renderMobileCard={renderMobileCard}
-                initialSortKey="startDate"
-            />
+             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Richieste Risorse</h1>
+                 <div className="flex items-center gap-4 w-full md:w-auto">
+                     <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                    </div>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Nuova Richiesta</button>
+                </div>
+            </div>
+            
+             <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+                {filtersNode}
+            </div>
+
+            {view === 'table' ? (
+                <DataTable<EnrichedRequest>
+                    // Pass props to a simplified DataTable that doesn't render its own headers/buttons
+                    title=""
+                    addNewButtonLabel=""
+                    data={dataForTable}
+                    columns={columns}
+                    filtersNode={<></>}
+                    onAddNew={() => {}}
+                    renderRow={renderRow}
+                    renderMobileCard={renderCard} // Use the horizontal card for mobile view
+                    initialSortKey="startDate"
+                />
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+                    {dataForTable.length > 0 ? dataForTable.map(renderCard) : <p className="col-span-full text-center py-8 text-muted-foreground">Nessuna richiesta trovata.</p>}
+                </div>
+            )}
+
 
             {editingRequest && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>

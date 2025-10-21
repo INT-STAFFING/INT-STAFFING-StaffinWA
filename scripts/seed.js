@@ -292,6 +292,8 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
     `;
+    await client.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
+
     await client.sql`
         CREATE TABLE IF NOT EXISTS app_config (
             key VARCHAR(255) PRIMARY KEY,
