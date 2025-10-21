@@ -27,6 +27,7 @@ import LoginPage from './pages/LoginPage';
 import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova pagina Admin
 import ResourceRequestPage from './pages/ResourceRequestPage'; // Importa la nuova pagina
 import InterviewsPage from './pages/InterviewsPage'; // Importa la nuova pagina
+import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagina
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -75,6 +76,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'admin-settings': return 'Impostazioni Admin';
             case 'resource-requests': return 'Richiesta Risorse';
             case 'interviews': return 'Gestione Colloqui';
+            case 'db-inspector': return 'Database Inspector';
             default: return 'Staffing Planner';
         }
     };
@@ -153,6 +155,14 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                             element={
                                 <AdminRoute>
                                     <AdminSettingsPage />
+                                </AdminRoute>
+                            } 
+                        />
+                        <Route 
+                            path="/db-inspector" 
+                            element={
+                                <AdminRoute>
+                                    <DbInspectorPage />
                                 </AdminRoute>
                             } 
                         />

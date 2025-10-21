@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus } from '../types';
-import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, SpinnerIcon, UsersIcon, CheckCircleIcon, CalendarDaysIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, SpinnerIcon, UsersIcon, CheckCircleIcon, CalendarDaysIcon, ArrowsUpDownIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
@@ -15,6 +14,9 @@ type EnrichedInterview = Interview & {
     interviewersNames: string[];
     age: number | null;
 };
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: keyof EnrichedInterview | string; direction: SortDirection } | null;
+
 
 // --- Helper Functions ---
 const calculateAge = (birthDate: string | null): number | null => {
@@ -63,6 +65,8 @@ const InterviewsPage: React.FC = () => {
     const [editingInterview, setEditingInterview] = useState<Interview | Omit<Interview, 'id'> | null>(null);
     const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', feedback: '', status: '', hiringStatus: '' });
+    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'interviewDate', direction: 'descending' });
+
 
     const emptyInterview: Omit<Interview, 'id'> = {
         resourceRequestId: null, candidateName: '', candidateSurname: '', birthDate: null, horizontal: null, roleId: null,
@@ -70,16 +74,8 @@ const InterviewsPage: React.FC = () => {
         notes: null, hiringStatus: null, entryDate: null, status: 'Aperto',
     };
 
-    const dataForTable = useMemo<EnrichedInterview[]>(() => {
-        return interviews
-            .filter(i => 
-                ((i.candidateName + ' ' + i.candidateSurname).toLowerCase().includes(filters.name.toLowerCase())) &&
-                (!filters.roleId || i.roleId === filters.roleId) &&
-                (!filters.feedback || i.feedback === filters.feedback) &&
-                (!filters.status || i.status === filters.status) &&
-                (!filters.hiringStatus || i.hiringStatus === filters.hiringStatus)
-            )
-            .map(i => {
+    const enrichedData = useMemo<EnrichedInterview[]>(() => {
+        return interviews.map(i => {
                 const request = resourceRequests.find(rr => rr.id === i.resourceRequestId);
                 const project = projects.find(p => p.id === request?.projectId);
                 const role = roles.find(r => r.id === i.roleId);
@@ -92,14 +88,47 @@ const InterviewsPage: React.FC = () => {
                     age: calculateAge(i.birthDate),
                 }
             });
-    }, [interviews, resources, roles, resourceRequests, projects, filters]);
+    }, [interviews, resources, roles, resourceRequests, projects]);
+
+    const sortedAndFilteredData = useMemo(() => {
+        const filtered = enrichedData.filter(i => 
+                ((i.candidateName + ' ' + i.candidateSurname).toLowerCase().includes(filters.name.toLowerCase())) &&
+                (!filters.roleId || i.roleId === filters.roleId) &&
+                (!filters.feedback || i.feedback === filters.feedback) &&
+                (!filters.status || i.status === filters.status) &&
+                (!filters.hiringStatus || i.hiringStatus === filters.hiringStatus)
+            );
+        
+        if (!sortConfig) return filtered;
+        
+        return [...filtered].sort((a, b) => {
+            const aValue = (a as any)[sortConfig.key];
+            const bValue = (b as any)[sortConfig.key];
+
+            if (aValue == null) return 1;
+            if (bValue == null) return -1;
+            
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+            }
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+            }
+             // Date sorting
+            if (aValue instanceof Date && bValue instanceof Date) {
+                 return sortConfig.direction === 'ascending' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
+            }
+            return 0;
+        });
+    }, [enrichedData, filters, sortConfig]);
 
     const summaryCards = useMemo(() => {
-        const activeCandidates = dataForTable.filter(i => i.status === 'Aperto').length;
-        const positiveFeedback = dataForTable.filter(i => i.feedback === 'Positivo' || i.feedback === 'Positivo On Hold').length;
-        const upcomingHires = dataForTable.filter(i => i.hiringStatus === 'SI' && i.entryDate && new Date(i.entryDate) >= new Date());
+        const dataToSummarize = sortedAndFilteredData; // Use filtered data for summary
+        const activeCandidates = dataToSummarize.filter(i => i.status === 'Aperto').length;
+        const positiveFeedback = dataToSummarize.filter(i => i.feedback === 'Positivo' || i.feedback === 'Positivo On Hold').length;
+        const upcomingHires = dataToSummarize.filter(i => i.hiringStatus === 'SI' && i.entryDate && new Date(i.entryDate) >= new Date());
         return { activeCandidates, positiveFeedback, upcomingHires };
-    }, [dataForTable]);
+    }, [sortedAndFilteredData]);
     
     // Options for selects
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
@@ -115,6 +144,13 @@ const InterviewsPage: React.FC = () => {
     const hiringStatusOptions: {value: InterviewHiringStatus, label: string}[] = [{value: 'SI', label: 'Sì'}, {value: 'NO', label: 'No'}, {value: 'No Rifiutato', label: 'No (Rifiutato)'}, {value: 'In Fase di Offerta', label: 'In Fase di Offerta'}];
     const statusOptions: {value: InterviewStatus, label: string}[] = [{value: 'Aperto', label: 'Aperto'}, {value: 'Chiuso', label: 'Chiuso'}, {value: 'StandBy', label: 'StandBy'}, {value: 'Non Contattabile', label: 'Non Contattabile'}];
 
+    const requestSort = (key: string) => {
+        let direction: SortDirection = 'ascending';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
@@ -155,70 +191,32 @@ const InterviewsPage: React.FC = () => {
         }
     };
     
-    const columns: ColumnDef<EnrichedInterview>[] = [
-        { header: 'Candidato', sortKey: 'candidateSurname', cell: i => <div className="font-medium">{i.candidateName} {i.candidateSurname} <span className="text-gray-500">({i.age ?? 'N/A'})</span></div> },
-        { header: 'Ruolo Proposto', sortKey: 'roleName', cell: i => i.roleName || 'N/A' },
-        { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel', cell: i => <span className="text-xs">{i.resourceRequestLabel || 'Nessuna'}</span> },
-        { header: 'Colloquiato Da', cell: i => <span className="text-xs">{i.interviewersNames.join(', ')}</span> },
-        { header: 'Data Colloquio', sortKey: 'interviewDate', cell: i => formatDate(i.interviewDate) },
-        { header: 'Feedback', sortKey: 'feedback', cell: i => i.feedback || 'N/A' },
-        { header: 'Stato Assunzione', sortKey: 'hiringStatus', cell: i => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(i.hiringStatus)}`}>{i.hiringStatus || 'N/A'}</span> },
-        { header: 'Data Ingresso', sortKey: 'entryDate', cell: i => formatDate(i.entryDate) },
-        { header: 'Stato Processo', sortKey: 'status', cell: i => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(i.status)}`}>{i.status}</span> },
+    const columns = [
+        { header: 'Candidato', sortKey: 'candidateSurname' },
+        { header: 'Ruolo Proposto', sortKey: 'roleName' },
+        { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel' },
+        { header: 'Colloquiato Da' },
+        { header: 'Data Colloquio', sortKey: 'interviewDate' },
+        { header: 'Feedback', sortKey: 'feedback' },
+        { header: 'Stato Assunzione', sortKey: 'hiringStatus' },
+        { header: 'Data Ingresso', sortKey: 'entryDate' },
+        { header: 'Stato Processo', sortKey: 'status' },
     ];
-
-    const renderRow = (interview: EnrichedInterview) => (
-        <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-            {columns.map((col, idx) => <td key={idx} className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(interview)}</td>)}
-            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
-                    <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
-                    </button>
-                </div>
-            </td>
-        </tr>
-    );
-
-    const renderMobileCard = (interview: EnrichedInterview) => (
-        <div key={interview.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
-             <div className="flex justify-between items-start">
-                <div>
-                    <p className="font-bold text-lg">{interview.candidateName} {interview.candidateSurname}</p>
-                    <p className="text-sm text-muted-foreground">{interview.roleName || 'Ruolo non specificato'}</p>
-                </div>
-                <div className="flex items-center space-x-1">
-                    <button onClick={() => openModalForEdit(interview)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                    <button onClick={() => setInterviewToDelete(interview)} className="p-1 text-gray-500 hover:text-red-600">
-                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
-                    </button>
-                </div>
-            </div>
-             <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4 text-sm">
-                <div><p className="text-muted-foreground">Data Colloquio</p><p className="font-medium">{formatDate(interview.interviewDate)}</p></div>
-                <div><p className="text-muted-foreground">Feedback</p><p className="font-medium">{interview.feedback || 'N/A'}</p></div>
-                <div><p className="text-muted-foreground">Stato Assunzione</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></p></div>
-                <div><p className="text-muted-foreground">Stato Processo</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></p></div>
-            </div>
-        </div>
-    );
     
     return (
-        <div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                {/* Fix: Replace div_ with div */}
-                <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3> <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p> </div><UsersIcon className="w-8 h-8 text-gray-300"/></div>
-                <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3> <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p> </div><CheckCircleIcon className="w-8 h-8 text-gray-300"/></div>
-                <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3> <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p> </div><CalendarDaysIcon className="w-8 h-8 text-gray-300"/></div>
-            </div>
-
-            <DataTable<EnrichedInterview>
-                title="Gestione Colloqui"
-                addNewButtonLabel="Aggiungi Colloquio"
-                data={dataForTable}
-                columns={columns}
-                filtersNode={
+        <div className="flex flex-col h-[calc(100vh-8rem)]">
+            {/* Header fisso */}
+            <div className="flex-shrink-0">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3> <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p> </div><UsersIcon className="w-8 h-8 text-gray-300"/></div>
+                    <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3> <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p> </div><CheckCircleIcon className="w-8 h-8 text-gray-300"/></div>
+                    <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3> <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p> </div><CalendarDaysIcon className="w-8 h-8 text-gray-300"/></div>
+                </div>
+                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
+                    <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
+                </div>
+                <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                         <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..."/>
                         <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli"/>
@@ -226,12 +224,57 @@ const InterviewsPage: React.FC = () => {
                         <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione"/>
                         <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
                     </div>
-                }
-                onAddNew={openModalForNew}
-                renderRow={renderRow}
-                renderMobileCard={renderMobileCard}
-                initialSortKey="interviewDate"
-            />
+                </div>
+            </div>
+
+            {/* Contenuto scorrevole */}
+            <div className="flex-grow overflow-y-auto bg-card dark:bg-dark-card rounded-lg shadow">
+                 <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
+                            <tr>
+                                {columns.map(col => (
+                                     <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+                                        {col.sortKey ? (
+                                            <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                                                <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
+                                                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                                            </button>
+                                        ) : (
+                                            <span>{col.header}</span>
+                                        )}
+                                    </th>
+                                ))}
+                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border dark:divide-dark-border">
+                             {sortedAndFilteredData.map(interview => (
+                                <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                                {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                     {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                </div>
+            </div>
             
             {editingInterview && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>

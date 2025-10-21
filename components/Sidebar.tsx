@@ -145,6 +145,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                 <Cog6ToothIcon className="w-6 h-6 mr-3" />
                                 Impostazioni Admin
                             </NavLink>
+                            <NavLink to="/db-inspector" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                                <InformationCircleIcon className="w-6 h-6 mr-3" />
+                                Database Inspector
+                            </NavLink>
                         </>
                     )}
                 </div>

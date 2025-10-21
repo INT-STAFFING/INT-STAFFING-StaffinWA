@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
-    const { id, entity } = req.query;
+    const { id, entity, action, table } = req.query;
 
     switch (entity) {
         // --- GESTORE ENTITÀ: RISORSE ---
@@ -348,6 +348,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 default:
                     res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
                     return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+        
+        // --- NUOVO GESTORE: DB INSPECTOR ---
+        case 'db_inspector':
+            const TABLE_WHITELIST = [
+                'clients', 'roles', 'resources', 'projects', 'assignments', 'allocations',
+                'company_calendar', 'wbs_tasks', 'resource_requests', 'interviews', 'horizontals',
+                'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config'
+            ];
+            
+            if (typeof table === 'string' && !TABLE_WHITELIST.includes(table)) {
+                return res.status(403).json({ error: `Access to table '${table}' is forbidden.` });
+            }
+
+            switch(action) {
+                case 'list_tables':
+                    return res.status(200).json(TABLE_WHITELIST);
+                
+                case 'get_table_data':
+                     if (typeof table !== 'string') return res.status(400).json({ error: 'Table name is required.' });
+                    try {
+                        const [columnsRes, dataRes] = await Promise.all([
+                            db.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1;`, [table]),
+                            db.query(`SELECT * FROM ${table};`) // Sicuro perché `table` è validato dalla whitelist
+                        ]);
+                        return res.status(200).json({ columns: columnsRes.rows, rows: dataRes.rows });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+
+                case 'update_row':
+                    if (method !== 'PUT') return res.status(405).end();
+                    if (typeof table !== 'string' || !id) return res.status(400).json({ error: 'Table name and row ID are required.' });
+                    
+                    try {
+                        const updates = req.body;
+                        const columns = Object.keys(updates);
+                        if (columns.length === 0) return res.status(400).json({ error: 'No fields to update provided.' });
+
+                        const setClause = columns.map((col, i) => `${col} = $${i + 1}`).join(', ');
+                        const values = Object.values(updates);
+                        
+                        await db.query(
+                            `UPDATE ${table} SET ${setClause} WHERE id = $${columns.length + 1}`,
+                            [...values, id]
+                        );
+                        return res.status(200).json({ success: true, message: `Row ${id} in ${table} updated.` });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+
+                default:
+                    return res.status(400).json({ error: 'Invalid or missing action for db_inspector.' });
             }
 
         default:
