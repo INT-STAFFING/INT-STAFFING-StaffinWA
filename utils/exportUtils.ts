@@ -148,6 +148,7 @@ export const exportInterviews = (data: EntitiesContextType) => {
         "Data di Nascita": formatDateForExport(i.birthDate),
         "Horizontal": i.horizontal,
         "Ruolo Proposto": roles.find(r => r.id === i.roleId)?.name,
+        "Riassunto CV": i.cvSummary,
         "Colloquiato Da": i.interviewersIds?.map(id => resources.find(r => r.id === id)?.name).join(', '),
         "Data Colloquio": formatDateForExport(i.interviewDate),
         "Feedback": i.feedback,
@@ -200,7 +201,7 @@ export const exportTemplate = (type: ExportType) => {
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["projectName", "roleName", "requestorName", "startDate", "endDate", "commitmentPercentage", "isUrgent", "isTechRequest", "notes", "status"]]), 'Richieste_Risorse');
             break;
         case 'interviews':
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["candidateName", "candidateSurname", "birthDate", "horizontal", "roleName", "interviewersNames", "interviewDate", "feedback", "notes", "hiringStatus", "entryDate", "status"]]), 'Colloqui');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["candidateName", "candidateSurname", "birthDate", "horizontal", "roleName", "cv_summary", "interviewersNames", "interviewDate", "feedback", "notes", "hiringStatus", "entryDate", "status"]]), 'Colloqui');
             break;
     }
 

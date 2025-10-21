@@ -216,7 +216,7 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
     const horizontalSet = new Set((await client.query('SELECT value FROM horizontals')).rows.map((h: any) => h.value));
 
     for (const interview of importedInterviews) {
-        const { candidateName, candidateSurname, birthDate, horizontal, roleName, interviewersNames, interviewDate, feedback, notes, hiringStatus, entryDate, status } = interview;
+        const { candidateName, candidateSurname, birthDate, horizontal, roleName, cv_summary, interviewersNames, interviewDate, feedback, notes, hiringStatus, entryDate, status } = interview;
 
         if (!candidateName || !candidateSurname || !status) {
             warnings.push(`Colloquio per '${candidateName || ''} ${candidateSurname || ''}' saltato: mancano nome, cognome o stato processo.`);
@@ -256,10 +256,11 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
 
         const newId = uuidv4();
         await client.query(
-            `INSERT INTO interviews (id, candidate_name, candidate_surname, birth_date, horizontal, role_id, interviewers_ids, interview_date, feedback, notes, hiring_status, entry_date, status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            `INSERT INTO interviews (id, candidate_name, candidate_surname, birth_date, horizontal, role_id, cv_summary, interviewers_ids, interview_date, feedback, notes, hiring_status, entry_date, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             [
                 newId, candidateName, candidateSurname, formatDateForDB(parseDate(birthDate)), validHorizontal, roleId,
+                cv_summary || null,
                 interviewersIds.length > 0 ? interviewersIds : null,
                 formatDateForDB(parseDate(interviewDate)), feedback, notes, hiringStatus, formatDateForDB(parseDate(entryDate)), status
             ]

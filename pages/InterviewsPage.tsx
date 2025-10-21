@@ -66,6 +66,7 @@ const InterviewsPage: React.FC = () => {
     const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', feedback: '', status: '', hiringStatus: '' });
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'interviewDate', direction: 'descending' });
+    const [view, setView] = useState<'table' | 'card'>('table');
 
 
     const emptyInterview: Omit<Interview, 'id'> = {
@@ -203,6 +204,54 @@ const InterviewsPage: React.FC = () => {
         { header: 'Stato Processo', sortKey: 'status' },
     ];
     
+    const renderCard = (interview: EnrichedInterview) => (
+        <div key={interview.id} className="bg-card dark:bg-dark-card rounded-lg shadow-md border border-border dark:border-dark-border p-5 flex flex-col gap-4">
+            <div className="flex justify-between items-start">
+                <div>
+                    <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{interview.candidateName} {interview.candidateSurname} <span className="text-muted-foreground font-normal text-base">({interview.age ?? 'N/A'})</span></p>
+                    <p className="text-sm text-primary font-medium">{interview.roleName || 'N/A'}</p>
+                </div>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span>
+                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'Da definire'}</span>
+                 <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100/70 text-blue-800">{interview.feedback || 'N/A'}</span>
+            </div>
+
+            <div className="text-sm space-y-3 pt-3 border-t border-border dark:border-dark-border">
+               {(interview.cvSummary || interview.notes) ? (
+                   <>
+                    {interview.cvSummary && (
+                        <div>
+                            <h4 className="font-semibold text-foreground dark:text-dark-foreground mb-1">Riassunto CV</h4>
+                            <p className="text-muted-foreground text-xs whitespace-pre-wrap max-h-24 overflow-y-auto">{interview.cvSummary}</p>
+                        </div>
+                    )}
+                    {interview.notes && (
+                        <div>
+                            <h4 className="font-semibold text-foreground dark:text-dark-foreground mb-1">Note Colloquio</h4>
+                            <p className="text-muted-foreground text-xs whitespace-pre-wrap max-h-24 overflow-y-auto">{interview.notes}</p>
+                        </div>
+                    )}
+                   </>
+               ) : <p className="text-xs text-muted-foreground italic">Nessun riassunto CV o note disponibili.</p>}
+            </div>
+
+            <div className="text-xs text-muted-foreground mt-auto pt-3 border-t border-border dark:border-dark-border space-y-1">
+                <p>Colloquio del: <span className="font-medium text-foreground dark:text-dark-foreground">{formatDate(interview.interviewDate)}</span></p>
+                <p>Intervistatori: <span className="font-medium text-foreground dark:text-dark-foreground">{interview.interviewersNames.join(', ') || 'N/A'}</span></p>
+                {interview.hiringStatus === 'SI' && <p>Ingresso previsto: <span className="font-medium text-foreground dark:text-dark-foreground">{formatDate(interview.entryDate)}</span></p>}
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex flex-col h-[calc(100vh-8rem)]">
             {/* Header fisso */}
@@ -214,7 +263,13 @@ const InterviewsPage: React.FC = () => {
                 </div>
                  <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
-                    <button onClick={openModalForNew} className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
+                     <div className="flex items-center gap-4 w-full md:w-auto">
+                         <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                            <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
+                            <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                        </div>
+                        <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
+                    </div>
                 </div>
                 <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
@@ -228,50 +283,60 @@ const InterviewsPage: React.FC = () => {
             </div>
 
             {/* Contenuto scorrevole */}
-            <div className="flex-grow overflow-auto bg-card dark:bg-dark-card rounded-lg shadow">
-                <table className="min-w-full">
-                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
-                        <tr>
-                            {columns.map(col => (
-                                 <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
-                                    {col.sortKey ? (
-                                        <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
-                                            <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                                            <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
-                                        </button>
-                                    ) : (
-                                        <span>{col.header}</span>
-                                    )}
-                                </th>
-                            ))}
-                            <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border dark:divide-dark-border">
-                         {sortedAndFilteredData.map(interview => (
-                            <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
-                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex items-center justify-end space-x-3">
-                                        <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
-                                        <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                                            {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                 {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+            <div className="flex-grow overflow-auto">
+                {view === 'table' ? (
+                    <div className="bg-card dark:bg-dark-card rounded-lg shadow overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full">
+                                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
+                                    <tr>
+                                        {columns.map(col => (
+                                            <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+                                                {col.sortKey ? (
+                                                    <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                                                        <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
+                                                        <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                                                    </button>
+                                                ) : (
+                                                    <span>{col.header}</span>
+                                                )}
+                                            </th>
+                                        ))}
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border dark:divide-dark-border">
+                                    {sortedAndFilteredData.map(interview => (
+                                        <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex items-center justify-end space-x-3">
+                                                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                                    <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+                        {sortedAndFilteredData.length > 0 ? sortedAndFilteredData.map(renderCard) : <div className="col-span-full text-center py-8 text-muted-foreground bg-card dark:bg-dark-card rounded-lg shadow">Nessun colloquio trovato con i filtri correnti.</div>}
+                    </div>
+                )}
             </div>
             
             {editingInterview && (
