@@ -16,7 +16,6 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 // --- Types ---
 type EnrichedContract = Contract & {
     managerNames: string[];
-    backlog: number;
 };
 
 // --- Helper Functions ---
@@ -37,8 +36,9 @@ const ContractsPage: React.FC = () => {
     const [relatedManagerIds, setRelatedManagerIds] = useState<string[]>([]);
     const [filters, setFilters] = useState({ name: '', cig: '' });
 
+    // Fix: Add backlog property to emptyContract and update its type to Omit<Contract, 'id'>.
     const emptyContract: Omit<Contract, 'id'> = {
-        name: '', startDate: '', endDate: '', cig: '', cigDerivato: '', capienza: 0,
+        name: '', startDate: '', endDate: '', cig: '', cigDerivato: '', capienza: 0, backlog: 0,
     };
 
     const dataForTable = useMemo<EnrichedContract[]>(() => {
@@ -51,24 +51,13 @@ const ContractsPage: React.FC = () => {
                 const managers = contractManagers
                     .filter(cm => cm.contractId === contract.id)
                     .map(cm => resources.find(r => r.id === cm.resourceId)?.name || 'N/A');
-
-                const associatedProjectIds = contractProjects
-                    .filter(cp => cp.contractId === contract.id)
-                    .map(cp => cp.projectId);
-
-                const totalBudget = projects
-                    .filter(p => associatedProjectIds.includes(p.id!))
-                    .reduce((sum, p) => sum + (p.budget || 0), 0);
-                
-                const backlog = (contract.capienza || 0) - totalBudget;
                 
                 return {
                     ...contract,
                     managerNames: managers,
-                    backlog,
                 };
             });
-    }, [contracts, contractManagers, contractProjects, projects, resources, filters]);
+    }, [contracts, contractManagers, resources, filters]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const resetFilters = () => setFilters({ name: '', cig: '' });
@@ -103,7 +92,8 @@ const ContractsPage: React.FC = () => {
                 if ('id' in editingContract) {
                     await updateContract(editingContract, relatedProjectIds, relatedManagerIds);
                 } else {
-                    await addContract(editingContract, relatedProjectIds, relatedManagerIds);
+                    // Fix: Update type assertion to Omit<Contract, 'id'>.
+                    await addContract(editingContract as Omit<Contract, 'id'>, relatedProjectIds, relatedManagerIds);
                 }
                 handleCloseModal();
             } catch (e) {}

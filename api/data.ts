@@ -116,7 +116,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             clients: clientsRes.rows.map(toCamelCase) as Client[],
             roles: rolesRes.rows.map(toCamelCase) as Role[],
             resources: resourcesRes.rows.map(toCamelCase) as Resource[],
-            projects: projectsRes.rows.map(toCamelCase) as Project[],
+            projects: projectsRes.rows.map(row => {
+                const project = toCamelCase(row);
+                if (project.startDate) project.startDate = new Date(project.startDate).toISOString().split('T')[0];
+                if (project.endDate) project.endDate = new Date(project.endDate).toISOString().split('T')[0];
+                return project;
+            }) as Project[],
             assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
             allocations,
             horizontals: horizontalsRes.rows as ConfigOption[],

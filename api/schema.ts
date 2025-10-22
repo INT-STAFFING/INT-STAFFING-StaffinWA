@@ -103,10 +103,13 @@ export async function ensureDbTablesExist(db: VercelPool) {
             cig VARCHAR(255) NOT NULL,
             cig_derivato VARCHAR(255),
             capienza NUMERIC(15, 2) NOT NULL,
+            backlog NUMERIC(15, 2) DEFAULT 0,
             UNIQUE(name),
             UNIQUE(cig)
         );
     `;
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS backlog NUMERIC(15, 2) DEFAULT 0;`;
+
      await db.sql`
         CREATE TABLE IF NOT EXISTS contract_projects (
             contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,

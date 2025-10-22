@@ -126,6 +126,8 @@ export interface Contract {
     cigDerivato: string | null;
     /** @property {number} capienza - Importo totale in € del contratto. */
     capienza: number;
+    /** @property {number} backlog - Capienza residua calcolata. */
+    backlog: number;
 }
 
 

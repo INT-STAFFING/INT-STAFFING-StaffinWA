@@ -8,6 +8,53 @@ import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
+const toCamelCase = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(toCamelCase);
+    }
+    const newObj: any = {};
+    for (const key in obj) {
+        const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
+        newObj[newKey] = obj[key];
+    }
+    return newObj;
+}
+
+async function recalculateContractBacklog(contractId: string, client: any) { // 'any' to accept VercelPoolClient
+    if (!contractId) return;
+
+    const contractRes = await client.query('SELECT capienza FROM contracts WHERE id = $1', [contractId]);
+    if (contractRes.rows.length === 0) {
+        console.warn(`recalculateContractBacklog: Contract with id ${contractId} not found.`);
+        return; 
+    }
+    const capienza = Number(contractRes.rows[0].capienza) || 0;
+
+    const distinctProjectIdsRes = await client.query(`
+        (SELECT project_id FROM contract_projects WHERE contract_id = $1)
+        UNION
+        (SELECT id AS project_id FROM projects WHERE contract_id = $1)
+    `, [contractId]);
+    
+    const distinctProjectIds = distinctProjectIdsRes.rows.map((r: any) => r.project_id);
+
+    let totalBudget = 0;
+    if (distinctProjectIds.length > 0) {
+        const budgetSumRes = await client.query(`SELECT SUM(budget) as total FROM projects WHERE id = ANY($1::uuid[])`, [distinctProjectIds]);
+        if (budgetSumRes.rows.length > 0) {
+            totalBudget = Number(budgetSumRes.rows[0].total) || 0;
+        }
+    }
+    
+    const newBacklog = capienza - totalBudget;
+
+    await client.query('UPDATE contracts SET backlog = $1 WHERE id = $2', [newBacklog, contractId]);
+}
+
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { id, entity, action, table } = req.query;
@@ -141,37 +188,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- GESTORE ENTITÀ: PROGETTI ---
         case 'projects':
-            switch (method) {
-                case 'POST':
-                    try {
-                        let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes, contractId } = req.body;
+            const projectClient = await db.connect();
+            try {
+                await projectClient.query('BEGIN');
+                switch (method) {
+                    case 'POST':
+                        const { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes, contractId } = req.body;
                         const newId = uuidv4();
-                        await db.sql`
-                            INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes, contract_id)
-                            VALUES (${newId}, ${name}, ${clientId || null}, ${startDate || null}, ${endDate || null}, ${budget || 0}, ${realizationPercentage || 100}, ${projectManager || null}, ${status || null}, ${notes || null}, ${contractId || null});
-                        `;
+                        await projectClient.query(
+                            `INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes, contract_id)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);`,
+                            [newId, name, clientId || null, startDate || null, endDate || null, budget || 0, realizationPercentage || 100, projectManager || null, status || null, notes || null, contractId || null]
+                        );
+                        if (contractId) {
+                            await recalculateContractBacklog(contractId, projectClient);
+                        }
+                        await projectClient.query('COMMIT');
                         return res.status(201).json({ id: newId, ...req.body });
-                    } catch (error) {
-                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già per questo cliente.` }); }
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'PUT':
-                    try {
-                        let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes, contractId } = req.body;
-                        await db.sql`
-                            UPDATE projects SET name = ${name}, client_id = ${clientId || null}, start_date = ${startDate || null}, end_date = ${endDate || null}, budget = ${budget || 0}, 
-                            realization_percentage = ${realizationPercentage || 100}, project_manager = ${projectManager || null}, status = ${status || null}, notes = ${notes || null}, contract_id = ${contractId || null}
-                            WHERE id = ${id as string};
-                        `;
+
+                    case 'PUT':
+                        const { rows } = await projectClient.query('SELECT contract_id FROM projects WHERE id = $1', [id]);
+                        const oldContractId = rows.length > 0 ? rows[0].contract_id : null;
+                        
+                        const { name: uName, clientId: uClientId, startDate: uStartDate, endDate: uEndDate, budget: uBudget, realizationPercentage: uRealizationPercentage, projectManager: uProjectManager, status: uStatus, notes: uNotes, contractId: uContractId } = req.body;
+                        await projectClient.query(
+                            `UPDATE projects SET name = $1, client_id = $2, start_date = $3, end_date = $4, budget = $5, 
+                             realization_percentage = $6, project_manager = $7, status = $8, notes = $9, contract_id = $10
+                             WHERE id = $11;`,
+                            [uName, uClientId || null, uStartDate || null, uEndDate || null, uBudget || 0, uRealizationPercentage || 100, uProjectManager || null, uStatus || null, uNotes || null, uContractId || null, id]
+                        );
+
+                        if (oldContractId) {
+                            await recalculateContractBacklog(oldContractId, projectClient);
+                        }
+                        const newContractId = uContractId || null;
+                        if (newContractId && newContractId !== oldContractId) {
+                            await recalculateContractBacklog(newContractId, projectClient);
+                        }
+
+                        await projectClient.query('COMMIT');
                         return res.status(200).json({ id, ...req.body });
-                    } catch (error) {
-                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già per questo cliente.` }); }
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'DELETE':
-                    const projectClient = await db.connect();
-                    try {
-                        await projectClient.query('BEGIN');
+
+                    case 'DELETE':
+                        const { rows: delRows } = await projectClient.query('SELECT contract_id FROM projects WHERE id = $1', [id]);
+                        const delContractId = delRows.length > 0 ? delRows[0].contract_id : null;
+                        
                         const assignmentsRes = await projectClient.query('SELECT id FROM assignments WHERE project_id = $1', [id]);
                         const assignmentIds = assignmentsRes.rows.map(r => r.id);
                         if (assignmentIds.length > 0) {
@@ -179,17 +240,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         }
                         await projectClient.query('DELETE FROM assignments WHERE project_id = $1', [id]);
                         await projectClient.query('DELETE FROM projects WHERE id = $1', [id]);
+                        
+                        if (delContractId) {
+                            await recalculateContractBacklog(delContractId, projectClient);
+                        }
+
                         await projectClient.query('COMMIT');
                         return res.status(204).end();
-                    } catch (error) {
-                        await projectClient.query('ROLLBACK');
-                        return res.status(500).json({ error: (error as Error).message });
-                    } finally {
-                        projectClient.release();
-                    }
-                default:
-                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-                    return res.status(405).end(`Method ${method} Not Allowed`);
+                    default:
+                        res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                        return res.status(405).end(`Method ${method} Not Allowed`);
+                }
+            } catch (error) {
+                await projectClient.query('ROLLBACK');
+                if ((error as any).code === '23505') { return res.status(409).json({ error: `Un progetto con nome '${req.body.name}' esiste già.` }); }
+                return res.status(500).json({ error: (error as Error).message });
+            } finally {
+                projectClient.release();
             }
 
         // --- GESTORE ENTITÀ: CONTRATTI ---
@@ -202,9 +269,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const { name, startDate, endDate, cig, cigDerivato, capienza, projectIds = [], managerIds = [] } = req.body;
                         const newId = uuidv4();
                         
-                        const contractRes = await contractClient.query(
+                        await contractClient.query(
                             `INSERT INTO contracts (id, name, start_date, end_date, cig, cig_derivato, capienza)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;`,
+                            VALUES ($1, $2, $3, $4, $5, $6, $7);`,
                             [newId, name, startDate || null, endDate || null, cig, cigDerivato || null, capienza || 0]
                         );
 
@@ -214,18 +281,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         for (const resourceId of managerIds) {
                             await contractClient.query('INSERT INTO contract_managers (contract_id, resource_id) VALUES ($1, $2)', [newId, resourceId]);
                         }
-                        
+
+                        await recalculateContractBacklog(newId, contractClient);
                         await contractClient.query('COMMIT');
-                        return res.status(201).json({ ...contractRes.rows[0], projectIds, managerIds });
+                        
+                        const newContractRes = await db.sql`SELECT * FROM contracts WHERE id = ${newId}`;
+                        return res.status(201).json(toCamelCase(newContractRes.rows[0]));
 
                     case 'PUT':
                         await contractClient.query('BEGIN');
                         const contractId = id as string;
                         const { name: uName, startDate: uStartDate, endDate: uEndDate, cig: uCig, cigDerivato: uCigDerivato, capienza: uCapienza, projectIds: uProjectIds = [], managerIds: uManagerIds = [] } = req.body;
 
-                        const updatedContractRes = await contractClient.query(
+                        await contractClient.query(
                             `UPDATE contracts SET name = $1, start_date = $2, end_date = $3, cig = $4, cig_derivato = $5, capienza = $6
-                             WHERE id = $7 RETURNING *;`,
+                             WHERE id = $7;`,
                             [uName, uStartDate || null, uEndDate || null, uCig, uCigDerivato || null, uCapienza || 0, contractId]
                         );
 
@@ -238,9 +308,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         for (const resourceId of uManagerIds) {
                             await contractClient.query('INSERT INTO contract_managers (contract_id, resource_id) VALUES ($1, $2)', [contractId, resourceId]);
                         }
-                        
+
+                        await recalculateContractBacklog(contractId, contractClient);
                         await contractClient.query('COMMIT');
-                        return res.status(200).json({ ...updatedContractRes.rows[0], projectIds: uProjectIds, managerIds: uManagerIds });
+                        
+                        const updatedContractRes = await db.sql`SELECT * FROM contracts WHERE id = ${contractId}`;
+                        return res.status(200).json(toCamelCase(updatedContractRes.rows[0]));
 
                     case 'DELETE':
                         await contractClient.query('BEGIN');
