@@ -37,7 +37,6 @@ const StaffingVisualizationPage: React.FC = () => {
     }, []);
 
     const chartData = useMemo(() => {
-        setIsLoading(true);
         if (resources.length === 0 || projects.length === 0) return { nodes: [], links: [] };
 
         const [year, month] = selectedMonth.split('-').map(Number);
@@ -99,19 +98,32 @@ const StaffingVisualizationPage: React.FC = () => {
             ...contracts.map(c => ({ id: `cont_${c.id}`, name: c.name, type: 'contract' })),
         ].filter(n => activeNodeIds.has(n.id));
 
-        setIsLoading(false);
         return { nodes: activeNodes, links };
 
     }, [selectedMonth, resources, projects, contracts, assignments, allocations, contractProjects, companyCalendar]);
     
+    // Create a stable string representation of the data.
+    // This is the dependency for our main effect, breaking the infinite loop.
+    const chartDataString = useMemo(() => JSON.stringify(chartData), [chartData]);
+
     useEffect(() => {
-        if (!svgRef.current || chartData.nodes.length === 0) {
-            if (svgRef.current) d3.select(svgRef.current).selectAll("*").remove();
+        setIsLoading(true);
+
+        if (!svgRef.current) {
+            setIsLoading(false);
             return;
         }
 
+        // Parse the data inside the effect from the stable string.
+        const data = JSON.parse(chartDataString);
+
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove();
+
+        if (data.nodes.length === 0) {
+            setIsLoading(false);
+            return;
+        }
 
         const width = 1200;
         const height = 800;
@@ -134,10 +146,17 @@ const StaffingVisualizationPage: React.FC = () => {
                 .nodePadding(10)
                 .extent([[1, 5], [width - 1, height - 5]]);
             
-            const { nodes, links } = sankey({
-                nodes: chartData.nodes.map(d => ({ ...d })),
-                links: chartData.links.map(d => ({ ...d }))
-            });
+            const nodeById = new Map(data.nodes.map((d: any, i: number) => [d.id, i]));
+            const graph = {
+                nodes: data.nodes,
+                links: data.links.map((d: any) => ({
+                    source: nodeById.get(d.source),
+                    target: nodeById.get(d.target),
+                    value: d.value,
+                }))
+            };
+
+            const { nodes, links } = sankey(graph);
             
             const color = d3.scaleOrdinal()
                 .domain(['resource', 'project', 'contract'])
@@ -147,15 +166,15 @@ const StaffingVisualizationPage: React.FC = () => {
                 .selectAll("rect")
                 .data(nodes)
                 .join("rect")
-                .attr("x", d => d.x0)
-                .attr("y", d => d.y0)
-                .attr("height", d => d.y1 - d.y0)
-                .attr("width", d => d.x1 - d.x0)
-                .attr("fill", d => color(d.type))
-                .on("mouseover", (event, d) => {
+                .attr("x", (d: any) => d.x0)
+                .attr("y", (d: any) => d.y0)
+                .attr("height", (d: any) => d.y1 - d.y0)
+                .attr("width", (d: any) => d.x1 - d.x0)
+                .attr("fill", (d: any) => color(d.type))
+                .on("mouseover", (event: any, d: any) => {
                     tooltip.style("visibility", "visible").text(`${d.name}`);
                 })
-                .on("mousemove", (event) => {
+                .on("mousemove", (event: any) => {
                     tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                 })
                 .on("mouseout", () => {
@@ -172,14 +191,14 @@ const StaffingVisualizationPage: React.FC = () => {
 
             link.append("path")
                 .attr("d", d3.sankeyLinkHorizontal())
-                .attr("stroke", d => color(d.source.type))
-                .attr("stroke-width", d => Math.max(1, d.width));
+                .attr("stroke", (d: any) => color(d.source.type))
+                .attr("stroke-width", (d: any) => Math.max(1, d.width));
                 
-            link.on("mouseover", function(event, d) {
+            link.on("mouseover", function(event: any, d: any) {
                     d3.select(this).attr("stroke-opacity", 0.8);
                     tooltip.style("visibility", "visible").text(`${d.source.name} → ${d.target.name}: ${d.value.toFixed(1)} G/U`);
                 })
-                .on("mousemove", (event) => {
+                .on("mousemove", (event: any) => {
                     tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                 })
                 .on("mouseout", function() {
@@ -191,21 +210,21 @@ const StaffingVisualizationPage: React.FC = () => {
                 .selectAll("text")
                 .data(nodes)
                 .join("text")
-                .attr("x", d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-                .attr("y", d => (d.y1 + d.y0) / 2)
+                .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+                .attr("y", (d: any) => (d.y1 + d.y0) / 2)
                 .attr("dy", "0.35em")
-                .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
+                .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
                 .attr("font-size", "10px")
                 .attr("fill", "#666")
-                .text(d => d.name);
+                .text((d: any) => d.name);
         
         } else { // network
              const color = d3.scaleOrdinal()
                 .domain(['resource', 'project', 'contract'])
                 .range(['#3b82f6', '#10b981', '#f97316']);
 
-            const simulation = d3.forceSimulation(chartData.nodes)
-                .force("link", d3.forceLink(chartData.links).id(d => d.id).distance(100))
+            const simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(100))
                 .force("charge", d3.forceManyBody().strength(-200))
                 .force("center", d3.forceCenter(width / 2, height / 2));
                 
@@ -213,28 +232,28 @@ const StaffingVisualizationPage: React.FC = () => {
                 .attr("stroke", "#999")
                 .attr("stroke-opacity", 0.6)
                 .selectAll("line")
-                .data(chartData.links)
+                .data(data.links)
                 .join("line")
-                .attr("stroke-width", d => Math.sqrt(d.value));
+                .attr("stroke-width", (d: any) => Math.sqrt(d.value));
 
             const node = svg.append("g")
                 .attr("stroke", "#fff")
                 .attr("stroke-width", 1.5)
                 .selectAll("circle")
-                .data(chartData.nodes)
+                .data(data.nodes)
                 .join("circle")
                 .attr("r", 8)
-                .attr("fill", d => color(d.type))
+                .attr("fill", (d: any) => color(d.type))
                 .call(d3.drag()
-                    .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-                    .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
-                    .on("end", (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+                    .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                    .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
+                    .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
                 );
 
-            node.on("mouseover", (event, d) => {
+            node.on("mouseover", (event: any, d: any) => {
                     tooltip.style("visibility", "visible").text(`${d.name}`);
                 })
-                .on("mousemove", (event) => {
+                .on("mousemove", (event: any) => {
                     tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                 })
                 .on("mouseout", () => {
@@ -243,23 +262,24 @@ const StaffingVisualizationPage: React.FC = () => {
 
             simulation.on("tick", () => {
                 link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
+                    .attr("x1", (d: any) => d.source.x)
+                    .attr("y1", (d: any) => d.source.y)
+                    .attr("x2", (d: any) => d.target.x)
+                    .attr("y2", (d: any) => d.target.y);
 
                 node
-                    .attr("cx", d => d.x)
-                    .attr("cy", d => d.y);
+                    .attr("cx", (d: any) => d.x)
+                    .attr("cy", (d: any) => d.y);
             });
         }
         
-        // Cleanup tooltip on component unmount
+        setIsLoading(false);
+        
         return () => {
             d3.select(".d3-tooltip").remove();
         };
 
-    }, [chartData, view]);
+    }, [chartDataString, view]);
 
     return (
         <div>
