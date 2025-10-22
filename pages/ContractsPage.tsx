@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { Contract } from '../types';
+import { Contract, Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
@@ -16,6 +16,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 // --- Types ---
 type EnrichedContract = Contract & {
     managerNames: string[];
+    associatedProjects: Project[];
 };
 
 // --- Helper Functions ---
@@ -35,8 +36,9 @@ const ContractsPage: React.FC = () => {
     const [relatedProjectIds, setRelatedProjectIds] = useState<string[]>([]);
     const [relatedManagerIds, setRelatedManagerIds] = useState<string[]>([]);
     const [filters, setFilters] = useState({ name: '', cig: '' });
+    const [view, setView] = useState<'table' | 'card'>('table');
 
-    // Fix: Add backlog property to emptyContract and update its type to Omit<Contract, 'id'>.
+
     const emptyContract: Omit<Contract, 'id'> = {
         name: '', startDate: '', endDate: '', cig: '', cigDerivato: '', capienza: 0, backlog: 0,
     };
@@ -52,12 +54,25 @@ const ContractsPage: React.FC = () => {
                     .filter(cm => cm.contractId === contract.id)
                     .map(cm => resources.find(r => r.id === cm.resourceId)?.name || 'N/A');
                 
+                // Find associated projects from both relationships
+                const projectIdsFromContractProjects = contractProjects
+                    .filter(cp => cp.contractId === contract.id)
+                    .map(cp => cp.projectId);
+                
+                const projectIdsFromProjectsTable = projects
+                    .filter(p => p.contractId === contract.id)
+                    .map(p => p.id!);
+
+                const allProjectIds = [...new Set([...projectIdsFromContractProjects, ...projectIdsFromProjectsTable])];
+                const associatedProjects = projects.filter(p => allProjectIds.includes(p.id!));
+
                 return {
                     ...contract,
                     managerNames: managers,
+                    associatedProjects,
                 };
             });
-    }, [contracts, contractManagers, resources, filters]);
+    }, [contracts, contractProjects, contractManagers, projects, resources, filters]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const resetFilters = () => setFilters({ name: '', cig: '' });
@@ -70,7 +85,7 @@ const ContractsPage: React.FC = () => {
     };
 
     const openModalForEdit = (contract: EnrichedContract) => {
-        const associatedProjectIds = contractProjects.filter(cp => cp.contractId === contract.id).map(cp => cp.projectId);
+        const associatedProjectIds = contract.associatedProjects.map(p => p.id!);
         const associatedManagerIds = contractManagers.filter(cm => cm.contractId === contract.id).map(cm => cm.resourceId);
         setEditingContract(contract);
         setRelatedProjectIds(associatedProjectIds);
@@ -92,7 +107,6 @@ const ContractsPage: React.FC = () => {
                 if ('id' in editingContract) {
                     await updateContract(editingContract, relatedProjectIds, relatedManagerIds);
                 } else {
-                    // Fix: Update type assertion to Omit<Contract, 'id'>.
                     await addContract(editingContract as Omit<Contract, 'id'>, relatedProjectIds, relatedManagerIds);
                 }
                 handleCloseModal();
@@ -141,24 +155,44 @@ const ContractsPage: React.FC = () => {
         </tr>
     );
     
-    const renderMobileCard = (contract: EnrichedContract) => (
-        <div key={contract.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+    const renderCard = (contract: EnrichedContract) => (
+        <div key={contract.id} className="bg-card dark:bg-dark-card rounded-lg shadow-md border border-border dark:border-dark-border p-5 flex flex-col gap-4">
+            {/* Card Header */}
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="font-bold text-lg text-gray-900 dark:text-white">{contract.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">CIG: {contract.cig}</p>
+                    <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{contract.name}</p>
+                    <p className="text-sm text-muted-foreground">CIG: {contract.cig}</p>
                 </div>
-                <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                    <button onClick={() => openModalForEdit(contract)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                    <button onClick={() => setContractToDelete(contract)} className="p-1 text-gray-500 hover:text-red-600">
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
                     </button>
                 </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                <div><p className="text-gray-500">Capienza</p><p className="font-medium">{formatCurrency(contract.capienza)}</p></div>
-                <div><p className="text-gray-500">Backlog</p><p className={`font-semibold ${contract.backlog < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(contract.backlog)}</p></div>
-                <div className="col-span-2"><p className="text-gray-500">Responsabili</p><p className="font-medium text-xs">{contract.managerNames.join(', ')}</p></div>
+
+            {/* Card Body with main stats */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm border-t border-b border-border dark:border-dark-border py-4">
+                <div><p className="text-muted-foreground">Capienza</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatCurrency(contract.capienza)}</p></div>
+                <div><p className="text-muted-foreground">Backlog</p><p className={`font-semibold ${contract.backlog < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(contract.backlog)}</p></div>
+                <div className="col-span-2"><p className="text-muted-foreground">Responsabili</p><p className="font-medium text-xs text-foreground dark:text-dark-foreground">{contract.managerNames.join(', ') || 'N/A'}</p></div>
+            </div>
+            
+            {/* Associated Projects section */}
+            <div>
+                 <h4 className="font-semibold text-foreground dark:text-dark-foreground mb-2 text-sm">Progetti Associati ({contract.associatedProjects.length})</h4>
+                 {contract.associatedProjects.length > 0 ? (
+                    <ul className="space-y-1.5 max-h-32 overflow-y-auto text-xs pr-2">
+                        {contract.associatedProjects.map(p => (
+                            <li key={p.id} className="flex justify-between items-center text-muted-foreground hover:text-foreground dark:hover:text-dark-foreground">
+                                <span>{p.name}</span>
+                                <span className="font-mono">{formatCurrency(p.budget)}</span>
+                            </li>
+                        ))}
+                    </ul>
+                 ) : (
+                    <p className="text-xs text-muted-foreground italic">Nessun progetto associato.</p>
+                 )}
             </div>
         </div>
     );
@@ -173,17 +207,40 @@ const ContractsPage: React.FC = () => {
 
     return (
         <div>
-            <DataTable<EnrichedContract>
-                title="Gestione Contratti"
-                addNewButtonLabel="Aggiungi Contratto"
-                data={dataForTable}
-                columns={columns}
-                filtersNode={filtersNode}
-                onAddNew={openModalForNew}
-                renderRow={renderRow}
-                renderMobileCard={renderMobileCard}
-                initialSortKey="name"
-            />
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Contratti</h1>
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                    </div>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Contratto</button>
+                </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+                {filtersNode}
+            </div>
+
+            {view === 'table' ? (
+                 <DataTable<EnrichedContract>
+                    title=""
+                    addNewButtonLabel=""
+                    data={dataForTable}
+                    columns={columns}
+                    filtersNode={<></>}
+                    onAddNew={() => {}}
+                    renderRow={renderRow}
+                    renderMobileCard={renderCard}
+                    initialSortKey="name"
+                />
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                    {dataForTable.length > 0 
+                        ? dataForTable.map(renderCard) 
+                        : <p className="col-span-full text-center py-8 text-muted-foreground">Nessun contratto trovato con i filtri correnti.</p>}
+                </div>
+            )}
             
             {editingContract && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingContract ? 'Modifica Contratto' : 'Aggiungi Contratto'}>

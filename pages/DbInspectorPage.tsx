@@ -191,7 +191,17 @@ const DbInspectorPage: React.FC = () => {
         );
     };
 
-    const renderCellContent = (value: any) => {
+    const renderCellContent = (value: any, columnName: string) => {
+        const currencyColumns = [
+            'daily_cost', 'standard_cost', 'daily_expenses', 'budget', 'capienza', 'backlog',
+            'produzione_lorda', 'produzione_lorda_network_italia', 'perdite', 'spese_onorari_esterni',
+            'spese_altro', 'fatture_onorari', 'fatture_spese', 'iva', 'incassi'
+        ];
+    
+        if (currencyColumns.includes(columnName) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value))))) {
+            return (Number(value) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+        }
+        
         if (value === null || value === undefined) return <i className="text-gray-400">NULL</i>;
         if (typeof value === 'boolean') return value ? 'true' : 'false';
         if (typeof value === 'object' && value !== null) return JSON.stringify(value);
@@ -259,7 +269,7 @@ const DbInspectorPage: React.FC = () => {
                                             {editingRowId === row.id && col.column_name !== 'id' ? (
                                                 renderInputField(col, editingRowData[col.column_name])
                                             ) : (
-                                                renderCellContent(row[col.column_name])
+                                                renderCellContent(row[col.column_name], col.column_name)
                                             )}
                                         </td>
                                     ))}
