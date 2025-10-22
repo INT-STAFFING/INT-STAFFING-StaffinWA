@@ -152,9 +152,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </>
                     )}
                 </div>
-                {/* Logout Button */}
-                {isAuthenticated && isLoginProtectionEnabled && (
+                {isAuthenticated && isLoginProtectionEnabled ? (
                     <div className="mt-auto">
+                        <div className="px-4 py-2 text-center text-xs text-gray-500">
+                            Versione V600
+                        </div>
                         <button
                             onClick={logout}
                             className="flex items-center w-full px-4 py-3 text-red-400 rounded-md hover:bg-red-700/50 hover:text-white transition-colors duration-200"
@@ -162,6 +164,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                             <ArrowLeftOnRectangleIcon className="w-6 h-6 mr-3" />
                             Logout
                         </button>
+                    </div>
+                ) : (
+                    <div className="mt-auto px-4 py-4 text-center text-xs text-gray-500">
+                        Versione V600
                     </div>
                 )}
             </nav>
