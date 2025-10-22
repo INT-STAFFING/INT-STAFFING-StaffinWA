@@ -12,6 +12,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { Link } from 'react-router-dom';
 
 /**
  * @type ViewMode
@@ -558,7 +559,9 @@ const StaffingPage: React.FC = () => {
                                 <React.Fragment key={resource.id}>
                                     {/* First row for the resource, containing either the first assignment or a placeholder */}
                                     <tr className={`hover:bg-gray-50 dark:hover:bg-gray-700/50`}>
-                                        <td rowSpan={rowCount} className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{resource.name}</td>
+                                        <td rowSpan={rowCount} className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>
+                                            <Link to={`/workload?resourceId=${resource.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{resource.name}</Link>
+                                        </td>
                                         <td rowSpan={rowCount} className="sticky left-[150px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 align-top" style={{ minWidth: '150px' }}>{role?.name || 'N/A'}</td>
 
                                         {resourceAssignments.length > 0 ? (
@@ -571,7 +574,9 @@ const StaffingPage: React.FC = () => {
                                                     <>
                                                         <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
                                                         <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
-                                                        <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
+                                                        <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium" style={{ minWidth: '200px' }}>
+                                                             <Link to={`/projects?projectId=${project.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{project.name}</Link>
+                                                        </td>
                                                         <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                             <div className="flex items-center justify-center space-x-2">
                                                                 <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
@@ -610,7 +615,9 @@ const StaffingPage: React.FC = () => {
                                             <tr key={assignment.id} className={`transition-opacity duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/50`}>
                                                 <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{client?.name || 'N/A'}</td>
                                                 <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400" style={{ minWidth: '150px' }}>{project.projectManager || 'N/A'}</td>
-                                                <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>{project.name}</td>
+                                                <td className="sticky left-[300px] md:left-[600px] bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium" style={{ minWidth: '200px' }}>
+                                                    <Link to={`/projects?projectId=${project.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{project.name}</Link>
+                                                </td>
                                                 <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <div className="flex items-center justify-center space-x-2">
                                                         <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>

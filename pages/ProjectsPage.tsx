@@ -31,11 +31,23 @@ const ProjectsPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
 
      useEffect(() => {
-        if (searchParams.get('filter') === 'unstaffed') {
+        const projectId = searchParams.get('projectId');
+        const clientId = searchParams.get('clientId');
+        const filter = searchParams.get('filter');
+
+        if (projectId) {
+            setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: '', status: '' }));
+            setShowOnlyUnstaffed(false);
+            setSearchParams({}, { replace: true });
+        } else if (clientId) {
+            setFilters(prev => ({ ...prev, clientId, name: '', status: '' }));
+            setShowOnlyUnstaffed(false);
+            setSearchParams({}, { replace: true });
+        } else if (filter === 'unstaffed') {
             setShowOnlyUnstaffed(true);
             setSearchParams({}, { replace: true });
         }
-    }, [searchParams, setSearchParams]);
+    }, [searchParams, setSearchParams, projects]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);

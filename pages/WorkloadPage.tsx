@@ -3,12 +3,13 @@
  * @description Pagina di visualizzazione del carico totale per risorsa (sola lettura).
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import { useSearchParams } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -136,6 +137,16 @@ const WorkloadPage: React.FC = () => {
     const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
     
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', roleIds: [] as string[] });
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    useEffect(() => {
+        const resourceId = searchParams.get('resourceId');
+        if (resourceId) {
+            setFilters(prev => ({ ...prev, resourceId }));
+            // Rimuovi il parametro dall'URL dopo averlo applicato per non confondere l'utente
+            setSearchParams({}, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
     
     const timeColumns = useMemo(() => {
         const cols = [];

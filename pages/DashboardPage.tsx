@@ -7,7 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { UsersIcon, BriefcaseIcon } from '../components/icons';
 
 
@@ -83,10 +83,10 @@ const DashboardPage: React.FC = () => {
 
         let totalCost = 0;
         let totalPersonDays = 0;
-        const costByClient: { [clientId: string]: { name: string, cost: number } } = {};
+        const costByClient: { [clientId: string]: { id: string, name: string, cost: number } } = {};
 
         clients.forEach(c => {
-            if (c.id) costByClient[c.id] = { name: c.name, cost: 0 };
+            if (c.id) costByClient[c.id] = { id: c.id, name: c.name, cost: 0 };
         });
 
         for (const assignmentId in allocations) {
@@ -300,12 +300,12 @@ const DashboardPage: React.FC = () => {
      * @description Aggrega sforzo e budget per cliente, filtrabile per settore.
      */
     const effortByClientData = useMemo(() => {
-        const clientData: { [clientId: string]: { name: string, projectCount: number, totalPersonDays: number, totalBudget: number } } = {};
+        const clientData: { [clientId: string]: { id: string, name: string, projectCount: number, totalPersonDays: number, totalBudget: number } } = {};
         
         clients
             .filter(c => !effortByClientFilter.sector || c.sector === effortByClientFilter.sector)
             .forEach(client => {
-                 if (client.id) clientData[client.id] = { name: client.name, projectCount: 0, totalPersonDays: 0, totalBudget: 0 };
+                 if (client.id) clientData[client.id] = { id: client.id, name: client.name, projectCount: 0, totalPersonDays: 0, totalBudget: 0 };
             });
 
         projects.forEach(project => {
@@ -540,7 +540,7 @@ const DashboardPage: React.FC = () => {
                                 {averageAllocationData.map((data, index) => (
                                 <tr key={index}>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                        <div>{data.resource?.name}</div>
+                                        <div><Link to={`/workload?resourceId=${data.resource.id}`} className="text-blue-600 hover:underline">{data.resource?.name}</Link></div>
                                         <div className="text-xs text-gray-500">{data.role?.name}</div>
                                     </td>
                                     <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgCurrentMonth)}`}>
@@ -573,7 +573,7 @@ const DashboardPage: React.FC = () => {
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni Alloc.</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">FTE</th></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{fteData.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{data.name}</div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-blue-600 dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{fteData.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/projects?projectId=${data.id}`} className="text-blue-600 hover:underline">{data.name}</Link></div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-blue-600 dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
                         </table>
                     </div>
@@ -585,7 +585,7 @@ const DashboardPage: React.FC = () => {
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Progetto</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Budget</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Varianza</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{budgetAnalysisData.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{p.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{budgetAnalysisData.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?projectId=${p.id}`} className="text-blue-600 hover:underline">{p.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
                         </table>
                     </div>
@@ -597,7 +597,7 @@ const DashboardPage: React.FC = () => {
                     <div className="overflow-y-auto max-h-96">
                          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Risorsa</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Alloc. Media</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{underutilizedResourcesData.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div>{r.name}</div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{underutilizedResourcesData.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/workload?resourceId=${r.id}`} className="text-blue-600 hover:underline">{r.name}</Link></div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
                          </table>
                     </div>
                 </div>
@@ -608,7 +608,7 @@ const DashboardPage: React.FC = () => {
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Giorni-Uomo</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Valore Budget</th></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByClientData.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{effortByClientData.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-blue-600 hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
                              <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
                         </table>
                     </div>
@@ -620,7 +620,7 @@ const DashboardPage: React.FC = () => {
                     <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cliente</th><th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Costo Stimato</th></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{currentMonthKPIs.clientCostArray.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{c.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{currentMonthKPIs.clientCostArray.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-blue-600 hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
                         </table>
                     </div>
