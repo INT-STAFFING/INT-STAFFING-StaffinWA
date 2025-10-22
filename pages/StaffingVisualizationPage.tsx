@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { isHoliday } from '../utils/dateUtils';
-import { SpinnerIcon } from '../components/icons';
+import { SpinnerIcon, ArrowDownOnSquareIcon } from '../components/icons';
 
 // Informa TypeScript che D3 e d3-sankey sono disponibili come variabili globali (da CDN).
 declare var d3: any;
@@ -102,8 +102,6 @@ const StaffingVisualizationPage: React.FC = () => {
 
     }, [selectedMonth, resources, projects, contracts, assignments, allocations, contractProjects, companyCalendar]);
     
-    // Create a stable string representation of the data.
-    // This is the dependency for our main effect, breaking the infinite loop.
     const chartDataString = useMemo(() => JSON.stringify(chartData), [chartData]);
 
     useEffect(() => {
@@ -114,7 +112,6 @@ const StaffingVisualizationPage: React.FC = () => {
             return;
         }
 
-        // Parse the data inside the effect from the stable string.
         const data = JSON.parse(chartDataString);
 
         const svg = d3.select(svgRef.current);
@@ -126,7 +123,7 @@ const StaffingVisualizationPage: React.FC = () => {
         }
 
         const width = 1200;
-        const height = 800;
+        const height = view === 'sankey' ? 1600 : 800;
         svg.attr("viewBox", `0 0 ${width} ${height}`);
         
         const tooltip = d3.select("body").append("div")
@@ -215,10 +212,19 @@ const StaffingVisualizationPage: React.FC = () => {
                 .attr("dy", "0.35em")
                 .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
                 .attr("font-size", "10px")
-                .attr("fill", "#666")
+                .attr("fill", "currentColor")
                 .text((d: any) => d.name);
         
         } else { // network
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on("zoom", (event: any) => {
+                    g.attr("transform", event.transform);
+                });
+            
+            const g = svg.append("g");
+            svg.call(zoom);
+
              const color = d3.scaleOrdinal()
                 .domain(['resource', 'project', 'contract'])
                 .range(['#3b82f6', '#10b981', '#f97316']);
@@ -226,31 +232,43 @@ const StaffingVisualizationPage: React.FC = () => {
             const simulation = d3.forceSimulation(data.nodes)
                 .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(100))
                 .force("charge", d3.forceManyBody().strength(-200))
-                .force("center", d3.forceCenter(width / 2, height / 2));
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("x", d3.forceX(width / 2).strength(0.05))
+                .force("y", d3.forceY(height / 2).strength(0.05));
                 
-            const link = svg.append("g")
+            const link = g.append("g")
                 .attr("stroke", "#999")
                 .attr("stroke-opacity", 0.6)
                 .selectAll("line")
                 .data(data.links)
                 .join("line")
-                .attr("stroke-width", (d: any) => Math.sqrt(d.value));
+                .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));
 
-            const node = svg.append("g")
-                .attr("stroke", "#fff")
-                .attr("stroke-width", 1.5)
-                .selectAll("circle")
+            const nodeGroup = g.append("g")
+                .selectAll(".node-group")
                 .data(data.nodes)
-                .join("circle")
-                .attr("r", 8)
-                .attr("fill", (d: any) => color(d.type))
+                .join("g")
+                .attr("class", "node-group")
                 .call(d3.drag()
                     .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
                     .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
                     .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
                 );
 
-            node.on("mouseover", (event: any, d: any) => {
+            nodeGroup.append("circle")
+                .attr("r", 8)
+                .attr("fill", (d: any) => color(d.type))
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5);
+
+            nodeGroup.append("text")
+                .text((d: any) => d.name)
+                .attr("x", 12)
+                .attr("y", 3)
+                .attr("font-size", "10px")
+                .attr("fill", "currentColor");
+            
+            nodeGroup.on("mouseover", (event: any, d: any) => {
                     tooltip.style("visibility", "visible").text(`${d.name}`);
                 })
                 .on("mousemove", (event: any) => {
@@ -267,9 +285,8 @@ const StaffingVisualizationPage: React.FC = () => {
                     .attr("x2", (d: any) => d.target.x)
                     .attr("y2", (d: any) => d.target.y);
 
-                node
-                    .attr("cx", (d: any) => d.x)
-                    .attr("cy", (d: any) => d.y);
+                nodeGroup
+                    .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
             });
         }
         
@@ -280,6 +297,48 @@ const StaffingVisualizationPage: React.FC = () => {
         };
 
     }, [chartDataString, view]);
+
+    const handleExportSVG = () => {
+        if (!svgRef.current) return;
+        const svgData = new XMLSerializer().serializeToString(svgRef.current);
+        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `staffing_${view}_${selectedMonth}.svg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportPNG = () => {
+        if (!svgRef.current) return;
+        const svg = svgRef.current;
+        const { width, height } = svg.viewBox.baseVal;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        img.onload = () => {
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('color-scheme') === 'dark' ? '#0f172a' : '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            const pngUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = pngUrl;
+            link.download = `staffing_${view}_${selectedMonth}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    };
+
 
     return (
         <div>
@@ -295,6 +354,16 @@ const StaffingVisualizationPage: React.FC = () => {
                 <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
                     <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'sankey' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Diagramma di Flusso</button>
                     <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'network' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Mappa delle Connessioni</button>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
+                        <ArrowDownOnSquareIcon className="w-4 h-4 mr-2"/>
+                        SVG
+                    </button>
+                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
+                        <ArrowDownOnSquareIcon className="w-4 h-4 mr-2"/>
+                        PNG
+                    </button>
                 </div>
             </div>
 

@@ -124,12 +124,17 @@ const InterviewsPage: React.FC = () => {
     }, [enrichedData, filters, sortConfig]);
 
     const summaryCards = useMemo(() => {
-        const dataToSummarize = sortedAndFilteredData; // Use filtered data for summary
+        const dataToSummarize = enrichedData;
         const activeCandidates = dataToSummarize.filter(i => i.status === 'Aperto').length;
-        const positiveFeedback = dataToSummarize.filter(i => i.feedback === 'Positivo' || i.feedback === 'Positivo On Hold').length;
-        const upcomingHires = dataToSummarize.filter(i => i.hiringStatus === 'SI' && i.entryDate && new Date(i.entryDate) >= new Date());
-        return { activeCandidates, positiveFeedback, upcomingHires };
-    }, [sortedAndFilteredData]);
+        const standByCandidates = dataToSummarize.filter(i => i.status === 'StandBy').length;
+        const positiveFeedback = dataToSummarize.filter(i => i.feedback === 'Positivo').length;
+        const positiveOnHoldFeedback = dataToSummarize.filter(i => i.feedback === 'Positivo On Hold').length;
+        const upcomingHires = dataToSummarize
+            .filter(i => i.hiringStatus === 'SI' && i.entryDate && new Date(i.entryDate) >= new Date())
+            .sort((a,b) => new Date(a.entryDate!).getTime() - new Date(b.entryDate!).getTime());
+
+        return { activeCandidates, standByCandidates, positiveFeedback, positiveOnHoldFeedback, upcomingHires };
+    }, [enrichedData]);
     
     // Options for selects
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
@@ -257,9 +262,57 @@ const InterviewsPage: React.FC = () => {
             {/* Header fisso */}
             <div className="flex-shrink-0">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3> <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p> </div><UsersIcon className="w-8 h-8 text-gray-300"/></div>
-                    <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3> <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p> </div><CheckCircleIcon className="w-8 h-8 text-gray-300"/></div>
-                    <div className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex items-start justify-between"><div> <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3> <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p> </div><CalendarDaysIcon className="w-8 h-8 text-gray-300"/></div>
+                    <div
+                        onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: 'Aperto', hiringStatus: '' })}
+                        className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+                    >
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
+                                <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
+                            </div>
+                            <UsersIcon className="w-8 h-8 text-gray-300"/>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
+                    </div>
+                    <div
+                        onClick={() => setFilters({ name: '', roleId: '', feedback: 'Positivo', status: '', hiringStatus: '' })}
+                        className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+                    >
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
+                                <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
+                            </div>
+                            <CheckCircleIcon className="w-8 h-8 text-gray-300"/>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
+                    </div>
+                    <div
+                        onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: '', hiringStatus: 'SI' })}
+                        className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+                    >
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
+                                <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
+                            </div>
+                            <CalendarDaysIcon className="w-8 h-8 text-gray-300"/>
+                        </div>
+                        {summaryCards.upcomingHires.length > 0 ? (
+                            <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
+                                {summaryCards.upcomingHires.slice(0, 3).map(hire => (
+                                    <div key={hire.id} className="flex justify-between items-center">
+                                        <span className="truncate pr-2">{hire.candidateName} {hire.candidateSurname}</span>
+                                        <span className="font-medium text-foreground dark:text-dark-foreground flex-shrink-0">{formatDate(hire.entryDate)}</span>
+                                    </div>
+                                ))}
+                                {summaryCards.upcomingHires.length > 3 && <p className="text-center mt-1">... e altri {summaryCards.upcomingHires.length - 3}</p>}
+                            </div>
+                        ) : (
+                            <div className="mt-2 text-xs text-muted-foreground">Nessun ingresso pianificato.</div>
+                        )}
+                    </div>
                 </div>
                  <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
