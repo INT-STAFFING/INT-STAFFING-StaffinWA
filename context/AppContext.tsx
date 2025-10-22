@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -26,6 +26,9 @@ export interface EntitiesContextType {
     roles: Role[];
     resources: Resource[];
     projects: Project[];
+    contracts: Contract[];
+    contractProjects: { contractId: string; projectId: string; }[];
+    contractManagers: { contractId: string; resourceId: string; }[];
     assignments: Assignment[];
     horizontals: ConfigOption[];
     seniorityLevels: ConfigOption[];
@@ -50,6 +53,9 @@ export interface EntitiesContextType {
     addProject: (project: Omit<Project, 'id'>) => Promise<void>;
     updateProject: (project: Project) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
+    addContract: (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => Promise<void>;
+    updateContract: (contract: Contract, projectIds: string[], managerIds: string[]) => Promise<void>;
+    deleteContract: (contractId: string) => Promise<void>;
     addAssignment: (assignment: Omit<Assignment, 'id'>) => Promise<void>;
     addMultipleAssignments: (assignments: Omit<Assignment, 'id'>[]) => Promise<void>;
     deleteAssignment: (assignmentId: string) => Promise<void>;
@@ -108,6 +114,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [roles, setRoles] = useState<Role[]>([]);
     const [resources, setResources] = useState<Resource[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [contractProjects, setContractProjects] = useState<{ contractId: string; projectId: string; }[]>([]);
+    const [contractManagers, setContractManagers] = useState<{ contractId: string; resourceId: string; }[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [allocations, setAllocations] = useState<Allocation>({});
     const [horizontals, setHorizontals] = useState<ConfigOption[]>([]);
@@ -141,6 +150,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setWbsTasks(data.wbsTasks || []);
             setResourceRequests(data.resourceRequests || []);
             setInterviews(data.interviews || []);
+            setContracts(data.contracts || []);
+            setContractProjects(data.contractProjects || []);
+            setContractManagers(data.contractManagers || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -348,6 +360,56 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast, projects, assignments]);
+
+    const addContract = useCallback(async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => {
+        const actionKey = 'addContract';
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const newContractData = await apiFetch('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify({ ...contract, projectIds, managerIds }) });
+            setContracts(prev => [...prev, newContractData]);
+            setContractProjects(prev => [...prev, ...projectIds.map(pid => ({ contractId: newContractData.id, projectId: pid }))]);
+            setContractManagers(prev => [...prev, ...managerIds.map(mid => ({ contractId: newContractData.id, resourceId: mid }))]);
+            addToast(`Contratto '${newContractData.name}' aggiunto.`, 'success');
+        } catch (error) {
+            addToast(`Errore aggiunta contratto: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+    const updateContract = useCallback(async (contract: Contract, projectIds: string[], managerIds: string[]) => {
+        const actionKey = `updateContract-${contract.id}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const updatedContractData = await apiFetch(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify({ ...contract, projectIds, managerIds }) });
+            setContracts(prev => prev.map(c => c.id === updatedContractData.id ? updatedContractData : c));
+            setContractProjects(prev => [...prev.filter(cp => cp.contractId !== contract.id), ...projectIds.map(pid => ({ contractId: contract.id!, projectId: pid }))]);
+            setContractManagers(prev => [...prev.filter(cm => cm.contractId !== contract.id), ...managerIds.map(mid => ({ contractId: contract.id!, resourceId: mid }))]);
+            addToast(`Contratto '${updatedContractData.name}' aggiornato.`, 'success');
+        } catch (error) {
+            addToast(`Errore modifica contratto: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+    const deleteContract = useCallback(async (contractId: string) => {
+        const contractName = contracts.find(c => c.id === contractId)?.name || 'sconosciuto';
+        const actionKey = `deleteContract-${contractId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch(`/api/resources?entity=contracts&id=${contractId}`, { method: 'DELETE' });
+            setContracts(prev => prev.filter(c => c.id !== contractId));
+            setContractProjects(prev => prev.filter(cp => cp.contractId !== contractId));
+            setContractManagers(prev => prev.filter(cm => cm.contractId !== contractId));
+            addToast(`Contratto '${contractName}' eliminato.`, 'success');
+        } catch (error) {
+            addToast(`Errore eliminazione contratto: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast, contracts]);
 
     const addAssignment = useCallback(async (assignment: Omit<Assignment, 'id'>) => {
         const actionKey = 'addAssignment';
@@ -702,11 +764,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
+        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
         addProject, updateProject, deleteProject,
+        addContract, updateContract, deleteContract,
         addAssignment, addMultipleAssignments, deleteAssignment,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
@@ -714,7 +777,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
         addInterview, updateInterview, deleteInterview,
         fetchData
-    }), [clients, roles, resources, projects, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
+    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

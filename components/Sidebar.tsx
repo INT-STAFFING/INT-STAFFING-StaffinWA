@@ -6,7 +6,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ArrowLeftOnRectangleIcon, ClipboardDocumentListIcon } from './icons';
+import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ArrowLeftOnRectangleIcon, ClipboardDocumentListIcon, DocumentDuplicateIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -110,6 +110,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <NavLink to="/projects" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <BriefcaseIcon className="w-6 h-6 mr-3" />
                         Progetti
+                    </NavLink>
+                    <NavLink to="/contracts" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <DocumentDuplicateIcon className="w-6 h-6 mr-3" />
+                        Contratti
                     </NavLink>
                     <NavLink to="/clients" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <BuildingOfficeIcon className="w-6 h-6 mr-3" />

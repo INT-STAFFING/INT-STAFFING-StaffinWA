@@ -92,6 +92,36 @@ export async function ensureDbTablesExist(db: VercelPool) {
             UNIQUE(name, client_id)
         );
     `;
+
+    // New Contract Tables
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS contracts (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            start_date DATE,
+            end_date DATE,
+            cig VARCHAR(255) NOT NULL,
+            cig_derivato VARCHAR(255),
+            capienza NUMERIC(15, 2) NOT NULL,
+            UNIQUE(name),
+            UNIQUE(cig)
+        );
+    `;
+     await db.sql`
+        CREATE TABLE IF NOT EXISTS contract_projects (
+            contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
+            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+            PRIMARY KEY (contract_id, project_id)
+        );
+    `;
+     await db.sql`
+        CREATE TABLE IF NOT EXISTS contract_managers (
+            contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
+            resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            PRIMARY KEY (contract_id, resource_id)
+        );
+    `;
+
     await db.sql`
         CREATE TABLE IF NOT EXISTS assignments (
             id UUID PRIMARY KEY,

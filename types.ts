@@ -106,6 +106,28 @@ export interface Project {
 }
 
 /**
+ * @interface Contract
+ * @description Rappresenta un contratto.
+ */
+export interface Contract {
+    /** @property {string} [id] - L'identificatore univoco. */
+    id?: string;
+    /** @property {string} name - Nome descrittivo del contratto. */
+    name: string;
+    /** @property {string | null} startDate - Data di inizio del contratto. */
+    startDate: string | null;
+    /** @property {string | null} endDate - Data di fine del contratto. */
+    endDate: string | null;
+    /** @property {string} cig - Codice CIG. */
+    cig: string;
+    /** @property {string | null} cig_derivato - Codice CIG derivato (opzionale). */
+    cig_derivato: string | null;
+    /** @property {number} capienza - Importo totale in € del contratto. */
+    capienza: number;
+}
+
+
+/**
  * @interface Assignment
  * @description Rappresenta l'assegnazione di una risorsa a un progetto.
  */

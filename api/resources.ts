@@ -191,7 +191,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
-        
+
+        // --- GESTORE ENTITÀ: CONTRATTI ---
+        case 'contracts':
+            const contractClient = await db.connect();
+            try {
+                switch (method) {
+                    case 'POST':
+                        await contractClient.query('BEGIN');
+                        const { name, startDate, endDate, cig, cig_derivato, capienza, projectIds = [], managerIds = [] } = req.body;
+                        const newId = uuidv4();
+                        
+                        const contractRes = await contractClient.query(
+                            `INSERT INTO contracts (id, name, start_date, end_date, cig, cig_derivato, capienza)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;`,
+                            [newId, name, startDate || null, endDate || null, cig, cig_derivato || null, capienza || 0]
+                        );
+
+                        for (const projectId of projectIds) {
+                            await contractClient.query('INSERT INTO contract_projects (contract_id, project_id) VALUES ($1, $2)', [newId, projectId]);
+                        }
+                        for (const resourceId of managerIds) {
+                            await contractClient.query('INSERT INTO contract_managers (contract_id, resource_id) VALUES ($1, $2)', [newId, resourceId]);
+                        }
+                        
+                        await contractClient.query('COMMIT');
+                        return res.status(201).json({ ...contractRes.rows[0], projectIds, managerIds });
+
+                    case 'PUT':
+                        await contractClient.query('BEGIN');
+                        const contractId = id as string;
+                        const { name: uName, startDate: uStartDate, endDate: uEndDate, cig: uCig, cig_derivato: uCigDer, capienza: uCapienza, projectIds: uProjectIds = [], managerIds: uManagerIds = [] } = req.body;
+
+                        const updatedContractRes = await contractClient.query(
+                            `UPDATE contracts SET name = $1, start_date = $2, end_date = $3, cig = $4, cig_derivato = $5, capienza = $6
+                             WHERE id = $7 RETURNING *;`,
+                            [uName, uStartDate || null, uEndDate || null, uCig, uCigDer || null, uCapienza || 0, contractId]
+                        );
+
+                        await contractClient.query('DELETE FROM contract_projects WHERE contract_id = $1', [contractId]);
+                        for (const projectId of uProjectIds) {
+                            await contractClient.query('INSERT INTO contract_projects (contract_id, project_id) VALUES ($1, $2)', [contractId, projectId]);
+                        }
+
+                        await contractClient.query('DELETE FROM contract_managers WHERE contract_id = $1', [contractId]);
+                        for (const resourceId of uManagerIds) {
+                            await contractClient.query('INSERT INTO contract_managers (contract_id, resource_id) VALUES ($1, $2)', [contractId, resourceId]);
+                        }
+                        
+                        await contractClient.query('COMMIT');
+                        return res.status(200).json({ ...updatedContractRes.rows[0], projectIds: uProjectIds, managerIds: uManagerIds });
+
+                    case 'DELETE':
+                        await contractClient.query('BEGIN');
+                        await contractClient.query('DELETE FROM contract_projects WHERE contract_id = $1', [id]);
+                        await contractClient.query('DELETE FROM contract_managers WHERE contract_id = $1', [id]);
+                        await contractClient.query('DELETE FROM contracts WHERE id = $1', [id]);
+                        await contractClient.query('COMMIT');
+                        return res.status(204).end();
+                        
+                    default:
+                        res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                        return res.status(405).end(`Method ${method} Not Allowed`);
+                }
+            } catch (error) {
+                await contractClient.query('ROLLBACK');
+                if ((error as any).code === '23505') { 
+                    return res.status(409).json({ error: `Un contratto con questo nome o CIG esiste già.` }); 
+                }
+                return res.status(500).json({ error: (error as Error).message });
+            } finally {
+                contractClient.release();
+            }
+
         // --- GESTORE ENTITÀ: CALENDARIO ---
         case 'calendar':
              switch (method) {
@@ -355,7 +427,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const TABLE_WHITELIST = [
                 'clients', 'roles', 'resources', 'projects', 'assignments', 'allocations',
                 'company_calendar', 'wbs_tasks', 'resource_requests', 'interviews', 'horizontals',
-                'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config'
+                'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
+                'contracts', 'contract_projects', 'contract_managers'
             ];
             
             if (typeof table === 'string' && !TABLE_WHITELIST.includes(table)) {

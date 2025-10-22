@@ -28,6 +28,7 @@ import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova p
 import ResourceRequestPage from './pages/ResourceRequestPage'; // Importa la nuova pagina
 import InterviewsPage from './pages/InterviewsPage'; // Importa la nuova pagina
 import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagina
+import ContractsPage from './pages/ContractsPage'; // Importa la nuova pagina dei contratti
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -67,6 +68,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'projects': return 'Gestione Progetti';
             case 'clients': return 'Gestione Clienti';
             case 'roles': return 'Gestione Ruoli';
+            case 'contracts': return 'Gestione Contratti';
             case 'calendar': return 'Calendario Aziendale';
             case 'config': return 'Configurazioni';
             case 'export': return 'Esportazione Dati';
@@ -139,6 +141,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/projects" element={<ProjectsPage />} />
                         <Route path="/clients" element={<ClientsPage />} />
                         <Route path="/roles" element={<RolesPage />} />
+                        <Route path="/contracts" element={<ContractsPage />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/forecasting" element={<ForecastingPage />} />
                         <Route path="/workload" element={<WorkloadPage />} />
