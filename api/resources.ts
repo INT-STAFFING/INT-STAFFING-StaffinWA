@@ -144,11 +144,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             switch (method) {
                 case 'POST':
                     try {
-                        let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
+                        let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes, contractId } = req.body;
                         const newId = uuidv4();
                         await db.sql`
-                            INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes)
-                            VALUES (${newId}, ${name}, ${clientId || null}, ${startDate || null}, ${endDate || null}, ${budget || 0}, ${realizationPercentage || 100}, ${projectManager || null}, ${status || null}, ${notes || null});
+                            INSERT INTO projects (id, name, client_id, start_date, end_date, budget, realization_percentage, project_manager, status, notes, contract_id)
+                            VALUES (${newId}, ${name}, ${clientId || null}, ${startDate || null}, ${endDate || null}, ${budget || 0}, ${realizationPercentage || 100}, ${projectManager || null}, ${status || null}, ${notes || null}, ${contractId || null});
                         `;
                         return res.status(201).json({ id: newId, ...req.body });
                     } catch (error) {
@@ -157,10 +157,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     }
                 case 'PUT':
                     try {
-                        let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes } = req.body;
+                        let { name, clientId, startDate, endDate, budget, realizationPercentage, projectManager, status, notes, contractId } = req.body;
                         await db.sql`
                             UPDATE projects SET name = ${name}, client_id = ${clientId || null}, start_date = ${startDate || null}, end_date = ${endDate || null}, budget = ${budget || 0}, 
-                            realization_percentage = ${realizationPercentage || 100}, project_manager = ${projectManager || null}, status = ${status || null}, notes = ${notes || null}
+                            realization_percentage = ${realizationPercentage || 100}, project_manager = ${projectManager || null}, status = ${status || null}, notes = ${notes || null}, contract_id = ${contractId || null}
                             WHERE id = ${id as string};
                         `;
                         return res.status(200).json({ id, ...req.body });
@@ -199,13 +199,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 switch (method) {
                     case 'POST':
                         await contractClient.query('BEGIN');
-                        const { name, startDate, endDate, cig, cig_derivato, capienza, projectIds = [], managerIds = [] } = req.body;
+                        const { name, startDate, endDate, cig, cigDerivato, capienza, projectIds = [], managerIds = [] } = req.body;
                         const newId = uuidv4();
                         
                         const contractRes = await contractClient.query(
                             `INSERT INTO contracts (id, name, start_date, end_date, cig, cig_derivato, capienza)
                             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;`,
-                            [newId, name, startDate || null, endDate || null, cig, cig_derivato || null, capienza || 0]
+                            [newId, name, startDate || null, endDate || null, cig, cigDerivato || null, capienza || 0]
                         );
 
                         for (const projectId of projectIds) {
@@ -221,12 +221,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     case 'PUT':
                         await contractClient.query('BEGIN');
                         const contractId = id as string;
-                        const { name: uName, startDate: uStartDate, endDate: uEndDate, cig: uCig, cig_derivato: uCigDer, capienza: uCapienza, projectIds: uProjectIds = [], managerIds: uManagerIds = [] } = req.body;
+                        const { name: uName, startDate: uStartDate, endDate: uEndDate, cig: uCig, cigDerivato: uCigDerivato, capienza: uCapienza, projectIds: uProjectIds = [], managerIds: uManagerIds = [] } = req.body;
 
                         const updatedContractRes = await contractClient.query(
                             `UPDATE contracts SET name = $1, start_date = $2, end_date = $3, cig = $4, cig_derivato = $5, capienza = $6
                              WHERE id = $7 RETURNING *;`,
-                            [uName, uStartDate || null, uEndDate || null, uCig, uCigDer || null, uCapienza || 0, contractId]
+                            [uName, uStartDate || null, uEndDate || null, uCig, uCigDerivato || null, uCapienza || 0, contractId]
                         );
 
                         await contractClient.query('DELETE FROM contract_projects WHERE contract_id = $1', [contractId]);

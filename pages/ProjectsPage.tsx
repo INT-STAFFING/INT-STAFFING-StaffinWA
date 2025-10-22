@@ -23,7 +23,7 @@ const formatDateForDisplay = (dateStr: string | null): string => {
 };
 
 const ProjectsPage: React.FC = () => {
-    const { projects, clients, resources, projectStatuses, addProject, updateProject, deleteProject, isActionLoading, assignments } = useEntitiesContext();
+    const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
@@ -54,7 +54,7 @@ const ProjectsPage: React.FC = () => {
 
     const emptyProject: Omit<Project, 'id'> = {
         name: '', clientId: '', startDate: '', endDate: '', budget: 0,
-        realizationPercentage: 100, projectManager: '', status: projectStatuses[0]?.value || '', notes: '',
+        realizationPercentage: 100, projectManager: '', status: projectStatuses[0]?.value || '', notes: '', contractId: null
     };
     
     const dataForTable = useMemo<EnrichedProject[]>(() => {
@@ -139,6 +139,8 @@ const ProjectsPage: React.FC = () => {
     const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
     const projectManagerOptions = useMemo(() => resources.map(r => ({ value: r.name, label: r.name })).sort((a,b) => a.label.localeCompare(b.label)), [resources]);
+    const contractOptions = useMemo(() => contracts.map(c => ({ value: c.id!, label: c.name })), [contracts]);
+
 
     const columns: ColumnDef<EnrichedProject>[] = [
         { header: 'Nome Progetto', sortKey: 'name', cell: p => (
@@ -278,9 +280,15 @@ const ProjectsPage: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Progetto *</label>
                             <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="w-full form-input"/>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
-                            <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona un cliente" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
+                                <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona un cliente" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contratto Associato</label>
+                                <SearchableSelect name="contractId" value={editingProject.contractId || ''} onChange={handleSelectChange} options={contractOptions} placeholder="Nessun contratto" />
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>

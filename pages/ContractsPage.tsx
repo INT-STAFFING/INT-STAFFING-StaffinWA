@@ -24,7 +24,7 @@ const formatCurrency = (value: number) => (value || 0).toLocaleString('it-IT', {
 const formatDateForDisplay = (dateStr: string | null) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
-    return date.toLocaleDateString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    return date.toLocaleDateString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' });
 };
 
 // --- Component ---
@@ -38,7 +38,7 @@ const ContractsPage: React.FC = () => {
     const [filters, setFilters] = useState({ name: '', cig: '' });
 
     const emptyContract: Omit<Contract, 'id'> = {
-        name: '', startDate: '', endDate: '', cig: '', cig_derivato: '', capienza: 0,
+        name: '', startDate: '', endDate: '', cig: '', cigDerivato: '', capienza: 0,
     };
 
     const dataForTable = useMemo<EnrichedContract[]>(() => {
@@ -130,7 +130,7 @@ const ContractsPage: React.FC = () => {
 
     const columns: ColumnDef<EnrichedContract>[] = [
         { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium text-gray-900 dark:text-white">{c.name}</span> },
-        { header: 'CIG / Derivato', sortKey: 'cig', cell: c => <div><div>{c.cig}</div><div className="text-xs text-gray-500">{c.cig_derivato}</div></div> },
+        { header: 'CIG / Derivato', sortKey: 'cig', cell: c => <div><div>{c.cig}</div><div className="text-xs text-gray-500">{c.cigDerivato}</div></div> },
         { header: 'Periodo Validità', sortKey: 'startDate', cell: c => `${formatDateForDisplay(c.startDate)} - ${formatDateForDisplay(c.endDate)}` },
         { header: 'Responsabili', cell: c => <span className="text-xs">{c.managerNames.join(', ')}</span> },
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
@@ -201,7 +201,7 @@ const ContractsPage: React.FC = () => {
                         <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input" placeholder="Nome Contratto *"/>
                         <div className="grid grid-cols-2 gap-4">
                             <input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input" placeholder="CIG *"/>
-                            <input type="text" name="cig_derivato" value={editingContract.cig_derivato || ''} onChange={handleChange} className="form-input" placeholder="CIG Derivato"/>
+                            <input type="text" name="cigDerivato" value={editingContract.cigDerivato || ''} onChange={handleChange} className="form-input" placeholder="CIG Derivato"/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className="form-input" placeholder="Data Inizio"/>

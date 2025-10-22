@@ -18,6 +18,9 @@ const toCamelCase = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
         return obj;
     }
+    if (Array.isArray(obj)) {
+        return obj.map(toCamelCase);
+    }
     const newObj: any = {};
     for (const key in obj) {
         const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
@@ -126,7 +129,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
             resourceRequests: resourceRequestsRes.rows.map(toCamelCase) as ResourceRequest[],
             interviews: interviewsRes.rows.map(toCamelCase) as Interview[],
-            contracts: contractsRes.rows.map(toCamelCase) as Contract[],
+            contracts: contractsRes.rows.map(row => {
+                const contract = toCamelCase(row);
+                if (contract.startDate) contract.startDate = new Date(contract.startDate).toISOString().split('T')[0];
+                if (contract.endDate) contract.endDate = new Date(contract.endDate).toISOString().split('T')[0];
+                return contract;
+            }) as Contract[],
             contractProjects: contractProjectsRes.rows.map(toCamelCase),
             contractManagers: contractManagersRes.rows.map(toCamelCase),
         };

@@ -121,6 +121,10 @@ export async function ensureDbTablesExist(db: VercelPool) {
             PRIMARY KEY (contract_id, resource_id)
         );
     `;
+    
+    // Add contract_id to projects table
+    await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL;`;
+
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS assignments (

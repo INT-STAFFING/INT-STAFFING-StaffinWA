@@ -103,6 +103,8 @@ export interface Project {
     status: string | null;
     /** @property {string | null} [notes] - Note aggiuntive sul progetto. */
     notes?: string | null;
+    /** @property {string | null} [contractId] - L'ID del contratto associato (opzionale). */
+    contractId?: string | null;
 }
 
 /**
@@ -120,8 +122,8 @@ export interface Contract {
     endDate: string | null;
     /** @property {string} cig - Codice CIG. */
     cig: string;
-    /** @property {string | null} cig_derivato - Codice CIG derivato (opzionale). */
-    cig_derivato: string | null;
+    /** @property {string | null} cigDerivato - Codice CIG derivato (opzionale). */
+    cigDerivato: string | null;
     /** @property {number} capienza - Importo totale in € del contratto. */
     capienza: number;
 }
