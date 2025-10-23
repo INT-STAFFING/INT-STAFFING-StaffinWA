@@ -56,6 +56,7 @@ export interface EntitiesContextType {
     addContract: (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => Promise<void>;
     updateContract: (contract: Contract, projectIds: string[], managerIds: string[]) => Promise<void>;
     deleteContract: (contractId: string) => Promise<void>;
+    recalculateContractBacklog: (contractId: string) => Promise<void>;
     addAssignment: (assignment: Omit<Assignment, 'id'>) => Promise<void>;
     addMultipleAssignments: (assignments: Omit<Assignment, 'id'>[]) => Promise<void>;
     deleteAssignment: (assignmentId: string) => Promise<void>;
@@ -410,6 +411,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast, contracts]);
+
+    const recalculateContractBacklog = useCallback(async (contractId: string) => {
+        const actionKey = `recalculateBacklog-${contractId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const updatedContract = await apiFetch(`/api/resources?entity=contracts&action=recalculate_backlog&id=${contractId}`, { method: 'POST' });
+            setContracts(prev => prev.map(c => c.id === updatedContract.id ? updatedContract : c));
+            addToast(`Backlog per il contratto '${updatedContract.name}' ricalcolato con successo.`, 'success');
+        } catch (error) {
+            addToast(`Errore durante il ricalcolo del backlog: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
 
     const addAssignment = useCallback(async (assignment: Omit<Assignment, 'id'>) => {
         const actionKey = 'addAssignment';
@@ -769,7 +785,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
         addProject, updateProject, deleteProject,
-        addContract, updateContract, deleteContract,
+        addContract, updateContract, deleteContract, recalculateContractBacklog,
         addAssignment, addMultipleAssignments, deleteAssignment,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
@@ -777,7 +793,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
         addInterview, updateInterview, deleteInterview,
         fetchData
-    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
+    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

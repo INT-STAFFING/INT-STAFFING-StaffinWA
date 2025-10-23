@@ -30,6 +30,7 @@ import InterviewsPage from './pages/InterviewsPage'; // Importa la nuova pagina
 import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagina
 import ContractsPage from './pages/ContractsPage'; // Importa la nuova pagina dei contratti
 import StaffingVisualizationPage from './pages/StaffingVisualizationPage'; // Importa la nuova pagina di visualizzazione
+import UserManualPage from './pages/UserManualPage'; // Importa la pagina del manuale
 import { Bars3Icon } from './components/icons';
 
 /**
@@ -81,6 +82,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'interviews': return 'Gestione Colloqui';
             case 'db-inspector': return 'Database Inspector';
             case 'staffing-visualization': return 'Visualizzazione Staffing';
+            case 'manuale-utente': return 'Manuale Utente';
             default: return 'Staffing Planner';
         }
     };
@@ -156,6 +158,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/resource-requests" element={<ResourceRequestPage />} />
                         <Route path="/interviews" element={<InterviewsPage />} />
                         <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
+                        <Route path="/manuale-utente" element={<UserManualPage />} />
                         <Route 
                             path="/admin-settings" 
                             element={

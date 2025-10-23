@@ -8,7 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Contract, Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, SpinnerIcon, ArrowPathIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -29,7 +29,7 @@ const formatDateForDisplay = (dateStr: string | null) => {
 
 // --- Component ---
 const ContractsPage: React.FC = () => {
-    const { contracts, contractProjects, contractManagers, projects, resources, addContract, updateContract, deleteContract, isActionLoading } = useEntitiesContext();
+    const { contracts, contractProjects, contractManagers, projects, resources, addContract, updateContract, deleteContract, recalculateContractBacklog, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingContract, setEditingContract] = useState<Contract | Omit<Contract, 'id'> | null>(null);
     const [contractToDelete, setContractToDelete] = useState<EnrichedContract | null>(null);
@@ -147,6 +147,14 @@ const ContractsPage: React.FC = () => {
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-3">
                     <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button 
+                        onClick={() => recalculateContractBacklog(contract.id!)} 
+                        className="text-gray-500 hover:text-blue-600" 
+                        title="Ricalcola Backlog"
+                        disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
+                    >
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <ArrowPathIcon className="w-5 h-5"/>}
+                    </button>
                     <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
                     </button>
@@ -165,6 +173,14 @@ const ContractsPage: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
                     <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                     <button 
+                        onClick={() => recalculateContractBacklog(contract.id!)} 
+                        className="text-gray-500 hover:text-blue-600" 
+                        title="Ricalcola Backlog"
+                        disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
+                    >
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <ArrowPathIcon className="w-5 h-5"/>}
+                    </button>
                     <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
                     </button>

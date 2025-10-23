@@ -131,6 +131,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         <CalendarIcon className="w-6 h-6 mr-3" />
                         Calendario
                     </NavLink>
+                     <NavLink to="/manuale-utente" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <InformationCircleIcon className="w-6 h-6 mr-3" />
+                        Manuale Utente
+                    </NavLink>
                      <NavLink to="/config" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <Cog6ToothIcon className="w-6 h-6 mr-3" />
                         Config

@@ -265,6 +265,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             try {
                 switch (method) {
                     case 'POST':
+                        if (action === 'recalculate_backlog') {
+                            const contractId = id as string;
+                            if (!contractId) {
+                                return res.status(400).json({ error: 'Contract ID is required.' });
+                            }
+                            await contractClient.query('BEGIN');
+                            await recalculateContractBacklog(contractId, contractClient);
+                            await contractClient.query('COMMIT');
+                            const updatedContractRes = await db.sql`SELECT * FROM contracts WHERE id = ${contractId}`;
+                            return res.status(200).json(toCamelCase(updatedContractRes.rows[0]));
+                        }
+
                         await contractClient.query('BEGIN');
                         const { name, startDate, endDate, cig, cigDerivato, capienza, projectIds = [], managerIds = [] } = req.body;
                         const newId = uuidv4();
