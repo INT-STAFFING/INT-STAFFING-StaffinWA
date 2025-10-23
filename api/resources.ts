@@ -67,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     try {
                         const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage, resigned, lastDayOfWork } = req.body;
                         const newId = uuidv4();
-                        const finalMaxStaffing = resigned ? 0 : (maxStaffingPercentage || 100);
+                        const finalMaxStaffing = resigned ? 0 : (maxStaffingPercentage ?? 100);
                         const finalLastDay = resigned ? lastDayOfWork : null;
 
                         const result = await db.sql`
@@ -84,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 case 'PUT':
                     try {
                         const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage, resigned, lastDayOfWork } = req.body;
-                        const finalMaxStaffing = resigned ? 0 : (maxStaffingPercentage || 100);
+                        const finalMaxStaffing = resigned ? 0 : (maxStaffingPercentage ?? 100);
                         const finalLastDay = resigned ? lastDayOfWork : null;
 
                         const result = await db.sql`
