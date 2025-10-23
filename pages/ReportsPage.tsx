@@ -78,12 +78,16 @@ const ProjectCostsReport: React.FC = () => {
                 
                 projectAssignments.forEach(assignment => {
                     const resource = resources.find(r => r.id === assignment.resourceId);
+                    if (!resource) return;
+
                     const role = roles.find(ro => ro.id === resource?.roleId);
                     const dailyRate = role?.dailyCost || 0;
                     
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
+                             if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
+
                              if (!isHoliday(new Date(dateStr), resource?.location || null, companyCalendar) && new Date(dateStr).getDay() !== 0 && new Date(dateStr).getDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 personDays += dayFraction;
@@ -181,10 +185,17 @@ const ResourceUtilizationReport: React.FC = () => {
         const lastDay = new Date(year, monthNum, 0);
 
         return resources
+            .filter(r => !r.resigned)
             .filter(r => (!filters.roleId || r.roleId === filters.roleId) && (!filters.horizontal || r.horizontal === filters.horizontal))
             .map(resource => {
                 const role = roles.find(ro => ro.id === resource.roleId);
-                const availableDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                
+                const effectiveStartDate = new Date(resource.hireDate) > firstDay ? new Date(resource.hireDate) : firstDay;
+                const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
+
+                if (effectiveStartDate > effectiveEndDate) return null;
+
+                const availableDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
                 
                 let allocatedDays = 0;
                 let allocatedCost = 0;
@@ -215,7 +226,7 @@ const ResourceUtilizationReport: React.FC = () => {
                     utilization,
                     allocatedCost,
                 };
-            });
+            }).filter(Boolean) as Exclude<ReturnType<typeof reportData[0]>, null>[];
     }, [resources, roles, assignments, companyCalendar, month, filters, allocations]);
     
     const sortedData = useMemo(() => {

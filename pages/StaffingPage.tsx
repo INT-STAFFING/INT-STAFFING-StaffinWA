@@ -619,7 +619,7 @@ const StaffingPage: React.FC = () => {
 
             {/* Griglia di Staffing */}
             <div ref={scrollContainerRef} className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{ borderCollapse: 'separate' }}>
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                         <tr>
                             <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>

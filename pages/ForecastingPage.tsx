@@ -45,7 +45,7 @@ const ForecastingPage: React.FC = () => {
         const results = [];
         const today = new Date();
 
-        let filteredResources = [...resources];
+        let filteredResources = resources.filter(r => !r.resigned);
 
         if (filters.horizontal) {
             filteredResources = filteredResources.filter(r => r.horizontal === filters.horizontal);
@@ -74,7 +74,12 @@ const ForecastingPage: React.FC = () => {
 
             let availablePersonDays = 0;
             filteredResources.forEach(resource => {
-                availablePersonDays += getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                const effectiveStartDate = new Date(resource.hireDate) > firstDay ? new Date(resource.hireDate) : firstDay;
+                const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
+
+                if (effectiveStartDate > effectiveEndDate) return;
+                
+                availablePersonDays += getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
             });
 
             let allocatedPersonDays = 0;
@@ -88,6 +93,8 @@ const ForecastingPage: React.FC = () => {
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
+                            if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
+
                             if (allocDate >= firstDay && allocDate <= lastDay) {
                                 if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                     allocatedPersonDays += (assignmentAllocations[dateStr] / 100);

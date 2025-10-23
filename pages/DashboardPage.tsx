@@ -87,6 +87,8 @@ const DashboardPage: React.FC = () => {
     const [underutilizedFilter, setUnderutilizedFilter] = useState(new Date().toISOString().slice(0, 7)); // Formato YYYY-MM
     const [effortByClientFilter, setEffortByClientFilter] = useState({ sector: '' });
 
+    const activeResources = useMemo(() => resources.filter(r => !r.resigned), [resources]);
+
     // --- Calcoli per le Card Aggregate in Cima ---
 
     /**
@@ -100,9 +102,12 @@ const DashboardPage: React.FC = () => {
              const assignment = assignments.find(a => a.id === assignmentId);
              if (!assignment) continue;
              const resource = resources.find(r => r.id === assignment.resourceId);
+             if (!resource) continue;
 
             for (const dateStr in allocations[assignmentId]) {
                 const allocDate = new Date(dateStr);
+                 if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
+
                 const day = allocDate.getDay();
                  if (day !== 0 && day !== 6 && !isHoliday(allocDate, resource?.location ?? null, companyCalendar)) {
                     totalPersonDays += (allocations[assignmentId][dateStr] / 100);
@@ -111,14 +116,14 @@ const DashboardPage: React.FC = () => {
         }
         
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
-        const unassignedResources = resources.filter(r => !assignedResourceIds.has(r.id!));
+        const unassignedResources = activeResources.filter(r => !assignedResourceIds.has(r.id!));
 
         const staffedProjectIds = new Set(assignments.map(a => a.projectId));
         const unstaffedProjects = projects.filter(p => p.status === 'In corso' && !staffedProjectIds.has(p.id!));
 
 
         return { totalBudget, totalPersonDays, unassignedResources, unstaffedProjects };
-    }, [projects, allocations, assignments, resources, companyCalendar]);
+    }, [projects, allocations, assignments, resources, activeResources, companyCalendar]);
 
     /**
      * @description Calcola i KPI per il mese corrente: costo stimato, giorni-uomo allocati, e costo per cliente.
@@ -141,6 +146,8 @@ const DashboardPage: React.FC = () => {
             if (!assignment) continue;
 
             const resource = resources.find(r => r.id === assignment.resourceId);
+            if (!resource || resource.resigned) continue;
+            
             const role = roles.find(ro => ro.id === resource?.roleId);
             const dailyRate = role?.dailyCost || 0;
             const project = projects.find(p => p.id === assignment.projectId);
@@ -148,6 +155,8 @@ const DashboardPage: React.FC = () => {
             for (const dateStr in allocations[assignmentId]) {
                 const allocDate = new Date(dateStr);
                 const day = allocDate.getDay();
+                
+                if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
 
                 if (allocDate >= firstDay && allocDate <= lastDay && day !== 0 && day !== 6 && !isHoliday(allocDate, resource?.location ?? null, companyCalendar)) {
                     const percentage = allocations[assignmentId][dateStr];
@@ -178,16 +187,18 @@ const DashboardPage: React.FC = () => {
     const averageAllocationData = useMemo(() => {
         const now = new Date();
         
-        let results = resources.map(resource => {
+        let results = activeResources.map(resource => {
             // Current month
             const currentMonthFirstDay = new Date(now.getFullYear(), now.getMonth(), 1);
             const currentMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            const workingDaysCurrentMonth = getWorkingDaysBetween(currentMonthFirstDay, currentMonthLastDay, companyCalendar, resource.location);
+            const effectiveCurrentEnd = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < currentMonthLastDay ? new Date(resource.lastDayOfWork) : currentMonthLastDay;
+            const workingDaysCurrentMonth = getWorkingDaysBetween(currentMonthFirstDay, effectiveCurrentEnd, companyCalendar, resource.location);
 
             // Next month
             const nextMonthFirstDay = new Date(now.getFullYear(), now.getMonth() + 1, 1);
             const nextMonthLastDay = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-            const workingDaysNextMonth = getWorkingDaysBetween(nextMonthFirstDay, nextMonthLastDay, companyCalendar, resource.location);
+            const effectiveNextEnd = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < nextMonthLastDay ? new Date(resource.lastDayOfWork) : nextMonthLastDay;
+            const workingDaysNextMonth = getWorkingDaysBetween(nextMonthFirstDay, effectiveNextEnd, companyCalendar, resource.location);
 
             const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
             
@@ -200,6 +211,7 @@ const DashboardPage: React.FC = () => {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = new Date(dateStr);
                          if (isHoliday(allocDate, resource.location, companyCalendar)) continue;
+                         if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
 
                         const percentage = assignmentAllocations[dateStr];
                         const personDayFraction = percentage / 100;
@@ -229,7 +241,7 @@ const DashboardPage: React.FC = () => {
 
         return results.sort((a, b) => a.resource!.name.localeCompare(b.resource!.name));
 
-    }, [resources, assignments, allocations, roles, companyCalendar, avgAllocFilter]);
+    }, [activeResources, assignments, allocations, roles, companyCalendar, avgAllocFilter]);
 
 
     /**
@@ -247,18 +259,24 @@ const DashboardPage: React.FC = () => {
                 
                 const projectAssignments = assignments.filter(a => a.projectId === project.id);
                 let totalAllocatedDays = 0;
-                // FTE is complex with per-resource holidays. We approximate using global holidays for project-level FTE.
-                const projectWorkingDays = getWorkingDaysBetween(projectStartDate, projectEndDate, companyCalendar.filter(e => e.type !== 'LOCAL_HOLIDAY'));
-                if (projectWorkingDays === 0) return { ...project, clientName: client?.name || 'N/A', fte: 0, totalAllocatedDays: 0, projectWorkingDays: 0 };
-
+                let projectWorkingDays = 0;
 
                 projectAssignments.forEach(assignment => {
                      const resource = resources.find(r => r.id === assignment.resourceId);
+                     if (!resource) return;
+
+                     const effectiveStartDate = resource.hireDate && new Date(resource.hireDate) > projectStartDate ? new Date(resource.hireDate) : projectStartDate;
+                     const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < projectEndDate ? new Date(resource.lastDayOfWork) : projectEndDate;
+
+                     if(effectiveStartDate > effectiveEndDate) return;
+
+                     projectWorkingDays += getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+
                     const assignmentAllocations = allocations[assignment.id];
                     if(assignmentAllocations){
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
-                            // Assicura che l'allocazione sia un giorno lavorativo e rientri nel range del progetto
+                             if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
                             if (!isHoliday(allocDate, resource?.location ?? null, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6 && allocDate >= projectStartDate && allocDate <= projectEndDate) {
                                 totalAllocatedDays += (assignmentAllocations[dateStr] / 100);
                             }
@@ -284,6 +302,8 @@ const DashboardPage: React.FC = () => {
 
                 projectAssignments.forEach(assignment => {
                     const resource = resources.find(r => r.id === assignment.resourceId);
+                    if (!resource) return;
+
                     const role = roles.find(ro => ro.id === resource?.roleId);
                     const dailyRate = role?.dailyCost || 0;
 
@@ -291,6 +311,7 @@ const DashboardPage: React.FC = () => {
                     let allocatedPersonDays = 0;
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
+                            if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
                              const allocDate = new Date(dateStr);
                              const day = allocDate.getDay();
                               if (day !== 0 && day !== 6 && !isHoliday(allocDate, resource?.location ?? null, companyCalendar)) {
@@ -317,8 +338,11 @@ const DashboardPage: React.FC = () => {
         const firstDay = new Date(year, month - 1, 1);
         const lastDay = new Date(year, month, 0);
 
-        return resources.map(resource => {
-             const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+        return activeResources.map(resource => {
+             const effectiveLastDay = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
+             if (firstDay > effectiveLastDay) return null;
+
+             const workingDaysInMonth = getWorkingDaysBetween(firstDay, effectiveLastDay, companyCalendar, resource.location);
              if (workingDaysInMonth === 0) return { ...resource, avgAllocation: 0, role: roles.find(r => r.id === resource.roleId)?.name || 'N/A' };
 
             const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
@@ -328,7 +352,7 @@ const DashboardPage: React.FC = () => {
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = new Date(dateStr);
-                         if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar)) {
+                         if (allocDate >= firstDay && allocDate <= effectiveLastDay && !isHoliday(allocDate, resource.location, companyCalendar)) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
                     }
@@ -339,9 +363,11 @@ const DashboardPage: React.FC = () => {
                 ...resource, avgAllocation, role: roles.find(r => r.id === resource.roleId)?.name || 'N/A'
             };
         })
+        .filter(Boolean)
+        .filter((r): r is Exclude<typeof r, null> => r !== null)
         .filter(r => r.avgAllocation < 100)
         .sort((a,b) => a.avgAllocation - b.avgAllocation);
-    }, [resources, assignments, allocations, roles, companyCalendar, underutilizedFilter]);
+    }, [activeResources, assignments, allocations, roles, companyCalendar, underutilizedFilter]);
     
     /**
      * @description Aggrega sforzo e budget per cliente, filtrabile per settore.
@@ -364,9 +390,11 @@ const DashboardPage: React.FC = () => {
                 let projectPersonDays = 0;
                 projectAssignments.forEach(assignment => {
                      const resource = resources.find(r => r.id === assignment.resourceId);
+                     if (!resource) return;
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                          for (const dateStr in assignmentAllocations) {
+                            if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
                             const allocDate = new Date(dateStr);
                             const day = allocDate.getDay();
                              if (day !== 0 && day !== 6 && !isHoliday(allocDate, resource?.location ?? null, companyCalendar)) {
@@ -398,6 +426,7 @@ const DashboardPage: React.FC = () => {
                 let personDays = 0;
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
+                        if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
                         const allocDate = new Date(dateStr);
                         const day = allocDate.getDay();
                          if (day !== 0 && day !== 6 && !isHoliday(allocDate, resource.location, companyCalendar)) {
@@ -427,26 +456,29 @@ const DashboardPage: React.FC = () => {
         locations.forEach(loc => {
             locationData[loc.value] = { resourceCount: 0, personDays: 0, availablePersonDays: 0 };
         });
-        resources.forEach(res => {
+        activeResources.forEach(res => {
             if (res.location && !locationData[res.location]) {
                 locationData[res.location] = { resourceCount: 0, personDays: 0, availablePersonDays: 0 };
             }
         });
         
-        resources.forEach(resource => {
+        activeResources.forEach(resource => {
             if(resource.location) {
                 locationData[resource.location].resourceCount++;
-                locationData[resource.location].availablePersonDays += getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                const effectiveEnd = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
+                if(firstDay > effectiveEnd) return;
+                locationData[resource.location].availablePersonDays += getWorkingDaysBetween(firstDay, effectiveEnd, companyCalendar, resource.location);
             }
         });
 
         assignments.forEach(assignment => {
-            const resource = resources.find(r => r.id === assignment.resourceId);
+            const resource = activeResources.find(r => r.id === assignment.resourceId);
             if (resource && resource.location) {
                 const assignmentAllocations = allocations[assignment.id];
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = new Date(dateStr);
+                         if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
                         if (allocDate >= firstDay && allocDate <= lastDay) {
                              if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                 locationData[resource.location].personDays += (assignmentAllocations[dateStr] / 100);
@@ -469,7 +501,7 @@ const DashboardPage: React.FC = () => {
             })
             .filter(d => d.resourceCount > 0)
             .sort((a, b) => b.resourceCount - a.resourceCount);
-    }, [resources, assignments, allocations, locations, companyCalendar]);
+    }, [activeResources, assignments, allocations, locations, companyCalendar]);
 
     // --- Totali per le tabelle ---
     const fteTotals = useMemo(() => {
@@ -504,7 +536,7 @@ const DashboardPage: React.FC = () => {
         return 'text-green-600 dark:text-green-400';
     };
 
-    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const resourceOptions = useMemo(() => activeResources.map(r => ({ value: r.id!, label: r.name })), [activeResources]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
     const sectorOptions = useMemo(() => clientSectors.map(s => ({ value: s.value, label: s.value })), [clientSectors]);
 
