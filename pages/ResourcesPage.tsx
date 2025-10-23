@@ -51,10 +51,13 @@ const ResourcesPage: React.FC = () => {
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Resource | null>(null);
 
+    // Fix: Add missing properties 'resigned' and 'lastDayOfWork' to match the 'Resource' type.
     const emptyResource: Omit<Resource, 'id'> = {
         name: '', email: '', roleId: '', horizontal: horizontals[0]?.value || '',
         location: locations[0]?.value || '',
         hireDate: '', workSeniority: 0, notes: '', maxStaffingPercentage: 100,
+        resigned: false,
+        lastDayOfWork: null,
     };
     
     const calculateResourceAllocation = useCallback((resource: Resource): number => {

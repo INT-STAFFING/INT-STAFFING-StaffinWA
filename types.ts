@@ -71,6 +71,10 @@ export interface Resource {
     workSeniority: number;
     /** @property {number} maxStaffingPercentage - La percentuale massima di allocazione per questa risorsa. */
     maxStaffingPercentage: number;
+    /** @property {boolean} resigned - Flag che indica se la risorsa è dimessa. */
+    resigned: boolean;
+    /** @property {string | null} lastDayOfWork - L'ultimo giorno di lavoro della risorsa (YYYY-MM-DD). */
+    lastDayOfWork: string | null;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
 }

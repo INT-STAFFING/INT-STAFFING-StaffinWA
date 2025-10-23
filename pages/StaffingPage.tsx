@@ -101,14 +101,18 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     // Calcola l'allocazione media come (totale giorni/uomo) / (totale giorni lavorativi).
     const averageAllocation = useMemo(() => {
         if (!resource) return 0;
-        const workingDays = getWorkingDaysBetween(startDate, endDate, companyCalendar, resource.location);
+        
+        const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate ? new Date(resource.lastDayOfWork) : endDate;
+        if (startDate > effectiveEndDate) return 0;
+
+        const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
         if (workingDays === 0) return 0;
 
         let totalPersonDays = 0;
         const assignmentAllocations = allocations[assignment.id];
         if (assignmentAllocations) {
             let currentDate = new Date(startDate);
-            while (currentDate <= endDate) {
+            while (currentDate <= effectiveEndDate) {
                 const dateStr = formatDate(currentDate, 'iso');
                 if (assignmentAllocations[dateStr]) {
                     if (!isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
@@ -159,6 +163,10 @@ interface DailyTotalCellProps {
 const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, date, isNonWorkingDay }) => {
     const { assignments } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
+
+    if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
+        isNonWorkingDay = true;
+    }
 
     // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
      if (isNonWorkingDay) {
@@ -212,7 +220,10 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     const { allocations } = useAllocationsContext();
 
     const averageAllocation = useMemo(() => {
-        const workingDays = getWorkingDaysBetween(startDate, endDate, companyCalendar, resource.location);
+        const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate ? new Date(resource.lastDayOfWork) : endDate;
+        if (startDate > effectiveEndDate) return 0;
+
+        const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
         if (workingDays === 0) return 0;
 
         const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
@@ -222,7 +233,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
             const assignmentAllocations = allocations[assignment.id];
             if (assignmentAllocations) {
                 let currentDate = new Date(startDate);
-                while (currentDate <= endDate) {
+                while (currentDate <= effectiveEndDate) {
                     const dateStr = formatDate(currentDate, 'iso');
                      if (assignmentAllocations[dateStr]) {
                         if (!isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
@@ -464,8 +475,11 @@ const StaffingPage: React.FC = () => {
      * poi raggruppa le assegnazioni per risorsa e le ordina alfabeticamente.
      */
     const displayData = useMemo(() => {
+        // 0. Filter out resigned resources
+        const activeResources = resources.filter(r => !r.resigned);
+
         // 1. Filter resources based on resource-specific filters
-        let visibleResources = [...resources];
+        let visibleResources = [...activeResources];
         if (filters.resourceId) {
             visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
         }
@@ -553,7 +567,7 @@ const StaffingPage: React.FC = () => {
     }, [displayData, scrollTop, containerHeight]);
     
 
-    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
     /**
@@ -671,8 +685,8 @@ const StaffingPage: React.FC = () => {
 
                                                 <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <div className="flex items-center justify-center space-x-2">
-                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
-                                                            <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'text-gray-400' : ''}`}/>
+                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
+                                                            <CalendarDaysIcon className="w-5 h-5"/>
                                                         </button>
                                                         <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
                                                             <XCircleIcon className="w-5 h-5"/>
@@ -766,7 +780,7 @@ const StaffingPage: React.FC = () => {
                                 name="resourceId"
                                 value={newAssignmentData.resourceId}
                                 onChange={handleNewAssignmentChange}
-                                options={resources.map(r => ({ value: r.id!, label: r.name }))}
+                                options={resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name }))}
                                 placeholder="Seleziona una risorsa"
                                 required
                             />

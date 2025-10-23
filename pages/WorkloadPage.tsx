@@ -35,6 +35,10 @@ interface DailyTotalCellProps {
 const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
     const { assignments } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
+    
+    if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
+        isNonWorkingDay = true;
+    }
 
     if (isNonWorkingDay) {
         return (
@@ -86,7 +90,10 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     const { allocations } = useAllocationsContext();
 
     const averageAllocation = useMemo(() => {
-        const workingDays = getWorkingDaysBetween(startDate, endDate, companyCalendar, resource.location);
+        const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate ? new Date(resource.lastDayOfWork) : endDate;
+        if (startDate > effectiveEndDate) return 0;
+
+        const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
         if (workingDays === 0) return 0;
 
         const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
@@ -95,13 +102,15 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
         resourceAssignments.forEach(assignment => {
             const assignmentAllocations = allocations[assignment.id];
             if (assignmentAllocations) {
-                for (const dateStr in assignmentAllocations) {
-                    const allocDate = new Date(dateStr);
-                    if (allocDate >= startDate && allocDate <= endDate) {
-                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                let currentDate = new Date(startDate);
+                while (currentDate <= effectiveEndDate) {
+                    const dateStr = formatDate(currentDate, 'iso');
+                    if (assignmentAllocations[dateStr]) {
+                        if (!isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
                     }
+                    currentDate.setDate(currentDate.getDate() + 1);
                 }
             }
         });
@@ -230,7 +239,8 @@ const WorkloadPage: React.FC = () => {
 
     // Calcola e memoizza le risorse da visualizzare, applicando i filtri.
     const displayResources = useMemo(() => {
-        let finalResources = [...resources];
+        const activeResources = resources.filter(r => !r.resigned);
+        let finalResources = [...activeResources];
 
         if (filters.roleIds.length > 0) {
             finalResources = finalResources.filter(r => filters.roleIds.includes(r.roleId));
@@ -256,7 +266,7 @@ const WorkloadPage: React.FC = () => {
 
     }, [resources, assignments, projects, filters]);
 
-    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);

@@ -65,13 +65,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             switch (method) {
                 case 'POST':
                     try {
-                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage } = req.body;
+                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage, resigned, lastDayOfWork } = req.body;
                         const newId = uuidv4();
-                        await db.sql`
-                            INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, max_staffing_percentage)
-                            VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate}, ${workSeniority}, ${notes}, ${maxStaffingPercentage || 100});
+                        const finalMaxStaffing = resigned ? 0 : (maxStaffingPercentage || 100);
+                        const finalLastDay = resigned ? lastDayOfWork : null;
+
+                        const result = await db.sql`
+                            INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes, max_staffing_percentage, resigned, last_day_of_work)
+                            VALUES (${newId}, ${name}, ${email}, ${roleId}, ${horizontal}, ${location}, ${hireDate || null}, ${workSeniority}, ${notes}, ${finalMaxStaffing}, ${resigned || false}, ${finalLastDay})
+                            RETURNING *;
                         `;
-                        return res.status(201).json({ id: newId, ...req.body });
+                        return res.status(201).json(toCamelCase(result.rows[0]));
                     } catch (error) {
                         if ((error as any).code === '23505') { return res.status(409).json({ error: `Una risorsa con email '${req.body.email}' esiste già.` }); }
                         return res.status(500).json({ error: (error as Error).message });
@@ -79,14 +83,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 case 'PUT':
                     try {
-                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage } = req.body;
-                        await db.sql`
+                        const { name, email, roleId, horizontal, location, hireDate, workSeniority, notes, maxStaffingPercentage, resigned, lastDayOfWork } = req.body;
+                        const finalMaxStaffing = resigned ? 0 : (maxStaffingPercentage || 100);
+                        const finalLastDay = resigned ? lastDayOfWork : null;
+
+                        const result = await db.sql`
                             UPDATE resources
                             SET name = ${name}, email = ${email}, role_id = ${roleId}, horizontal = ${horizontal}, location = ${location}, 
-                                hire_date = ${hireDate}, work_seniority = ${workSeniority}, notes = ${notes}, max_staffing_percentage = ${maxStaffingPercentage || 100}
-                            WHERE id = ${id as string};
+                                hire_date = ${hireDate || null}, work_seniority = ${workSeniority}, notes = ${notes}, max_staffing_percentage = ${finalMaxStaffing},
+                                resigned = ${resigned || false}, last_day_of_work = ${finalLastDay}
+                            WHERE id = ${id as string}
+                            RETURNING *;
                         `;
-                        return res.status(200).json({ id, ...req.body });
+                        return res.status(200).json(toCamelCase(result.rows[0]));
                     } catch (error) {
                         if ((error as any).code === '23505') { return res.status(409).json({ error: `Una risorsa con email '${req.body.email}' esiste già.` });}
                         return res.status(500).json({ error: (error as Error).message });

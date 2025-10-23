@@ -76,6 +76,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
     // Add columns if they don't exist to handle migration for existing databases.
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100 NOT NULL;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
+
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (
