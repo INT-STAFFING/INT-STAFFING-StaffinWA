@@ -19,6 +19,8 @@ type EnrichedResource = Resource & {
     dailyCost: number;
     allocation: number;
     isAssigned: boolean;
+    activeProjects: number;
+    seniority: number;
 };
 
 // --- Helper Functions ---
@@ -98,12 +100,18 @@ const ResourcesPage: React.FC = () => {
 
         return filtered.map(resource => {
             const role = roles.find(r => r.id === resource.roleId);
+            const activeProjects = assignments.filter(a => a.resourceId === resource.id).length;
+            const hireDate = new Date(resource.hireDate);
+            const seniority = !isNaN(hireDate.getTime()) ? (new Date().getTime() - hireDate.getTime()) / (1000 * 3600 * 24 * 365.25) : 0;
+
             return {
                 ...resource,
                 roleName: role?.name || 'N/A',
                 dailyCost: role?.dailyCost || 0,
                 allocation: calculateResourceAllocation(resource),
-                isAssigned: assignedResourceIds.has(resource.id!)
+                isAssigned: assignedResourceIds.has(resource.id!),
+                activeProjects,
+                seniority,
             };
         });
     }, [resources, filters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
@@ -172,7 +180,8 @@ const ResourcesPage: React.FC = () => {
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div><div className="font-medium text-gray-900 dark:text-white">{r.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{r.email}</div></div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
-        { header: 'Costo Giornaliero', sortKey: 'dailyCost', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(r.dailyCost)}</span> },
+        { header: 'Progetti Attivi', sortKey: 'activeProjects', cell: r => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{r.activeProjects}</span> },
+        { header: 'Anzianità (anni)', sortKey: 'seniority', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.seniority.toFixed(1)}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
             r.isAssigned 
                 ? <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span>
@@ -190,7 +199,8 @@ const ResourcesPage: React.FC = () => {
                 <tr key={resource.id}>
                     <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
                     <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
-                    <td className="px-6 py-4 text-sm">{formatCurrency(editingRole?.dailyCost)}</td>
+                    <td className="px-6 py-4 text-sm text-center">{resource.activeProjects}</td>
+                    <td className="px-6 py-4"><input type="date" name="hireDate" value={inlineEditingData!.hireDate} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1"/></td>
                     <td className={`px-6 py-4 text-sm ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
                     <td className="px-6 py-4"><input type="number" name="maxStaffingPercentage" value={inlineEditingData!.maxStaffingPercentage} onChange={handleInlineFormChange} className="w-20 text-sm form-input p-1" /></td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
@@ -256,6 +266,7 @@ const ResourcesPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Progetti Attivi</p><p className="text-gray-900 dark:text-white font-medium">{resource.activeProjects}</p></div>
                     <div>
                         <p className="text-gray-500 dark:text-gray-400">Alloc. Media</p>
                         {resource.isAssigned
@@ -263,8 +274,7 @@ const ResourcesPage: React.FC = () => {
                             : <p className="font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</p>
                         }
                     </div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="text-gray-900 dark:text-white font-medium">{formatCurrency(resource.dailyCost)}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Max Staffing</p><p className="text-gray-900 dark:text-white font-medium">{resource.maxStaffingPercentage}%</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Anzianità</p><p className="text-gray-900 dark:text-white font-medium">{resource.seniority.toFixed(1)} anni</p></div>
                 </div>
             </div>
         );

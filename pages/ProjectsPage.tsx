@@ -13,7 +13,11 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
 
 
-type EnrichedProject = Project & { clientName: string; isStaffed: boolean; };
+type EnrichedProject = Project & { 
+    clientName: string; 
+    isStaffed: boolean;
+    assignedResources: number;
+};
 
 const formatDateForDisplay = (dateStr: string | null): string => {
     if (!dateStr) return 'N/A';
@@ -70,11 +74,15 @@ const ProjectsPage: React.FC = () => {
                 const statusMatch = filters.status ? project.status === filters.status : true;
                 return nameMatch && clientMatch && statusMatch;
             })
-            .map(project => ({
-                ...project,
-                clientName: clients.find(c => c.id === project.clientId)?.name || 'N/A',
-                isStaffed: staffedProjectIds.has(project.id!),
-            }));
+            .map(project => {
+                const assignedResources = new Set(assignments.filter(a => a.projectId === project.id).map(a => a.resourceId)).size;
+                return {
+                    ...project,
+                    clientName: clients.find(c => c.id === project.clientId)?.name || 'N/A',
+                    isStaffed: staffedProjectIds.has(project.id!),
+                    assignedResources,
+                };
+            });
     }, [projects, filters, clients, assignments, showOnlyUnstaffed]);
     
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -150,9 +158,9 @@ const ProjectsPage: React.FC = () => {
             </div>
         )},
         { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.clientName}</span> },
+        { header: 'Risorse Assegnate', sortKey: 'assignedResources', cell: p => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{p.assignedResources}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
         { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.startDate)}</span> },
-        { header: 'Data Fine', sortKey: 'endDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.endDate)}</span> },
         { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span> },
     ];
     
@@ -164,9 +172,9 @@ const ProjectsPage: React.FC = () => {
                 <tr key={project.id}>
                     <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
+                    <td className="px-6 py-4 text-center">{project.assignedResources}</td>
                     <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
                     <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                    <td className="px-6 py-4"><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
                         <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
@@ -204,7 +212,6 @@ const ProjectsPage: React.FC = () => {
                        <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div><label className="text-xs font-medium text-gray-500">Data Fine</label><input type="date" name="endDate" value={inlineEditingData!.endDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div className="flex justify-end space-x-2 pt-2">
                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
@@ -236,9 +243,9 @@ const ProjectsPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Risorse Assegnate</p><p className="font-medium text-gray-900 dark:text-white">{project.assignedResources}</p></div>
                     <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.startDate)}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Data Fine</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.endDate)}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
                 </div>
             </div>
         );
