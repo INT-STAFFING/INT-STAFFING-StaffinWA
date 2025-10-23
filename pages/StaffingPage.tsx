@@ -3,7 +3,7 @@
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Project, Assignment } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
@@ -19,6 +19,11 @@ import { Link } from 'react-router-dom';
  * @description Definisce i possibili valori per la modalità di visualizzazione della griglia temporale.
  */
 type ViewMode = 'day' | 'week' | 'month';
+
+// --- Virtualization Constants ---
+const MASTER_ROW_HEIGHT = 61; // Estimated height of the main resource row
+const ASSIGNMENT_ROW_HEIGHT = 68; // Estimated height of a single project assignment row
+const OVERSCAN_COUNT = 5; // Number of items to render above and below the visible area
 
 /**
  * @interface AllocationCellProps
@@ -280,6 +285,29 @@ const StaffingPage: React.FC = () => {
      */
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
 
+    // --- Virtualization State and Refs ---
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [scrollTop, setScrollTop] = useState(0);
+    const [containerHeight, setContainerHeight] = useState(0);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const measureHeight = () => setContainerHeight(container.clientHeight);
+        measureHeight(); // Initial measurement
+
+        const handleScroll = () => setScrollTop(container.scrollTop);
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('resize', measureHeight); // Re-measure on resize
+
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('resize', measureHeight);
+        };
+    }, []);
+
     /**
      * @description Memoizza e calcola le colonne temporali da visualizzare nella griglia.
      * La logica si adatta in base al `viewMode` selezionato:
@@ -478,6 +506,53 @@ const StaffingPage: React.FC = () => {
 
     }, [assignments, resources, filters, projects]);
 
+    const { virtualItems, paddingTop, paddingBottom } = useMemo(() => {
+        if (containerHeight === 0) {
+            const initialItems = displayData.slice(0, 15);
+            return { virtualItems: initialItems, paddingTop: 0, paddingBottom: 0 };
+        }
+    
+        let accumulatedHeight = 0;
+        const rowMetadata = displayData.map(item => {
+            const height = MASTER_ROW_HEIGHT + item.assignments.length * ASSIGNMENT_ROW_HEIGHT;
+            const meta = { height, offsetTop: accumulatedHeight };
+            accumulatedHeight += height;
+            return meta;
+        });
+        const totalHeight = accumulatedHeight;
+    
+        const viewTop = scrollTop;
+        const viewBottom = scrollTop + containerHeight;
+    
+        let startIndex = 0;
+        for (let i = 0; i < rowMetadata.length; i++) {
+            if (rowMetadata[i].offsetTop + rowMetadata[i].height > viewTop) {
+                startIndex = i;
+                break;
+            }
+        }
+    
+        let endIndex = startIndex;
+        for (let i = startIndex; i < rowMetadata.length; i++) {
+            endIndex = i;
+            if (rowMetadata[i].offsetTop > viewBottom) {
+                break;
+            }
+        }
+        
+        startIndex = Math.max(0, startIndex - OVERSCAN_COUNT);
+        endIndex = Math.min(rowMetadata.length - 1, endIndex + OVERSCAN_COUNT);
+    
+        const virtualItemsSlice = displayData.slice(startIndex, endIndex + 1);
+        
+        const calculatedPaddingTop = rowMetadata[startIndex]?.offsetTop || 0;
+        const calculatedPaddingBottom = totalHeight - (rowMetadata[endIndex]?.offsetTop + rowMetadata[endIndex]?.height || 0);
+    
+        return { virtualItems: virtualItemsSlice, paddingTop: calculatedPaddingTop, paddingBottom: calculatedPaddingBottom };
+    
+    }, [displayData, scrollTop, containerHeight]);
+    
+
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
@@ -529,8 +604,8 @@ const StaffingPage: React.FC = () => {
             </div>
 
             {/* Griglia di Staffing */}
-            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <div ref={scrollContainerRef} className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{ borderCollapse: 'separate' }}>
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                         <tr>
                             <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
@@ -548,7 +623,12 @@ const StaffingPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                         {displayData.map(({ resource, assignments: resourceAssignments }) => {
+                         {paddingTop > 0 && (
+                            <tr>
+                                <td colSpan={4 + timeColumns.length} style={{ height: paddingTop, padding: 0 }} />
+                            </tr>
+                         )}
+                         {virtualItems.map(({ resource, assignments: resourceAssignments }) => {
                             const role = getRoleById(resource.roleId);
                             return (
                                 <React.Fragment key={resource.id}>
@@ -591,8 +671,8 @@ const StaffingPage: React.FC = () => {
 
                                                 <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <div className="flex items-center justify-center space-x-2">
-                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
-                                                            <CalendarDaysIcon className="w-5 h-5"/>
+                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300" disabled={viewMode !== 'day'}>
+                                                            <CalendarDaysIcon className={`w-5 h-5 ${viewMode !== 'day' ? 'text-gray-400' : ''}`}/>
                                                         </button>
                                                         <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
                                                             <XCircleIcon className="w-5 h-5"/>
@@ -620,6 +700,11 @@ const StaffingPage: React.FC = () => {
                                 </React.Fragment>
                             );
                          })}
+                         {paddingBottom > 0 && (
+                            <tr>
+                                <td colSpan={4 + timeColumns.length} style={{ height: paddingBottom, padding: 0 }} />
+                            </tr>
+                         )}
                     </tbody>
                 </table>
             </div>
