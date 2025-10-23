@@ -14,7 +14,7 @@ declare var d3: any;
 type ViewMode = 'sankey' | 'network';
 
 const StaffingVisualizationPage: React.FC = () => {
-    const { resources, projects, contracts, assignments, contractProjects, companyCalendar } = useEntitiesContext();
+    const { resources, projects, clients, contracts, assignments, contractProjects, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
 
     const [view, setView] = useState<ViewMode>('sankey');
@@ -37,15 +37,16 @@ const StaffingVisualizationPage: React.FC = () => {
     }, []);
 
     const chartData = useMemo(() => {
-        if (resources.length === 0 || projects.length === 0) return { nodes: [], links: [] };
+        if (resources.length === 0 || projects.length === 0 || clients.length === 0) return { nodes: [], links: [] };
 
         const [year, month] = selectedMonth.split('-').map(Number);
         const firstDay = new Date(year, month - 1, 1);
         const lastDay = new Date(year, month, 0);
 
-        const links: { source: string; target: string; value: number }[] = [];
         const projectTotals: { [projectId: string]: number } = {};
+        const resourceProjectLinks: { source: string; target: string; value: number }[] = [];
 
+        // 1. Calcola link Risorsa -> Progetto e totali per progetto
         assignments.forEach(assignment => {
             const resource = resources.find(r => r.id === assignment.resourceId);
             if (!resource) return;
@@ -64,7 +65,7 @@ const StaffingVisualizationPage: React.FC = () => {
             }
 
             if (totalPersonDays > 0) {
-                links.push({
+                resourceProjectLinks.push({
                     source: `res_${assignment.resourceId}`,
                     target: `proj_${assignment.projectId}`,
                     value: totalPersonDays,
@@ -73,34 +74,70 @@ const StaffingVisualizationPage: React.FC = () => {
             }
         });
 
-        projects.forEach(project => {
+        const projectClientLinks: { source: string; target: string; value: number }[] = [];
+        const clientContractTotals: { [clientId: string]: { [contractId: string]: number } } = {};
+
+        // 2. Calcola link Progetto -> Cliente e aggrega sforzo Cliente -> Contratto
+        Object.keys(projectTotals).forEach(projectId => {
+            const project = projects.find(p => p.id === projectId);
+            if (!project || !project.clientId) return;
+            
+            const effort = projectTotals[projectId];
+
+            projectClientLinks.push({
+                source: `proj_${projectId}`,
+                target: `cli_${project.clientId}`,
+                value: effort,
+            });
+
             let contractId = project.contractId;
             if (!contractId) {
                 const contractLink = contractProjects.find(cp => cp.projectId === project.id);
                 if (contractLink) contractId = contractLink.contractId;
             }
 
-            if (contractId && projectTotals[project.id!]) {
-                links.push({
-                    source: `proj_${project.id}`,
-                    target: `cont_${contractId}`,
-                    value: projectTotals[project.id!],
-                });
+            if (contractId) {
+                if (!clientContractTotals[project.clientId]) {
+                    clientContractTotals[project.clientId] = {};
+                }
+                if (!clientContractTotals[project.clientId][contractId]) {
+                    clientContractTotals[project.clientId][contractId] = 0;
+                }
+                clientContractTotals[project.clientId][contractId] += effort;
             }
         });
+
+        // 3. Calcola link Cliente -> Contratto
+        const clientContractLinks: { source: string; target: string; value: number }[] = [];
+        Object.keys(clientContractTotals).forEach(clientId => {
+            Object.keys(clientContractTotals[clientId]).forEach(contractId => {
+                const value = clientContractTotals[clientId][contractId];
+                if (value > 0) {
+                    clientContractLinks.push({
+                        source: `cli_${clientId}`,
+                        target: `cont_${contractId}`,
+                        value: value,
+                    });
+                }
+            });
+        });
+
+        const links = [...resourceProjectLinks, ...projectClientLinks, ...clientContractLinks];
         
         const activeNodeIds = new Set(links.flatMap(l => [l.source, l.target]));
         if (activeNodeIds.size === 0) return { nodes: [], links: [] };
         
+        // 4. Definisce tutti i nodi e filtra quelli attivi
         const activeNodes = [
             ...resources.map(r => ({ id: `res_${r.id}`, name: r.name, type: 'resource' })),
             ...projects.map(p => ({ id: `proj_${p.id}`, name: p.name, type: 'project' })),
+            ...clients.map(c => ({ id: `cli_${c.id}`, name: c.name, type: 'client' })),
             ...contracts.map(c => ({ id: `cont_${c.id}`, name: c.name, type: 'contract' })),
         ].filter(n => activeNodeIds.has(n.id));
 
         return { nodes: activeNodes, links };
 
-    }, [selectedMonth, resources, projects, contracts, assignments, allocations, contractProjects, companyCalendar]);
+    }, [selectedMonth, resources, projects, clients, contracts, assignments, allocations, contractProjects, companyCalendar]);
     
     const chartDataString = useMemo(() => JSON.stringify(chartData), [chartData]);
 
@@ -156,8 +193,8 @@ const StaffingVisualizationPage: React.FC = () => {
             const { nodes, links } = sankey(graph);
             
             const color = d3.scaleOrdinal()
-                .domain(['resource', 'project', 'contract'])
-                .range(['#3b82f6', '#10b981', '#f97316']);
+                .domain(['resource', 'project', 'client', 'contract'])
+                .range(['#3b82f6', '#10b981', '#8b5cf6', '#f97316']);
 
             svg.append("g")
                 .selectAll("rect")
@@ -226,8 +263,8 @@ const StaffingVisualizationPage: React.FC = () => {
             svg.call(zoom);
 
              const color = d3.scaleOrdinal()
-                .domain(['resource', 'project', 'contract'])
-                .range(['#3b82f6', '#10b981', '#f97316']);
+                .domain(['resource', 'project', 'client', 'contract'])
+                .range(['#3b82f6', '#10b981', '#8b5cf6', '#f97316']);
 
             const simulation = d3.forceSimulation(data.nodes)
                 .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(100))
