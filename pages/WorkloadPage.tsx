@@ -56,11 +56,13 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     }, [assignments, allocations, resource.id, date]);
 
     const cellColor = useMemo(() => {
-        if (total > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === 100) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (total > 0 && total < 100) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        const maxPercentage = resource.maxStaffingPercentage ?? 100;
+        if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (total >= maxPercentage * 0.95 && total <= maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (total > 0 && total < maxPercentage * 0.95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-transparent';
-    }, [total]);
+    }, [total, resource.maxStaffingPercentage]);
+
 
     return (
         <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
@@ -119,12 +121,13 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
     const cellColor = useMemo(() => {
-        const roundedAllocation = Math.round(averageAllocation);
-        if (roundedAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (roundedAllocation === 100) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (roundedAllocation > 0 && roundedAllocation < 100) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        const maxPercentage = resource.maxStaffingPercentage ?? 100;
+        if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (averageAllocation >= maxPercentage * 0.95 && averageAllocation <= maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (averageAllocation > 0 && averageAllocation < maxPercentage * 0.95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-transparent';
-    }, [averageAllocation]);
+    }, [averageAllocation, resource.maxStaffingPercentage]);
+
 
     return (
         <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
