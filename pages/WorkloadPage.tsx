@@ -55,11 +55,16 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
         }, 0);
     }, [assignments, allocations, resource.id, date]);
 
+    // MODIFICA: Logica colori unificata.
+    // Determina il colore di sfondo della cella in base al carico totale e alla percentuale massima di staffing della risorsa.
+    // - Rosso: sovraccarico (> maxStaffingPercentage)
+    // - Verde: utilizzo ottimale (= maxStaffingPercentage)
+    // - Giallo: sottoutilizzo (< maxStaffingPercentage)
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total >= maxPercentage * 0.95 && total <= maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (total > 0 && total < maxPercentage * 0.95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (total > 0 && total < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-transparent';
     }, [total, resource.maxStaffingPercentage]);
 
@@ -120,11 +125,18 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
 
     }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
+    // MODIFICA: Logica colori unificata con arrotondamento.
+    // Determina il colore della cella in base al carico medio e alla percentuale massima della risorsa.
+    // L'allocazione media viene arrotondata per gestire correttamente il caso di uguaglianza esatta (100%).
+    // - Rosso: sovraccarico (> maxStaffingPercentage)
+    // - Verde: utilizzo ottimale (= maxStaffingPercentage)
+    // - Giallo: sottoutilizzo (< maxStaffingPercentage)
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
-        if (averageAllocation > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= maxPercentage * 0.95 && averageAllocation <= maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (averageAllocation > 0 && averageAllocation < maxPercentage * 0.95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        const roundedAverage = Math.round(averageAllocation);
+        if (roundedAverage > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+        if (roundedAverage === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+        if (roundedAverage > 0 && roundedAverage < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
         return 'bg-transparent';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
