@@ -7,7 +7,8 @@ import React, { useMemo, useState } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
-import { useNavigate, Link } from 'react-router-dom';
+// Fix: Replaced useNavigate with useHistory and updated imports for react-router-dom v5 compatibility.
+import { useHistory, Link } from 'react-router-dom';
 import { UsersIcon, BriefcaseIcon, ArrowsUpDownIcon } from '../components/icons';
 
 // --- Tipi e Hook per l'Ordinamento ---
@@ -78,7 +79,8 @@ const formatCurrency = (value: number | string): string => {
 const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, clientSectors, locations, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
-    const navigate = useNavigate();
+    // Fix: Replaced useNavigate with useHistory for v5 compatibility.
+    const history = useHistory();
 
     // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
@@ -581,7 +583,8 @@ const DashboardPage: React.FC = () => {
 
                 <div 
                     className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]"
-                    onClick={() => navigate('/resources?filter=unassigned')}
+                    // Fix: Replaced navigate with history.push for v5 compatibility.
+                    onClick={() => history.push('/resources?filter=unassigned')}
                 >
                     <div className="flex justify-between items-start w-full">
                         <div>
@@ -600,7 +603,8 @@ const DashboardPage: React.FC = () => {
                 </div>
                  <div 
                     className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]"
-                    onClick={() => navigate('/projects?filter=unstaffed')}
+                    // Fix: Replaced navigate with history.push for v5 compatibility.
+                    onClick={() => history.push('/projects?filter=unstaffed')}
                 >
                     <div className="flex justify-between items-start w-full">
                         <div>

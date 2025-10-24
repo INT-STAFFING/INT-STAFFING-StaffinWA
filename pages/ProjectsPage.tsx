@@ -10,7 +10,8 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams } from 'react-router-dom';
+// Fix: Replaced useSearchParams with useLocation and useHistory for react-router-dom v5 compatibility.
+import { useLocation, useHistory } from 'react-router-dom';
 
 
 type EnrichedProject = Project & { 
@@ -32,26 +33,35 @@ const ProjectsPage: React.FC = () => {
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
     const [showOnlyUnstaffed, setShowOnlyUnstaffed] = useState(false);
-    const [searchParams, setSearchParams] = useSearchParams();
+    // Fix: Replaced useSearchParams with useLocation and useHistory for react-router-dom v5 compatibility.
+    const location = useLocation();
+    const history = useHistory();
 
      useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
         const projectId = searchParams.get('projectId');
         const clientId = searchParams.get('clientId');
         const filter = searchParams.get('filter');
 
+        let needsRedirect = false;
+
         if (projectId) {
             setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: '', status: '' }));
             setShowOnlyUnstaffed(false);
-            setSearchParams({}, { replace: true });
+            needsRedirect = true;
         } else if (clientId) {
             setFilters(prev => ({ ...prev, clientId, name: '', status: '' }));
             setShowOnlyUnstaffed(false);
-            setSearchParams({}, { replace: true });
+            needsRedirect = true;
         } else if (filter === 'unstaffed') {
             setShowOnlyUnstaffed(true);
-            setSearchParams({}, { replace: true });
+            needsRedirect = true;
         }
-    }, [searchParams, setSearchParams, projects]);
+        
+        if (needsRedirect) {
+            history.replace({ search: '' });
+        }
+    }, [location.search, history, projects]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);
