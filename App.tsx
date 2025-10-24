@@ -4,8 +4,7 @@
  */
 
 import React, { useState, useContext } from 'react';
-// Fix: Updated react-router-dom imports for v5 compatibility. Replaced Routes with Switch and Navigate with Redirect.
-import { BrowserRouter, Switch, Route, Redirect, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -139,39 +138,44 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
              <Header onToggleSidebar={onToggleSidebar} />
              <main className="flex-1 overflow-x-hidden overflow-y-auto">
                 <div className="container mx-auto px-4 sm:px-6 py-8">
-                    {/* Fix: Replaced Routes with Switch and Route element prop with child components for v5 compatibility. */}
-                    <Switch>
-                        <Route exact path="/"><Redirect to="/staffing" /></Route>
-                        <Route path="/staffing"><StaffingPage /></Route>
-                        <Route path="/resources"><ResourcesPage /></Route>
-                        <Route path="/projects"><ProjectsPage /></Route>
-                        <Route path="/clients"><ClientsPage /></Route>
-                        <Route path="/roles"><RolesPage /></Route>
-                        <Route path="/contracts"><ContractsPage /></Route>
-                        <Route path="/dashboard"><DashboardPage /></Route>
-                        <Route path="/forecasting"><ForecastingPage /></Route>
-                        <Route path="/workload"><WorkloadPage /></Route>
-                        <Route path="/gantt"><GanttPage /></Route>
-                        <Route path="/calendar"><CalendarPage /></Route>
-                        <Route path="/export"><ExportPage /></Route>
-                        <Route path="/import"><ImportPage /></Route>
-                        <Route path="/config"><ConfigPage /></Route>
-                        <Route path="/reports"><ReportsPage /></Route>
-                        <Route path="/resource-requests"><ResourceRequestPage /></Route>
-                        <Route path="/interviews"><InterviewsPage /></Route>
-                        <Route path="/staffing-visualization"><StaffingVisualizationPage /></Route>
-                        <Route path="/manuale-utente"><UserManualPage /></Route>
-                        <Route path="/admin-settings">
-                            <AdminRoute>
-                                <AdminSettingsPage />
-                            </AdminRoute>
-                        </Route>
-                        <Route path="/db-inspector">
-                            <AdminRoute>
-                                <DbInspectorPage />
-                            </AdminRoute>
-                        </Route>
-                    </Switch>
+                    <Routes>
+                        <Route path="/" element={<Navigate to="/staffing" replace />} />
+                        <Route path="/staffing" element={<StaffingPage />} />
+                        <Route path="/resources" element={<ResourcesPage />} />
+                        <Route path="/projects" element={<ProjectsPage />} />
+                        <Route path="/clients" element={<ClientsPage />} />
+                        <Route path="/roles" element={<RolesPage />} />
+                        <Route path="/contracts" element={<ContractsPage />} />
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/forecasting" element={<ForecastingPage />} />
+                        <Route path="/workload" element={<WorkloadPage />} />
+                        <Route path="/gantt" element={<GanttPage />} />
+                        <Route path="/calendar" element={<CalendarPage />} />
+                        <Route path="/export" element={<ExportPage />} />
+                        <Route path="/import" element={<ImportPage />} />
+                        <Route path="/config" element={<ConfigPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/resource-requests" element={<ResourceRequestPage />} />
+                        <Route path="/interviews" element={<InterviewsPage />} />
+                        <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
+                        <Route path="/manuale-utente" element={<UserManualPage />} />
+                        <Route 
+                            path="/admin-settings" 
+                            element={
+                                <AdminRoute>
+                                    <AdminSettingsPage />
+                                </AdminRoute>
+                            } 
+                        />
+                        <Route 
+                            path="/db-inspector" 
+                            element={
+                                <AdminRoute>
+                                    <DbInspectorPage />
+                                </AdminRoute>
+                            } 
+                        />
+                    </Routes>
                 </div>
             </main>
         </div>
@@ -223,8 +227,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
     }
     
     if (isLoginProtectionEnabled && !isAuthenticated) {
-        // Fix: Replaced Navigate with Redirect for v5 compatibility.
-        return <Redirect to="/login" />;
+        return <Navigate to="/login" replace />;
     }
 
     return children;
@@ -250,13 +253,11 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
     }
 
     if (isLoginProtectionEnabled && !isAuthenticated) {
-        // Fix: Replaced Navigate with Redirect for v5 compatibility.
-        return <Redirect to="/login" />;
+        return <Navigate to="/login" replace />;
     }
     
     if (!isAdmin) {
-        // Fix: Replaced Navigate with Redirect for v5 compatibility.
-        return <Redirect to="/" />;
+        return <Navigate to="/" replace />;
     }
 
     return children;
@@ -267,17 +268,17 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
  * @returns {React.ReactElement} L'applicazione completa.
  */
 const AppRoutes: React.FC = () => (
-    // Fix: Replaced Routes with Switch and Route element prop with child components for v5 compatibility.
-    <Switch>
-        <Route path="/login">
-            <LoginPage />
-        </Route>
-        <Route path="/">
-            <ProtectedRoute>
-                <MainLayout />
-            </ProtectedRoute>
-        </Route>
-    </Switch>
+    <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route 
+            path="/*" 
+            element={
+                <ProtectedRoute>
+                    <MainLayout />
+                </ProtectedRoute>
+            } 
+        />
+    </Routes>
 );
 
 /**

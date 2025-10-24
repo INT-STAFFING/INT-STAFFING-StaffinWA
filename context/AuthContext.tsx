@@ -4,8 +4,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
-// Fix: Replaced useNavigate with useHistory for react-router-dom v5 compatibility.
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext';
 
 // --- Tipi ---

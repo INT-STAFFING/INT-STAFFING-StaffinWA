@@ -11,8 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
-// Fix: Replaced useSearchParams with useLocation and useHistory for react-router-dom v5 compatibility.
-import { useLocation, useHistory } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -38,18 +37,15 @@ const ResourcesPage: React.FC = () => {
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active' });
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
-    // Fix: Replaced useSearchParams with useLocation and useHistory for react-router-dom v5 compatibility.
-    const location = useLocation();
-    const history = useHistory();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
-        const searchParams = new URLSearchParams(location.search);
         if (searchParams.get('filter') === 'unassigned') {
             setShowOnlyUnassigned(true);
             // Optional: remove the query param after applying the filter
-            history.replace({ search: '' });
+            setSearchParams({}, { replace: true });
         }
-    }, [location.search, history]);
+    }, [searchParams, setSearchParams]);
 
     
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
@@ -219,9 +215,8 @@ const ResourcesPage: React.FC = () => {
     const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
 
     const columns: ColumnDef<EnrichedResource>[] = [
-        { header: 'Nome', sortKey: 'name', cell: r => <span className="font-medium text-gray-900 dark:text-white">{r.name}</span> },
+        { header: 'Nome', sortKey: 'name', cell: r => <div><div className="font-medium text-gray-900 dark:text-white">{r.name}</div><div className="text-sm text-gray-500 dark:text-gray-400">{r.email}</div></div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
-        { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.location}</span> },
         { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
         { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
@@ -239,9 +234,8 @@ const ResourcesPage: React.FC = () => {
         if (isEditing) {
             return (
                 <tr key={resource.id}>
-                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4"><div className="space-y-1"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full text-sm form-input p-1" /><input type="email" name="email" value={inlineEditingData!.email} onChange={handleInlineFormChange} className="w-full text-xs form-input p-1" /></div></td>
                     <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
-                    <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede" /></td>
                     <td className="px-6 py-4">{columns.find(c => c.header === 'Stato')?.cell(resource)}</td>
                     <td className="px-6 py-4">{columns.find(c => c.header === 'Ultimo Giorno')?.cell(resource)}</td>
                     <td className={`px-6 py-4 text-sm ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
@@ -278,6 +272,7 @@ const ResourcesPage: React.FC = () => {
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{resource.email}</p>
                          <span className={`mt-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${resource.resigned ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
                             {resource.resigned ? 'Dimesso' : 'Attivo'}
                         </span>
@@ -291,7 +286,6 @@ const ResourcesPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Sede</p><p className="text-gray-900 dark:text-white font-medium">{resource.location}</p></div>
                     <div>
                         <p className="text-gray-500 dark:text-gray-400">Alloc. Media</p>
                         {resource.isAssigned && !resource.resigned

@@ -9,8 +9,7 @@ import { Resource } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
-// Fix: Replaced useSearchParams with useLocation and useHistory for react-router-dom v5 compatibility.
-import { useLocation, useHistory } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -147,19 +146,16 @@ const WorkloadPage: React.FC = () => {
     const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
     
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', roleIds: [] as string[] });
-    // Fix: Replaced useSearchParams with useLocation and useHistory for react-router-dom v5 compatibility.
-    const location = useLocation();
-    const history = useHistory();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
-        const searchParams = new URLSearchParams(location.search);
         const resourceId = searchParams.get('resourceId');
         if (resourceId) {
             setFilters(prev => ({ ...prev, resourceId }));
             // Rimuovi il parametro dall'URL dopo averlo applicato per non confondere l'utente
-            history.replace({ search: '' });
+            setSearchParams({}, { replace: true });
         }
-    }, [location.search, history]);
+    }, [searchParams, setSearchParams]);
     
     const timeColumns = useMemo(() => {
         const cols = [];

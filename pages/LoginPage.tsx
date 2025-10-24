@@ -5,8 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-// Fix: Replaced useNavigate with useHistory for react-router-dom v5 compatibility.
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { SpinnerIcon } from '../components/icons';
 
 const LoginPage: React.FC = () => {
@@ -15,16 +14,14 @@ const LoginPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const { login, isAuthenticated, isLoginProtectionEnabled } = useAuth();
-    // Fix: Replaced useNavigate with useHistory for v5 compatibility.
-    const history = useHistory();
+    const navigate = useNavigate();
 
     // Reindirizza se l'utente è già loggato e la protezione è attiva
     useEffect(() => {
         if (isAuthenticated && isLoginProtectionEnabled) {
-            // Fix: Changed navigation method for v5.
-            history.replace('/');
+            navigate('/', { replace: true });
         }
-    }, [isAuthenticated, isLoginProtectionEnabled, history]);
+    }, [isAuthenticated, isLoginProtectionEnabled, navigate]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
