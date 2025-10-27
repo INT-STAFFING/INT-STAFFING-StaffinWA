@@ -12,31 +12,27 @@
           extend: {
             colors: {
                 // Main Palette
-                'primary': '#2563eb', // blue-600
-                'primary-darker': '#1d4ed8', // blue-700 for hover
-                'destructive': '#dc2626', // red-600
-                'success': '#16a34a', // green-600
-                'warning': '#f59e0b', // amber-500
+                'primary': 'var(--color-primary, #2563eb)',
+                'primary-darker': 'var(--color-primary-darker, #1d4ed8)',
+                'destructive': 'var(--color-destructive, #dc2626)',
+                'success': 'var(--color-success, #16a34a)',
+                'warning': 'var(--color-warning, #f59e0b)',
 
                 // Light Mode
-                'background': '#f8fafc', // slate-50
-                'foreground': '#0f172a', // slate-900
-                'card': '#ffffff',
-                'border': '#e2e8f0', // slate-200
-                'muted': '#f1f5f9', // slate-100
-                'muted-foreground': '#64748b', // slate-500
+                'background': 'var(--color-background, #f8fafc)',
+                'foreground': 'var(--color-foreground, #0f172a)',
+                'card': 'var(--color-card, #ffffff)',
+                'border': 'var(--color-border, #e2e8f0)',
+                'muted': 'var(--color-muted, #f1f5f9)',
+                'muted-foreground': 'var(--color-muted-foreground, #64748b)',
 
                 // Dark Mode
-                'dark-background': '#020617', // slate-950
-                'dark-foreground': '#f8fafc', // slate-50
-                'dark-card': '#0f172a', // slate-900
-                'dark-border': '#1e293b', // slate-800
-                'dark-muted': '#1e293b', // slate-800
-                'dark-muted-foreground': '#94a3b8', // slate-400
-                
-                // Sidebar
-                'sidebar': '#0f172a', // slate-900
-                'sidebar-foreground': '#94a3b8', // slate-400
+                'dark-background': 'var(--color-dark-background, #020617)',
+                'dark-foreground': 'var(--color-dark-foreground, #f8fafc)',
+                'dark-card': 'var(--color-dark-card, #0f172a)',
+                'dark-border': 'var(--color-dark-border, #1e293b)',
+                'dark-muted': 'var(--color-dark-muted, #1e293b)',
+                'dark-muted-foreground': 'var(--color-dark-muted-foreground, #94a3b8)',
             }
           }
         }
