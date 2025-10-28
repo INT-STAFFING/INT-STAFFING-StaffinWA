@@ -22,6 +22,8 @@ const DbInspectorPage: React.FC = () => {
     const [editingRowId, setEditingRowId] = useState<string | null>(null);
     const [editingRowData, setEditingRowData] = useState<any | null>(null);
     const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
+    const [isExportingPg, setIsExportingPg] = useState(false);
+    const [isExportingMysql, setIsExportingMysql] = useState(false);
     const { addToast } = useToast();
 
     useEffect(() => {
@@ -131,6 +133,35 @@ const DbInspectorPage: React.FC = () => {
         }
     };
 
+    const handleExport = async (dialect: 'postgres' | 'mysql') => {
+        if (dialect === 'postgres') setIsExportingPg(true);
+        else setIsExportingMysql(true);
+    
+        try {
+            const response = await fetch(`/api/resources?entity=db_inspector&action=export_sql&dialect=${dialect}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Failed to export ${dialect} SQL`);
+            }
+            const sql = await response.text();
+            const blob = new Blob([sql], { type: 'application/sql' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `db_export_${dialect}.sql`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addToast(`Export ${dialect.toUpperCase()} SQL completato.`, 'success');
+        } catch (error) {
+            addToast((error as Error).message, 'error');
+        } finally {
+            if (dialect === 'postgres') setIsExportingPg(false);
+            else setIsExportingMysql(false);
+        }
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, colName: string, colType: string) => {
         if (!editingRowData) return;
         let value: any = e.target.value;
@@ -212,9 +243,9 @@ const DbInspectorPage: React.FC = () => {
         <div>
             <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Database Inspector</h1>
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow max-w-2xl">
-                <div className="flex items-end gap-4">
-                    <div className="flex-grow">
+            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                         <label htmlFor="table-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Seleziona una Tabella</label>
                         <select
                             id="table-select"
@@ -226,13 +257,33 @@ const DbInspectorPage: React.FC = () => {
                             {tables.map(table => <option key={table} value={table}>{table}</option>)}
                         </select>
                     </div>
-                    <button
-                        onClick={() => setIsDeleteAllModalOpen(true)}
-                        disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
-                        className="px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
-                    >
-                        Elimina Tutte le Righe
-                    </button>
+                     <div className="space-y-2">
+                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Azioni Globali</label>
+                         <div className="flex items-center gap-2">
+                             <button
+                                onClick={() => handleExport('postgres')}
+                                disabled={isLoading || isExportingPg || isExportingMysql}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
+                            </button>
+                            <button
+                                onClick={() => handleExport('mysql')}
+                                disabled={isLoading || isExportingPg || isExportingMysql}
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                            >
+                                {isExportingMysql ? <SpinnerIcon className="w-5 h-5"/> : 'Export MySQL'}
+                            </button>
+                            <button
+                                onClick={() => setIsDeleteAllModalOpen(true)}
+                                disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
+                                className="px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                                title="Elimina Tutte le Righe dalla Tabella Selezionata"
+                            >
+                                Svuota
+                            </button>
+                         </div>
+                    </div>
                 </div>
             </div>
 

@@ -431,7 +431,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const actionKey = 'addAssignment';
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            const newAssignment = await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) });
+            const newAssignment = await apiFetch('/api/resources?entity=assignments', { method: 'POST', body: JSON.stringify(assignment) });
             setAssignments(prev => {
                 const existing = new Set(prev.map(a => a.id));
                 return existing.has(newAssignment.id) ? prev : [...prev, newAssignment];
@@ -450,7 +450,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
             const createdAssignments = await Promise.all(
-                assignmentsToAdd.map(assignment => apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) }))
+                assignmentsToAdd.map(assignment => apiFetch('/api/resources?entity=assignments', { method: 'POST', body: JSON.stringify(assignment) }))
             );
             setAssignments(prev => {
                 const existingIds = new Set(prev.map(a => a.id));
@@ -470,7 +470,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const actionKey = `deleteAssignment-${assignmentId}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
-            await apiFetch(`/api/assignments?id=${assignmentId}`, { method: 'DELETE' });
+            await apiFetch(`/api/resources?entity=assignments&id=${assignmentId}`, { method: 'DELETE' });
             setAssignments(prev => prev.filter(a => a.id !== assignmentId));
             setAllocations(prev => {
                 const newAllocations = { ...prev };
@@ -728,7 +728,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
 
         try {
-            await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
+            await apiFetch('/api/resources?entity=allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
         } catch (error) {
             addToast(`Errore modifica allocazione: ${(error as Error).message}`, 'error');
             setAllocations(previousAllocations);
@@ -769,7 +769,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
 
         try {
-            await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) });
+            await apiFetch('/api/resources?entity=allocations', { method: 'POST', body: JSON.stringify({ updates }) });
             addToast(`Allocazioni aggiornate con successo.`, 'success');
         } catch (error) {
             addToast(`Errore aggiornamento massivo: ${(error as Error).message}`, 'error');

@@ -23,6 +23,60 @@ const toCamelCase = (obj: any): any => {
     return newObj;
 }
 
+const EXPORT_TABLE_WHITELIST = [
+    'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
+    'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
+    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations'
+];
+
+const pgSchema = [
+    `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+    `CREATE TABLE IF NOT EXISTS horizontals ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
+    `CREATE TABLE IF NOT EXISTS seniority_levels ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
+    `CREATE TABLE IF NOT EXISTS project_statuses ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
+    `CREATE TABLE IF NOT EXISTS client_sectors ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
+    `CREATE TABLE IF NOT EXISTS locations ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
+    `CREATE TABLE IF NOT EXISTS app_config ( key VARCHAR(255) PRIMARY KEY, value VARCHAR(255) NOT NULL );`,
+    `CREATE TABLE IF NOT EXISTS clients ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, sector VARCHAR(255), contact_email VARCHAR(255) );`,
+    `CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2) );`,
+    `CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100 NOT NULL, location VARCHAR(255), resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE );`,
+    `CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL, cig_derivato VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0, UNIQUE(name), UNIQUE(cig) );`,
+    `CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`,
+    `CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`,
+    `CREATE TABLE IF NOT EXISTS interviews ( id UUID PRIMARY KEY, resource_request_id UUID REFERENCES resource_requests(id) ON DELETE SET NULL, candidate_name VARCHAR(255) NOT NULL, candidate_surname VARCHAR(255) NOT NULL, birth_date DATE, horizontal VARCHAR(255), role_id UUID REFERENCES roles(id) ON DELETE SET NULL, cv_summary TEXT, interviewers_ids UUID[], interview_date DATE, feedback VARCHAR(50), notes TEXT, hiring_status VARCHAR(50), entry_date DATE, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`,
+    `CREATE TABLE IF NOT EXISTS wbs_tasks ( id UUID PRIMARY KEY, elemento_wbs VARCHAR(255) NOT NULL UNIQUE, descrizione_wbe TEXT, client_id UUID REFERENCES clients(id) ON DELETE SET NULL, periodo VARCHAR(50), ore NUMERIC(10, 2), produzione_lorda NUMERIC(12, 2), ore_network_italia NUMERIC(10, 2), produzione_lorda_network_italia NUMERIC(12, 2), perdite NUMERIC(12, 2), realisation INT, spese_onorari_esterni NUMERIC(12, 2), spese_altro NUMERIC(12, 2), fatture_onorari NUMERIC(12, 2), fatture_spese NUMERIC(12, 2), iva NUMERIC(12, 2), incassi NUMERIC(12, 2), primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL, secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL );`,
+    `CREATE TABLE IF NOT EXISTS company_calendar ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, date DATE NOT NULL, type VARCHAR(50) NOT NULL, location VARCHAR(255), UNIQUE(date, location) );`,
+    `CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`,
+    `CREATE TABLE IF NOT EXISTS contract_projects ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, project_id) );`,
+    `CREATE TABLE IF NOT EXISTS contract_managers ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, resource_id) );`,
+    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`
+];
+
+const translateToMysql = (pgStatement: string) => {
+    return pgStatement
+        .replace(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp";/g, '-- UUID extension is not used in MySQL. IDs are CHAR(36).')
+        .replace(/UUID/g, 'CHAR(36)')
+        .replace(/NUMERIC/g, 'DECIMAL')
+        .replace(/TIMESTAMP WITH TIME ZONE/g, 'TIMESTAMP')
+        .replace(/BOOLEAN/g, 'TINYINT(1)')
+        .replace(/CHAR\(36\)\[\]/g, 'TEXT') 
+        .replace(/CREATE TABLE IF NOT EXISTS/g, 'CREATE TABLE IF NOT EXISTS');
+};
+
+const escapeSqlValue = (value: any, dialect: 'postgres' | 'mysql'): string => {
+    if (value === null || value === undefined) return 'NULL';
+    if (typeof value === 'boolean') return dialect === 'mysql' ? (value ? '1' : '0') : value.toString();
+    if (typeof value === 'number') return value.toString();
+    if (value instanceof Date) value = value.toISOString().slice(0, 19).replace('T', ' ');
+    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+    if (Array.isArray(value)) {
+        if (dialect === 'mysql') return `'${JSON.stringify(value)}'`;
+        else return `ARRAY[${value.map(v => `'${String(v).replace(/'/g, "''")}'`).join(',')}]::UUID[]`;
+    }
+    if (typeof value === 'object') return `'${JSON.stringify(value).replace(/'/g, "''")}'`;
+    return `'${String(value).replace(/'/g, "''")}'`;
+};
+
 async function recalculateContractBacklog(contractId: string, client: any) { // 'any' to accept VercelPoolClient
     if (!contractId) return;
 
@@ -516,6 +570,84 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
         
+        // --- GESTORE ENTITÀ: ASSEGNAZIONI (MERGED) ---
+        case 'assignments':
+            switch (method) {
+                case 'POST':
+                    try {
+                        const { resourceId, projectId } = req.body;
+                        const { rows } = await db.sql`
+                            SELECT id FROM assignments WHERE resource_id = ${resourceId} AND project_id = ${projectId};
+                        `;
+                        if (rows.length > 0) {
+                            return res.status(200).json({ id: rows[0].id, resourceId, projectId });
+                        }
+                        const newId = uuidv4();
+                        await db.sql`
+                            INSERT INTO assignments (id, resource_id, project_id)
+                            VALUES (${newId}, ${resourceId}, ${projectId});
+                        `;
+                        return res.status(201).json({ id: newId, ...req.body });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'DELETE':
+                    const assignmentClient = await db.connect();
+                    try {
+                        await assignmentClient.query('BEGIN');
+                        await assignmentClient.query('DELETE FROM allocations WHERE assignment_id = $1', [id]);
+                        await assignmentClient.query('DELETE FROM assignments WHERE id = $1', [id]);
+                        await assignmentClient.query('COMMIT');
+                        return res.status(204).end();
+                    } catch (error) {
+                        await assignmentClient.query('ROLLBACK');
+                        return res.status(500).json({ error: (error as Error).message });
+                    } finally {
+                        assignmentClient.release();
+                    }
+                default:
+                    res.setHeader('Allow', ['POST', 'DELETE']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+
+        // --- GESTORE ENTITÀ: ALLOCAZIONI (MERGED) ---
+        case 'allocations':
+            if (method !== 'POST') {
+                res.setHeader('Allow', ['POST']);
+                return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+            const allocationsClient = await db.connect();
+            try {
+                const { updates } = req.body;
+                if (!Array.isArray(updates) || updates.length === 0) {
+                    return res.status(400).json({ error: 'Invalid updates array' });
+                }
+                await allocationsClient.query('BEGIN');
+                for (const update of updates) {
+                    const { assignmentId, date, percentage } = update;
+                    if (percentage === 0) {
+                        await allocationsClient.query(
+                            'DELETE FROM allocations WHERE assignment_id = $1 AND allocation_date = $2;',
+                            [assignmentId, date]
+                        );
+                    } else {
+                        await allocationsClient.query(`
+                            INSERT INTO allocations (assignment_id, allocation_date, percentage)
+                            VALUES ($1, $2, $3)
+                            ON CONFLICT (assignment_id, allocation_date)
+                            DO UPDATE SET percentage = EXCLUDED.percentage;
+                        `, [assignmentId, date, percentage]);
+                    }
+                }
+                await allocationsClient.query('COMMIT');
+                return res.status(200).json({ message: 'Allocations updated successfully' });
+            } catch (error) {
+                await allocationsClient.query('ROLLBACK');
+                return res.status(500).json({ error: (error as Error).message });
+            } finally {
+                allocationsClient.release();
+            }
+
         // --- NUOVO GESTORE: DB INSPECTOR ---
         case 'db_inspector':
             const TABLE_WHITELIST = [
@@ -577,6 +709,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         await db.query(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE;`);
                         return res.status(200).json({ success: true, message: `All rows from table ${table} have been deleted.` });
                     } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                
+                case 'export_sql':
+                    if (method !== 'GET') return res.status(405).end();
+                    const { dialect } = req.query;
+
+                    if (dialect !== 'postgres' && dialect !== 'mysql') {
+                        return res.status(400).json({ error: 'Invalid dialect specified. Use "postgres" or "mysql".' });
+                    }
+                
+                    try {
+                        let sqlScript = `--- Database dump for ${dialect} ---\n\n`;
+                        
+                        // 1. Add schema
+                        const schemaStatements = dialect === 'postgres' ? pgSchema : pgSchema.map(translateToMysql);
+                        sqlScript += schemaStatements.join('\n\n');
+                        sqlScript += '\n\n';
+                
+                        // 2. Add data in insertion order
+                        for (const table of EXPORT_TABLE_WHITELIST) {
+                            const { rows } = await db.query(`SELECT * FROM ${table}`);
+                            if (rows.length > 0) {
+                                const columns = Object.keys(rows[0]);
+                                const columnsList = dialect === 'mysql' ? columns.map(c => `\`${c}\``).join(', ') : columns.join(', ');
+                                
+                                sqlScript += `-- Data for table ${table}\n`;
+                                for (const row of rows) {
+                                    const valuesList = columns.map(col => escapeSqlValue(row[col], dialect as 'postgres' | 'mysql')).join(', ');
+                                    sqlScript += `INSERT INTO ${table} (${columnsList}) VALUES (${valuesList});\n`;
+                                }
+                                sqlScript += '\n';
+                            }
+                        }
+                
+                        res.setHeader('Content-Type', 'application/sql');
+                        res.setHeader('Content-Disposition', `attachment; filename="db_export_${dialect}.sql"`);
+                        return res.status(200).send(sqlScript);
+                
+                    } catch (error) {
+                        console.error(`Error exporting ${dialect} SQL:`, error);
                         return res.status(500).json({ error: (error as Error).message });
                     }
 
