@@ -8,7 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
 
@@ -178,9 +178,9 @@ const ProjectsPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
                         <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
                     </div></td>
                 </tr>
             );
@@ -190,10 +190,10 @@ const ProjectsPage: React.FC = () => {
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(project)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
                         <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </td>
@@ -215,9 +215,9 @@ const ProjectsPage: React.FC = () => {
                        <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div className="flex justify-end space-x-2 pt-2">
                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                            </button>
-                           <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                           <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
                        </div>
                    </div>
                </div>
@@ -234,10 +234,10 @@ const ProjectsPage: React.FC = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">{project.clientName}</p>
                     </div>
                      <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
                         <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </div>

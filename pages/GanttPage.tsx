@@ -7,7 +7,6 @@ import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
-import { ArrowsUpDownIcon } from '../components/icons';
 
 type ZoomLevel = 'month' | 'quarter' | 'year';
 type SortDirection = 'ascending' | 'descending';
@@ -167,7 +166,7 @@ const GanttPage: React.FC = () => {
                         <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center">
                             <button onClick={toggleSortDirection} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
                                 <span>Progetto</span>
-                                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                                <span className="text-gray-400">↕️</span>
                             </button>
                         </div>
                         <div className="relative border-b border-gray-200 dark:border-gray-700">

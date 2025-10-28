@@ -3,7 +3,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, SpinnerIcon, UsersIcon, CheckCircleIcon, CalendarDaysIcon, ArrowsUpDownIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 
@@ -217,9 +217,9 @@ const InterviewsPage: React.FC = () => {
                     <p className="text-sm text-primary font-medium">{interview.roleName || 'N/A'}</p>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                     <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
             </div>
@@ -271,7 +271,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
                             </div>
-                            <UsersIcon className="w-8 h-8 text-gray-300"/>
+                            <span className="text-3xl text-gray-300">👥</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
                     </div>
@@ -284,7 +284,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
                             </div>
-                            <CheckCircleIcon className="w-8 h-8 text-gray-300"/>
+                            <span className="text-3xl text-gray-300">✅</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
                     </div>
@@ -297,7 +297,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
                             </div>
-                            <CalendarDaysIcon className="w-8 h-8 text-gray-300"/>
+                            <span className="text-3xl text-gray-300">📅</span>
                         </div>
                         {summaryCards.upcomingHires.length > 0 ? (
                             <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
@@ -347,7 +347,7 @@ const InterviewsPage: React.FC = () => {
                                             {col.sortKey ? (
                                                 <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
                                                     <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                                                    <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                                                    <span className="text-gray-400">↕️</span>
                                                 </button>
                                             ) : (
                                                 <span>{col.header}</span>
@@ -371,9 +371,9 @@ const InterviewsPage: React.FC = () => {
                                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-3">
-                                                <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                                <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                                                 <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                                                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                                                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                                                 </button>
                                             </div>
                                         </td>

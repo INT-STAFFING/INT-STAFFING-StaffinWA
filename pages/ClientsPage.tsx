@@ -8,7 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 
 /**
@@ -100,9 +100,9 @@ const ClientsPage: React.FC = () => {
                     <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
                         </div>
                     </td>
                 </tr>
@@ -113,10 +113,10 @@ const ClientsPage: React.FC = () => {
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(client)}</td>)}
                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
                         <button onClick={() => deleteClient(client.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </td>
@@ -136,9 +136,9 @@ const ClientsPage: React.FC = () => {
                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                         <div className="flex justify-end space-x-2 pt-2">
                              <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
                         </div>
                     </div>
                 </div>
@@ -152,10 +152,10 @@ const ClientsPage: React.FC = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">{client.contactEmail}</p>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
                         <button onClick={() => deleteClient(client.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </div>
@@ -192,11 +192,11 @@ const ClientsPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label htmlFor="client-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Cliente *</label>
-                            <input id="client-name" type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input"/>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Cliente *</label>
+                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div>
-                            <label htmlFor="client-sector" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Settore</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Settore</label>
                              <SearchableSelect
                                 name="sector"
                                 value={editingClient.sector}
@@ -206,8 +206,8 @@ const ClientsPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label htmlFor="client-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Contatto *</label>
-                            <input id="client-email" type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input"/>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Contatto *</label>
+                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>

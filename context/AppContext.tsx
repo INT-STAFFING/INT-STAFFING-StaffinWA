@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Evaluation } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -39,7 +39,6 @@ export interface EntitiesContextType {
     wbsTasks: WbsTask[];
     resourceRequests: ResourceRequest[];
     interviews: Interview[];
-    evaluations: Evaluation[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -76,7 +75,6 @@ export interface EntitiesContextType {
     addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
     updateInterview: (interview: Interview) => Promise<void>;
     deleteInterview: (interviewId: string) => Promise<void>;
-    saveEvaluation: (evaluatedResourceId: string, evaluatorResourceId: string, period: string, answers: { skillId: string; score: number }[]) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -84,7 +82,6 @@ export interface AllocationsContextType {
     allocations: Allocation;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
     bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
-    applyBulkUpdates: (updates: { assignmentId: string; date: string; percentage: number }[]) => Promise<void>;
 }
 
 // --- Creazione Contesti ---
@@ -132,7 +129,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
     const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
     const [interviews, setInterviews] = useState<Interview[]>([]);
-    const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -155,7 +151,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setWbsTasks(data.wbsTasks || []);
             setResourceRequests(data.resourceRequests || []);
             setInterviews(data.interviews || []);
-            setEvaluations(data.evaluations || []);
             setContracts(data.contracts || []);
             setContractProjects(data.contractProjects || []);
             setContractManagers(data.contractManagers || []);
@@ -714,39 +709,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [addToast, interviews]);
     
-    const saveEvaluation = useCallback(async (evaluatedResourceId: string, evaluatorResourceId: string, period: string, answers: { skillId: string; score: number }[]) => {
-        const actionKey = 'saveEvaluation';
-        setActionLoading(prev => new Set(prev).add(actionKey));
-        try {
-            const result = await apiFetch('/api/resources?entity=evaluations', {
-                method: 'POST',
-                body: JSON.stringify({ evaluatedResourceId, evaluatorResourceId, period, answers })
-            });
-
-            const { evaluation: savedEvaluation, updatedResource } = result;
-
-            setEvaluations(prev => {
-                const existingIndex = prev.findIndex(e => e.id === savedEvaluation.id);
-                if (existingIndex > -1) {
-                    const newEvals = [...prev];
-                    newEvals[existingIndex] = savedEvaluation;
-                    return newEvals;
-                } else {
-                    return [...prev, savedEvaluation];
-                }
-            });
-
-            setResources(prev => prev.map(r => r.id === updatedResource.id ? updatedResource : r));
-
-            addToast('Valutazione salvata con successo.', 'success');
-        } catch (error) {
-            addToast(`Errore nel salvataggio della valutazione: ${(error as Error).message}`, 'error');
-            throw error;
-        } finally {
-            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
-        }
-    }, [addToast]);
-    
     // --- Allocations-specific functions ---
 
     const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number) => {
@@ -816,40 +778,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [assignments, resources, companyCalendar, allocations, addToast]);
 
-    const applyBulkUpdates = useCallback(async (updates: { assignmentId: string; date: string; percentage: number }[]) => {
-        if (updates.length === 0) return;
-    
-        const previousAllocations = JSON.parse(JSON.stringify(allocations));
-        setAllocations(prev => {
-            const newAllocations = JSON.parse(JSON.stringify(prev));
-            updates.forEach(update => {
-                const { assignmentId, date, percentage } = update;
-                if (!newAllocations[assignmentId]) newAllocations[assignmentId] = {};
-                if (percentage === 0) {
-                    delete newAllocations[assignmentId][date];
-                    if (Object.keys(newAllocations[assignmentId]).length === 0) {
-                        delete newAllocations[assignmentId];
-                    }
-                } else {
-                    newAllocations[assignmentId][date] = percentage;
-                }
-            });
-            return newAllocations;
-        });
-    
-        try {
-            await apiFetch('/api/resources?entity=allocations', { method: 'POST', body: JSON.stringify({ updates }) });
-            addToast(`Allocazioni incollate con successo.`, 'success');
-        } catch (error) {
-            addToast(`Errore durante l'operazione incolla: ${(error as Error).message}`, 'error');
-            setAllocations(previousAllocations);
-            throw error;
-        }
-    }, [allocations, addToast]);
-
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, evaluations, loading, isActionLoading,
+        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -861,16 +792,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addWbsTask, updateWbsTask, deleteWbsTask,
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
         addInterview, updateInterview, deleteInterview,
-        saveEvaluation,
         fetchData
-    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, evaluations, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, saveEvaluation, fetchData]);
+    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,
         updateAllocation,
-        bulkUpdateAllocations,
-        applyBulkUpdates,
-    }), [allocations, updateAllocation, bulkUpdateAllocations, applyBulkUpdates]);
+        bulkUpdateAllocations
+    }), [allocations, updateAllocation, bulkUpdateAllocations]);
 
     return (
         <EntitiesContext.Provider value={entitiesContextValue}>

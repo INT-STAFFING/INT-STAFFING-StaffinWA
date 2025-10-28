@@ -7,7 +7,6 @@ import React, { useState } from 'react';
 // Fix: Import useAllocationsContext to get allocations data.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews } from '../utils/exportUtils';
-import { ArrowDownOnSquareIcon, BriefcaseIcon, CalendarDaysIcon, ClipboardDocumentListIcon, UserGroupIcon } from '../components/icons';
 
 type ExportType = 'core' | 'staffing' | 'requests' | 'interviews';
 
@@ -44,7 +43,7 @@ const ExportCard: React.FC<ExportCardProps> = ({ title, description, onExport, i
                     </>
                 ) : (
                     <>
-                        <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" />
+                        <span className="mr-2 text-xl">📥</span>
                         Scarica File
                     </>
                 )}
@@ -97,28 +96,28 @@ const ExportPage: React.FC = () => {
                     description="Esporta un file contenente Risorse, Progetti, Clienti, Ruoli, Calendario e tutte le opzioni di configurazione. Ideale per un backup completo."
                     onExport={() => handleExport('core')}
                     isExporting={exportingType === 'core'}
-                    icon={<BriefcaseIcon className="w-8 h-8"/>}
+                    icon={<span className="text-3xl">💼</span>}
                 />
                 <ExportCard
                     title="Staffing"
                     description="Esporta la griglia di staffing con le allocazioni giornaliere. Utile per modifiche massicce e re-importazione delle allocazioni."
                     onExport={() => handleExport('staffing')}
                     isExporting={exportingType === 'staffing'}
-                    icon={<CalendarDaysIcon className="w-8 h-8"/>}
+                    icon={<span className="text-3xl">🗓️</span>}
                 />
                  <ExportCard
                     title="Richieste Risorse"
                     description="Esporta l'elenco completo di tutte le richieste di risorse aperte e chiuse, con tutti i dettagli associati."
                     onExport={() => handleExport('requests')}
                     isExporting={exportingType === 'requests'}
-                    icon={<ClipboardDocumentListIcon className="w-8 h-8"/>}
+                    icon={<span className="text-3xl">📋</span>}
                 />
                  <ExportCard
                     title="Colloqui"
                     description="Esporta l'elenco completo di tutti i colloqui di selezione registrati nel sistema, inclusi feedback e stati."
                     onExport={() => handleExport('interviews')}
                     isExporting={exportingType === 'interviews'}
-                    icon={<UserGroupIcon className="w-8 h-8"/>}
+                    icon={<span className="text-3xl">👥</span>}
                 />
             </div>
         </div>

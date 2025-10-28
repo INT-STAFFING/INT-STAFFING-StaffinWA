@@ -26,8 +26,7 @@ const toCamelCase = (obj: any): any => {
 const EXPORT_TABLE_WHITELIST = [
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
     'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
-    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations',
-    'evaluations', 'evaluation_answers'
+    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations'
 ];
 
 const pgSchema = [
@@ -50,9 +49,7 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`,
     `CREATE TABLE IF NOT EXISTS contract_projects ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, project_id) );`,
     `CREATE TABLE IF NOT EXISTS contract_managers ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, resource_id) );`,
-    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`,
-    `CREATE TABLE IF NOT EXISTS evaluations ( id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), evaluated_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, evaluator_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, period VARCHAR(255) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, UNIQUE(evaluated_resource_id, evaluator_resource_id, period) );`,
-    `CREATE TABLE IF NOT EXISTS evaluation_answers ( id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), evaluation_id UUID REFERENCES evaluations(id) ON DELETE CASCADE, skill_id VARCHAR(255) NOT NULL, score INT NOT NULL, UNIQUE(evaluation_id, skill_id) );`
+    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`
 ];
 
 const translateToMysql = (pgStatement: string) => {
@@ -573,86 +570,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
         
-        // --- GESTORE ENTITÀ: EVALUATIONS ---
-        case 'evaluations':
-            if (method !== 'POST') {
-                res.setHeader('Allow', ['POST']);
-                return res.status(405).end(`Method ${method} Not Allowed`);
-            }
-            const evalClient = await db.connect();
-            try {
-                await evalClient.query('BEGIN');
-                const { evaluatedResourceId, evaluatorResourceId, period, answers } = req.body;
-
-                // Upsert evaluation
-                const { rows } = await evalClient.query(`
-                    INSERT INTO evaluations (evaluated_resource_id, evaluator_resource_id, period)
-                    VALUES ($1, $2, $3)
-                    ON CONFLICT (evaluated_resource_id, evaluator_resource_id, period)
-                    DO UPDATE SET created_at = CURRENT_TIMESTAMP
-                    RETURNING id;
-                `, [evaluatedResourceId, evaluatorResourceId, period]);
-                
-                const evaluationId = rows[0].id;
-
-                // Delete old answers and insert new ones
-                await evalClient.query('DELETE FROM evaluation_answers WHERE evaluation_id = $1', [evaluationId]);
-                if (answers && answers.length > 0) {
-                    for (const answer of answers) {
-                        await evalClient.query(
-                            'INSERT INTO evaluation_answers (evaluation_id, skill_id, score) VALUES ($1, $2, $3)',
-                            [evaluationId, answer.skillId, answer.score]
-                        );
-                    }
-                }
-
-                // Recalculate average score for the resource
-                const avgScoreRes = await evalClient.query(`
-                    SELECT AVG(ea.score) as average_score
-                    FROM evaluation_answers ea
-                    JOIN evaluations e ON ea.evaluation_id = e.id
-                    WHERE e.evaluated_resource_id = $1;
-                `, [evaluatedResourceId]);
-                
-                const averageScore = avgScoreRes.rows[0].average_score || 0;
-
-                await evalClient.query('UPDATE resources SET average_score = $1 WHERE id = $2', [averageScore, evaluatedResourceId]);
-
-                await evalClient.query('COMMIT');
-                
-                // Fetch the full evaluation to return
-                const newEvaluationRes = await db.sql`
-                    SELECT
-                        e.id,
-                        e.evaluated_resource_id,
-                        e.evaluator_resource_id,
-                        e.period,
-                        e.created_at,
-                        COALESCE(
-                            (SELECT json_agg(json_build_object('skillId', ea.skill_id, 'score', ea.score))
-                             FROM evaluation_answers ea
-                             WHERE ea.evaluation_id = e.id),
-                            '[]'::json
-                        ) as answers
-                    FROM evaluations e
-                    WHERE e.id = ${evaluationId}
-                `;
-                const newEvaluation = toCamelCase(newEvaluationRes.rows[0]);
-                if (newEvaluation.answers) {
-                    newEvaluation.answers = newEvaluation.answers.filter((a: any) => a.skillId !== null);
-                }
-                
-                const updatedResourceRes = await db.sql`SELECT * FROM resources WHERE id = ${evaluatedResourceId}`;
-
-                return res.status(200).json({ evaluation: newEvaluation, updatedResource: toCamelCase(updatedResourceRes.rows[0]) });
-            } catch (error) {
-                await evalClient.query('ROLLBACK');
-                console.error('Error saving evaluation:', error);
-                return res.status(500).json({ error: (error as Error).message });
-            } finally {
-                evalClient.release();
-            }
-
         // --- GESTORE ENTITÀ: ASSEGNAZIONI (MERGED) ---
         case 'assignments':
             switch (method) {
@@ -737,8 +654,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 'clients', 'roles', 'resources', 'projects', 'assignments', 'allocations',
                 'company_calendar', 'wbs_tasks', 'resource_requests', 'interviews', 'horizontals',
                 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
-                'contracts', 'contract_projects', 'contract_managers',
-                'evaluations', 'evaluation_answers'
+                'contracts', 'contract_projects', 'contract_managers'
             ];
             
             if (typeof table === 'string' && !TABLE_WHITELIST.includes(table)) {

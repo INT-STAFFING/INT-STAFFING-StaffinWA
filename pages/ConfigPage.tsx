@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { ConfigOption } from '../types';
 import Modal from '../components/Modal';
-import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 
 /** @type ConfigType - Definisce i tipi di configurazione gestibili. */
 type ConfigType = 'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations';
@@ -94,10 +94,10 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                         <span className="text-sm text-gray-800 dark:text-gray-200">{option.value}</span>
                         <div>
                             <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1" title="Modifica">
-                                <PencilIcon className="w-4 h-4" />
+                                <span className="text-lg">✏️</span>
                             </button>
                             <button onClick={() => deleteConfigOption(configType, option.id!)} disabled={isDeleting} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 disabled:opacity-50" title="Elimina">
-                                {isDeleting ? <SpinnerIcon className="w-4 h-4" /> : <TrashIcon className="w-4 h-4" />}
+                                {isDeleting ? <SpinnerIcon className="w-4 h-4" /> : <span className="text-lg">🗑️</span>}
                             </button>
                         </div>
                     </li>
@@ -106,9 +106,8 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
              {editingOption && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingOption ? `Modifica ${title}` : `Aggiungi ${title}`}>
                      <form onSubmit={handleSubmit}>
-                        <label htmlFor="config-value-input" className="block text-sm font-medium mb-2">Valore *</label>
+                        <label className="block text-sm font-medium mb-2">Valore *</label>
                         <input
-                            id="config-value-input"
                             type="text"
                             value={editingOption.value}
                             onChange={handleChange}

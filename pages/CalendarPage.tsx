@@ -8,7 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { CalendarEvent, CalendarEventType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 
 /**
  * Formatta una data per la visualizzazione.
@@ -133,9 +133,9 @@ const CalendarPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{event.location || 'Tutte'}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex items-center justify-end space-x-3">
-                                        <button onClick={() => openModalForEdit(event)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                        <button onClick={() => openModalForEdit(event)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                                         <button onClick={() => deleteCalendarEvent(event.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                                            {isActionLoading(`deleteCalendarEvent-${event.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <TrashIcon className="w-5 h-5" />}
+                                            {isActionLoading(`deleteCalendarEvent-${event.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="text-xl">🗑️</span>}
                                         </button>
                                     </div>
                                 </td>
@@ -148,25 +148,22 @@ const CalendarPage: React.FC = () => {
             {editingEvent && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingEvent ? 'Modifica Evento' : 'Aggiungi Evento'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="event-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome evento *</label>
-                            <input id="event-name" type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input" placeholder="es. Natale"/>
-                        </div>
+                        <input type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input" placeholder="Nome evento (es. Natale) *"/>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="event-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
-                                <input id="event-date" type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
+                                <input type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
                             </div>
                             <div>
-                                <label htmlFor="event-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Evento</label>
-                                <select id="event-type" name="type" value={editingEvent.type} onChange={handleChange} className="form-select w-full">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Evento</label>
+                                <select name="type" value={editingEvent.type} onChange={handleChange} className="form-select w-full">
                                     {eventTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
                             </div>
                         </div>
                         {editingEvent.type === 'LOCAL_HOLIDAY' && (
                             <div>
-                                 <label htmlFor="event-location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede</label>
+                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede</label>
                                 <SearchableSelect
                                     name="location"
                                     value={editingEvent.location || ''}

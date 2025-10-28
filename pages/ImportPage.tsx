@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { ArrowUpOnSquareIcon, ArrowDownOnSquareIcon } from '../components/icons';
 import { exportTemplate } from '../utils/exportUtils';
 
 type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews';
@@ -130,7 +129,7 @@ const ImportPage: React.FC = () => {
                         onClick={() => exportTemplate(importType)}
                         className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-md shadow-sm hover:bg-gray-700 transition-colors duration-200"
                     >
-                        <ArrowDownOnSquareIcon className="w-5 h-5 mr-2" />
+                        <span className="mr-2 text-xl">📥</span>
                         Scarica Template
                     </button>
                 </div>
@@ -162,7 +161,7 @@ const ImportPage: React.FC = () => {
                                 </>
                             ) : (
                                 <>
-                                    <ArrowUpOnSquareIcon className="w-5 h-5 mr-2" />
+                                    <span className="mr-2 text-xl">📤</span>
                                     Importa Dati
                                 </>
                             )}

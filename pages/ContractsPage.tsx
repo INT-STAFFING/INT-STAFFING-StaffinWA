@@ -8,7 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Contract, Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, SpinnerIcon, ArrowPathIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -146,17 +146,17 @@ const ContractsPage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(contract)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                     <button 
                         onClick={() => recalculateContractBacklog(contract.id!)} 
                         className="text-gray-500 hover:text-blue-600" 
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
                     >
-                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <ArrowPathIcon className="w-5 h-5"/>}
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
                     </button>
                     <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
             </td>
@@ -172,17 +172,17 @@ const ContractsPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground">CIG: {contract.cig}</p>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                      <button 
                         onClick={() => recalculateContractBacklog(contract.id!)} 
                         className="text-gray-500 hover:text-blue-600" 
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
                     >
-                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <ArrowPathIcon className="w-5 h-5"/>}
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
                     </button>
                     <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
             </div>

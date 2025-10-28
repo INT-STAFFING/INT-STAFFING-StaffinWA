@@ -6,7 +6,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ChartBarIcon, CalendarDaysIcon, UsersIcon, BriefcaseIcon, BuildingOfficeIcon, TagIcon, ArrowDownOnSquareIcon, Cog6ToothIcon, ArrowUpOnSquareIcon, XMarkIcon, PresentationChartLineIcon, Bars4Icon, CalendarIcon, UserGroupIcon, InformationCircleIcon, ArrowLeftOnRectangleIcon, ClipboardDocumentListIcon, DocumentDuplicateIcon, ChartPieIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -62,95 +61,91 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <div className="flex items-center justify-between h-20 shadow-md px-4">
                 <h1 className="text-2xl font-bold tracking-wider">Staffing App</h1>
                  <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white">
-                    <XMarkIcon className="w-6 h-6" />
+                    <span className="text-xl">❌</span>
                 </button>
             </div>
             <nav className="flex-1 flex flex-col px-2 py-4 space-y-2 overflow-y-auto">
                 <div>
                     <NavLink to="/staffing" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <CalendarDaysIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">🗓️</span>
                         Staffing
                     </NavLink>
                     <NavLink to="/workload" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <UserGroupIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">👥</span>
                         Carico Risorse
                     </NavLink>
                     <NavLink to="/dashboard" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <ChartBarIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📊</span>
                         Dashboard
                     </NavLink>
 
                     <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Analisi</div>
                     <NavLink to="/forecasting" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <PresentationChartLineIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📈</span>
                         Forecasting
                     </NavLink>
                     <NavLink to="/gantt" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <Bars4Icon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📏</span>
                         Gantt Progetti
                     </NavLink>
                     <NavLink to="/reports" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <InformationCircleIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📄</span>
                         Report
                     </NavLink>
                     <NavLink to="/staffing-visualization" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <ChartPieIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">🎨</span>
                         Visualizzazione
                     </NavLink>
                     
                     <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>
                     <NavLink to="/resource-requests" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <ClipboardDocumentListIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📋</span>
                         Richiesta Risorse
                     </NavLink>
-                     <NavLink to="/competenze" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <ClipboardDocumentListIcon className="w-6 h-6 mr-3" />
-                        Competenze
-                    </NavLink>
                     <NavLink to="/interviews" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <UserGroupIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">💬</span>
                         Gestione Colloqui
                     </NavLink>
                     <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <UsersIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">👥</span>
                         Risorse
                     </NavLink>
                     <NavLink to="/projects" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <BriefcaseIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">💼</span>
                         Progetti
                     </NavLink>
                     <NavLink to="/contracts" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <DocumentDuplicateIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📜</span>
                         Contratti
                     </NavLink>
                     <NavLink to="/clients" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <BuildingOfficeIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">🏢</span>
                         Clienti
                     </NavLink>
                     <NavLink to="/roles" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <TagIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">🏷️</span>
                         Ruoli
                     </NavLink>
                      <NavLink to="/calendar" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <CalendarIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📅</span>
                         Calendario
                     </NavLink>
                      <NavLink to="/manuale-utente" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <InformationCircleIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">ℹ️</span>
                         Manuale Utente
                     </NavLink>
                      <NavLink to="/config" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <Cog6ToothIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">⚙️</span>
                         Config
                     </NavLink>
 
                      <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dati</div>
                      <NavLink to="/export" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <ArrowDownOnSquareIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📥</span>
                         Esporta Dati
                     </NavLink>
                     <NavLink to="/import" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <ArrowUpOnSquareIcon className="w-6 h-6 mr-3" />
+                        <span className="mr-3 text-xl w-6 text-center">📤</span>
                         Importa Dati
                     </NavLink>
                     
@@ -158,11 +153,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         <>
                             <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amministrazione</div>
                             <NavLink to="/admin-settings" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                                <Cog6ToothIcon className="w-6 h-6 mr-3" />
+                                <span className="mr-3 text-xl w-6 text-center">⚙️</span>
                                 Impostazioni Admin
                             </NavLink>
                             <NavLink to="/db-inspector" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                                <InformationCircleIcon className="w-6 h-6 mr-3" />
+                                <span className="mr-3 text-xl w-6 text-center">🔍</span>
                                 Database Inspector
                             </NavLink>
                         </>
@@ -177,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                             onClick={logout}
                             className="flex items-center w-full px-4 py-3 text-red-400 rounded-md hover:bg-red-700/50 hover:text-white transition-colors duration-200"
                         >
-                            <ArrowLeftOnRectangleIcon className="w-6 h-6 mr-3" />
+                            <span className="mr-3 text-xl w-6 text-center">🚪</span>
                             Logout
                         </button>
                     </div>

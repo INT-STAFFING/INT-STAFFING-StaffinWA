@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
-import { SpinnerIcon, PencilIcon, CheckIcon, XMarkIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 interface Column {
@@ -328,12 +328,12 @@ const DbInspectorPage: React.FC = () => {
                                         {editingRowId === row.id ? (
                                             <div className="flex items-center justify-end space-x-2">
                                                 <button onClick={handleSave} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                                                 </button>
-                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-gray-500 hover:text-gray-400 disabled:opacity-50"><XMarkIcon className="w-5 h-5"/></button>
+                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-gray-500 hover:text-gray-400 disabled:opacity-50"><span className="text-xl">❌</span></button>
                                             </div>
                                         ) : (
-                                            <button onClick={() => handleEdit(row)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                                            <button onClick={() => handleEdit(row)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                                         )}
                                     </td>
                                 </tr>

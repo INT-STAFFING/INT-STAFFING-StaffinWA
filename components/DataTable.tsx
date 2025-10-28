@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { ArrowsUpDownIcon } from './icons';
 
 /**
  * @interface ColumnDef
@@ -111,7 +110,7 @@ export function DataTable<T extends { id?: string }>({
             {key ? (
                 <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
                     <span className={sortConfig?.key === key ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
-                    <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-400">↕️</span>
                 </button>
             ) : (
                 <span>{label}</span>

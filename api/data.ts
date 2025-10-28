@@ -1,13 +1,19 @@
 /**
  * @file api/data.ts
- * @description Endpoint API per il caricamento di tutti i dati iniziali dell'applicazione.
+ * @description Endpoint API per recuperare tutti i dati iniziali necessari all'applicazione con una singola richiesta.
  */
 
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+// Fix: Import WbsTask type
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract } from '../types';
 
-// Utility to convert snake_case to camelCase
+/**
+ * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
+ * @param {any} obj - L'oggetto da convertire.
+ * @returns {any} Il nuovo oggetto con chiavi in camelCase.
+ */
 const toCamelCase = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
         return obj;
@@ -17,102 +23,130 @@ const toCamelCase = (obj: any): any => {
     }
     const newObj: any = {};
     for (const key in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, key)) {
-            const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
-            newObj[newKey] = toCamelCase(obj[key]);
-        }
+        const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
+        newObj[newKey] = obj[key];
     }
     return newObj;
-};
+}
 
-
+/**
+ * Gestore della richiesta API per l'endpoint /api/data.
+ * Risponde solo a richieste GET.
+ * Assicura che le tabelle del database esistano, poi recupera e restituisce tutti i dati necessari.
+ * @param {VercelRequest} req - L'oggetto della richiesta Vercel.
+ * @param {VercelResponse} res - L'oggetto della risposta Vercel.
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
         res.setHeader('Allow', ['GET']);
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
-
     try {
+        // Assicura che lo schema del database sia creato prima di recuperare i dati.
+        // Questo rende l'app resiliente a database vuoti su nuovi deployment.
         await ensureDbTablesExist(db);
 
+        // Esegue tutte le query in parallelo per efficienza.
         const [
-            clients, roles, resources, projects, assignments,
-            horizontals, seniorityLevels, projectStatuses, clientSectors, locations,
-            companyCalendar, wbsTasks, resourceRequests, interviews,
-            contracts, contractProjects, contractManagers, allocationsResult,
-            evaluationsWithAnswers
+            clientsRes,
+            rolesRes,
+            resourcesRes,
+            projectsRes,
+            assignmentsRes,
+            allocationsRes,
+            horizontalsRes,
+            seniorityLevelsRes,
+            projectStatusesRes,
+            clientSectorsRes,
+            locationsRes,
+            calendarRes,
+            // Fix: Fetch WBS tasks
+            wbsTasksRes,
+            resourceRequestsRes,
+            interviewsRes,
+            contractsRes,
+            contractProjectsRes,
+            contractManagersRes
         ] = await Promise.all([
-            db.sql`SELECT * FROM clients ORDER BY name`.then(result => result.rows),
-            db.sql`SELECT * FROM roles ORDER BY name`.then(result => result.rows),
-            db.sql`SELECT * FROM resources ORDER BY name`.then(result => result.rows),
-            db.sql`SELECT * FROM projects ORDER BY name`.then(result => result.rows),
-            db.sql`SELECT * FROM assignments`.then(result => result.rows),
-            db.sql`SELECT * FROM horizontals ORDER BY value`.then(result => result.rows),
-            db.sql`SELECT * FROM seniority_levels ORDER BY value`.then(result => result.rows),
-            db.sql`SELECT * FROM project_statuses ORDER BY value`.then(result => result.rows),
-            db.sql`SELECT * FROM client_sectors ORDER BY value`.then(result => result.rows),
-            db.sql`SELECT * FROM locations ORDER BY value`.then(result => result.rows),
-            db.sql`SELECT * FROM company_calendar ORDER BY date`.then(result => result.rows),
-            db.sql`SELECT * FROM wbs_tasks ORDER BY elemento_wbs`.then(result => result.rows),
-            db.sql`SELECT * FROM resource_requests ORDER BY start_date`.then(result => result.rows),
-            db.sql`SELECT * FROM interviews ORDER BY created_at DESC`.then(result => result.rows),
-            db.sql`SELECT * FROM contracts ORDER BY name`.then(result => result.rows),
-            db.sql`SELECT * FROM contract_projects`.then(result => result.rows),
-            db.sql`SELECT * FROM contract_managers`.then(result => result.rows),
-            db.sql`SELECT * FROM allocations`.then(result => result.rows),
-            db.sql`
-                SELECT
-                    e.id,
-                    e.evaluated_resource_id,
-                    e.evaluator_resource_id,
-                    e.period,
-                    e.created_at,
-                    COALESCE(
-                        (SELECT json_agg(json_build_object('skillId', ea.skill_id, 'score', ea.score))
-                         FROM evaluation_answers ea
-                         WHERE ea.evaluation_id = e.id),
-                        '[]'::json
-                    ) as answers
-                FROM evaluations e
-            `.then(result => result.rows),
+            db.sql`SELECT * FROM clients;`,
+            db.sql`SELECT * FROM roles;`,
+            db.sql`SELECT * FROM resources;`,
+            db.sql`SELECT * FROM projects;`,
+            db.sql`SELECT * FROM assignments;`,
+            db.sql`SELECT * FROM allocations;`,
+            db.sql`SELECT * FROM horizontals;`,
+            db.sql`SELECT * FROM seniority_levels;`,
+            db.sql`SELECT * FROM project_statuses;`,
+            db.sql`SELECT * FROM client_sectors;`,
+            db.sql`SELECT * FROM locations;`,
+            db.sql`SELECT * FROM company_calendar;`,
+            // Fix: Fetch WBS tasks
+            db.sql`SELECT * FROM wbs_tasks;`,
+            db.sql`SELECT * FROM resource_requests;`,
+            db.sql`SELECT * FROM interviews;`,
+            db.sql`SELECT * FROM contracts;`,
+            db.sql`SELECT * FROM contract_projects;`,
+            db.sql`SELECT * FROM contract_managers;`,
         ]);
 
-        const allocations = allocationsResult.reduce((acc: any, row: any) => {
+        // Trasforma la lista di allocazioni dal formato tabellare del DB
+        // al formato annidato { assignmentId: { date: percentage } } usato dal frontend.
+        const allocations: Allocation = {};
+        allocationsRes.rows.forEach(row => {
             const { assignment_id, allocation_date, percentage } = row;
-            if (!acc[assignment_id]) {
-                acc[assignment_id] = {};
-            }
-            // Ensure date is in YYYY-MM-DD format without time
             const dateStr = new Date(allocation_date).toISOString().split('T')[0];
-            acc[assignment_id][dateStr] = percentage;
-            return acc;
-        }, {});
+            if (!allocations[assignment_id]) {
+                allocations[assignment_id] = {};
+            }
+            allocations[assignment_id][dateStr] = percentage;
+        });
 
+        // Formatta le date del calendario
+        const companyCalendar = calendarRes.rows.map(row => {
+            const event = toCamelCase(row);
+            if (event.date) {
+                event.date = new Date(event.date).toISOString().split('T')[0];
+            }
+            return event;
+        }) as CalendarEvent[];
+
+
+        // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
         const data = {
-            clients: toCamelCase(clients),
-            roles: toCamelCase(roles),
-            resources: toCamelCase(resources),
-            projects: toCamelCase(projects),
-            assignments: toCamelCase(assignments),
+            clients: clientsRes.rows.map(toCamelCase) as Client[],
+            roles: rolesRes.rows.map(toCamelCase) as Role[],
+            resources: resourcesRes.rows.map(toCamelCase) as Resource[],
+            projects: projectsRes.rows.map(row => {
+                const project = toCamelCase(row);
+                if (project.startDate) project.startDate = new Date(project.startDate).toISOString().split('T')[0];
+                if (project.endDate) project.endDate = new Date(project.endDate).toISOString().split('T')[0];
+                return project;
+            }) as Project[],
+            assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
             allocations,
-            horizontals: toCamelCase(horizontals),
-            seniorityLevels: toCamelCase(seniorityLevels),
-            projectStatuses: toCamelCase(projectStatuses),
-            clientSectors: toCamelCase(clientSectors),
-            locations: toCamelCase(locations),
-            companyCalendar: toCamelCase(companyCalendar),
-            wbsTasks: toCamelCase(wbsTasks),
-            resourceRequests: toCamelCase(resourceRequests),
-            interviews: toCamelCase(interviews),
-            evaluations: toCamelCase(evaluationsWithAnswers.map(e => ({...e, answers: e.answers.filter((a: any) => a.skillId !== null)}))),
-            contracts: toCamelCase(contracts),
-            contractProjects: toCamelCase(contractProjects),
-            contractManagers: toCamelCase(contractManagers)
+            horizontals: horizontalsRes.rows as ConfigOption[],
+            seniorityLevels: seniorityLevelsRes.rows as ConfigOption[],
+            projectStatuses: projectStatusesRes.rows as ConfigOption[],
+            clientSectors: clientSectorsRes.rows as ConfigOption[],
+            locations: locationsRes.rows as ConfigOption[],
+            companyCalendar,
+            // Fix: Add wbsTasks to the response
+            wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
+            resourceRequests: resourceRequestsRes.rows.map(toCamelCase) as ResourceRequest[],
+            interviews: interviewsRes.rows.map(toCamelCase) as Interview[],
+            contracts: contractsRes.rows.map(row => {
+                const contract = toCamelCase(row);
+                if (contract.startDate) contract.startDate = new Date(contract.startDate).toISOString().split('T')[0];
+                if (contract.endDate) contract.endDate = new Date(contract.endDate).toISOString().split('T')[0];
+                return contract;
+            }) as Contract[],
+            contractProjects: contractProjectsRes.rows.map(toCamelCase),
+            contractManagers: contractManagersRes.rows.map(toCamelCase),
         };
 
-        res.status(200).json(data);
+        return res.status(200).json(data);
     } catch (error) {
-        console.error('Failed to fetch initial data:', error);
-        res.status(500).json({ error: 'Failed to fetch initial application data.', details: (error as Error).message });
+        console.error('Failed to fetch all data:', error);
+        return res.status(500).json({ error: 'Failed to fetch data' });
     }
 }

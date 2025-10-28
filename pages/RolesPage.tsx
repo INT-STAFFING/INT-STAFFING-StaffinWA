@@ -8,7 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 
 const formatCurrency = (value: number | undefined): string => {
@@ -105,9 +105,9 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
                         <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><XMarkIcon className="w-5 h-5"/></button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
                     </div></td>
                 </tr>
             );
@@ -117,10 +117,10 @@ const RolesPage: React.FC = () => {
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(role)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
                         <button onClick={() => deleteRole(role.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </td>
@@ -141,9 +141,9 @@ const RolesPage: React.FC = () => {
                         <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                         <div className="flex justify-end space-x-2 pt-2">
                              <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <CheckIcon className="w-5 h-5"/>}
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><XMarkIcon className="w-5 h-5"/></button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
                         </div>
                     </div>
                 </div>
@@ -157,10 +157,10 @@ const RolesPage: React.FC = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">{role.seniorityLevel}</p>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(role)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-gray-500 hover:text-green-600"><PencilIcon className="w-5 h-5"/></button>
+                        <button onClick={() => openModalForEdit(role)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
                         <button onClick={() => deleteRole(role.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </div>
@@ -199,21 +199,21 @@ const RolesPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label htmlFor="role-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Ruolo *</label>
-                            <input id="role-name" type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input"/>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Ruolo *</label>
+                            <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div>
-                            <label htmlFor="role-seniority" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Livello Seniority *</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Livello Seniority *</label>
                             <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" required />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="role-dailyCost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
-                                <input id="role-dailyCost" type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
+                                <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
                             </div>
                             <div>
-                                <label htmlFor="role-standardCost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
-                                <input id="role-standardCost" type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input"/>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
+                                <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input"/>
                             </div>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">

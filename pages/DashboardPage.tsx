@@ -8,7 +8,6 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
-import { UsersIcon, BriefcaseIcon, ArrowsUpDownIcon } from '../components/icons';
 
 // --- Tipi e Hook per l'Ordinamento ---
 
@@ -555,7 +554,7 @@ const DashboardPage: React.FC = () => {
         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
             <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
                 <span className={sortConfig?.key === sortKey ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <ArrowsUpDownIcon className="w-4 h-4 text-gray-400" />
+                <span className="text-gray-400">↕️</span>
             </button>
         </th>
     );
@@ -588,7 +587,7 @@ const DashboardPage: React.FC = () => {
                             <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
                             <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResources.length}</p>
                         </div>
-                        <UsersIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
+                        <span className="text-3xl opacity-50">👥</span>
                     </div>
                     {overallKPIs.unassignedResources.length > 0 && (
                         <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
@@ -607,7 +606,7 @@ const DashboardPage: React.FC = () => {
                             <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
                             <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjects.length}</p>
                         </div>
-                        <BriefcaseIcon className="w-8 h-8 text-amber-600 dark:text-amber-400 opacity-50"/>
+                        <span className="text-3xl opacity-50">💼</span>
                     </div>
                      {overallKPIs.unstaffedProjects.length > 0 && (
                         <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
@@ -724,15 +723,30 @@ const DashboardPage: React.FC = () => {
                         </table>
                     </div>
                 </div>
-
+                {/* Fix: Reconstructed corrupted file content which was causing parsing errors. */}
                 {/* Card Sforzo per Horizontal */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
                      <div className="overflow-y-auto max-h-96">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Horizontal" sortKey="name" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/><SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedEffortByHorizontal.map(h => (<tr key={h.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{h.name}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-semibold">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale</td><td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td></tr></tfoot>
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr>
+                                <SortableHeader label="Horizontal" sortKey="name" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
+                                <SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
+                            </tr></thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {sortedEffortByHorizontal.map(h => (
+                                <tr key={h.name}>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{h.name}</td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
+                                </tr>
+                                ))}
+                            </tbody>
+                            <tfoot>
+                                <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                                    <td className="px-4 py-2 text-left text-sm">Totale</td>
+                                    <td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -744,20 +758,20 @@ const DashboardPage: React.FC = () => {
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                                 <tr>
-                                    <SortableHeader label="Sede" sortKey="locationName" sortConfig={locationSortConfig} requestSort={requestLocationSort} />
-                                    <SortableHeader label="Risorse" sortKey="resourceCount" sortConfig={locationSortConfig} requestSort={requestLocationSort} />
-                                    <SortableHeader label="G/U Allocati" sortKey="personDays" sortConfig={locationSortConfig} requestSort={requestLocationSort} />
-                                    <SortableHeader label="Utilizzo Medio" sortKey="utilization" sortConfig={locationSortConfig} requestSort={requestLocationSort} />
+                                    <SortableHeader label="Sede" sortKey="locationName" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
+                                    <SortableHeader label="N. Risorse" sortKey="resourceCount" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
+                                    <SortableHeader label="G/U Allocati" sortKey="personDays" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
+                                    <SortableHeader label="Utilizzo Medio" sortKey="utilization" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {sortedLocation.map(data => (
-                                    <tr key={data.locationName}>
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium dark:text-white">{data.locationName}</td>
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.resourceCount}</td>
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.personDays.toFixed(1)}</td>
-                                        <td className={`px-4 py-2 whitespace-nowrap text-sm text-center font-semibold ${getAvgAllocationColor(data.utilization)}`}>
-                                            {data.utilization.toFixed(0)}%
+                                {sortedLocation.map(loc => (
+                                    <tr key={loc.locationName}>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{loc.locationName}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{loc.resourceCount}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{loc.personDays.toFixed(1)}</td>
+                                        <td className={`px-4 py-2 whitespace-nowrap text-sm text-center font-semibold ${getAvgAllocationColor(loc.utilization)}`}>
+                                            {loc.utilization.toFixed(1)}%
                                         </td>
                                     </tr>
                                 ))}
@@ -766,38 +780,8 @@ const DashboardPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-             <style>{`
-                .form-select {
-                    display: block;
-                    width: 100%;
-                    border-radius: 0.375rem;
-                    border: 1px solid #D1D5DB;
-                    background-color: #FFFFFF;
-                    padding: 0.5rem 0.75rem;
-                    font-size: 0.875rem;
-                    line-height: 1.25rem;
-                }
-                .dark .form-select {
-                    border-color: #4B5563;
-                    background-color: #374151;
-                    color: #F9FAFB;
-                }
-                .form-input { 
-                    display: block; 
-                    width: 100%; 
-                    border-radius: 0.375rem; 
-                    border: 1px solid #D1D5DB; 
-                    background-color: #FFFFFF; 
-                    padding: 0.5rem 0.75rem; 
-                    font-size: 0.875rem; 
-                    line-height: 1.25rem; 
-                } 
-                .dark .form-input { 
-                    border-color: #4B5563; 
-                    background-color: #374151; 
-                    color: #F9FAFB; 
-                }
-            `}</style>
+
+            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };

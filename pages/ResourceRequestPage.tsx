@@ -4,7 +4,7 @@ import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, SpinnerIcon } from '../components/icons';
+import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 // --- Types ---
@@ -211,9 +211,9 @@ const ResourceRequestPage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(request)} className="text-gray-500 hover:text-blue-600" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => openModalForEdit(request)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                     <button onClick={() => setRequestToDelete(request)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
             </td>
@@ -241,9 +241,9 @@ const ResourceRequestPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex items-center space-x-2 mt-4 md:mt-0 self-end">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Modifica"><PencilIcon className="w-5 h-5"/></button>
+                    <button onClick={() => openModalForEdit(request)} className="p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Modifica"><span className="text-xl">✏️</span></button>
                     <button onClick={() => setRequestToDelete(request)} className="p-2 text-muted-foreground hover:text-destructive rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Elimina">
-                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
+                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
             </div>
