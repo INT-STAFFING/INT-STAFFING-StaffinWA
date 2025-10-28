@@ -39,7 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             clients, roles, resources, projects, assignments,
             horizontals, seniorityLevels, projectStatuses, clientSectors, locations,
             companyCalendar, wbsTasks, resourceRequests, interviews,
-            contracts, contractProjects, contractManagers, allocationsResult
+            contracts, contractProjects, contractManagers, allocationsResult,
+            evaluationsWithAnswers
         ] = await Promise.all([
             db.sql`SELECT * FROM clients ORDER BY name`.then(result => result.rows),
             db.sql`SELECT * FROM roles ORDER BY name`.then(result => result.rows),
@@ -59,6 +60,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM contract_projects`.then(result => result.rows),
             db.sql`SELECT * FROM contract_managers`.then(result => result.rows),
             db.sql`SELECT * FROM allocations`.then(result => result.rows),
+            db.sql`
+                SELECT
+                    e.id,
+                    e.evaluated_resource_id,
+                    e.evaluator_resource_id,
+                    e.period,
+                    e.created_at,
+                    COALESCE(
+                        (SELECT json_agg(json_build_object('skillId', ea.skill_id, 'score', ea.score))
+                         FROM evaluation_answers ea
+                         WHERE ea.evaluation_id = e.id),
+                        '[]'::json
+                    ) as answers
+                FROM evaluations e
+            `.then(result => result.rows),
         ]);
 
         const allocations = allocationsResult.reduce((acc: any, row: any) => {
@@ -88,6 +104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             wbsTasks: toCamelCase(wbsTasks),
             resourceRequests: toCamelCase(resourceRequests),
             interviews: toCamelCase(interviews),
+            evaluations: toCamelCase(evaluationsWithAnswers.map(e => ({...e, answers: e.answers.filter((a: any) => a.skillId !== null)}))),
             contracts: toCamelCase(contracts),
             contractProjects: toCamelCase(contractProjects),
             contractManagers: toCamelCase(contractManagers)

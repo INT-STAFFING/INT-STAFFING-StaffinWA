@@ -35,6 +35,7 @@ const DbInspectorPage = React.lazy(() => import('./pages/DbInspectorPage'));
 const ContractsPage = React.lazy(() => import('./pages/ContractsPage'));
 const StaffingVisualizationPage = React.lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = React.lazy(() => import('./pages/UserManualPage'));
+const CompetenzePage = React.lazy(() => import('./pages/CompetenzePage'));
 
 
 /**
@@ -87,6 +88,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             case 'db-inspector': return 'Database Inspector';
             case 'staffing-visualization': return 'Visualizzazione Staffing';
             case 'manuale-utente': return 'Manuale Utente';
+            case 'competenze': return 'Valutazione Competenze';
             default: return 'Staffing Planner';
         }
     };
@@ -156,6 +158,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                             <Route path="/interviews" element={<InterviewsPage />} />
                             <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
                             <Route path="/manuale-utente" element={<UserManualPage />} />
+                            <Route path="/competenze" element={<CompetenzePage />} />
                             <Route 
                                 path="/admin-settings" 
                                 element={

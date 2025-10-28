@@ -8,10 +8,10 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { Resource } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon } from '../components/icons';
+import { PencilIcon, TrashIcon, CheckIcon, XMarkIcon, SpinnerIcon, ClipboardDocumentListIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -217,9 +217,8 @@ const ResourcesPage: React.FC = () => {
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-gray-900 dark:text-white">{r.name}</div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
-        { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.location}</span> },
         { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
-        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
+        { header: 'Punteggio Medio', sortKey: 'averageScore', cell: r => <span className="text-sm text-center font-semibold text-primary dark:text-blue-400">{r.averageScore?.toFixed(2) ?? 'N/A'}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
             r.isAssigned && !r.resigned
                 ? <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span>
@@ -237,9 +236,8 @@ const ResourcesPage: React.FC = () => {
                 <tr key={resource.id}>
                     <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
-                    <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede" /></td>
                     <td className="px-6 py-4">{columns.find(c => c.header === 'Stato')?.cell(resource)}</td>
-                    <td className="px-6 py-4">{columns.find(c => c.header === 'Ultimo Giorno')?.cell(resource)}</td>
+                    <td className="px-6 py-4 text-sm text-center">{resource.averageScore?.toFixed(2) ?? 'N/A'}</td>
                     <td className={`px-6 py-4 text-sm ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
                     <td className="px-6 py-4 text-sm text-center">{resource.activeProjects}</td>
                     <td className="px-6 py-4 text-sm text-center">{resource.seniority.toFixed(1)}</td>
@@ -257,6 +255,9 @@ const ResourcesPage: React.FC = () => {
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(resource)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
+                        <Link to={`/competenze?resourceId=${resource.id}`} className="text-gray-500 hover:text-purple-600" title="Valuta Competenze">
+                            <ClipboardDocumentListIcon className="w-5 h-5" />
+                        </Link>
                         <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><PencilIcon className="w-5 h-5"/></button>
                         <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><PencilIcon className="w-5 h-5"/></button>
                         <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
@@ -279,6 +280,9 @@ const ResourcesPage: React.FC = () => {
                         </span>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                        <Link to={`/competenze?resourceId=${resource.id}`} className="p-1 text-gray-500 hover:text-purple-600" title="Valuta Competenze">
+                            <ClipboardDocumentListIcon className="w-5 h-5" />
+                        </Link>
                         <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><PencilIcon className="w-5 h-5"/></button>
                         <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600">
                              {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <TrashIcon className="w-5 h-5"/>}
@@ -287,7 +291,7 @@ const ResourcesPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Sede</p><p className="text-gray-900 dark:text-white font-medium">{resource.location}</p></div>
+                    <div><p className="text-gray-500 dark:text-gray-400">Punteggio</p><p className="font-medium text-primary dark:text-blue-400">{resource.averageScore?.toFixed(2) ?? 'N/A'}</p></div>
                     <div>
                         <p className="text-gray-500 dark:text-gray-400">Alloc. Media</p>
                         {resource.isAssigned && !resource.resigned

@@ -78,6 +78,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100 NOT NULL;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS average_score NUMERIC(3, 2) DEFAULT 0.0;`;
 
 
     await db.sql`
@@ -227,6 +228,27 @@ export async function ensureDbTablesExist(db: VercelPool) {
         CREATE TABLE IF NOT EXISTS app_config (
             key VARCHAR(255) PRIMARY KEY,
             value VARCHAR(255) NOT NULL
+        );
+    `;
+    
+    // Evaluation System Tables
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS evaluations (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            evaluated_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            evaluator_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            period VARCHAR(255) NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(evaluated_resource_id, evaluator_resource_id, period)
+        );
+    `;
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS evaluation_answers (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            evaluation_id UUID REFERENCES evaluations(id) ON DELETE CASCADE,
+            skill_id VARCHAR(255) NOT NULL,
+            score INT NOT NULL,
+            UNIQUE(evaluation_id, skill_id)
         );
     `;
 }

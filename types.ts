@@ -77,6 +77,8 @@ export interface Resource {
     lastDayOfWork: string | null;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
+    /** @property {number} [averageScore] - Il punteggio medio delle valutazioni ricevute. */
+    averageScore?: number;
 }
 
 /**
@@ -320,4 +322,32 @@ export interface Interview {
     entryDate: string | null;
     /** @property {InterviewStatus} status - Stato del processo di selezione. */
     status: InterviewStatus;
+}
+
+/**
+ * @interface EvaluationAnswer
+ * @description Rappresenta la risposta a una singola domanda di valutazione.
+ */
+export interface EvaluationAnswer {
+    /** @property {string} skillId - L'ID univoco della competenza valutata. */
+    skillId: string;
+    /** @property {number} score - Il punteggio da 1 a 5. */
+    score: number;
+}
+
+/**
+ * @interface Evaluation
+ * @description Rappresenta una valutazione completa effettuata da un valutatore per una risorsa.
+ */
+export interface Evaluation {
+    /** @property {string} id - L'ID univoco della valutazione. */
+    id: string;
+    /** @property {string} evaluatedResourceId - ID della risorsa che viene valutata. */
+    evaluatedResourceId: string;
+    /** @property {string} evaluatorResourceId - ID della risorsa che sta effettuando la valutazione. */
+    evaluatorResourceId: string;
+    /** @property {string} period - Il periodo di riferimento della valutazione (es. "2025-H1"). */
+    period: string;
+    /** @property {EvaluationAnswer[]} answers - L'elenco delle risposte. */
+    answers: EvaluationAnswer[];
 }
