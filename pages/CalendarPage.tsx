@@ -148,22 +148,25 @@ const CalendarPage: React.FC = () => {
             {editingEvent && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingEvent ? 'Modifica Evento' : 'Aggiungi Evento'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input" placeholder="Nome evento (es. Natale) *"/>
+                        <div>
+                            <label htmlFor="event-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome evento *</label>
+                            <input id="event-name" type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input" placeholder="es. Natale"/>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
-                                <input type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
+                                <label htmlFor="event-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data</label>
+                                <input id="event-date" type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Evento</label>
-                                <select name="type" value={editingEvent.type} onChange={handleChange} className="form-select w-full">
+                                <label htmlFor="event-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Evento</label>
+                                <select id="event-type" name="type" value={editingEvent.type} onChange={handleChange} className="form-select w-full">
                                     {eventTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
                             </div>
                         </div>
                         {editingEvent.type === 'LOCAL_HOLIDAY' && (
                             <div>
-                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede</label>
+                                 <label htmlFor="event-location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede</label>
                                 <SearchableSelect
                                     name="location"
                                     value={editingEvent.location || ''}

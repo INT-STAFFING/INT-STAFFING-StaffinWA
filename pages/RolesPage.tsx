@@ -199,21 +199,21 @@ const RolesPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Ruolo *</label>
-                            <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input"/>
+                            <label htmlFor="role-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Ruolo *</label>
+                            <input id="role-name" type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Livello Seniority *</label>
+                            <label htmlFor="role-seniority" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Livello Seniority *</label>
                             <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" required />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
-                                <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
+                                <label htmlFor="role-dailyCost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
+                                <input id="role-dailyCost" type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
-                                <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input"/>
+                                <label htmlFor="role-standardCost" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
+                                <input id="role-standardCost" type="number" step="0.01" name="standardCost" value={editingRole.standardCost || ''} onChange={handleChange} className="w-full form-input"/>
                             </div>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">

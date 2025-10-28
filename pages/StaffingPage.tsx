@@ -7,12 +7,13 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Project, Assignment } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
-import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon } from '../components/icons';
+import { CalendarDaysIcon, PlusCircleIcon, XCircleIcon, DocumentDuplicateIcon, ClipboardDocumentListIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 
 /**
  * @type ViewMode
@@ -46,16 +47,38 @@ interface AllocationCellProps {
  */
 const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, date, isNonWorkingDay }) => {
     const { allocations, updateAllocation } = useAllocationsContext();
+    const { assignments, resources } = useEntitiesContext();
     const percentage = allocations[assignment.id]?.[date] || 0;
+    
+    const resource = useMemo(() => resources.find(r => r.id === assignment.resourceId), [resources, assignment.resourceId]);
+    
+    let finalIsNonWorkingDay = isNonWorkingDay;
+    if (resource && resource.lastDayOfWork && date > resource.lastDayOfWork) {
+        finalIsNonWorkingDay = true;
+    }
 
     // Se è un giorno non lavorativo, mostra una cella disabilitata con sfondo grigio.
-    if (isNonWorkingDay) {
+    if (finalIsNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
+            <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-100 dark:bg-gray-800">
                 <span className="text-sm text-gray-400">-</span>
             </td>
         );
     }
+    
+    const total = useMemo(() => {
+        if (!resource) return 0;
+        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+        return resourceAssignments.reduce((sum, a) => {
+            return sum + (allocations[a.id]?.[date] || 0);
+        }, 0);
+    }, [assignments, allocations, resource, date]);
+
+    const isOverallocated = useMemo(() => {
+        if (!resource) return false;
+        return total > resource.maxStaffingPercentage;
+    }, [resource, total]);
+
     /**
      * Gestisce la modifica del valore nel menu a tendina e chiama l'aggiornamento del contesto.
      * @param {React.ChangeEvent<HTMLSelectElement>} e - L'evento di modifica.
@@ -65,13 +88,15 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
     };
 
     const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
+    const selectClassName = `w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300 ${isOverallocated ? 'ring-2 ring-inset ring-red-500' : ''}`;
+
 
     return (
         <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
             <select
                 value={percentage}
                 onChange={handleChange}
-                className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
+                className={selectClassName}
             >
                 {percentageOptions.map(p => <option key={p} value={p}>{p > 0 ? `${p}%` : '-'}</option>)}
             </select>
@@ -171,7 +196,7 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
      if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-200 dark:bg-gray-800 text-gray-400">
                 -
             </td>
         );
@@ -288,7 +313,8 @@ const StaffingPage: React.FC = () => {
      */
     const [viewMode, setViewMode] = useState<ViewMode>('day');
     const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, companyCalendar, isActionLoading } = useEntitiesContext();
-    const { bulkUpdateAllocations } = useAllocationsContext();
+    const { allocations, bulkUpdateAllocations, applyBulkUpdates } = useAllocationsContext();
+    const { addToast } = useToast();
     
     // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);
@@ -306,6 +332,8 @@ const StaffingPage: React.FC = () => {
      * @property {string} projectManager - Nome del Project Manager selezionato.
      */
     const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
+    
+    const [clipboard, setClipboard] = useState<{ allocations: number[] } | null>(null);
 
     // --- Virtualization State and Refs ---
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -474,6 +502,59 @@ const StaffingPage: React.FC = () => {
         setFilters({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
     };
 
+    // --- Copy/Paste Logic ---
+    const handleCopyWeek = useCallback((assignment: Assignment) => {
+        const resource = resources.find(r => r.id === assignment.resourceId);
+        if (!resource) return;
+
+        const allocationsToCopy: number[] = [];
+        const firstVisibleDate = timeColumns[0].startDate;
+
+        for (let i = 0; i < 7; i++) {
+            const date = addDays(firstVisibleDate, i);
+            const dayIsHoliday = isHoliday(date, resource.location, companyCalendar);
+            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+            if (!isWeekend && !dayIsHoliday) {
+                const dateStr = formatDate(date, 'iso');
+                const percentage = allocations[assignment.id!]?.[dateStr] || 0;
+                allocationsToCopy.push(percentage);
+            }
+        }
+        setClipboard({ allocations: allocationsToCopy });
+        addToast("Allocazioni per i 7 giorni copiate.", "success");
+    }, [timeColumns, allocations, resources, companyCalendar, addToast]);
+
+    const handlePasteWeek = useCallback((assignment: Assignment) => {
+        if (!clipboard) return;
+
+        const resource = resources.find(r => r.id === assignment.resourceId);
+        if (!resource) return;
+        
+        const updates: { assignmentId: string, date: string, percentage: number }[] = [];
+        const firstVisibleDate = timeColumns[0].startDate;
+        
+        let allocationIndex = 0;
+        for (let i = 0; i < 7; i++) {
+            const date = addDays(firstVisibleDate, i);
+            const dayIsHoliday = isHoliday(date, resource.location, companyCalendar);
+            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+            if (!isWeekend && !dayIsHoliday) {
+                if (allocationIndex < clipboard.allocations.length) {
+                    const percentage = clipboard.allocations[allocationIndex];
+                    const dateStr = formatDate(date, 'iso');
+                    updates.push({ assignmentId: assignment.id!, date: dateStr, percentage });
+                    allocationIndex++;
+                }
+            }
+        }
+        
+        if (updates.length > 0) {
+            applyBulkUpdates(updates);
+        }
+    }, [clipboard, timeColumns, applyBulkUpdates, resources, companyCalendar, assignments, addToast]);
+
     // Funzioni memoizzate per trovare entità per ID, per ottimizzare le performance.
     const getResourceById = useCallback((id: string) => resources.find(r => r.id === id), [resources]);
     const getProjectById = useCallback((id: string) => projects.find(p => p.id === id), [projects]);
@@ -638,7 +719,7 @@ const StaffingPage: React.FC = () => {
                             <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Project Manager</th>
                             <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Azioni</th>
                             {timeColumns.map((col, index) => (
-                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-200 dark:bg-gray-700' : ''}`}>
                                     <div className="flex flex-col items-center">
                                         <span className={col.isNonWorkingDay ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{col.label}</span>
                                         {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
@@ -699,6 +780,18 @@ const StaffingPage: React.FC = () => {
                                                         <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
                                                             <CalendarDaysIcon className="w-5 h-5"/>
                                                         </button>
+                                                         {viewMode === 'day' && (
+                                                            <>
+                                                                <button onClick={() => handleCopyWeek(assignment)} title="Copia 7 giorni" className="text-gray-500 hover:text-blue-700 dark:hover:text-blue-300">
+                                                                    <DocumentDuplicateIcon className="w-5 h-5"/>
+                                                                </button>
+                                                                {clipboard && (
+                                                                    <button onClick={() => handlePasteWeek(assignment)} title="Incolla 7 giorni" className="text-purple-500 hover:text-purple-700 dark:hover:text-purple-300">
+                                                                        <ClipboardDocumentListIcon className="w-5 h-5"/>
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
                                                         <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
                                                             <XCircleIcon className="w-5 h-5"/>
                                                         </button>

@@ -82,6 +82,7 @@ export interface AllocationsContextType {
     allocations: Allocation;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
     bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
+    applyBulkUpdates: (updates: { assignmentId: string; date: string; percentage: number }[]) => Promise<void>;
 }
 
 // --- Creazione Contesti ---
@@ -778,6 +779,37 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [assignments, resources, companyCalendar, allocations, addToast]);
 
+    const applyBulkUpdates = useCallback(async (updates: { assignmentId: string; date: string; percentage: number }[]) => {
+        if (updates.length === 0) return;
+    
+        const previousAllocations = JSON.parse(JSON.stringify(allocations));
+        setAllocations(prev => {
+            const newAllocations = JSON.parse(JSON.stringify(prev));
+            updates.forEach(update => {
+                const { assignmentId, date, percentage } = update;
+                if (!newAllocations[assignmentId]) newAllocations[assignmentId] = {};
+                if (percentage === 0) {
+                    delete newAllocations[assignmentId][date];
+                    if (Object.keys(newAllocations[assignmentId]).length === 0) {
+                        delete newAllocations[assignmentId];
+                    }
+                } else {
+                    newAllocations[assignmentId][date] = percentage;
+                }
+            });
+            return newAllocations;
+        });
+    
+        try {
+            await apiFetch('/api/resources?entity=allocations', { method: 'POST', body: JSON.stringify({ updates }) });
+            addToast(`Allocazioni incollate con successo.`, 'success');
+        } catch (error) {
+            addToast(`Errore durante l'operazione incolla: ${(error as Error).message}`, 'error');
+            setAllocations(previousAllocations);
+            throw error;
+        }
+    }, [allocations, addToast]);
+
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
         clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
@@ -798,8 +830,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,
         updateAllocation,
-        bulkUpdateAllocations
-    }), [allocations, updateAllocation, bulkUpdateAllocations]);
+        bulkUpdateAllocations,
+        applyBulkUpdates,
+    }), [allocations, updateAllocation, bulkUpdateAllocations, applyBulkUpdates]);
 
     return (
         <EntitiesContext.Provider value={entitiesContextValue}>

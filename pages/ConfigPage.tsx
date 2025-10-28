@@ -106,8 +106,9 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
              {editingOption && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingOption ? `Modifica ${title}` : `Aggiungi ${title}`}>
                      <form onSubmit={handleSubmit}>
-                        <label className="block text-sm font-medium mb-2">Valore *</label>
+                        <label htmlFor="config-value-input" className="block text-sm font-medium mb-2">Valore *</label>
                         <input
+                            id="config-value-input"
                             type="text"
                             value={editingOption.value}
                             onChange={handleChange}

@@ -3,36 +3,39 @@
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
  */
 
-import React, { useState, useContext } from 'react';
+import React, { useState, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AppProvider, useEntitiesContext } from './context/AppContext';
+import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
-import StaffingPage from './pages/StaffingPage';
-import ResourcesPage from './pages/ResourcesPage';
-import ProjectsPage from './pages/ProjectsPage';
-import ClientsPage from './pages/ClientsPage';
-import RolesPage from './pages/RolesPage';
-import DashboardPage from './pages/DashboardPage';
-import ExportPage from './pages/ExportPage';
-import ConfigPage from './pages/ConfigPage';
-import ImportPage from './pages/ImportPage';
-import ForecastingPage from './pages/ForecastingPage';
-import GanttPage from './pages/GanttPage';
-import CalendarPage from './pages/CalendarPage';
-import WorkloadPage from './pages/WorkloadPage';
-import ReportsPage from './pages/ReportsPage';
-import LoginPage from './pages/LoginPage';
-import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova pagina Admin
-import ResourceRequestPage from './pages/ResourceRequestPage'; // Importa la nuova pagina
-import InterviewsPage from './pages/InterviewsPage'; // Importa la nuova pagina
-import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagina
-import ContractsPage from './pages/ContractsPage'; // Importa la nuova pagina dei contratti
-import StaffingVisualizationPage from './pages/StaffingVisualizationPage'; // Importa la nuova pagina di visualizzazione
-import UserManualPage from './pages/UserManualPage'; // Importa la pagina del manuale
-import { Bars3Icon } from './components/icons';
+import { Bars3Icon, SpinnerIcon } from './components/icons';
+
+// Lazy load all page components
+const StaffingPage = React.lazy(() => import('./pages/StaffingPage'));
+const ResourcesPage = React.lazy(() => import('./pages/ResourcesPage'));
+const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
+const ClientsPage = React.lazy(() => import('./pages/ClientsPage'));
+const RolesPage = React.lazy(() => import('./pages/RolesPage'));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const ExportPage = React.lazy(() => import('./pages/ExportPage'));
+const ConfigPage = React.lazy(() => import('./pages/ConfigPage'));
+const ImportPage = React.lazy(() => import('./pages/ImportPage'));
+const ForecastingPage = React.lazy(() => import('./pages/ForecastingPage'));
+const GanttPage = React.lazy(() => import('./pages/GanttPage'));
+const CalendarPage = React.lazy(() => import('./pages/CalendarPage'));
+const WorkloadPage = React.lazy(() => import('./pages/WorkloadPage'));
+const ReportsPage = React.lazy(() => import('./pages/ReportsPage'));
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const AdminSettingsPage = React.lazy(() => import('./pages/AdminSettingsPage'));
+const ResourceRequestPage = React.lazy(() => import('./pages/ResourceRequestPage'));
+const InterviewsPage = React.lazy(() => import('./pages/InterviewsPage'));
+const DbInspectorPage = React.lazy(() => import('./pages/DbInspectorPage'));
+const ContractsPage = React.lazy(() => import('./pages/ContractsPage'));
+const StaffingVisualizationPage = React.lazy(() => import('./pages/StaffingVisualizationPage'));
+const UserManualPage = React.lazy(() => import('./pages/UserManualPage'));
+
 
 /**
  * @interface HeaderProps
@@ -102,6 +105,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     );
 };
 
+const LoadingSpinner: React.FC = () => (
+    <div className="flex items-center justify-center w-full h-full">
+        <SpinnerIcon className="h-10 w-10 text-primary" />
+    </div>
+);
+
 /**
  * @interface AppContentProps
  * @description Prop per il componente AppContent.
@@ -115,68 +124,56 @@ interface AppContentProps {
 
 /**
  * Gestisce il contenuto principale dell'applicazione (le pagine).
- * Mostra un indicatore di caricamento mentre i dati vengono recuperati,
- * altrimenti renderizza l'header e le route definite.
+ * Renderizza l'header e le route definite all'interno di un boundary Suspense.
  * @param {AppContentProps} props - Le prop del componente.
  * @returns {React.ReactElement} Il contenuto principale dell'app.
  */
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
-    const { loading } = useEntitiesContext();
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center w-full h-full">
-                <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        );
-    }
-    
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
              <Header onToggleSidebar={onToggleSidebar} />
              <main className="flex-1 overflow-x-hidden overflow-y-auto bg-muted dark:bg-dark-background">
                 <div className="container mx-auto px-4 sm:px-6 py-8">
-                    <Routes>
-                        <Route path="/" element={<Navigate to="/staffing" replace />} />
-                        <Route path="/staffing" element={<StaffingPage />} />
-                        <Route path="/resources" element={<ResourcesPage />} />
-                        <Route path="/projects" element={<ProjectsPage />} />
-                        <Route path="/clients" element={<ClientsPage />} />
-                        <Route path="/roles" element={<RolesPage />} />
-                        <Route path="/contracts" element={<ContractsPage />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/forecasting" element={<ForecastingPage />} />
-                        <Route path="/workload" element={<WorkloadPage />} />
-                        <Route path="/gantt" element={<GanttPage />} />
-                        <Route path="/calendar" element={<CalendarPage />} />
-                        <Route path="/export" element={<ExportPage />} />
-                        <Route path="/import" element={<ImportPage />} />
-                        <Route path="/config" element={<ConfigPage />} />
-                        <Route path="/reports" element={<ReportsPage />} />
-                        <Route path="/resource-requests" element={<ResourceRequestPage />} />
-                        <Route path="/interviews" element={<InterviewsPage />} />
-                        <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
-                        <Route path="/manuale-utente" element={<UserManualPage />} />
-                        <Route 
-                            path="/admin-settings" 
-                            element={
-                                <AdminRoute>
-                                    <AdminSettingsPage />
-                                </AdminRoute>
-                            } 
-                        />
-                        <Route 
-                            path="/db-inspector" 
-                            element={
-                                <AdminRoute>
-                                    <DbInspectorPage />
-                                </AdminRoute>
-                            } 
-                        />
-                    </Routes>
+                    <Suspense fallback={<LoadingSpinner />}>
+                        <Routes>
+                            <Route path="/" element={<Navigate to="/staffing" replace />} />
+                            <Route path="/staffing" element={<StaffingPage />} />
+                            <Route path="/resources" element={<ResourcesPage />} />
+                            <Route path="/projects" element={<ProjectsPage />} />
+                            <Route path="/clients" element={<ClientsPage />} />
+                            <Route path="/roles" element={<RolesPage />} />
+                            <Route path="/contracts" element={<ContractsPage />} />
+                            <Route path="/dashboard" element={<DashboardPage />} />
+                            <Route path="/forecasting" element={<ForecastingPage />} />
+                            <Route path="/workload" element={<WorkloadPage />} />
+                            <Route path="/gantt" element={<GanttPage />} />
+                            <Route path="/calendar" element={<CalendarPage />} />
+                            <Route path="/export" element={<ExportPage />} />
+                            <Route path="/import" element={<ImportPage />} />
+                            <Route path="/config" element={<ConfigPage />} />
+                            <Route path="/reports" element={<ReportsPage />} />
+                            <Route path="/resource-requests" element={<ResourceRequestPage />} />
+                            <Route path="/interviews" element={<InterviewsPage />} />
+                            <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
+                            <Route path="/manuale-utente" element={<UserManualPage />} />
+                            <Route 
+                                path="/admin-settings" 
+                                element={
+                                    <AdminRoute>
+                                        <AdminSettingsPage />
+                                    </AdminRoute>
+                                } 
+                            />
+                            <Route 
+                                path="/db-inspector" 
+                                element={
+                                    <AdminRoute>
+                                        <DbInspectorPage />
+                                    </AdminRoute>
+                                } 
+                            />
+                        </Routes>
+                    </Suspense>
                 </div>
             </main>
         </div>
@@ -219,10 +216,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
     if (isAuthLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
-                <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <SpinnerIcon className="h-10 w-10 text-primary" />
             </div>
         );
     }
@@ -245,10 +239,7 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
     if (isAuthLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
-                <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <SpinnerIcon className="h-10 w-10 text-primary" />
             </div>
         );
     }
@@ -269,17 +260,19 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
  * @returns {React.ReactElement} L'applicazione completa.
  */
 const AppRoutes: React.FC = () => (
-    <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route 
-            path="/*" 
-            element={
-                <ProtectedRoute>
-                    <MainLayout />
-                </ProtectedRoute>
-            } 
-        />
-    </Routes>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><SpinnerIcon className="h-10 w-10 text-primary" /></div>}>
+        <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route 
+                path="/*" 
+                element={
+                    <ProtectedRoute>
+                        <MainLayout />
+                    </ProtectedRoute>
+                } 
+            />
+        </Routes>
+    </Suspense>
 );
 
 /**
@@ -289,13 +282,13 @@ const App: React.FC = () => {
     return (
         <ThemeProvider>
             <ToastProvider>
-                <AppProvider>
+                <BrowserRouter>
                     <AuthProvider>
-                        <BrowserRouter>
+                        <AppProvider>
                             <AppRoutes />
-                        </BrowserRouter>
+                        </AppProvider>
                     </AuthProvider>
-                </AppProvider>
+                </BrowserRouter>
             </ToastProvider>
         </ThemeProvider>
     );

@@ -192,11 +192,11 @@ const ClientsPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Cliente *</label>
-                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input"/>
+                            <label htmlFor="client-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Cliente *</label>
+                            <input id="client-name" type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Settore</label>
+                            <label htmlFor="client-sector" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Settore</label>
                              <SearchableSelect
                                 name="sector"
                                 value={editingClient.sector}
@@ -206,8 +206,8 @@ const ClientsPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Contatto *</label>
-                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input"/>
+                            <label htmlFor="client-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Contatto *</label>
+                            <input id="client-email" type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
