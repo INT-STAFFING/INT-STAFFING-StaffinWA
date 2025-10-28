@@ -4,12 +4,20 @@
  */
 
 import { db } from './db.js';
+import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const CONFIG_KEY = 'login_protection_enabled';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
+
+    try {
+        await ensureDbTablesExist(db);
+    } catch (error) {
+        console.error('DB schema check failed in auth-config:', error);
+        return res.status(500).json({ error: 'Database initialization failed.' });
+    }
 
     switch (method) {
         case 'GET':
