@@ -270,7 +270,7 @@ const ResourcesPage: React.FC = () => {
 
     const renderMobileCard = (resource: EnrichedResource) => {
         return (
-            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>

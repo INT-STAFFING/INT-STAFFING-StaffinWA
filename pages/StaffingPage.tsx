@@ -590,7 +590,7 @@ const StaffingPage: React.FC = () => {
 
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)]">
+        <div className="flex flex-col h-full">
             {/* Contenitore fisso per controlli e filtri */}
             <div className="flex-shrink-0">
                 {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}

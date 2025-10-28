@@ -121,6 +121,12 @@ interface AppContentProps {
  */
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     const { loading } = useEntitiesContext();
+    const location = useLocation();
+
+    // Identifica le pagine che gestiscono il proprio scroll interno e richiedono un layout a piena altezza.
+    const pagesWithInternalScroll = ['/staffing', '/workload', '/gantt', '/interviews'];
+    const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
+
 
     if (loading) {
         return (
@@ -136,8 +142,8 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
              <Header onToggleSidebar={onToggleSidebar} />
-             <main className="flex-1 overflow-x-hidden overflow-y-auto bg-muted dark:bg-dark-background">
-                <div className="container mx-auto px-4 sm:px-6 py-8">
+             <main className={`flex-1 ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'} bg-muted dark:bg-dark-background`}>
+                <div className={`container mx-auto px-4 sm:px-6 py-8 ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`}>
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />

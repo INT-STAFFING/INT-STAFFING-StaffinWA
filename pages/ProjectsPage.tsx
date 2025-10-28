@@ -224,7 +224,7 @@ const ProjectsPage: React.FC = () => {
            );
         }
         return (
-            <div key={project.id} className="p-4 rounded-lg shadow-md bg-gray-50 dark:bg-gray-900/50">
+            <div key={project.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="flex items-center gap-2">

@@ -136,7 +136,7 @@ const GanttPage: React.FC = () => {
     const clientOptions = useMemo(() => clients.sort((a,b)=>a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)]">
+        <div className="flex flex-col h-full">
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gantt Progetti</h1>
@@ -150,7 +150,7 @@ const GanttPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per progetto..."/>
                         <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>

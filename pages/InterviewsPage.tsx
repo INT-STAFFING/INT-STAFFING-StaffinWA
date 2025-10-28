@@ -258,7 +258,7 @@ const InterviewsPage: React.FC = () => {
     );
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8rem)]">
+        <div className="flex flex-col h-full">
             {/* Header fisso */}
             <div className="flex-shrink-0">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
