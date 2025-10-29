@@ -3,7 +3,7 @@
  * @description Componente generico e riutilizzabile per visualizzare dati in una tabella con ordinamento, filtri e layout responsive.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 
 /**
  * @interface ColumnDef
@@ -77,6 +77,34 @@ export function DataTable<T extends { id?: string }>({
 
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null);
 
+    const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+    const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
+
+    const handleMouseDown = useCallback((key: string, e: React.MouseEvent) => {
+        const startX = e.clientX;
+        const th = (e.target as HTMLElement).closest('th');
+        if (!th) return;
+        const startWidth = th.offsetWidth;
+        
+        const handle = resizerRef.current[key];
+        if (handle) handle.classList.add('resizing');
+
+        const handleMouseMove = (event: MouseEvent) => {
+            const deltaX = event.clientX - startX;
+            const newWidth = Math.max(startWidth + deltaX, 80); // Min width 80px
+            setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
+        };
+
+        const handleMouseUp = () => {
+            if (handle) handle.classList.remove('resizing');
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, []);
+
     const requestSort = (key: string) => {
         let direction: SortDirection = 'ascending';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -107,13 +135,23 @@ export function DataTable<T extends { id?: string }>({
 
     const getSortableHeader = (label: string, key?: string) => (
         <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
-            {key ? (
-                <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
-                    <span className={sortConfig?.key === key ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
-                    <span className="text-gray-400">↕️</span>
-                </button>
-            ) : (
-                <span>{label}</span>
+             <div className="flex items-center justify-between">
+                {key ? (
+                    <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                        <span className={sortConfig?.key === key ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
+                        <span className="text-gray-400">↕️</span>
+                    </button>
+                ) : (
+                    <span>{label}</span>
+                )}
+            </div>
+             {key && (
+                <div 
+                    // Fix: The ref callback should not return a value. Using a block statement `{}` ensures an implicit return of `undefined`.
+                    ref={el => { resizerRef.current[key] = el; }}
+                    className="resize-handle"
+                    onMouseDown={(e) => handleMouseDown(key, e)} 
+                />
             )}
         </th>
     );
@@ -132,7 +170,16 @@ export function DataTable<T extends { id?: string }>({
             <div className="bg-card dark:bg-dark-card rounded-lg shadow">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full">
+                    <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                        <colgroup>
+                            {columns.map(col => (
+                                <col
+                                    key={col.sortKey || col.header}
+                                    style={col.sortKey && columnWidths[col.sortKey] ? { width: `${columnWidths[col.sortKey]}px` } : undefined}
+                                />
+                            ))}
+                            <col style={{ width: '120px' }} /> {/* for actions column */}
+                        </colgroup>
                         <thead className="border-b border-border dark:border-dark-border">
                             <tr>
                                 {columns.map(col => getSortableHeader(col.header, col.sortKey))}
