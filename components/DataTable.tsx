@@ -76,7 +76,7 @@ export function DataTable<T extends { id?: string }>({
 }: DataTableProps<T>) {
 
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null);
-
+    
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -104,6 +104,7 @@ export function DataTable<T extends { id?: string }>({
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     }, []);
+
 
     const requestSort = (key: string) => {
         let direction: SortDirection = 'ascending';
@@ -133,28 +134,26 @@ export function DataTable<T extends { id?: string }>({
         });
     }, [data, sortConfig]);
 
-    const getSortableHeader = (label: string, key?: string) => (
-        <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
-             <div className="flex items-center justify-between">
-                {key ? (
-                    <button type="button" onClick={() => requestSort(key)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
-                        <span className={sortConfig?.key === key ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
+    const getSortableHeader = (label: string, colKey?: string) => {
+        const key = colKey || label;
+        return (
+            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+                {colKey ? (
+                    <button type="button" onClick={() => requestSort(colKey)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                        <span className={sortConfig?.key === colKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
                         <span className="text-gray-400">↕️</span>
                     </button>
                 ) : (
                     <span>{label}</span>
                 )}
-            </div>
-             {key && (
                 <div 
-                    // Fix: The ref callback should not return a value. Using a block statement `{}` ensures an implicit return of `undefined`.
                     ref={el => { resizerRef.current[key] = el; }}
                     className="resize-handle"
                     onMouseDown={(e) => handleMouseDown(key, e)} 
                 />
-            )}
-        </th>
-    );
+            </th>
+        );
+    };
 
     return (
         <div>
@@ -171,13 +170,16 @@ export function DataTable<T extends { id?: string }>({
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full" style={{ tableLayout: 'fixed' }}>
-                        <colgroup>
-                            {columns.map(col => (
-                                <col
-                                    key={col.sortKey || col.header}
-                                    style={col.sortKey && columnWidths[col.sortKey] ? { width: `${columnWidths[col.sortKey]}px` } : undefined}
-                                />
-                            ))}
+                         <colgroup>
+                            {columns.map(col => {
+                                const key = col.sortKey || col.header;
+                                return (
+                                    <col
+                                        key={key}
+                                        style={columnWidths[key] ? { width: `${columnWidths[key]}px` } : undefined}
+                                    />
+                                );
+                            })}
                             <col style={{ width: '120px' }} /> {/* for actions column */}
                         </colgroup>
                         <thead className="border-b border-border dark:border-dark-border">
