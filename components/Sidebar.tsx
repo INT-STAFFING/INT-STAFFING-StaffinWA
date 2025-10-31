@@ -78,6 +78,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         <span className="mr-3 text-xl w-6 text-center">📊</span>
                         Dashboard
                     </NavLink>
+                    <NavLink to="/resource-requests" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <span className="mr-3 text-xl w-6 text-center">📋</span>
+                        Richiesta Risorse
+                    </NavLink>
+                    <NavLink to="/interviews" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <span className="mr-3 text-xl w-6 text-center">💬</span>
+                        Gestione Colloqui
+                    </NavLink>
+                    <NavLink to="/manuale-utente" className={getNavLinkClass} onClick={handleNavLinkClick}>
+                        <span className="mr-3 text-xl w-6 text-center">ℹ️</span>
+                        Manuale Utente
+                    </NavLink>
 
                     <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Analisi</div>
                     <NavLink to="/forecasting" className={getNavLinkClass} onClick={handleNavLinkClick}>
@@ -98,14 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     </NavLink>
                     
                     <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>
-                    <NavLink to="/resource-requests" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📋</span>
-                        Richiesta Risorse
-                    </NavLink>
-                    <NavLink to="/interviews" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">💬</span>
-                        Gestione Colloqui
-                    </NavLink>
+                    
                     <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <span className="mr-3 text-xl w-6 text-center">👥</span>
                         Risorse
@@ -129,10 +134,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                      <NavLink to="/calendar" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <span className="mr-3 text-xl w-6 text-center">📅</span>
                         Calendario
-                    </NavLink>
-                     <NavLink to="/manuale-utente" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">ℹ️</span>
-                        Manuale Utente
                     </NavLink>
                      <NavLink to="/config" className={getNavLinkClass} onClick={handleNavLinkClick}>
                         <span className="mr-3 text-xl w-6 text-center">⚙️</span>
