@@ -660,8 +660,8 @@ const StaffingPage: React.FC = () => {
                                     <tr className="bg-gray-100 dark:bg-gray-900 font-bold sticky top-16 z-[5]">
                                         <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm" colSpan={3}>
                                             <div className="flex flex-col">
-                                                <Link to={`/workload?resourceId=${resource.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{resource.name}</Link>
-                                                <span className="text-xs font-normal text-gray-500">{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
+                                                <Link to={`/workload?resourceId=${resource.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300 truncate" title={resource.name}>{resource.name}</Link>
+                                                <span className="text-xs font-normal text-gray-500 truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
                                             </div>
                                         </td>
                                         <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
@@ -688,10 +688,10 @@ const StaffingPage: React.FC = () => {
                                         return (
                                             <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                                 <td className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium pl-8" style={{minWidth: '300px'}}>
-                                                    <Link to={`/projects?projectId=${project.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300">{project.name}</Link>
+                                                    <Link to={`/projects?projectId=${project.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate" title={project.name}>{project.name}</Link>
                                                 </td>
-                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{client?.name || 'N/A'}</td>
-                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{project.projectManager || 'N/A'}</td>
+                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
+                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
 
                                                 <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <div className="flex items-center justify-center space-x-2">

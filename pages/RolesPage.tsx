@@ -114,7 +114,7 @@ const RolesPage: React.FC = () => {
         }
         return (
             <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap">{col.cell(role)}</td>)}
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((role as any)[col.sortKey]) : undefined}>{col.cell(role)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
                         <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
