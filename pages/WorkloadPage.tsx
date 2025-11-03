@@ -308,7 +308,7 @@ const WorkloadPage: React.FC = () => {
                 </div>
 
                 {/* Sezione Filtri */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>

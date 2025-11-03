@@ -616,7 +616,7 @@ const StaffingPage: React.FC = () => {
                 </div>
 
                 {/* Sezione Filtri con l'aggiunta del filtro per Project Manager. */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
