@@ -324,7 +324,7 @@ const InterviewsPage: React.FC = () => {
                         <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
                     </div>
                 </div>
-                <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+                <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-20">
                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                         <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..."/>
                         <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli"/>
