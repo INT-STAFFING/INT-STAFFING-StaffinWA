@@ -6,7 +6,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 
 /**
  * @interface SidebarProps
@@ -28,7 +27,6 @@ interface SidebarProps {
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
-    const { themeMode, toggleThemeMode } = useTheme();
     const navLinkClasses = "flex items-center px-4 py-2 text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200";
     const activeNavLinkClasses = "bg-gray-700 text-white";
 
@@ -166,34 +164,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </>
                     )}
                 </div>
-                <div className="mt-auto">
-                     <button
-                        onClick={toggleThemeMode}
-                        className="flex items-center w-full px-4 py-3 text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200"
-                        title={themeMode === 'light' ? 'Passa al tema scuro' : 'Passa al tema chiaro'}
-                    >
-                        <span className="mr-3 text-xl w-6 text-center">{themeMode === 'light' ? '🌙' : '☀️'}</span>
-                        <span>{themeMode === 'light' ? 'Tema Scuro' : 'Tema Chiaro'}</span>
-                    </button>
-                    {isAuthenticated && isLoginProtectionEnabled ? (
-                        <div>
-                            <div className="px-4 py-2 text-center text-xs text-gray-500">
-                                Versione V600
-                            </div>
-                            <button
-                                onClick={logout}
-                                className="flex items-center w-full px-4 py-3 text-red-400 rounded-md hover:bg-red-700/50 hover:text-white transition-colors duration-200"
-                            >
-                                <span className="mr-3 text-xl w-6 text-center">🚪</span>
-                                Logout
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="mt-auto px-4 py-4 text-center text-xs text-gray-500">
+                {isAuthenticated && isLoginProtectionEnabled ? (
+                    <div className="mt-auto">
+                        <div className="px-4 py-2 text-center text-xs text-gray-500">
                             Versione V600
                         </div>
-                    )}
-                </div>
+                        <button
+                            onClick={logout}
+                            className="flex items-center w-full px-4 py-3 text-red-400 rounded-md hover:bg-red-700/50 hover:text-white transition-colors duration-200"
+                        >
+                            <span className="mr-3 text-xl w-6 text-center">🚪</span>
+                            Logout
+                        </button>
+                    </div>
+                ) : (
+                    <div className="mt-auto px-4 py-4 text-center text-xs text-gray-500">
+                        Versione V600
+                    </div>
+                )}
             </nav>
         </aside>
     );

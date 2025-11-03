@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo } from 'react';
 
 // --- Types ---
 
@@ -22,14 +22,10 @@ export type Theme = {
     darkMutedForeground: string;
 };
 
-export type ThemeMode = 'light' | 'dark';
-
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   resetTheme: () => void;
-  themeMode: ThemeMode;
-  toggleThemeMode: () => void;
 }
 
 // --- Default Theme ---
@@ -66,7 +62,6 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 // --- Provider ---
 
 const THEME_STORAGE_KEY = 'staffing-app-theme';
-const THEME_MODE_STORAGE_KEY = 'staffing-app-theme-mode';
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [theme, _setTheme] = useState<Theme>(() => {
@@ -81,21 +76,6 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         return defaultTheme;
     });
-
-    const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-        try {
-            const storedMode = localStorage.getItem(THEME_MODE_STORAGE_KEY);
-            if (storedMode === 'light' || storedMode === 'dark') {
-                return storedMode;
-            }
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                return 'dark';
-            }
-        } catch (error) {
-            console.error("Failed to read theme mode from localStorage", error);
-        }
-        return 'light';
-    });
     
     useEffect(() => {
         const root = document.documentElement;
@@ -105,49 +85,29 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
     }, [theme]);
     
-    useEffect(() => {
-        const root = document.documentElement;
-        if (themeMode === 'dark') {
-            root.classList.add('dark');
-        } else {
-            root.classList.remove('dark');
-        }
-        try {
-            localStorage.setItem(THEME_MODE_STORAGE_KEY, themeMode);
-        } catch (error) {
-            console.error("Failed to save theme mode to localStorage", error);
-        }
-    }, [themeMode]);
-
-    const setTheme = useCallback((newTheme: Theme) => {
+    const setTheme = (newTheme: Theme) => {
         try {
             localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
             _setTheme(newTheme);
         } catch (error) {
             console.error("Failed to save theme to localStorage", error);
         }
-    }, []);
+    };
 
-    const resetTheme = useCallback(() => {
+    const resetTheme = () => {
         try {
             localStorage.removeItem(THEME_STORAGE_KEY);
             _setTheme(defaultTheme);
         } catch (error) {
             console.error("Failed to remove theme from localStorage", error);
         }
-    }, []);
-
-    const toggleThemeMode = useCallback(() => {
-        setThemeMode(prevMode => (prevMode === 'light' ? 'dark' : 'light'));
-    }, []);
+    };
     
     const contextValue = useMemo(() => ({
         theme,
         setTheme,
         resetTheme,
-        themeMode,
-        toggleThemeMode,
-    }), [theme, setTheme, resetTheme, themeMode, toggleThemeMode]);
+    }), [theme, setTheme, resetTheme]);
 
     return (
         <ThemeContext.Provider value={contextValue}>

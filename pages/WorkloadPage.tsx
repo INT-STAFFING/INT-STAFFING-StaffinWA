@@ -322,9 +322,9 @@ const WorkloadPage: React.FC = () => {
             {/* Griglia Carico */}
             <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                         <tr>
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '200px' }}>Carico Totale Risorsa</th>
+                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '200px' }}>Carico Totale Risorsa</th>
                             {timeColumns.map((col, index) => (
                                 <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${col.isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                     <div className="flex flex-col items-center">
@@ -338,7 +338,7 @@ const WorkloadPage: React.FC = () => {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {displayResources.map((resource) => (
                             <tr key={resource.id} className="bg-gray-100/50 dark:bg-gray-900/50 font-bold">
-                                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300">{resource.name} (Max: {resource.maxStaffingPercentage}%)</td>
+                                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300 z-10">{resource.name} (Max: {resource.maxStaffingPercentage}%)</td>
                                 {timeColumns.map((col, index) => {
                                     if (viewMode === 'day') {
                                         const day = col.startDate;

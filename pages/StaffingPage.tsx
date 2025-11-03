@@ -630,12 +630,12 @@ const StaffingPage: React.FC = () => {
             {/* Griglia di Staffing */}
             <div ref={scrollContainerRef} className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                         <tr>
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
-                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Cliente</th>
-                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white" style={{ minWidth: '150px' }}>Project Manager</th>
-                            <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">Azioni</th>
+                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
+                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Cliente</th>
+                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Project Manager</th>
+                            <th className="sticky left-[600px] bg-gray-50 dark:bg-gray-700 px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '120px' }}>Azioni</th>
                             {timeColumns.map((col, index) => (
                                 <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                     <div className="flex flex-col items-center">
@@ -658,13 +658,13 @@ const StaffingPage: React.FC = () => {
                                 <React.Fragment key={resource.id}>
                                     {/* Master row for the resource with total load */}
                                     <tr className="bg-gray-100 dark:bg-gray-900 font-bold sticky top-16 z-[5]">
-                                        <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm" colSpan={3}>
+                                        <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-10" colSpan={3}>
                                             <div className="flex flex-col">
                                                 <Link to={`/workload?resourceId=${resource.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300 truncate" title={resource.name}>{resource.name}</Link>
                                                 <span className="text-xs font-normal text-gray-500 truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
                                             </div>
                                         </td>
-                                        <td className="bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center">
+                                        <td className="sticky left-[600px] bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center z-10">
                                             <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
                                                 <span className="text-xl">➕</span>
                                             </button>
@@ -686,14 +686,13 @@ const StaffingPage: React.FC = () => {
                                         const client = getClientById(project.clientId);
                                         const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
                                         return (
-                                            <tr key={assignment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="sticky left-0 bg-white dark:bg-gray-800 px-3 py-4 text-sm font-medium pl-8" style={{minWidth: '300px'}}>
+                                            <tr key={assignment.id} className="group hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                <td className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm font-medium pl-8 z-10" style={{minWidth: '300px'}}>
                                                     <Link to={`/projects?projectId=${project.id}`} className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate" title={project.name}>{project.name}</Link>
                                                 </td>
-                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
-                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
-
-                                                <td className={`px-2 py-3 text-center ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate z-10" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
+                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate z-10" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
+                                                <td className={`sticky left-[600px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-2 py-3 text-center z-10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <div className="flex items-center justify-center space-x-2">
                                                         <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
                                                             <span className="text-xl">🗓️</span>
