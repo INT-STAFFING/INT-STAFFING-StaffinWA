@@ -84,38 +84,59 @@ export function DataTable<T extends { id?: string }>({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const headerBlockRef = useRef<HTMLDivElement | null>(null);
     const filtersContainerRef = useRef<HTMLDivElement | null>(null);
+    const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
+
+    const [stickyOffsets, setStickyOffsets] = useState({
+        filtersTop: 0,
+        tableHeadTop: 0,
+    });
 
     useLayoutEffect(() => {
         if (typeof window === 'undefined') return;
         const container = containerRef.current;
-        if (!container) return;
-
         const headerEl = headerBlockRef.current;
         const filtersEl = filtersContainerRef.current;
+        const tableHeadEl = tableHeadRef.current;
 
-        const updateStickyMetrics = () => {
-            const computedStyles = window.getComputedStyle(container);
-            const rowGap = parseFloat(computedStyles.rowGap || '0') || 0;
-            const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
-            const filtersHeight = filtersEl ? filtersEl.getBoundingClientRect().height : 0;
+        if (!container) return;
 
-            container.style.setProperty('--datatable-header-height', `${headerHeight}px`);
-            container.style.setProperty('--datatable-filters-height', `${filtersHeight}px`);
-            container.style.setProperty('--datatable-sticky-gap', `${rowGap}px`);
+        const computeOffsets = () => {
+            const containerOffset = container.offsetTop;
+            const headerHeight = headerEl?.offsetHeight ?? 0;
+            const filtersOffset = filtersEl ? filtersEl.offsetTop - containerOffset : headerHeight;
+            const filtersHeight = filtersEl?.offsetHeight ?? 0;
+            const tableHeadOffset = tableHeadEl ? tableHeadEl.offsetTop - containerOffset : filtersOffset + filtersHeight;
+
+            const nextFiltersTop = Math.max(filtersOffset, headerHeight);
+            const nextTableHeadTop = Math.max(tableHeadOffset, nextFiltersTop + filtersHeight);
+
+            setStickyOffsets(prev => {
+                if (prev.filtersTop === nextFiltersTop && prev.tableHeadTop === nextTableHeadTop) {
+                    return prev;
+                }
+                return {
+                    filtersTop: nextFiltersTop,
+                    tableHeadTop: nextTableHeadTop,
+                };
+            });
         };
 
-        updateStickyMetrics();
+        computeOffsets();
 
-        const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateStickyMetrics) : null;
+        const resizeObserver = typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(computeOffsets)
+            : null;
+
         headerEl && resizeObserver?.observe(headerEl);
         filtersEl && resizeObserver?.observe(filtersEl);
-        window.addEventListener('resize', updateStickyMetrics);
+        tableHeadEl && resizeObserver?.observe(tableHeadEl);
+        window.addEventListener('resize', computeOffsets);
 
         return () => {
             resizeObserver?.disconnect();
-            window.removeEventListener('resize', updateStickyMetrics);
+            window.removeEventListener('resize', computeOffsets);
         };
-    }, []);
+    }, [data.length, columns.length]);
 
     const handleMouseDown = useCallback((key: string, e: React.MouseEvent) => {
         const startX = e.clientX;
@@ -193,15 +214,7 @@ export function DataTable<T extends { id?: string }>({
     };
 
     return (
-        <div
-            ref={containerRef}
-            className="flex flex-col gap-6"
-            style={{
-                '--datatable-header-height': '0px',
-                '--datatable-filters-height': '0px',
-                '--datatable-sticky-gap': '0px',
-            } as React.CSSProperties}
-        >
+        <div ref={containerRef} className="flex flex-col gap-6">
             <div
                 ref={headerBlockRef}
                 className="sticky top-0 z-40 flex flex-col gap-4 rounded-3xl border border-border/60 bg-muted/95 px-6 py-5 shadow-soft backdrop-blur md:flex-row md:items-center md:justify-between dark:border-dark-border/60 dark:bg-dark-muted/95"
@@ -222,9 +235,7 @@ export function DataTable<T extends { id?: string }>({
             <div
                 ref={filtersContainerRef}
                 className="surface-card sticky z-30 p-5"
-                style={{
-                    top: 'calc(var(--datatable-header-height) + var(--datatable-sticky-gap))',
-                }}
+                style={{ top: `${stickyOffsets.filtersTop}px` }}
             >
                 {filtersNode}
             </div>
@@ -246,10 +257,9 @@ export function DataTable<T extends { id?: string }>({
                             <col style={{ width: '120px' }} />
                         </colgroup>
                         <thead
-                            className="sticky z-20 bg-muted/95 backdrop-blur dark:bg-dark-muted/95"
-                            style={{
-                                top: 'calc(var(--datatable-header-height) + var(--datatable-filters-height) + (var(--datatable-sticky-gap) * 2))',
-                            }}
+                            ref={tableHeadRef}
+                            className="sticky z-20 bg-muted/95 backdrop-blur dark:bg-dark-muted/95 shadow-soft"
+                            style={{ top: `${stickyOffsets.tableHeadTop}px` }}
                         >
                             <tr className="text-left text-xs font-semibold uppercase text-muted-foreground dark:text-dark-muted-foreground">
                                 {columns.map(col => getSortableHeader(col.header, col.sortKey))}
