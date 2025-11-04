@@ -68,7 +68,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             <input type="hidden" name={name} value={value} required={required} />
 
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
+                <div className="absolute z-50 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
                     <div className="p-2">
                         <input
                             type="text"

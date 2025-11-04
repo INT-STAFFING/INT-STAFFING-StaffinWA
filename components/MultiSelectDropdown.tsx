@@ -80,7 +80,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             </button>
 
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
+                <div className="absolute z-50 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
                     <div className="p-2 border-b border-border dark:border-dark-border">
                         <input
                             type="text"
