@@ -3,7 +3,7 @@
  * @description Componente generico e riutilizzabile per visualizzare dati in una tabella con ordinamento, filtri e layout responsive.
  */
 
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useLayoutEffect } from 'react';
 import { EmptyState } from './FeedbackState';
 import { ArrowRightIcon } from './icons';
 
@@ -81,6 +81,31 @@ export function DataTable<T extends { id?: string }>({
     
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const filtersContainerRef = useRef<HTMLDivElement | null>(null);
+
+    useLayoutEffect(() => {
+        if (typeof window === 'undefined') return;
+        const container = containerRef.current;
+        const filtersEl = filtersContainerRef.current;
+        if (!container || !filtersEl) return;
+
+        const updateStickyMetrics = () => {
+            const filtersHeight = filtersEl.getBoundingClientRect().height;
+            container.style.setProperty('--datatable-filters-height', `${filtersHeight}px`);
+        };
+
+        updateStickyMetrics();
+
+        const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateStickyMetrics) : null;
+        resizeObserver?.observe(filtersEl);
+        window.addEventListener('resize', updateStickyMetrics);
+
+        return () => {
+            resizeObserver?.disconnect();
+            window.removeEventListener('resize', updateStickyMetrics);
+        };
+    }, [filtersNode]);
 
     const handleMouseDown = useCallback((key: string, e: React.MouseEvent) => {
         const startX = e.clientX;
@@ -158,7 +183,14 @@ export function DataTable<T extends { id?: string }>({
     };
 
     return (
-        <div className="space-y-6">
+        <div
+            ref={containerRef}
+            className="space-y-6"
+            style={{
+                '--datatable-sticky-top': '0px',
+                '--datatable-filters-height': '0px',
+            } as React.CSSProperties}
+        >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground">{title}</h1>
@@ -173,7 +205,13 @@ export function DataTable<T extends { id?: string }>({
                 </button>
             </div>
 
-            <div className="surface-card p-5">
+            <div
+                ref={filtersContainerRef}
+                className="surface-card p-5 sticky top-[var(--datatable-sticky-top)] z-30"
+                style={{
+                    top: 'var(--datatable-sticky-top)',
+                }}
+            >
                 {filtersNode}
             </div>
 
@@ -193,7 +231,12 @@ export function DataTable<T extends { id?: string }>({
                             })}
                             <col style={{ width: '120px' }} />
                         </colgroup>
-                        <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm dark:bg-dark-muted/80">
+                        <thead
+                            className="sticky z-20 bg-muted/70 backdrop-blur-sm dark:bg-dark-muted/80"
+                            style={{
+                                top: 'calc(var(--datatable-sticky-top) + var(--datatable-filters-height))',
+                            }}
+                        >
                             <tr className="text-left text-xs font-semibold uppercase text-muted-foreground dark:text-dark-muted-foreground">
                                 {columns.map(col => getSortableHeader(col.header, col.sortKey))}
                                 <th className="px-6 py-4 text-right tracking-wider">Azioni</th>
