@@ -102,12 +102,15 @@ const ImportPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Importazione Massiva Dati</h1>
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+            <h1 className="text-[var(--font-size-3xl)] font-bold text-gray-800 dark:text-white mb-[var(--space-6)]">Importazione Massiva Dati</h1>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-4xl mx-auto space-y-8">
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-[var(--space-8)] max-w-4xl mx-auto space-y-[var(--space-8)]">
                 {/* Step 1: Select Type */}
                 <div>
-                    <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-white rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">1</span> Seleziona il tipo di dati</h2>
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <h2 className="text-[var(--font-size-xl)] font-semibold mb-[var(--space-3)] flex items-center"><span className="bg-primary text-white rounded-full h-[var(--space-8)] w-[var(--space-8)] text-[var(--font-size-sm)] flex items-center justify-center mr-[var(--space-3)]">1</span> Seleziona il tipo di dati</h2>
                     <select
                         value={importType}
                         onChange={(e) => {
@@ -123,37 +126,47 @@ const ImportPage: React.FC = () => {
                 
                  {/* Step 2: Download Template */}
                  <div>
-                    <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-white rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">2</span> Scarica e compila il template</h2>
-                    <p className="text-muted-foreground mb-4 text-sm">Scarica il file Excel, compilalo con i tuoi dati e salvalo. Non modificare i nomi dei fogli o delle colonne.</p>
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <h2 className="text-[var(--font-size-xl)] font-semibold mb-[var(--space-3)] flex items-center"><span className="bg-primary text-white rounded-full h-[var(--space-8)] w-[var(--space-8)] text-[var(--font-size-sm)] flex items-center justify-center mr-[var(--space-3)]">2</span> Scarica e compila il template</h2>
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <p className="text-muted-foreground mb-[var(--space-4)] text-[var(--font-size-sm)]">Scarica il file Excel, compilalo con i tuoi dati e salvalo. Non modificare i nomi dei fogli o delle colonne.</p>
                      <button
                         onClick={() => exportTemplate(importType)}
-                        className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-md shadow-sm hover:bg-gray-700 transition-colors duration-200"
+                        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                        className="inline-flex items-center justify-center px-[var(--space-4)] py-[var(--space-2)] bg-gray-600 text-white font-semibold rounded-md shadow-sm hover:bg-gray-700 transition-colors duration-200"
                     >
-                        <span className="mr-2 text-xl">📥</span>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">📥</span>
                         Scarica Template
                     </button>
                 </div>
 
                 {/* Step 3: Upload and Import */}
                 <div>
-                     <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-white rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">3</span> Carica e importa il file</h2>
-                     <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
+                     {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                     <h2 className="text-[var(--font-size-xl)] font-semibold mb-[var(--space-3)] flex items-center"><span className="bg-primary text-white rounded-full h-[var(--space-8)] w-[var(--space-8)] text-[var(--font-size-sm)] flex items-center justify-center mr-[var(--space-3)]">3</span> Carica e importa il file</h2>
+                     {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                     <div className="flex flex-col md:flex-row md:items-center md:space-x-[var(--space-4)] space-y-[var(--space-4)] md:space-y-0">
                         <div>
-                            <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-[var(--space-4)] py-[var(--space-2)] border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                                 <span>{file ? 'Cambia file...' : 'Seleziona un file...'}</span>
                                 <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".xlsx, .xls" onChange={handleFileChange} />
                             </label>
-                            {file && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{file.name}</p>}
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            {file && <p className="mt-[var(--space-2)] text-[var(--font-size-sm)] text-gray-500 dark:text-gray-400">{file.name}</p>}
                         </div>
 
                         <button
                             onClick={handleImport}
                             disabled={!file || isImporting}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors duration-200"
+                            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                            className="inline-flex items-center justify-center px-[var(--space-6)] py-[var(--space-3)] bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors duration-200"
                         >
                             {isImporting ? (
                                 <>
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                    <svg className="animate-spin -ml-[var(--space-1)] mr-[var(--space-3)] h-[var(--space-5)] w-[var(--space-5)] text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -161,7 +174,8 @@ const ImportPage: React.FC = () => {
                                 </>
                             ) : (
                                 <>
-                                    <span className="mr-2 text-xl">📤</span>
+                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                    <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">📤</span>
                                     Importa Dati
                                 </>
                             )}
@@ -170,12 +184,16 @@ const ImportPage: React.FC = () => {
                 </div>
 
                 {importResult && (
-                    <div className="mt-4 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <h3 className={`text-lg font-semibold ${getResultMessageColor()}`}>{importResult.message}</h3>
+                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                    <div className="mt-[var(--space-4)] pt-[var(--space-6)] border-t border-gray-200 dark:border-gray-700">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <h3 className={`text-[var(--font-size-lg)] font-semibold ${getResultMessageColor()}`}>{importResult.message}</h3>
                         {importResult.details && importResult.details.length > 0 && (
-                             <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                             // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                             <div className="mt-[var(--space-2)] p-[var(--space-3)] bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
                                 <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">Dettagli e Avvisi:</h4>
-                                <ul className="list-disc list-inside mt-1 text-sm text-yellow-700 dark:text-yellow-300 max-h-40 overflow-y-auto">
+                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                <ul className="list-disc list-inside mt-[var(--space-1)] text-[var(--font-size-sm)] text-yellow-700 dark:text-yellow-300 max-h-40 overflow-y-auto">
                                     {importResult.details.map((detail, i) => <li key={i}>{detail}</li>)}
                                 </ul>
                             </div>

@@ -28,12 +28,14 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <div className="text-foreground dark:text-dark-foreground">
                 {message}
             </div>
-            <div className="mt-6 flex justify-end space-x-3">
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+            <div className="mt-[var(--space-6)] flex justify-end space-x-[var(--space-3)]">
                 <button
                     type="button"
                     onClick={onClose}
                     disabled={isConfirming}
-                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted disabled:opacity-50"
+                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                    className="px-[var(--space-4)] py-[var(--space-2)] border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted disabled:opacity-50"
                 >
                     {cancelButtonText}
                 </button>
@@ -41,10 +43,12 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     type="button"
                     onClick={onConfirm}
                     disabled={isConfirming}
-                    className="flex justify-center items-center px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                    className="flex justify-center items-center px-[var(--space-4)] py-[var(--space-2)] bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 >
                     {isConfirming ? (
-                       <SpinnerIcon className="w-5 h-5"/>
+                       // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                       <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/>
                     ) : (
                         confirmButtonText
                     )}

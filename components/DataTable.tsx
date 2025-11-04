@@ -137,13 +137,16 @@ export function DataTable<T extends { id?: string }>({
     const getSortableHeader = (label: string, colKey?: string) => {
         const key = colKey || label;
         return (
-            <th className="sticky top-0 z-20 bg-card dark:bg-dark-card px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm">
-                <div className="relative pr-4">
+            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+            <th className="sticky top-0 z-20 bg-card dark:bg-dark-card px-[var(--space-6)] py-[var(--space-3)] text-left text-[var(--font-size-xs)] font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm">
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <div className="relative pr-[var(--space-4)]">
                     {colKey ? (
                         <button
                             type="button"
                             onClick={() => requestSort(colKey)}
-                            className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground"
+                            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                            className="flex items-center space-x-[var(--space-1)] hover:text-foreground dark:hover:text-dark-foreground"
                         >
                             <span className={sortConfig?.key === colKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
                             <span className="text-gray-400">↕️</span>
@@ -163,12 +166,16 @@ export function DataTable<T extends { id?: string }>({
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">{title}</h1>
-                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">{addNewButtonLabel}</button>
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+            <div className="flex flex-col md:flex-row justify-between items-center mb-[var(--space-6)] gap-[var(--space-4)]">
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <h1 className="text-[var(--font-size-3xl)] font-bold text-foreground dark:text-dark-foreground self-start">{title}</h1>
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <button onClick={onAddNew} className="w-full md:w-auto px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">{addNewButtonLabel}</button>
             </div>
 
-            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+            <div className="mb-[var(--space-6)] p-[var(--space-4)] bg-card dark:bg-dark-card rounded-lg shadow">
                 {filtersNode}
             </div>
 
@@ -192,21 +199,25 @@ export function DataTable<T extends { id?: string }>({
                             <thead className="border-b border-border dark:border-dark-border">
                                 <tr>
                                     {columns.map(col => getSortableHeader(col.header, col.sortKey))}
-                                    <th className="sticky top-0 z-20 bg-card dark:bg-dark-card px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm">Azioni</th>
+                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                    <th className="sticky top-0 z-20 bg-card dark:bg-dark-card px-[var(--space-6)] py-[var(--space-3)] text-right text-[var(--font-size-xs)] font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm">Azioni</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border dark:divide-dark-border">
                                 {sortedData.map(item => renderRow(item))}
                             </tbody>
                         </table>
-                        {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        {sortedData.length === 0 && <p className="text-center py-[var(--space-8)] text-muted-foreground">Nessun dato trovato.</p>}
                     </div>
                 </div>
 
                 {/* Mobile Cards */}
-                <div className="md:hidden p-4 space-y-4">
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <div className="md:hidden p-[var(--space-4)] space-y-[var(--space-4)]">
                     {sortedData.map(item => renderMobileCard(item))}
-                    {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    {sortedData.length === 0 && <p className="text-center py-[var(--space-8)] text-muted-foreground">Nessun dato trovato.</p>}
                 </div>
             </div>
         </div>

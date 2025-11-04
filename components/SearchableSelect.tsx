@@ -60,7 +60,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                 <span className={selectedOption ? 'text-foreground dark:text-dark-foreground' : 'text-muted-foreground'}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
-                <svg className="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <svg className="w-[var(--space-5)] h-[var(--space-5)] text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
             </button>
@@ -68,8 +69,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             <input type="hidden" name={name} value={value} required={required} />
 
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
-                    <div className="p-2">
+                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                <div className="absolute z-50 mt-[var(--space-1)] w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="p-[var(--space-2)]">
                         <input
                             type="text"
                             placeholder="Cerca..."
@@ -81,8 +84,9 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                     </div>
                     <ul className="max-h-60 overflow-y-auto" role="listbox">
                          {/* Aggiunta dell'opzione placeholder per resettare il filtro */}
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                         <li
-                            className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer"
+                            className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-sm)] text-muted-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer"
                             onClick={() => handleSelect('')}
                         >
                             {placeholder}
@@ -91,7 +95,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                             filteredOptions.map(option => (
                                 <li
                                     key={option.value}
-                                    className={`px-4 py-2 text-sm text-foreground dark:text-dark-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer ${value === option.value ? 'bg-primary/20' : ''}`}
+                                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                                    className={`px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-sm)] text-foreground dark:text-dark-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer ${value === option.value ? 'bg-primary/20' : ''}`}
                                     onClick={() => handleSelect(option.value)}
                                     role="option"
                                     aria-selected={value === option.value}
@@ -100,7 +105,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                                 </li>
                             ))
                         ) : (
-                            <li className="px-4 py-2 text-sm text-muted-foreground">Nessun risultato</li>
+                            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                            <li className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-sm)] text-muted-foreground">Nessun risultato</li>
                         )}
                     </ul>
                 </div>

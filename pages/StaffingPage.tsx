@@ -51,7 +51,8 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
     if (isNonWorkingDay) {
         return (
             <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
-                <span className="text-sm text-gray-400">-</span>
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <span className="text-[var(--font-size-sm)] text-gray-400">-</span>
             </td>
         );
     }
@@ -70,7 +71,8 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
             <select
                 value={percentage}
                 onChange={handleChange}
-                className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
+                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                className="w-full h-full bg-transparent border-0 text-center appearance-none text-[var(--font-size-sm)] focus:ring-0 focus:outline-none dark:text-gray-300"
             >
                 {percentageOptions.map(p => <option key={p} value={p}>{p > 0 ? `${p}%` : '-'}</option>)}
             </select>
@@ -133,7 +135,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     }, [averageAllocation]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+        <td className={`border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -170,7 +173,8 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
      if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+            <td className="border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
                 -
             </td>
         );
@@ -198,7 +202,8 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     }, [total, resource.maxStaffingPercentage]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+        <td className={`border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold ${cellColor}`}>
             {total > 0 ? `${total}%` : '-'}
         </td>
     );
@@ -267,7 +272,8 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+        <td className={`border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -594,35 +600,51 @@ const StaffingPage: React.FC = () => {
             {/* Contenitore fisso per controlli e filtri */}
             <div className="flex-shrink-0">
                 {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
-                    <div className="flex items-center justify-center space-x-2">
-                        <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
-                        <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                        <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-[var(--space-4)] gap-[var(--space-4)]">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="flex items-center justify-center space-x-[var(--space-2)]">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button onClick={handlePrev} className="px-[var(--space-3)] py-[var(--space-2)] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-[var(--font-size-sm)]">← Prec.</button>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button onClick={handleToday} className="px-[var(--space-4)] py-[var(--space-2)] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button onClick={handleNext} className="px-[var(--space-3)] py-[var(--space-2)] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-[var(--font-size-sm)]">Succ. →</button>
                     </div>
                     {/* Selettore della vista temporale (giorno, settimana, mese). */}
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="flex items-center space-x-[var(--space-1)] bg-gray-200 dark:bg-gray-700 p-[var(--space-1)] rounded-md">
                         {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button key={level} onClick={() => setViewMode(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                                className={`px-[var(--space-3)] py-[var(--space-1)] text-[var(--font-size-sm)] font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
                                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
                             </button>
                         ))}
                     </div>
-                    <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker">
-                        <span className="mr-2 text-xl">➕</span>
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">➕</span>
                         Assegna Risorsa
                     </button>
                 </div>
 
                 {/* Sezione Filtri con l'aggiunta del filtro per Project Manager. */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Project Manager</label><SearchableSelect name="projectManager" value={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                        <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                <div className="mb-[var(--space-4)] p-[var(--space-4)] bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-[var(--space-4)] items-end">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <div><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <div><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <div><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Project Manager</label><SearchableSelect name="projectManager" value={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <div><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button onClick={clearFilters} className="px-[var(--space-4)] py-[var(--space-2)] bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                     </div>
                 </div>
             </div>
@@ -632,15 +654,21 @@ const StaffingPage: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                         <tr>
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
-                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Cliente</th>
-                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Project Manager</th>
-                            <th className="sticky left-[600px] bg-gray-50 dark:bg-gray-700 px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '120px' }}>Azioni</th>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-[var(--space-3)] py-[var(--space-3-5)] text-left text-[var(--font-size-sm)] font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-[var(--space-3)] py-[var(--space-3-5)] text-left text-[var(--font-size-sm)] font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Cliente</th>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-[var(--space-3)] py-[var(--space-3-5)] text-left text-[var(--font-size-sm)] font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Project Manager</th>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <th className="sticky left-[600px] bg-gray-50 dark:bg-gray-700 px-[var(--space-2)] py-[var(--space-3-5)] text-center text-[var(--font-size-sm)] font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '120px' }}>Azioni</th>
                             {timeColumns.map((col, index) => (
-                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                                <th key={index} className={`px-[var(--space-2)] py-[var(--space-3-5)] text-center text-[var(--font-size-sm)] font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                     <div className="flex flex-col items-center">
                                         <span className={col.isNonWorkingDay ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{col.label}</span>
-                                        {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
+                                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                        {col.subLabel && <span className="text-[var(--font-size-xs)] text-gray-500">{col.subLabel}</span>}
                                     </div>
                                 </th>
                             ))}
@@ -658,15 +686,19 @@ const StaffingPage: React.FC = () => {
                                 <React.Fragment key={resource.id}>
                                     {/* Master row for the resource with total load */}
                                     <tr className="bg-gray-100 dark:bg-gray-900 font-bold sticky top-16 z-[5]">
-                                        <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-10" colSpan={3}>
+                                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                        <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-[var(--space-3)] py-[var(--space-3)] text-left text-[var(--font-size-sm)] z-10" colSpan={3}>
                                             <div className="flex flex-col">
                                                 <Link to={`/workload?resourceId=${resource.id}`} className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 truncate" title={resource.name}>{resource.name}</Link>
-                                                <span className="text-xs font-normal text-gray-500 truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
+                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                <span className="text-[var(--font-size-xs)] font-normal text-gray-500 truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
                                             </div>
                                         </td>
-                                        <td className="sticky left-[600px] bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center z-10">
+                                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                        <td className="sticky left-[600px] bg-gray-100 dark:bg-gray-900 px-[var(--space-2)] py-[var(--space-3)] text-center z-10">
                                             <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-primary hover:text-primary-darker dark:hover:text-blue-300">
-                                                <span className="text-xl">➕</span>
+                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                <span className="text-[var(--font-size-xl)]">➕</span>
                                             </button>
                                         </td>
                                         {timeColumns.map((col, index) => {
@@ -687,18 +719,25 @@ const StaffingPage: React.FC = () => {
                                         const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
                                         return (
                                             <tr key={assignment.id} className="group hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm font-medium pl-8 z-10" style={{minWidth: '300px'}}>
+                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                <td className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-[var(--space-3)] py-[var(--space-4)] text-[var(--font-size-sm)] font-medium pl-[var(--space-8)] z-10" style={{minWidth: '300px'}}>
                                                     <Link to={`/projects?projectId=${project.id}`} className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate" title={project.name}>{project.name}</Link>
                                                 </td>
-                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate z-10" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
-                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate z-10" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
-                                                <td className={`sticky left-[600px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-2 py-3 text-center z-10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                    <div className="flex items-center justify-center space-x-2">
+                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-[var(--space-3)] py-[var(--space-4)] text-[var(--font-size-sm)] text-gray-500 dark:text-gray-400 truncate z-10" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
+                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-[var(--space-3)] py-[var(--space-4)] text-[var(--font-size-sm)] text-gray-500 dark:text-gray-400 truncate z-10" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
+                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                <td className={`sticky left-[600px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-[var(--space-2)] py-[var(--space-3)] text-center z-10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                    <div className="flex items-center justify-center space-x-[var(--space-2)]">
                                                         <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-primary hover:text-primary-darker dark:hover:text-blue-300">
-                                                            <span className="text-xl">🗓️</span>
+                                                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                            <span className="text-[var(--font-size-xl)]">🗓️</span>
                                                         </button>
                                                         <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
-                                                            <span className="text-xl">❌</span>
+                                                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                                            <span className="text-[var(--font-size-xl)]">❌</span>
                                                         </button>
                                                     </div>
                                                 </td>
@@ -715,7 +754,8 @@ const StaffingPage: React.FC = () => {
                                         );
                                     }) : (
                                         <tr>
-                                            <td colSpan={4 + timeColumns.length} className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 italic pl-8">
+                                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                                            <td colSpan={4 + timeColumns.length} className="px-[var(--space-3)] py-[var(--space-4)] text-[var(--font-size-sm)] text-gray-500 dark:text-gray-400 italic pl-[var(--space-8)]">
                                                 Nessuna assegnazione trovata per i filtri correnti.
                                             </td>
                                         </tr>
@@ -758,23 +798,33 @@ const StaffingPage: React.FC = () => {
             {/* Modale per Assegnazione Massiva */}
             <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva">
                  <form onSubmit={handleBulkSubmit}>
-                    <div className="space-y-4">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="space-y-[var(--space-4)]">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Inizio</label>
-                            <input type="date" required value={bulkFormData.startDate} onChange={e => setBulkFormData(f => ({...f, startDate: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"/>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Data Inizio</label>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <input type="date" required value={bulkFormData.startDate} onChange={e => setBulkFormData(f => ({...f, startDate: e.target.value}))} className="mt-[var(--space-1)] block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-[var(--font-size-sm)]"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Fine</label>
-                            <input type="date" required value={bulkFormData.endDate} onChange={e => setBulkFormData(f => ({...f, endDate: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"/>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Data Fine</label>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <input type="date" required value={bulkFormData.endDate} onChange={e => setBulkFormData(f => ({...f, endDate: e.target.value}))} className="mt-[var(--space-1)] block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-[var(--font-size-sm)]"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Percentuale ({bulkFormData.percentage}%)</label>
-                            <input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={e => setBulkFormData(f => ({...f, percentage: parseInt(e.target.value)}))} className="mt-1 block w-full"/>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Percentuale ({bulkFormData.percentage}%)</label>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={e => setBulkFormData(f => ({...f, percentage: parseInt(e.target.value)}))} className="mt-[var(--space-1)] block w-full"/>
                         </div>
                     </div>
-                    <div className="mt-6 flex justify-end space-x-3">
-                        <button type="button" onClick={() => setBulkModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker">Salva</button>
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="mt-[var(--space-6)] flex justify-end space-x-[var(--space-3)]">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button type="button" onClick={() => setBulkModalOpen(false)} className="px-[var(--space-4)] py-[var(--space-2)] bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button type="submit" className="px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md hover:bg-primary-darker">Salva</button>
                     </div>
                 </form>
             </Modal>
@@ -782,9 +832,11 @@ const StaffingPage: React.FC = () => {
             {/* Modale per Nuova Assegnazione */}
             <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto">
                 <form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96">
-                    <div className="space-y-4 flex-grow">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="space-y-[var(--space-4)] flex-grow">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
                             <SearchableSelect
                                 name="resourceId"
                                 value={newAssignmentData.resourceId}
@@ -795,7 +847,8 @@ const StaffingPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto/i</label>
+                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Progetto/i</label>
                             <MultiSelectDropdown
                                 name="projectIds"
                                 selectedValues={newAssignmentData.projectIds}
@@ -805,9 +858,12 @@ const StaffingPage: React.FC = () => {
                             />
                         </div>
                     </div>
-                    <div className="mt-6 flex justify-end space-x-3">
-                        <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker">Aggiungi Assegnazioni</button>
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <div className="mt-[var(--space-6)] flex justify-end space-x-[var(--space-3)]">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-[var(--space-4)] py-[var(--space-2)] bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                        <button type="submit" className="px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md hover:bg-primary-darker">Aggiungi Assegnazioni</button>
                     </div>
                 </form>
             </Modal>
