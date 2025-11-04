@@ -8,12 +8,24 @@ export type Theme = {
     destructive: string;
     success: string;
     warning: string;
+    shellPrimary: string;
+    shellSecondary: string;
+    shellHover: string;
+    shellActive: string;
+    shellForeground: string;
+    shellMutedForeground: string;
     background: string;
     foreground: string;
     card: string;
     border: string;
     muted: string;
     mutedForeground: string;
+    darkShellPrimary: string;
+    darkShellSecondary: string;
+    darkShellHover: string;
+    darkShellActive: string;
+    darkShellForeground: string;
+    darkShellMutedForeground: string;
     darkBackground: string;
     darkForeground: string;
     darkCard: string;
@@ -38,6 +50,14 @@ export const defaultTheme: Theme = {
     success: '#16a34a',
     warning: '#f59e0b',
 
+    // Shell Palette
+    shellPrimary: '#0f172a',
+    shellSecondary: '#2563eb',
+    shellHover: 'rgba(37, 99, 235, 0.12)',
+    shellActive: 'rgba(37, 99, 235, 0.2)',
+    shellForeground: '#e2e8f0',
+    shellMutedForeground: '#94a3b8',
+
     // Light Mode
     background: '#f8fafc',
     foreground: '#0f172a',
@@ -47,6 +67,12 @@ export const defaultTheme: Theme = {
     mutedForeground: '#64748b',
 
     // Dark Mode
+    darkShellPrimary: '#020817',
+    darkShellSecondary: '#3b82f6',
+    darkShellHover: 'rgba(59, 130, 246, 0.18)',
+    darkShellActive: 'rgba(59, 130, 246, 0.28)',
+    darkShellForeground: '#f8fafc',
+    darkShellMutedForeground: '#dbeafe',
     darkBackground: '#020617',
     darkForeground: '#f8fafc',
     darkCard: '#0f172a',

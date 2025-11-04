@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
+import { MenuIcon } from './components/IconLibrary';
 import StaffingPage from './pages/StaffingPage';
 import ResourcesPage from './pages/ResourcesPage';
 import ProjectsPage from './pages/ProjectsPage';
@@ -88,14 +89,21 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     };
 
     return (
-        <header className="flex-shrink-0 bg-card dark:bg-dark-card shadow-md">
+        <header className="flex-shrink-0 bg-[var(--color-shell-primary)] dark:bg-[var(--color-dark-shell-primary)] border-b border-[var(--color-shell-secondary)] dark:border-[var(--color-dark-shell-secondary)] shadow-md">
             <div className="flex items-center justify-between p-4">
-                <button onClick={onToggleSidebar} className="text-muted-foreground focus:outline-none md:hidden">
-                    <span className="text-2xl">☰</span>
+                <button
+                    onClick={onToggleSidebar}
+                    className="md:hidden inline-flex items-center justify-center rounded-md text-[var(--color-shell-foreground)] hover:text-[var(--color-shell-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-shell-secondary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-shell-primary)] dark:text-[var(--color-dark-shell-foreground)] dark:hover:text-[var(--color-dark-shell-secondary)] dark:focus-visible:ring-[var(--color-dark-shell-secondary)] dark:focus-visible:ring-offset-[var(--color-dark-shell-primary)]"
+                    aria-label="Apri menu di navigazione"
+                    type="button"
+                >
+                    <MenuIcon className="h-6 w-6" />
                 </button>
-                <h1 className="text-xl font-semibold text-foreground dark:text-dark-foreground md:text-2xl">{getPageTitle(location.pathname)}</h1>
-                 {/* Questo div serve a mantenere il titolo centrato quando il pulsante hamburger è presente */}
-                <div className="md:hidden w-6"></div>
+                <h1 className="text-xl font-semibold text-[var(--color-shell-foreground)] dark:text-[var(--color-dark-shell-foreground)] md:text-2xl">
+                    {getPageTitle(location.pathname)}
+                </h1>
+                {/* Questo div serve a mantenere il titolo centrato quando il pulsante hamburger è presente */}
+                <div className="md:hidden w-6" aria-hidden="true"></div>
             </div>
         </header>
     );
