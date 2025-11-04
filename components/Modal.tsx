@@ -34,12 +34,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-8 animate-fade-in"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur px-4 py-8 animate-fade-in"
             onClick={handleBackdropClick}
             role="presentation"
         >
             <div
-                className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-border/60 dark:border-dark-border/60 bg-card/95 dark:bg-dark-card/95 shadow-soft animate-scale-in"
+                className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-border/60 dark:border-dark-border/60 bg-card dark:bg-dark-card shadow-soft animate-scale-in"
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
