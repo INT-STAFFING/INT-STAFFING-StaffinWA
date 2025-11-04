@@ -83,6 +83,8 @@ export function DataTable<T extends { id?: string }>({
     const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
     const containerRef = useRef<HTMLDivElement | null>(null);
     const filtersContainerRef = useRef<HTMLDivElement | null>(null);
+    const tableCardRef = useRef<HTMLDivElement | null>(null);
+    const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
 
     useLayoutEffect(() => {
         if (typeof window === 'undefined') return;
@@ -91,14 +93,34 @@ export function DataTable<T extends { id?: string }>({
         if (!container || !filtersEl) return;
 
         const updateStickyMetrics = () => {
-            const filtersHeight = filtersEl.getBoundingClientRect().height;
+            const filtersRect = filtersEl.getBoundingClientRect();
+            const filtersHeight = filtersRect.height;
+            let gapOffset = 0;
+
+            const headEl = tableHeadRef.current;
+            if (headEl && headEl.getClientRects().length > 0) {
+                const headRect = headEl.getBoundingClientRect();
+                gapOffset = Math.max(0, headRect.top - filtersRect.bottom);
+            } else {
+                const cardEl = tableCardRef.current;
+                if (cardEl) {
+                    const cardRect = cardEl.getBoundingClientRect();
+                    gapOffset = Math.max(0, cardRect.top - filtersRect.bottom);
+                }
+            }
+
             container.style.setProperty('--datatable-filters-height', `${filtersHeight}px`);
+            container.style.setProperty('--datatable-gap-offset', `${gapOffset}px`);
         };
 
         updateStickyMetrics();
 
         const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateStickyMetrics) : null;
         resizeObserver?.observe(filtersEl);
+        const cardEl = tableCardRef.current;
+        if (cardEl && resizeObserver) {
+            resizeObserver.observe(cardEl);
+        }
         window.addEventListener('resize', updateStickyMetrics);
 
         return () => {
@@ -189,6 +211,7 @@ export function DataTable<T extends { id?: string }>({
             style={{
                 '--datatable-sticky-top': '0px',
                 '--datatable-filters-height': '0px',
+                '--datatable-gap-offset': '0px',
             } as React.CSSProperties}
         >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -215,7 +238,10 @@ export function DataTable<T extends { id?: string }>({
                 {filtersNode}
             </div>
 
-            <div className="rounded-3xl border border-border/70 dark:border-dark-border/70 bg-card dark:bg-dark-card shadow-soft">
+            <div
+                ref={tableCardRef}
+                className="rounded-3xl border border-border/70 dark:border-dark-border/70 bg-card dark:bg-dark-card shadow-soft"
+            >
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full" style={{ tableLayout: 'fixed' }}>
@@ -232,9 +258,10 @@ export function DataTable<T extends { id?: string }>({
                             <col style={{ width: '120px' }} />
                         </colgroup>
                         <thead
+                            ref={tableHeadRef}
                             className="sticky z-20 bg-muted/70 backdrop-blur-sm dark:bg-dark-muted/80"
                             style={{
-                                top: 'calc(var(--datatable-sticky-top) + var(--datatable-filters-height))',
+                                top: 'calc(var(--datatable-sticky-top) + var(--datatable-filters-height) + var(--datatable-gap-offset))',
                             }}
                         >
                             <tr className="text-left text-xs font-semibold uppercase text-muted-foreground dark:text-dark-muted-foreground">
