@@ -84,7 +84,6 @@ export function DataTable<T extends { id?: string }>({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const headerBlockRef = useRef<HTMLDivElement | null>(null);
     const filtersContainerRef = useRef<HTMLDivElement | null>(null);
-    const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
 
     useLayoutEffect(() => {
         if (typeof window === 'undefined') return;
@@ -97,14 +96,12 @@ export function DataTable<T extends { id?: string }>({
         const updateStickyMetrics = () => {
             const computedStyles = window.getComputedStyle(container);
             const rowGap = parseFloat(computedStyles.rowGap || '0') || 0;
-            const baseTop = 0;
             const headerHeight = headerEl ? headerEl.getBoundingClientRect().height : 0;
             const filtersHeight = filtersEl ? filtersEl.getBoundingClientRect().height : 0;
 
-            container.style.setProperty('--datatable-base-top', `${baseTop}px`);
-            container.style.setProperty('--datatable-row-gap', `${rowGap}px`);
             container.style.setProperty('--datatable-header-height', `${headerHeight}px`);
             container.style.setProperty('--datatable-filters-height', `${filtersHeight}px`);
+            container.style.setProperty('--datatable-sticky-gap', `${rowGap}px`);
         };
 
         updateStickyMetrics();
@@ -118,7 +115,7 @@ export function DataTable<T extends { id?: string }>({
             resizeObserver?.disconnect();
             window.removeEventListener('resize', updateStickyMetrics);
         };
-    }, [filtersNode]);
+    }, []);
 
     const handleMouseDown = useCallback((key: string, e: React.MouseEvent) => {
         const startX = e.clientX;
@@ -200,18 +197,14 @@ export function DataTable<T extends { id?: string }>({
             ref={containerRef}
             className="flex flex-col gap-6"
             style={{
-                '--datatable-base-top': '0px',
-                '--datatable-row-gap': '0px',
                 '--datatable-header-height': '0px',
                 '--datatable-filters-height': '0px',
+                '--datatable-sticky-gap': '0px',
             } as React.CSSProperties}
         >
             <div
                 ref={headerBlockRef}
-                className="flex flex-col gap-4 rounded-3xl border border-border/60 bg-muted/95 px-6 py-5 shadow-soft backdrop-blur md:flex-row md:items-center md:justify-between dark:border-dark-border/60 dark:bg-dark-muted/95 sticky z-40"
-                style={{
-                    top: 'var(--datatable-base-top)',
-                }}
+                className="sticky top-0 z-40 flex flex-col gap-4 rounded-3xl border border-border/60 bg-muted/95 px-6 py-5 shadow-soft backdrop-blur md:flex-row md:items-center md:justify-between dark:border-dark-border/60 dark:bg-dark-muted/95"
             >
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground">{title}</h1>
@@ -228,9 +221,9 @@ export function DataTable<T extends { id?: string }>({
 
             <div
                 ref={filtersContainerRef}
-                className="surface-card p-5 sticky z-30"
+                className="surface-card sticky z-30 p-5"
                 style={{
-                    top: 'calc(var(--datatable-base-top) + var(--datatable-header-height) + var(--datatable-row-gap))',
+                    top: 'calc(var(--datatable-header-height) + var(--datatable-sticky-gap))',
                 }}
             >
                 {filtersNode}
@@ -253,10 +246,9 @@ export function DataTable<T extends { id?: string }>({
                             <col style={{ width: '120px' }} />
                         </colgroup>
                         <thead
-                            ref={tableHeadRef}
-                            className="sticky z-20 bg-muted/90 backdrop-blur dark:bg-dark-muted/90"
+                            className="sticky z-20 bg-muted/95 backdrop-blur dark:bg-dark-muted/95"
                             style={{
-                                top: 'calc(var(--datatable-base-top) + var(--datatable-header-height) + var(--datatable-row-gap) + var(--datatable-filters-height) + var(--datatable-row-gap))',
+                                top: 'calc(var(--datatable-header-height) + var(--datatable-filters-height) + (var(--datatable-sticky-gap) * 2))',
                             }}
                         >
                             <tr className="text-left text-xs font-semibold uppercase text-muted-foreground dark:text-dark-muted-foreground">
