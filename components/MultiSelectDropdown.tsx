@@ -3,7 +3,8 @@
  * @description Componente dropdown con checkbox per selezioni multiple.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { AlertCircle, Check, ChevronDown, Search } from './IconLibrary';
 
 interface Option {
     value: string;
@@ -52,66 +53,86 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const getButtonLabel = () => {
-        if (selectedValues.length === 0) {
-            return placeholder;
-        }
-        if (selectedValues.length === 1) {
-            return options.find(o => o.value === selectedValues[0])?.label || placeholder;
-        }
-        return `${selectedValues.length} elementi selezionati`;
-    };
+    const selectedLabelMap = useMemo(() => {
+        return selectedValues
+            .map(value => options.find(option => option.value === value)?.label)
+            .filter((label): label is string => Boolean(label));
+    }, [options, selectedValues]);
 
     return (
         <div className="relative" ref={wrapperRef}>
             <button
                 type="button"
-                className="w-full form-input text-left flex justify-between items-center"
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-2 text-left shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-dark-border dark:bg-dark-card"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
-                <span className={selectedValues.length > 0 ? 'text-foreground dark:text-dark-foreground' : 'text-muted-foreground'}>
-                    {getButtonLabel()}
-                </span>
-                <svg className="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <div className="flex flex-1 flex-wrap items-center gap-2 text-sm">
+                    {selectedLabelMap.length > 0 ? (
+                        selectedLabelMap.map(label => (
+                            <span
+                                key={label}
+                                className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
+                            >
+                                {label}
+                            </span>
+                        ))
+                    ) : (
+                        <span className="text-muted-foreground">{placeholder}</span>
+                    )}
+                </div>
+                <ChevronDown
+                    className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    aria-hidden="true"
+                />
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
-                    <div className="p-2 border-b border-border dark:border-dark-border">
+                <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl dark:border-dark-border dark:bg-dark-card">
+                    <div className="relative border-b border-border px-3 py-2 dark:border-dark-border">
+                        <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder="Cerca..."
-                            className="w-full form-input"
+                            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground shadow-inner focus:outline-none focus:ring-2 focus:ring-primary dark:border-dark-border dark:bg-dark-card dark:text-dark-foreground"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             autoFocus
                         />
                     </div>
-                    <ul className="max-h-60 overflow-y-auto" role="listbox">
+                    <ul className="max-h-64 overflow-y-auto py-2" role="listbox">
+                        <li
+                            className="flex cursor-pointer items-center justify-between px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                            onClick={() => onChange(name, [])}
+                            role="option"
+                            aria-selected={selectedValues.length === 0}
+                        >
+                            <span>Deseleziona tutti</span>
+                            {selectedValues.length === 0 && <Check className="h-4 w-4" />}
+                        </li>
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map(option => (
                                 <li
                                     key={option.value}
-                                    className="px-4 py-2 text-sm text-foreground dark:text-dark-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer flex items-center"
+                                    className={`flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition-colors ${
+                                        selectedValues.includes(option.value)
+                                            ? 'bg-primary/15 text-primary'
+                                            : 'text-foreground dark:text-dark-foreground hover:bg-primary/10 hover:text-primary'
+                                    }`}
                                     onClick={() => handleSelect(option.value)}
                                     role="option"
                                     aria-selected={selectedValues.includes(option.value)}
                                 >
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedValues.includes(option.value)}
-                                        readOnly
-                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mr-3 pointer-events-none"
-                                    />
-                                    {option.label}
+                                    <span>{option.label}</span>
+                                    {selectedValues.includes(option.value) && <Check className="h-4 w-4" />}
                                 </li>
                             ))
                         ) : (
-                            <li className="px-4 py-2 text-sm text-muted-foreground">Nessun risultato</li>
+                            <li className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
+                                <AlertCircle className="h-4 w-4" />
+                                Nessun risultato
+                            </li>
                         )}
                     </ul>
                 </div>

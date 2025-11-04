@@ -3,12 +3,12 @@
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
  */
 
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import StaffingPage from './pages/StaffingPage';
 import ResourcesPage from './pages/ResourcesPage';
@@ -32,6 +32,7 @@ import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagin
 import ContractsPage from './pages/ContractsPage'; // Importa la nuova pagina dei contratti
 import StaffingVisualizationPage from './pages/StaffingVisualizationPage'; // Importa la nuova pagina di visualizzazione
 import UserManualPage from './pages/UserManualPage'; // Importa la pagina del manuale
+import { Menu, Moon, SunMedium } from './components/IconLibrary';
 
 /**
  * @interface HeaderProps
@@ -52,6 +53,7 @@ interface HeaderProps {
  */
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     const location = useLocation();
+    const { mode, toggleMode } = useTheme();
     
     /**
      * Genera un titolo leggibile a partire dal percorso della URL per l'header.
@@ -88,14 +90,33 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     };
 
     return (
-        <header className="flex-shrink-0 bg-card dark:bg-dark-card shadow-md">
-            <div className="flex items-center justify-between p-4">
-                <button onClick={onToggleSidebar} className="text-muted-foreground focus:outline-none md:hidden">
-                    <span className="text-2xl">☰</span>
-                </button>
-                <h1 className="text-xl font-semibold text-foreground dark:text-dark-foreground md:text-2xl">{getPageTitle(location.pathname)}</h1>
-                 {/* Questo div serve a mantenere il titolo centrato quando il pulsante hamburger è presente */}
-                <div className="md:hidden w-6"></div>
+        <header className="flex-shrink-0 border-b border-header-border dark:border-dark-header-border bg-header dark:bg-dark-header text-header-foreground dark:text-dark-header-foreground shadow-sm transition-colors">
+            <div className="flex items-center justify-between px-4 py-3 sm:px-6">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={onToggleSidebar}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-transparent bg-muted text-header-foreground transition-colors hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary md:hidden"
+                        aria-label="Apri menu di navigazione"
+                    >
+                        <Menu className="h-5 w-5" />
+                    </button>
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Staffing Planner</p>
+                        <h1 className="text-lg font-semibold leading-tight text-header-foreground dark:text-dark-header-foreground sm:text-2xl">
+                            {getPageTitle(location.pathname)}
+                        </h1>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={toggleMode}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-header-border bg-card text-header-foreground transition-colors hover:bg-primary/10 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-dark-header-border dark:bg-dark-card dark:text-dark-header-foreground"
+                        aria-label={mode === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
+                    >
+                        {mode === 'dark' ? <SunMedium className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                    </button>
+                </div>
             </div>
         </header>
     );
@@ -141,9 +162,13 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
-             <Header onToggleSidebar={onToggleSidebar} />
-             <main className={`flex-1 ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'} bg-muted dark:bg-dark-background`}>
-                <div className={`container mx-auto px-4 sm:px-6 py-8 ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`}>
+            <Header onToggleSidebar={onToggleSidebar} />
+            <main
+                className={`flex-1 ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'} bg-background dark:bg-dark-background transition-colors`}
+            >
+                <div
+                    className={`mx-auto w-full max-w-[1400px] px-4 sm:px-6 py-8 transition-colors ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`}
+                >
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />
@@ -199,12 +224,12 @@ const MainLayout: React.FC = () => {
         <>
             {/* Backdrop per la sidebar mobile */}
             {isSidebarOpen && (
-                <div 
-                    className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
+                <div
+                    className="fixed inset-0 z-20 bg-foreground/30 backdrop-blur-sm transition-opacity md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}
-            <div className="flex h-screen bg-background dark:bg-dark-background">
+            <div className="flex h-screen bg-background text-foreground transition-colors dark:bg-dark-background dark:text-dark-foreground">
                 <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
             </div>
