@@ -105,7 +105,7 @@ const ThemeEditor: React.FC = () => {
                  <button 
                     onClick={handleSave}
                     disabled={!isThemeChanged}
-                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                    className="px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:opacity-50"
                 >
                     Salva Modifiche
                 </button>
@@ -147,8 +147,8 @@ const AdminSettingsPage: React.FC = () => {
                                 checked={isLoginProtectionEnabled}
                                 onChange={handleToggleProtection}
                             />
-                            <div className="block bg-gray-200 dark:bg-gray-600 w-14 h-8 rounded-full"></div>
-                            <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 bg-primary' : 'bg-gray-400'}`}></div>
+                            <div className="block bg-muted dark:bg-dark-muted w-14 h-8 rounded-full"></div>
+                            <div className={`dot absolute left-1 top-1 bg-card w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 bg-primary' : 'bg-muted'}`}></div>
                         </div>
                     </label>
                 </div>

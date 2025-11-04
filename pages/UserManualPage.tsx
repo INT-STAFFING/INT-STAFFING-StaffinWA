@@ -2,8 +2,8 @@ import React from 'react';
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
     <section className="mb-12">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-6 pb-3 border-b-2 border-primary/30 dark:border-primary/50">{title}</h2>
-        <div className="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 space-y-6">
+        <h2 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-6 pb-3 border-b-2 border-primary/30 dark:border-primary/50">{title}</h2>
+        <div className="prose prose-lg dark:prose-invert max-w-none text-foreground dark:text-dark-muted-foreground space-y-6">
             {children}
         </div>
     </section>
@@ -11,8 +11,8 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 
 const SubSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
      <div className="mt-8">
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-3">{title}</h3>
-        <div className="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-400 space-y-4">
+        <h3 className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-3">{title}</h3>
+        <div className="prose dark:prose-invert max-w-none text-muted-foreground dark:text-muted-foreground space-y-4">
              {children}
         </div>
     </div>
@@ -21,10 +21,10 @@ const SubSection: React.FC<{ title: string; children: React.ReactNode }> = ({ ti
 
 const UserManualPage: React.FC = () => {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 md:p-12">
+        <div className="bg-card dark:bg-dark-card rounded-lg shadow-xl p-8 md:p-12">
             <header className="text-center mb-16">
-                <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Manuale Utente</h1>
-                <p className="text-xl text-gray-500 dark:text-gray-400">La tua guida completa allo Staffing Allocation Planner.</p>
+                <h1 className="text-5xl font-extrabold text-foreground dark:text-dark-foreground mb-4 tracking-tight">Manuale Utente</h1>
+                <p className="text-xl text-muted-foreground dark:text-dark-muted-foreground">La tua guida completa allo Staffing Allocation Planner.</p>
             </header>
             
             <Section title="1. Introduzione">
@@ -67,7 +67,6 @@ const UserManualPage: React.FC = () => {
                      <p>Qui puoi visualizzare e modificare la griglia di allocazione di tutte le risorse su tutti i progetti. È la vista più completa e potente per la pianificazione dettagliata.</p>
                     <ul>
                         <li><strong>Griglia Interattiva:</strong> Per ogni risorsa e per ogni progetto a cui è assegnata, puoi definire la percentuale di allocazione per ogni singolo giorno tramite un menu a tendina (da 0% a 100% con step del 5%). I giorni non lavorativi (weekend e festività) sono visualizzati in grigio e non sono modificabili.</li>
-                        <li><strong>Riga di Carico Totale:</strong> La prima riga per ogni risorsa mostra il suo carico di lavoro totale giornaliero, sommando tutte le sue allocazioni. Le celle si colorano per evidenziare il livello di carico: <span className="font-semibold text-yellow-600">giallo</span> (sottoutilizzo), <span className="font-semibold text-green-600">verde</span> (pieno utilizzo) e <span className="font-semibold text-red-600">rosso</span> (sovraccarico).</li>
                         <li><strong>Assegnazione Massiva (<code className="text-sm">🗓️</code>):</strong> Invece di inserire le percentuali giorno per giorno, puoi cliccare sull'icona del calendario su una riga di assegnazione per aprire un pop-up e applicare una percentuale a un intero intervallo di date in un colpo solo.</li>
                         <li><strong>Filtri Potenti:</strong> Puoi isolare la vista per singola risorsa, progetto, cliente o project manager per concentrarti solo su ciò che ti interessa.</li>
                     </ul>
@@ -153,7 +152,7 @@ const UserManualPage: React.FC = () => {
                     <li><strong>Calendario:</strong> Definisci le festività (nazionali o locali per una specifica sede) e i giorni di chiusura aziendale. Questi giorni saranno automaticamente disabilitati nella griglia di Staffing e ignorati nei calcoli dei giorni lavorativi.</li>
                     <li><strong>Configurazioni:</strong> Questa pagina ti permette di personalizzare le opzioni che appaiono nei vari menu a tendina dell'applicazione (es. l'elenco degli Horizontals, i livelli di Seniority, ecc.).</li>
                     <li><strong>Impostazioni Admin:</strong> Riservata agli amministratori, qui puoi attivare o disattivare la protezione tramite password per l'intera applicazione.</li>
-                    <li><strong>Database Inspector:</strong> <strong className="text-red-500">ATTENZIONE:</strong> Questo è uno strumento per sviluppatori o per interventi di manutenzione straordinaria. Permette di visualizzare e modificare i dati direttamente nel database. Un uso improprio può compromettere l'integrità dei dati e il funzionamento dell'applicazione. Usare con estrema cautela.</li>
+                    <li><strong>Database Inspector:</strong> <strong className="text-destructive">ATTENZIONE:</strong> Questo è uno strumento per sviluppatori o per interventi di manutenzione straordinaria. Permette di visualizzare e modificare i dati direttamente nel database. Un uso improprio può compromettere l'integrità dei dati e il funzionamento dell'applicazione. Usare con estrema cautela.</li>
                 </ul>
             </Section>
 

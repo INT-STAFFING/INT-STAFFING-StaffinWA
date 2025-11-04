@@ -97,17 +97,17 @@ const ImportPage: React.FC = () => {
 
     const getResultMessageColor = () => {
         if (!importResult) return '';
-        return importResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+        return importResult.success ? 'text-success dark:text-success' : 'text-destructive dark:text-destructive';
     };
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Importazione Massiva Dati</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-6">Importazione Massiva Dati</h1>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 max-w-4xl mx-auto space-y-8">
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-8 max-w-4xl mx-auto space-y-8">
                 {/* Step 1: Select Type */}
                 <div>
-                    <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-white rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">1</span> Seleziona il tipo di dati</h2>
+                    <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">1</span> Seleziona il tipo di dati</h2>
                     <select
                         value={importType}
                         onChange={(e) => {
@@ -123,11 +123,11 @@ const ImportPage: React.FC = () => {
                 
                  {/* Step 2: Download Template */}
                  <div>
-                    <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-white rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">2</span> Scarica e compila il template</h2>
+                    <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">2</span> Scarica e compila il template</h2>
                     <p className="text-muted-foreground mb-4 text-sm">Scarica il file Excel, compilalo con i tuoi dati e salvalo. Non modificare i nomi dei fogli o delle colonne.</p>
-                     <button
+                    <button
                         onClick={() => exportTemplate(importType)}
-                        className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white font-semibold rounded-md shadow-sm hover:bg-gray-700 transition-colors duration-200"
+                        className="inline-flex items-center justify-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground font-semibold rounded-md shadow-sm hover:bg-primary/80 transition-colors duration-200"
                     >
                         <span className="mr-2 text-xl">📥</span>
                         Scarica Template
@@ -136,24 +136,24 @@ const ImportPage: React.FC = () => {
 
                 {/* Step 3: Upload and Import */}
                 <div>
-                     <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-white rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">3</span> Carica e importa il file</h2>
+                     <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">3</span> Carica e importa il file</h2>
                      <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
                         <div>
-                            <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-border dark:border-dark-border rounded-md shadow-sm text-sm font-medium text-foreground dark:text-dark-foreground bg-card dark:bg-dark-muted hover:bg-muted dark:hover:bg-dark-muted">
                                 <span>{file ? 'Cambia file...' : 'Seleziona un file...'}</span>
                                 <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".xlsx, .xls" onChange={handleFileChange} />
                             </label>
-                            {file && <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{file.name}</p>}
+                            {file && <p className="mt-2 text-sm text-muted-foreground dark:text-dark-muted-foreground">{file.name}</p>}
                         </div>
 
                         <button
                             onClick={handleImport}
                             disabled={!file || isImporting}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors duration-200"
+                            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground font-semibold rounded-md shadow-sm hover:bg-primary/80 disabled:bg-primary/50 disabled:text-dark-foreground/70 disabled:cursor-not-allowed transition-colors duration-200"
                         >
                             {isImporting ? (
                                 <>
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-dark-foreground dark:text-dark-sidebar-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -170,12 +170,12 @@ const ImportPage: React.FC = () => {
                 </div>
 
                 {importResult && (
-                    <div className="mt-4 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <div className="mt-4 pt-6 border-t border-border dark:border-dark-border">
                         <h3 className={`text-lg font-semibold ${getResultMessageColor()}`}>{importResult.message}</h3>
                         {importResult.details && importResult.details.length > 0 && (
-                             <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
-                                <h4 className="font-semibold text-yellow-800 dark:text-yellow-200">Dettagli e Avvisi:</h4>
-                                <ul className="list-disc list-inside mt-1 text-sm text-yellow-700 dark:text-yellow-300 max-h-40 overflow-y-auto">
+                             <div className="mt-2 p-3 bg-warning/10 dark:bg-warning/30 border border-warning dark:border-warning rounded-md">
+                                <h4 className="font-semibold text-warning dark:text-warning">Dettagli e Avvisi:</h4>
+                                <ul className="list-disc list-inside mt-1 text-sm text-warning dark:text-warning max-h-40 overflow-y-auto">
                                     {importResult.details.map((detail, i) => <li key={i}>{detail}</li>)}
                                 </ul>
                             </div>
@@ -183,7 +183,7 @@ const ImportPage: React.FC = () => {
                     </div>
                 )}
             </div>
-             <style>{`.form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

@@ -79,24 +79,24 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
     };
     
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">{title}</h2>
-                <button onClick={() => handleOpenModal()} className="px-3 py-1.5 bg-primary text-white text-sm rounded-md shadow-sm hover:bg-primary-darker">
+                <button onClick={() => handleOpenModal()} className="px-3 py-1.5 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground text-sm rounded-md shadow-sm hover:bg-primary-darker">
                     Aggiungi
                 </button>
             </div>
-            <ul className="divide-y divide-gray-200 dark:divide-gray-700 max-h-60 overflow-y-auto">
+            <ul className="divide-y divide-border dark:divide-dark-border max-h-60 overflow-y-auto">
                 {options.map(option => {
                     const isDeleting = isActionLoading(`deleteConfig-${configType}-${option.id}`);
                     return (
                     <li key={option.id} className="py-2 flex justify-between items-center">
-                        <span className="text-sm text-gray-800 dark:text-gray-200">{option.value}</span>
+                        <span className="text-sm text-foreground dark:text-dark-foreground">{option.value}</span>
                         <div>
-                            <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1" title="Modifica">
+                            <button onClick={() => handleOpenModal(option)} className="text-primary hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-3 p-1" title="Modifica">
                                 <span className="text-lg">✏️</span>
                             </button>
-                            <button onClick={() => deleteConfigOption(configType, option.id!)} disabled={isDeleting} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-1 disabled:opacity-50" title="Elimina">
+                            <button onClick={() => deleteConfigOption(configType, option.id!)} disabled={isDeleting} className="text-destructive hover:text-destructive/80 dark:text-destructive dark:hover:text-destructive/60 p-1 disabled:opacity-50" title="Elimina">
                                 {isDeleting ? <SpinnerIcon className="w-4 h-4" /> : <span className="text-lg">🗑️</span>}
                             </button>
                         </div>
@@ -115,8 +115,8 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                             className="w-full form-input"
                         />
                         <div className="flex justify-end space-x-3 pt-5">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                             <button type="submit" disabled={isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80">Annulla</button>
+                             <button type="submit" disabled={isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:bg-primary/50">
                                 {(isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
@@ -137,7 +137,7 @@ const ConfigPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Configurazioni</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-8">Configurazioni</h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <ConfigSection title="Horizontals (Risorse)" configType="horizontals" options={horizontals} />
@@ -147,8 +147,8 @@ const ConfigPage: React.FC = () => {
                 <ConfigSection title="Sedi di Lavoro (Risorse)" configType="locations" options={locations} />
             </div>
              <style>{`
-                .form-input { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }
-                .dark .form-input { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }
+                .form-input { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; }
+                .dark .form-input { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }
             `}</style>
         </div>
     );

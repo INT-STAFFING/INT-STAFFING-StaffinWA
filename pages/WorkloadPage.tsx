@@ -42,7 +42,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
 
     if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+            <td className="border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold bg-muted dark:bg-dark-background/50 text-muted-foreground">
                 -
             </td>
         );
@@ -62,15 +62,15 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     // - Giallo: sottoutilizzo (< maxStaffingPercentage)
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
-        if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (total > 0 && total < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (total > maxPercentage) return 'bg-destructive/20 dark:bg-destructive/40 text-destructive dark:text-destructive';
+        if (total === maxPercentage) return 'bg-success/20 dark:bg-success/30 text-success dark:text-success';
+        if (total > 0 && total < maxPercentage) return 'bg-warning/20 dark:bg-warning/30 text-warning dark:text-warning';
         return 'bg-transparent';
     }, [total, resource.maxStaffingPercentage]);
 
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {total > 0 ? `${total}%` : '-'}
         </td>
     );
@@ -134,15 +134,15 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         const roundedAverage = Math.round(averageAllocation);
-        if (roundedAverage > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (roundedAverage === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (roundedAverage > 0 && roundedAverage < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (roundedAverage > maxPercentage) return 'bg-destructive/20 dark:bg-destructive/40 text-destructive dark:text-destructive';
+        if (roundedAverage === maxPercentage) return 'bg-success/20 dark:bg-success/30 text-success dark:text-success';
+        if (roundedAverage > 0 && roundedAverage < maxPercentage) return 'bg-warning/20 dark:bg-warning/30 text-warning dark:text-warning';
         return 'bg-transparent';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -290,55 +290,55 @@ const WorkloadPage: React.FC = () => {
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
                     <div className="flex items-center justify-start space-x-2">
-                        <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
-                        <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                        <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
+                        <button onClick={handlePrev} className="px-3 py-2 bg-card dark:bg-dark-muted border dark:border-dark-border rounded-md shadow-sm hover:bg-muted dark:hover:bg-dark-muted text-sm">← Prec.</button>
+                        <button onClick={handleToday} className="px-4 py-2 bg-card dark:bg-dark-muted border dark:border-dark-border rounded-md shadow-sm font-semibold text-primary dark:text-dark-sidebar-foreground hover:bg-muted dark:hover:bg-dark-muted">Oggi</button>
+                        <button onClick={handleNext} className="px-3 py-2 bg-card dark:bg-dark-muted border dark:border-dark-border rounded-md shadow-sm hover:bg-muted dark:hover:bg-dark-muted text-sm">Succ. →</button>
                     </div>
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                    <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
                         {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button key={level} onClick={() => setViewMode(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
                                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
                             </button>
                         ))}
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
-                        Vista di sola lettura. <a href="/staffing" className="text-blue-500 hover:underline">Vai a Staffing per modifiche</a>.
+                    <div className="text-sm text-muted-foreground dark:text-muted-foreground text-right">
+                        Vista di sola lettura. <a href="/staffing" className="text-primary hover:underline">Vai a Staffing per modifiche</a>.
                     </div>
                 </div>
 
                 {/* Sezione Filtri */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                <div className="mb-4 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-30">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                        <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                        <button onClick={clearFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full md:w-auto">Reset Filtri</button>
                     </div>
                 </div>
             </div>
 
             {/* Griglia Carico */}
-            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
+            <div className="flex-grow overflow-auto bg-card dark:bg-dark-card rounded-lg shadow">
+                <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                    <thead className="bg-muted dark:bg-dark-muted sticky top-0 z-20">
                         <tr>
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '200px' }}>Carico Totale Risorsa</th>
+                            <th className="sticky left-0 bg-muted dark:bg-dark-muted px-3 py-3.5 text-left text-sm font-semibold text-foreground dark:text-dark-foreground z-30" style={{ minWidth: '200px' }}>Carico Totale Risorsa</th>
                             {timeColumns.map((col, index) => (
-                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${col.isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${col.isNonWorkingHeader ? 'bg-muted dark:bg-dark-muted/50' : ''}`}>
                                     <div className="flex flex-col items-center">
-                                        <span className={col.isNonWorkingHeader ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{col.label}</span>
-                                        {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
+                                        <span className={col.isNonWorkingHeader ? 'text-muted-foreground' : 'text-foreground dark:text-dark-foreground'}>{col.label}</span>
+                                        {col.subLabel && <span className="text-xs text-muted-foreground">{col.subLabel}</span>}
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-border dark:divide-dark-border">
                         {displayResources.map((resource) => (
-                            <tr key={resource.id} className="bg-gray-100/50 dark:bg-gray-900/50 font-bold">
-                                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300 z-10">{resource.name} (Max: {resource.maxStaffingPercentage}%)</td>
+                            <tr key={resource.id} className="bg-muted/50 dark:bg-dark-background/50 font-bold">
+                                <td className="sticky left-0 bg-muted dark:bg-dark-background px-3 py-3 text-left text-sm text-muted-foreground dark:text-dark-muted-foreground z-10">{resource.name} (Max: {resource.maxStaffingPercentage}%)</td>
                                 {timeColumns.map((col, index) => {
                                     if (viewMode === 'day') {
                                         const day = col.startDate;
@@ -358,10 +358,10 @@ const WorkloadPage: React.FC = () => {
                     </tbody>
                 </table>
                  {displayResources.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">Nessuna risorsa trovata con i filtri correnti.</div>
+                    <div className="text-center py-8 text-muted-foreground">Nessuna risorsa trovata con i filtri correnti.</div>
                 )}
             </div>
-             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

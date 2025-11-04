@@ -41,7 +41,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     type="button"
                     onClick={onConfirm}
                     disabled={isConfirming}
-                    className="flex justify-center items-center px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                    className="flex justify-center items-center px-4 py-2 bg-destructive text-dark-foreground dark:text-dark-foreground rounded-md hover:opacity-90 disabled:opacity-50"
                 >
                     {isConfirming ? (
                        <SpinnerIcon className="w-5 h-5"/>

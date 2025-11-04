@@ -25,10 +25,10 @@ const formatDate = (dateStr: string) => {
 
 const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     switch (status) {
-        case 'ATTIVA': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-        case 'STANDBY': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-        case 'CHIUSA': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        case 'ATTIVA': return 'bg-success/10 text-success dark:bg-success/20 dark:text-success';
+        case 'STANDBY': return 'bg-warning/10 text-warning dark:bg-warning/30 dark:text-warning';
+        case 'CHIUSA': return 'bg-muted text-foreground dark:bg-dark-muted dark:text-dark-muted-foreground';
+        default: return 'bg-muted text-foreground dark:bg-dark-muted dark:text-dark-muted-foreground';
     }
 };
 
@@ -197,22 +197,22 @@ const ResourceRequestPage: React.FC = () => {
     ];
 
     const columns: ColumnDef<EnrichedRequest>[] = [
-        { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-gray-900 dark:text-white">{r.projectName}</span> },
+        { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-foreground dark:text-dark-foreground">{r.projectName}</span> },
         { header: 'Ruolo Richiesto', sortKey: 'roleName', cell: r => r.roleName },
         { header: 'Richiedente', sortKey: 'requestorName', cell: r => r.requestorName || 'N/A' },
         { header: 'Periodo', sortKey: 'startDate', cell: r => `${formatDate(r.startDate)} - ${formatDate(r.endDate)}` },
         { header: 'Impegno', sortKey: 'commitmentPercentage', cell: r => `${r.commitmentPercentage}%` },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
-        { header: 'Urgenza', sortKey: 'isUrgent', cell: r => r.isUrgent ? <span className="text-red-500 font-bold">Sì</span> : 'No' },
+        { header: 'Urgenza', sortKey: 'isUrgent', cell: r => r.isUrgent ? <span className="text-destructive font-bold">Sì</span> : 'No' },
     ];
 
     const renderRow = (request: EnrichedRequest) => (
-        <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(request)}</td>)}
+        <tr key={request.id} className="hover:bg-muted dark:hover:bg-dark-muted/50">
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(request)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                    <button onClick={() => openModalForEdit(request)} className="text-muted-foreground hover:text-primary" title="Modifica"><span className="text-xl">✏️</span></button>
+                    <button onClick={() => setRequestToDelete(request)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
@@ -236,7 +236,7 @@ const ResourceRequestPage: React.FC = () => {
                 <div className="flex flex-col md:items-end gap-2 w-full">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
                     <div className="flex gap-2 mt-1">
-                        {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 dark:text-red-100 dark:bg-red-800 rounded-full">URGENTE</span>}
+                        {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-destructive bg-destructive/10 dark:text-destructive dark:bg-destructive/40 rounded-full">URGENTE</span>}
                         {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-purple-800 bg-purple-100 dark:text-purple-100 dark:bg-purple-800 rounded-full">TECH</span>}
                     </div>
                 </div>
@@ -257,7 +257,7 @@ const ResourceRequestPage: React.FC = () => {
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
             <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions.map(s => ({ value: s.value, label: s.label }))} placeholder="Tutti gli Stati"/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full md:w-auto">Reset</button>
         </div>
     );
     
@@ -266,11 +266,11 @@ const ResourceRequestPage: React.FC = () => {
              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Richieste Risorse</h1>
                  <div className="flex items-center gap-4 w-full md:w-auto">
-                     <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                     <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Card</button>
                     </div>
-                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Nuova Richiesta</button>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground font-semibold rounded-md shadow-sm hover:bg-primary-darker">Nuova Richiesta</button>
                 </div>
             </div>
             
@@ -343,55 +343,55 @@ const ResourceRequestPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Progetto *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Progetto *</label>
                                 <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} required />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo Richiesto *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Ruolo Richiesto *</label>
                                 <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} required />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Richiedente</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Richiedente</label>
                             <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Nessun richiedente (opzionale)" />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Data Inizio *</label>
                                 <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fine *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Data Fine *</label>
                                 <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/>
                             </div>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Percentuale Impegno ({editingRequest.commitmentPercentage}%)</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Percentuale Impegno ({editingRequest.commitmentPercentage}%)</label>
                             <input type="range" min="0" max="100" step="5" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex items-center">
-                                <input id="isUrgent" name="isUrgent" type="checkbox" checked={editingRequest.isUrgent} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                <label htmlFor="isUrgent" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Richiesta Urgente</label>
+                                <input id="isUrgent" name="isUrgent" type="checkbox" checked={editingRequest.isUrgent} onChange={handleChange} className="h-4 w-4 rounded border-border text-primary focus:ring-primary"/>
+                                <label htmlFor="isUrgent" className="ml-2 block text-sm text-foreground dark:text-dark-muted-foreground">Richiesta Urgente</label>
                             </div>
                             <div className="flex items-center">
-                                <input id="isTechRequest" name="isTechRequest" type="checkbox" checked={editingRequest.isTechRequest} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                <label htmlFor="isTechRequest" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Richiesta TECH</label>
+                                <input id="isTechRequest" name="isTechRequest" type="checkbox" checked={editingRequest.isTechRequest} onChange={handleChange} className="h-4 w-4 rounded border-border text-primary focus:ring-primary"/>
+                                <label htmlFor="isTechRequest" className="ml-2 block text-sm text-foreground dark:text-dark-muted-foreground">Richiesta TECH</label>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato *</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Stato *</label>
                             <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
                                 {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </select>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Note</label>
                             <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted rounded-md">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:bg-primary/50">
                                {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
@@ -409,7 +409,7 @@ const ResourceRequestPage: React.FC = () => {
                     isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
                 />
             )}
-             <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

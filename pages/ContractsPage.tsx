@@ -133,29 +133,29 @@ const ContractsPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
 
     const columns: ColumnDef<EnrichedContract>[] = [
-        { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium text-gray-900 dark:text-white">{c.name}</span> },
-        { header: 'CIG / Derivato', sortKey: 'cig', cell: c => <div><div>{c.cig}</div><div className="text-xs text-gray-500">{c.cigDerivato}</div></div> },
+        { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium text-foreground dark:text-dark-foreground">{c.name}</span> },
+        { header: 'CIG / Derivato', sortKey: 'cig', cell: c => <div><div>{c.cig}</div><div className="text-xs text-muted-foreground">{c.cigDerivato}</div></div> },
         { header: 'Periodo Validità', sortKey: 'startDate', cell: c => `${formatDateForDisplay(c.startDate)} - ${formatDateForDisplay(c.endDate)}` },
         { header: 'Responsabili', cell: c => <span className="text-xs">{c.managerNames.join(', ')}</span> },
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
-        { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={`font-semibold ${c.backlog < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(c.backlog)}</span> },
+        { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={`font-semibold ${c.backlog < 0 ? 'text-destructive' : 'text-success'}`}>{formatCurrency(c.backlog)}</span> },
     ];
 
     const renderRow = (contract: EnrichedContract) => (
-        <tr key={contract.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(contract)}</td>)}
+        <tr key={contract.id} className="hover:bg-muted dark:hover:bg-dark-muted/50">
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{col.cell(contract)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                    <button onClick={() => openModalForEdit(contract)} className="text-muted-foreground hover:text-primary" title="Modifica"><span className="text-xl">✏️</span></button>
                     <button 
                         onClick={() => recalculateContractBacklog(contract.id!)} 
-                        className="text-gray-500 hover:text-blue-600" 
+                        className="text-muted-foreground hover:text-primary" 
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
                     >
                         {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
                     </button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                    <button onClick={() => setContractToDelete(contract)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
@@ -172,16 +172,16 @@ const ContractsPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground">CIG: {contract.cig}</p>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                    <button onClick={() => openModalForEdit(contract)} className="text-muted-foreground hover:text-primary" title="Modifica"><span className="text-xl">✏️</span></button>
                      <button 
                         onClick={() => recalculateContractBacklog(contract.id!)} 
-                        className="text-gray-500 hover:text-blue-600" 
+                        className="text-muted-foreground hover:text-primary" 
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
                     >
                         {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
                     </button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                    <button onClick={() => setContractToDelete(contract)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
@@ -190,7 +190,7 @@ const ContractsPage: React.FC = () => {
             {/* Card Body with main stats */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm border-t border-b border-border dark:border-dark-border py-4">
                 <div><p className="text-muted-foreground">Capienza</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatCurrency(contract.capienza)}</p></div>
-                <div><p className="text-muted-foreground">Backlog</p><p className={`font-semibold ${contract.backlog < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(contract.backlog)}</p></div>
+                <div><p className="text-muted-foreground">Backlog</p><p className={`font-semibold ${contract.backlog < 0 ? 'text-destructive' : 'text-success'}`}>{formatCurrency(contract.backlog)}</p></div>
                 <div className="col-span-2"><p className="text-muted-foreground">Responsabili</p><p className="font-medium text-xs text-foreground dark:text-dark-foreground">{contract.managerNames.join(', ') || 'N/A'}</p></div>
             </div>
             
@@ -217,7 +217,7 @@ const ContractsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <input type="text" name="cig" value={filters.cig} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per CIG..."/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full md:w-auto">Reset</button>
         </div>
     );
 
@@ -226,11 +226,11 @@ const ContractsPage: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Contratti</h1>
                 <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                    <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Card</button>
                     </div>
-                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Contratto</button>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Contratto</button>
                 </div>
             </div>
 
@@ -284,8 +284,8 @@ const ContractsPage: React.FC = () => {
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted rounded-md">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:bg-primary/50">
                                {(isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
@@ -303,7 +303,7 @@ const ContractsPage: React.FC = () => {
                     isConfirming={isActionLoading(`deleteContract-${contractToDelete.id}`)}
                 />
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

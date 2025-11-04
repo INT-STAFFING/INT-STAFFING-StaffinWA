@@ -146,7 +146,7 @@ export function DataTable<T extends { id?: string }>({
                             className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground"
                         >
                             <span className={sortConfig?.key === colKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
-                            <span className="text-gray-400">↕️</span>
+                            <span className="text-muted-foreground">↕️</span>
                         </button>
                     ) : (
                         <span>{label}</span>
@@ -165,7 +165,7 @@ export function DataTable<T extends { id?: string }>({
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">{title}</h1>
-                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">{addNewButtonLabel}</button>
+                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground font-semibold rounded-md shadow-sm hover:bg-primary-darker">{addNewButtonLabel}</button>
             </div>
 
             <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">

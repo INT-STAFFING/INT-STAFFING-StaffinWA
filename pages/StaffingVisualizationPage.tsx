@@ -379,39 +379,47 @@ const StaffingVisualizationPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Visualizzazione Staffing</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-6">Visualizzazione Staffing</h1>
             
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
                 <div>
                     <label className="text-sm font-medium mr-2">Mese:</label>
                     <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="form-select text-sm py-1">
                         {monthOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
                 </div>
-                <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                    <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'sankey' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Diagramma di Flusso</button>
-                    <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'network' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Mappa delle Connessioni</button>
+                <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
+                    <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'sankey' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Diagramma di Flusso</button>
+                    <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'network' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Mappa delle Connessioni</button>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
+                    <button
+                        onClick={handleExportSVG}
+                        className="flex items-center px-3 py-1.5 text-sm bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary/80 disabled:opacity-50"
+                        disabled={isLoading || chartData.nodes.length === 0}
+                    >
                         <span className="mr-2">📥</span>
                         SVG
                     </button>
-                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
+                    <button
+                        onClick={handleExportPNG}
+                        className="flex items-center px-3 py-1.5 text-sm bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary/80 disabled:opacity-50"
+                        disabled={isLoading || chartData.nodes.length === 0}
+                    >
                         <span className="mr-2">📥</span>
                         PNG
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 overflow-auto">
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-4 overflow-auto">
                 {isLoading && (
                     <div className="flex justify-center items-center h-96">
-                        <SpinnerIcon className="w-12 h-12 text-blue-500" />
+                        <SpinnerIcon className="w-12 h-12 text-primary" />
                     </div>
                 )}
                 {!isLoading && chartData.nodes.length === 0 && (
-                    <div className="flex justify-center items-center h-96 text-gray-500">
+                    <div className="flex justify-center items-center h-96 text-muted-foreground">
                         Nessun dato di allocazione trovato per il mese selezionato.
                     </div>
                 )}
@@ -419,7 +427,7 @@ const StaffingVisualizationPage: React.FC = () => {
                     <svg ref={svgRef}></svg>
                 )}
             </div>
-            <style>{`.form-select { display: inline-block; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`.form-select { display: inline-block; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

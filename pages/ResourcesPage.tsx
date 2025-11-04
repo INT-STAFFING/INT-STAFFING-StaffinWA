@@ -131,10 +131,10 @@ const ResourcesPage: React.FC = () => {
     };
     
     const getAllocationColor = (avg: number): string => {
-        if (avg > 100) return 'text-red-600 dark:text-red-400 font-bold';
-        if (avg >= 90) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
-        if (avg > 0) return 'text-green-600 dark:text-green-400';
-        return 'text-gray-500';
+        if (avg > 100) return 'text-destructive dark:text-destructive font-bold';
+        if (avg >= 90) return 'text-warning dark:text-warning font-semibold';
+        if (avg > 0) return 'text-success dark:text-success';
+        return 'text-muted-foreground';
     };
 
     const openModalForNew = () => { setEditingResource(emptyResource); setIsModalOpen(true); };
@@ -215,18 +215,18 @@ const ResourcesPage: React.FC = () => {
     const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
 
     const columns: ColumnDef<EnrichedResource>[] = [
-        { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-gray-900 dark:text-white">{r.name}</div> },
-        { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
-        { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.location}</span> },
-        { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
-        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
+        { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-foreground dark:text-dark-foreground">{r.name}</div> },
+        { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{r.roleName}</span> },
+        { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{r.location}</span> },
+        { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive' : 'bg-success/10 text-success dark:bg-success/20 dark:text-success'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
+        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
             r.isAssigned && !r.resigned
                 ? <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span>
                 : <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</span>
         )},
-        { header: 'Progetti Attivi', sortKey: 'activeProjects', cell: r => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{r.activeProjects}</span> },
-        { header: 'Anzianità (anni)', sortKey: 'seniority', cell: r => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{r.seniority.toFixed(1)}</span> },
+        { header: 'Progetti Attivi', sortKey: 'activeProjects', cell: r => <span className="text-sm text-center font-semibold text-muted-foreground dark:text-dark-muted-foreground">{r.activeProjects}</span> },
+        { header: 'Anzianità (anni)', sortKey: 'seniority', cell: r => <span className="text-sm text-center font-semibold text-muted-foreground dark:text-dark-muted-foreground">{r.seniority.toFixed(1)}</span> },
     ];
     
     const renderRow = (resource: EnrichedResource) => {
@@ -244,22 +244,22 @@ const ResourcesPage: React.FC = () => {
                     <td className="px-6 py-4 text-sm text-center">{resource.activeProjects}</td>
                     <td className="px-6 py-4 text-sm text-center">{resource.seniority.toFixed(1)}</td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-success hover:text-success disabled:opacity-50">
                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-muted-foreground hover:text-muted-foreground"><span className="text-xl">❌</span></button>
                     </div></td>
                 </tr>
             );
         }
         return (
-            <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+            <tr key={resource.id} className="hover:bg-muted dark:hover:bg-dark-muted/50">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((resource as any)[col.sortKey]) : undefined}>{col.cell(resource)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                        <button onClick={() => openModalForEdit(resource)} className="text-muted-foreground hover:text-primary" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(resource)} className="text-muted-foreground hover:text-success" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => deleteResource(resource.id!)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                              {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
@@ -273,33 +273,33 @@ const ResourcesPage: React.FC = () => {
             <div key={resource.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>
-                         <span className={`mt-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${resource.resigned ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                        <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{resource.name}</p>
+                         <span className={`mt-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${resource.resigned ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
                             {resource.resigned ? 'Dimesso' : 'Attivo'}
                         </span>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-muted-foreground hover:text-primary"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-muted-foreground hover:text-destructive">
                              {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                    <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Sede</p><p className="text-gray-900 dark:text-white font-medium">{resource.location}</p></div>
+                <div className="mt-4 pt-4 border-t border-border dark:border-dark-border grid grid-cols-2 gap-4 text-sm">
+                    <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Ruolo</p><p className="text-foreground dark:text-dark-foreground font-medium">{resource.roleName}</p></div>
+                    <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Sede</p><p className="text-foreground dark:text-dark-foreground font-medium">{resource.location}</p></div>
                     <div>
-                        <p className="text-gray-500 dark:text-gray-400">Alloc. Media</p>
+                        <p className="text-muted-foreground dark:text-dark-muted-foreground">Alloc. Media</p>
                         {resource.isAssigned && !resource.resigned
                             ? <p className={`font-semibold ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</p>
                             : <p className="font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</p>
                         }
                     </div>
                     {resource.resigned && (
-                         <div><p className="text-gray-500 dark:text-gray-400">Ultimo Giorno</p><p className="text-gray-900 dark:text-white font-medium">{resource.lastDayOfWork ? new Date(resource.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</p></div>
+                         <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Ultimo Giorno</p><p className="text-foreground dark:text-dark-foreground font-medium">{resource.lastDayOfWork ? new Date(resource.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</p></div>
                     )}
-                    <div><p className="text-gray-500 dark:text-gray-400">Progetti</p><p className="font-medium text-gray-900 dark:text-white">{resource.activeProjects}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Anzianità</p><p className="font-medium text-gray-900 dark:text-white">{resource.seniority.toFixed(1)} anni</p></div>
+                    <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Progetti</p><p className="font-medium text-foreground dark:text-dark-foreground">{resource.activeProjects}</p></div>
+                    <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Anzianità</p><p className="font-medium text-foreground dark:text-dark-foreground">{resource.seniority.toFixed(1)} anni</p></div>
                 </div>
             </div>
         );
@@ -312,10 +312,10 @@ const ResourcesPage: React.FC = () => {
             <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
             <div className="flex items-center">
-                <input id="unassigned-filter" type="checkbox" checked={showOnlyUnassigned} onChange={(e) => setShowOnlyUnassigned(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                <label htmlFor="unassigned-filter" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Solo non allocate</label>
+                <input id="unassigned-filter" type="checkbox" checked={showOnlyUnassigned} onChange={(e) => setShowOnlyUnassigned(e.target.checked)} className="h-4 w-4 rounded border-border text-primary focus:ring-primary" />
+                <label htmlFor="unassigned-filter" className="ml-2 block text-sm text-foreground dark:text-dark-muted-foreground">Solo non allocate</label>
             </div>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full">Reset</button>
         </div>
     );
 
@@ -338,63 +338,63 @@ const ResourcesPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome e Cognome *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Nome e Cognome *</label>
                                 <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className="form-input"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Email *</label>
                                 <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input"/>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Ruolo *</label>
                                 <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required />
                            </div>
                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horizontal *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Horizontal *</label>
                                 <SearchableSelect name="horizontal" value={editingResource.horizontal} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona un horizontal" required />
                            </div>
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Sede *</label>
                                 <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Data Assunzione</label>
                                 <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
                                 <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="w-full" disabled={editingResource.resigned}/>
                             </div>
                         </div>
-                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <div className="pt-2 border-t border-border dark:border-dark-border">
                              <label className="flex items-center space-x-3 mt-4">
-                                <input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa Dimessa</span>
+                                <input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="h-5 w-5 rounded border-border text-primary focus:ring-primary"/>
+                                <span className="text-sm font-medium text-foreground dark:text-dark-muted-foreground">Risorsa Dimessa</span>
                             </label>
 
                             {editingResource.resigned && (
                                 <div className="mt-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ultimo Giorno di Lavoro *</label>
+                                    <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Ultimo Giorno di Lavoro *</label>
                                     <input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className="form-input"/>
                                 </div>
                             )}
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted rounded-md">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:bg-primary/50">
                                {(isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

@@ -39,21 +39,21 @@ const formatDate = (dateStr: string | null) => {
 
 const getStatusBadgeClass = (status: InterviewStatus) => {
     switch (status) {
-        case 'Aperto': return 'bg-blue-100 text-blue-800';
-        case 'Chiuso': return 'bg-gray-100 text-gray-800';
-        case 'StandBy': return 'bg-yellow-100 text-yellow-800';
-        case 'Non Contattabile': return 'bg-red-100 text-red-800';
-        default: return 'bg-gray-100 text-gray-800';
+        case 'Aperto': return 'bg-primary/10 text-primary-darker';
+        case 'Chiuso': return 'bg-muted text-foreground';
+        case 'StandBy': return 'bg-warning/10 text-warning';
+        case 'Non Contattabile': return 'bg-destructive/10 text-destructive';
+        default: return 'bg-muted text-foreground';
     }
 };
 
 const getHiringStatusBadgeClass = (status: InterviewHiringStatus | null) => {
     switch (status) {
-        case 'SI': return 'bg-green-100 text-green-800';
-        case 'NO': return 'bg-red-100 text-red-800';
+        case 'SI': return 'bg-success/10 text-success';
+        case 'NO': return 'bg-destructive/10 text-destructive';
         case 'No Rifiutato': return 'bg-orange-100 text-orange-800';
         case 'In Fase di Offerta': return 'bg-purple-100 text-purple-800';
-        default: return 'bg-gray-100 text-gray-800';
+        default: return 'bg-muted text-foreground';
     }
 };
 
@@ -217,8 +217,8 @@ const InterviewsPage: React.FC = () => {
                     <p className="text-sm text-primary font-medium">{interview.roleName || 'N/A'}</p>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                    <button onClick={() => openModalForEdit(interview)} className="text-muted-foreground hover:text-primary" title="Modifica"><span className="text-xl">✏️</span></button>
+                    <button onClick={() => setInterviewToDelete(interview)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                         {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                     </button>
                 </div>
@@ -227,7 +227,7 @@ const InterviewsPage: React.FC = () => {
             <div className="flex flex-wrap gap-2">
                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span>
                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'Da definire'}</span>
-                 <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100/70 text-blue-800">{interview.feedback || 'N/A'}</span>
+                 <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary/10 text-primary-darker">{interview.feedback || 'N/A'}</span>
             </div>
 
             <div className="text-sm space-y-3 pt-3 border-t border-border dark:border-dark-border">
@@ -271,7 +271,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
                             </div>
-                            <span className="text-3xl text-gray-300">👥</span>
+                            <span className="text-3xl text-muted-foreground dark:text-dark-muted-foreground">👥</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
                     </div>
@@ -284,7 +284,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
                             </div>
-                            <span className="text-3xl text-gray-300">✅</span>
+                            <span className="text-3xl text-muted-foreground dark:text-dark-muted-foreground">✅</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
                     </div>
@@ -297,7 +297,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
                             </div>
-                            <span className="text-3xl text-gray-300">📅</span>
+                            <span className="text-3xl text-muted-foreground dark:text-dark-muted-foreground">📅</span>
                         </div>
                         {summaryCards.upcomingHires.length > 0 ? (
                             <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
@@ -317,11 +317,11 @@ const InterviewsPage: React.FC = () => {
                  <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
                      <div className="flex items-center gap-4 w-full md:w-auto">
-                         <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                            <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                            <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                         <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
+                            <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Tabella</button>
+                            <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>Card</button>
                         </div>
-                        <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
+                        <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
                     </div>
                 </div>
                 <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-20">
@@ -330,7 +330,7 @@ const InterviewsPage: React.FC = () => {
                         <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli"/>
                         <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback"/>
                         <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione"/>
-                        <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
+                        <button onClick={resetFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full">Reset</button>
                     </div>
                 </div>
             </div>
@@ -340,14 +340,14 @@ const InterviewsPage: React.FC = () => {
                 {view === 'table' ? (
                     <div className="bg-card dark:bg-dark-card rounded-lg shadow overflow-auto">
                         <table className="min-w-full">
-                            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
+                            <thead className="sticky top-0 z-10 bg-muted dark:bg-dark-muted border-b border-border dark:border-dark-border">
                                 <tr>
                                     {columns.map(col => (
                                         <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
                                             {col.sortKey ? (
                                                 <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
                                                     <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                                                    <span className="text-gray-400">↕️</span>
+                                                    <span className="text-muted-foreground">↕️</span>
                                                 </button>
                                             ) : (
                                                 <span>{col.header}</span>
@@ -359,20 +359,20 @@ const InterviewsPage: React.FC = () => {
                             </thead>
                             <tbody className="divide-y divide-border dark:divide-dark-border">
                                 {sortedAndFilteredData.map(interview => (
-                                    <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
+                                    <tr key={interview.id} className="hover:bg-muted dark:hover:bg-dark-muted/50">
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-muted-foreground">({interview.age ?? 'N/A'})</span></div></td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{interview.roleName || 'N/A'}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatDate(interview.interviewDate)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{interview.feedback || 'N/A'}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatDate(interview.entryDate)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-3">
-                                                <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                                                <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                                <button onClick={() => openModalForEdit(interview)} className="text-muted-foreground hover:text-primary" title="Modifica"><span className="text-xl">✏️</span></button>
+                                                <button onClick={() => setInterviewToDelete(interview)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                                                     {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                                                 </button>
                                             </div>
@@ -421,8 +421,8 @@ const InterviewsPage: React.FC = () => {
                         <div><label className="block text-sm font-medium mb-1">Stato Processo *</label><SearchableSelect name="status" value={editingInterview.status} onChange={handleSelectChange} options={statusOptions} required/></div>
                         
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted rounded-md">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:bg-primary/50">
                                {(isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
@@ -440,7 +440,7 @@ const InterviewsPage: React.FC = () => {
                     isConfirming={isActionLoading(`deleteInterview-${interviewToDelete.id}`)}
                 />
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

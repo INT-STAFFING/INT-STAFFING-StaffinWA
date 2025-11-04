@@ -85,11 +85,11 @@ const RolesPage: React.FC = () => {
     const seniorityOptions = useMemo(() => seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [seniorityLevels]);
 
     const columns: ColumnDef<Role>[] = [
-        { header: 'Nome Ruolo', sortKey: 'name', cell: (role) => <span className="font-medium text-gray-900 dark:text-white">{role.name}</span> },
-        { header: 'Livello Seniority', sortKey: 'seniorityLevel', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{role.seniorityLevel}</span> },
-        { header: 'Costo Giornaliero', sortKey: 'dailyCost', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyCost)}</span> },
-        { header: 'Costo Standard', sortKey: 'standardCost', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.standardCost)}</span> },
-        { header: 'Spese Giornaliere', sortKey: 'dailyExpenses', cell: (role) => <span className="text-sm text-gray-600 dark:text-gray-300">{formatCurrency(role.dailyExpenses)}</span> },
+        { header: 'Nome Ruolo', sortKey: 'name', cell: (role) => <span className="font-medium text-foreground dark:text-dark-foreground">{role.name}</span> },
+        { header: 'Livello Seniority', sortKey: 'seniorityLevel', cell: (role) => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{role.seniorityLevel}</span> },
+        { header: 'Costo Giornaliero', sortKey: 'dailyCost', cell: (role) => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatCurrency(role.dailyCost)}</span> },
+        { header: 'Costo Standard', sortKey: 'standardCost', cell: (role) => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatCurrency(role.standardCost)}</span> },
+        { header: 'Spese Giornaliere', sortKey: 'dailyExpenses', cell: (role) => <span className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatCurrency(role.dailyExpenses)}</span> },
     ];
     
     const renderRow = (role: Role) => {
@@ -104,22 +104,22 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                     <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
                     <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-success hover:text-success disabled:opacity-50">
                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-muted-foreground hover:text-muted-foreground"><span className="text-xl">❌</span></button>
                     </div></td>
                 </tr>
             );
         }
         return (
-            <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+            <tr key={role.id} className="hover:bg-muted dark:hover:bg-dark-muted/50">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((role as any)[col.sortKey]) : undefined}>{col.cell(role)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                        <button onClick={() => openModalForEdit(role)} className="text-muted-foreground hover:text-primary" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="text-muted-foreground hover:text-success" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => deleteRole(role.id!)} className="text-muted-foreground hover:text-destructive" title="Elimina">
                              {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
@@ -133,17 +133,17 @@ const RolesPage: React.FC = () => {
         const isSaving = isActionLoading(`updateRole-${role.id}`);
         if (isEditing) {
             return (
-                <div key={role.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                <div key={role.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card border border-primary">
                     <div className="space-y-3">
-                        <div><label className="text-xs font-medium text-gray-500">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                        <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
-                        <div><label className="text-xs font-medium text-gray-500">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                        <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                        <div><label className="text-xs font-medium text-muted-foreground">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                        <div><label className="text-xs font-medium text-muted-foreground">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
+                        <div><label className="text-xs font-medium text-muted-foreground">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                        <div><label className="text-xs font-medium text-muted-foreground">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                         <div className="flex justify-end space-x-2 pt-2">
-                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
+                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-success/10 text-success rounded-full disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-muted text-foreground rounded-full"><span className="text-xl">❌</span></button>
                         </div>
                     </div>
                 </div>
@@ -153,21 +153,21 @@ const RolesPage: React.FC = () => {
              <div key={role.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{role.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{role.seniorityLevel}</p>
+                        <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{role.name}</p>
+                        <p className="text-sm text-muted-foreground dark:text-dark-muted-foreground">{role.seniorityLevel}</p>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(role)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="p-1 text-gray-500 hover:text-red-600">
+                        <button onClick={() => openModalForEdit(role)} className="p-1 text-muted-foreground hover:text-primary"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-muted-foreground hover:text-success"><span className="text-xl">✏️</span></button>
+                        <button onClick={() => deleteRole(role.id!)} className="p-1 text-muted-foreground hover:text-destructive">
                              {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                         </button>
                     </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                     <div><p className="text-gray-500 dark:text-gray-400">Costo G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyCost)}</p></div>
-                     <div><p className="text-gray-500 dark:text-gray-400">Costo Std.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.standardCost)}</p></div>
-                     <div><p className="text-gray-500 dark:text-gray-400">Spese G.</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(role.dailyExpenses)}</p></div>
+                <div className="mt-4 pt-4 border-t border-border dark:border-dark-border grid grid-cols-2 gap-4 text-sm">
+                     <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Costo G.</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatCurrency(role.dailyCost)}</p></div>
+                     <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Costo Std.</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatCurrency(role.standardCost)}</p></div>
+                     <div><p className="text-muted-foreground dark:text-dark-muted-foreground">Spese G.</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatCurrency(role.dailyExpenses)}</p></div>
                 </div>
             </div>
         );
@@ -177,7 +177,7 @@ const RolesPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <SearchableSelect name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full md:w-auto">Reset</button>
         </div>
     );
 
@@ -199,34 +199,34 @@ const RolesPage: React.FC = () => {
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Ruolo *</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Nome Ruolo *</label>
                             <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="w-full form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Livello Seniority *</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Livello Seniority *</label>
                             <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" required />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Costo Giornaliero (€)</label>
                                 <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
                             </div>
 {/* Fix: complete truncated file */ }
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
+                                <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground mb-1">Costo Standard (€)</label>
                                 <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || 0} onChange={handleChange} className="w-full form-input"/>
                             </div>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker disabled:bg-primary/50">
                                 {(isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
-             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

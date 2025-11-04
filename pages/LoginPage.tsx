@@ -38,16 +38,16 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-            <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+        <div className="flex items-center justify-center min-h-screen bg-muted dark:bg-dark-background">
+            <div className="w-full max-w-md p-8 space-y-8 bg-card dark:bg-dark-card rounded-lg shadow-lg">
                 <div className="text-center">
-                    <h1 className="text-3xl font-bold tracking-wider text-gray-800 dark:text-white">Staffing App</h1>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Inserisci la password per accedere</p>
+                    <h1 className="text-3xl font-bold tracking-wider text-foreground dark:text-dark-foreground">Staffing App</h1>
+                    <p className="mt-2 text-sm text-muted-foreground dark:text-dark-muted-foreground">Inserisci la password per accedere</p>
                 </div>
                 
                 {!isLoginProtectionEnabled && !isAuthenticated && (
-                     <div className="p-4 text-center bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-md">
-                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                     <div className="p-4 text-center bg-warning/10 dark:bg-warning/40 border border-warning dark:border-warning rounded-md">
+                        <p className="text-sm font-medium text-warning dark:text-warning">
                             La protezione tramite password è attualmente disattivata.
                             <br />
                             Accedi come admin per attivarla.
@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-border dark:border-dark-border placeholder:text-muted-foreground dark:placeholder:text-dark-muted-foreground text-foreground dark:text-dark-foreground dark:bg-dark-muted rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                                 placeholder="Utente"
                             />
                         </div>
@@ -79,19 +79,19 @@ const LoginPage: React.FC = () => {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-border dark:border-dark-border placeholder:text-muted-foreground dark:placeholder:text-dark-muted-foreground text-foreground dark:text-dark-foreground dark:bg-dark-muted rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                                 placeholder="Password"
                             />
                         </div>
                     </div>
                     
-                    {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                    {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
                     <div>
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400"
+                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-dark-foreground dark:text-dark-sidebar-foreground bg-primary hover:bg-primary-darker focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-primary/50"
                         >
                             {isLoading ? <SpinnerIcon className="w-5 h-5" /> : 'Accedi'}
                         </button>

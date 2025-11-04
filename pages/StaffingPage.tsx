@@ -50,8 +50,8 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
     // Se è un giorno non lavorativo, mostra una cella disabilitata con sfondo grigio.
     if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
-                <span className="text-sm text-gray-400">-</span>
+            <td className="border-t border-border dark:border-dark-border p-0 text-center bg-muted dark:bg-dark-card/50">
+                <span className="text-sm text-muted-foreground">-</span>
             </td>
         );
     }
@@ -66,11 +66,11 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, 
     const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
 
     return (
-        <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
+        <td className="border-t border-border dark:border-dark-border p-0 text-center">
             <select
                 value={percentage}
                 onChange={handleChange}
-                className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
+                className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-dark-muted-foreground"
             >
                 {percentageOptions.map(p => <option key={p} value={p}>{p > 0 ? `${p}%` : '-'}</option>)}
             </select>
@@ -126,14 +126,14 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
 
     // Determina il colore della cella in base al carico medio.
     const cellColor = useMemo(() => {
-        if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (averageAllocation >= 95 && averageAllocation <= 100) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (averageAllocation > 0 && averageAllocation < 95) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+        if (averageAllocation > 100) return 'bg-destructive/20 dark:bg-destructive/40 text-destructive dark:text-destructive';
+        if (averageAllocation >= 95 && averageAllocation <= 100) return 'bg-success/20 dark:bg-success/30 text-success dark:text-success';
+        if (averageAllocation > 0 && averageAllocation < 95) return 'bg-warning/20 dark:bg-warning/30 text-warning dark:text-warning';
         return 'bg-transparent';
     }, [averageAllocation]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -170,7 +170,7 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     // Se è un giorno non lavorativo, il totale è 0 e la cella è stilizzata di conseguenza.
      if (isNonWorkingDay) {
         return (
-            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+            <td className="border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold bg-muted dark:bg-dark-background/50 text-muted-foreground">
                 -
             </td>
         );
@@ -191,14 +191,14 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, da
     // - Giallo: sottoutilizzo (< maxStaffingPercentage)
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
-        if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (total > 0 && total < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        return 'bg-gray-100 dark:bg-gray-800';
+        if (total > maxPercentage) return 'bg-destructive/20 dark:bg-destructive/40 text-destructive dark:text-destructive';
+        if (total === maxPercentage) return 'bg-success/20 dark:bg-success/30 text-success dark:text-success';
+        if (total > 0 && total < maxPercentage) return 'bg-warning/20 dark:bg-warning/30 text-warning dark:text-warning';
+        return 'bg-muted dark:bg-dark-muted';
     }, [total, resource.maxStaffingPercentage]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {total > 0 ? `${total}%` : '-'}
         </td>
     );
@@ -260,14 +260,14 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     const cellColor = useMemo(() => {
         const maxPercentage = resource.maxStaffingPercentage ?? 100;
         const roundedAverage = Math.round(averageAllocation);
-        if (roundedAverage > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-        if (roundedAverage === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-        if (roundedAverage > 0 && roundedAverage < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-        return 'bg-gray-100 dark:bg-gray-800';
+        if (roundedAverage > maxPercentage) return 'bg-destructive/20 dark:bg-destructive/40 text-destructive dark:text-destructive';
+        if (roundedAverage === maxPercentage) return 'bg-success/20 dark:bg-success/30 text-success dark:text-success';
+        if (roundedAverage > 0 && roundedAverage < maxPercentage) return 'bg-warning/20 dark:bg-warning/30 text-warning dark:text-warning';
+        return 'bg-muted dark:bg-dark-muted';
     }, [averageAllocation, resource.maxStaffingPercentage]);
 
     return (
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+        <td className={`border-t border-border dark:border-dark-border px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -596,57 +596,57 @@ const StaffingPage: React.FC = () => {
                 {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}
                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
                     <div className="flex items-center justify-center space-x-2">
-                        <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
-                        <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                        <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
+                        <button onClick={handlePrev} className="px-3 py-2 bg-card dark:bg-dark-muted border dark:border-dark-border rounded-md shadow-sm hover:bg-muted dark:hover:bg-dark-muted text-sm">← Prec.</button>
+                        <button onClick={handleToday} className="px-4 py-2 bg-card dark:bg-dark-muted border dark:border-dark-border rounded-md shadow-sm font-semibold text-primary dark:text-dark-sidebar-foreground hover:bg-muted dark:hover:bg-dark-muted">Oggi</button>
+                        <button onClick={handleNext} className="px-3 py-2 bg-card dark:bg-dark-muted border dark:border-dark-border rounded-md shadow-sm hover:bg-muted dark:hover:bg-dark-muted text-sm">Succ. →</button>
                     </div>
                     {/* Selettore della vista temporale (giorno, settimana, mese). */}
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                    <div className="flex items-center space-x-1 bg-muted dark:bg-dark-muted p-1 rounded-md">
                         {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button key={level} onClick={() => setViewMode(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-card dark:bg-dark-background text-primary dark:text-dark-sidebar-foreground shadow' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
                                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
                             </button>
                         ))}
                     </div>
-                    <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker">
+                    <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md shadow-sm hover:bg-primary-darker">
                         <span className="mr-2 text-xl">➕</span>
                         Assegna Risorsa
                     </button>
                 </div>
 
                 {/* Sezione Filtri con l'aggiunta del filtro per Project Manager. */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                <div className="mb-4 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-30">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Project Manager</label><SearchableSelect name="projectManager" value={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                        <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Project Manager</label><SearchableSelect name="projectManager" value={filters.projectManager} onChange={handleFilterChange} options={projectManagerOptions} placeholder="Tutti i PM"/></div>
+                        <div><label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        <button onClick={clearFilters} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80 w-full md:w-auto">Reset Filtri</button>
                     </div>
                 </div>
             </div>
 
             {/* Griglia di Staffing */}
-            <div ref={scrollContainerRef} className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
+            <div ref={scrollContainerRef} className="flex-grow overflow-auto bg-card dark:bg-dark-card rounded-lg shadow">
+                <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                    <thead className="bg-muted dark:bg-dark-muted sticky top-0 z-20">
                         <tr>
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
-                            <th className="hidden md:table-cell sticky left-[300px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Cliente</th>
-                            <th className="hidden md:table-cell sticky left-[450px] bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '150px' }}>Project Manager</th>
-                            <th className="sticky left-[600px] bg-gray-50 dark:bg-gray-700 px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '120px' }}>Azioni</th>
+                            <th className="sticky left-0 bg-muted dark:bg-dark-muted px-3 py-3.5 text-left text-sm font-semibold text-foreground dark:text-dark-foreground z-30" style={{ minWidth: '300px' }}>Risorsa / Progetto</th>
+                            <th className="hidden md:table-cell sticky left-[300px] bg-muted dark:bg-dark-muted px-3 py-3.5 text-left text-sm font-semibold text-foreground dark:text-dark-foreground z-30" style={{ minWidth: '150px' }}>Cliente</th>
+                            <th className="hidden md:table-cell sticky left-[450px] bg-muted dark:bg-dark-muted px-3 py-3.5 text-left text-sm font-semibold text-foreground dark:text-dark-foreground z-30" style={{ minWidth: '150px' }}>Project Manager</th>
+                            <th className="sticky left-[600px] bg-muted dark:bg-dark-muted px-2 py-3.5 text-center text-sm font-semibold text-foreground dark:text-dark-foreground z-30" style={{ minWidth: '120px' }}>Azioni</th>
                             {timeColumns.map((col, index) => (
-                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${col.isNonWorkingDay ? 'bg-muted dark:bg-dark-muted/50' : ''}`}>
                                     <div className="flex flex-col items-center">
-                                        <span className={col.isNonWorkingDay ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{col.label}</span>
-                                        {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
+                                        <span className={col.isNonWorkingDay ? 'text-muted-foreground' : 'text-foreground dark:text-dark-foreground'}>{col.label}</span>
+                                        {col.subLabel && <span className="text-xs text-muted-foreground">{col.subLabel}</span>}
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="divide-y divide-border dark:divide-dark-border">
                          {paddingTop > 0 && (
                             <tr>
                                 <td colSpan={4 + timeColumns.length} style={{ height: paddingTop, padding: 0 }} />
@@ -657,15 +657,15 @@ const StaffingPage: React.FC = () => {
                             return (
                                 <React.Fragment key={resource.id}>
                                     {/* Master row for the resource with total load */}
-                                    <tr className="bg-gray-100 dark:bg-gray-900 font-bold sticky top-16 z-[5]">
-                                        <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-10" colSpan={3}>
+                                    <tr className="bg-muted dark:bg-dark-background font-bold sticky top-16 z-[5]">
+                                        <td className="sticky left-0 bg-muted dark:bg-dark-background px-3 py-3 text-left text-sm z-10" colSpan={3}>
                                             <div className="flex flex-col">
-                                                <Link to={`/workload?resourceId=${resource.id}`} className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 truncate" title={resource.name}>{resource.name}</Link>
-                                                <span className="text-xs font-normal text-gray-500 truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
+                                                <Link to={`/workload?resourceId=${resource.id}`} className="text-primary hover:text-primary/80 hover:underline dark:text-dark-sidebar-foreground dark:hover:text-primary/80 truncate" title={resource.name}>{resource.name}</Link>
+                                                <span className="text-xs font-normal text-muted-foreground truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
                                             </div>
                                         </td>
-                                        <td className="sticky left-[600px] bg-gray-100 dark:bg-gray-900 px-2 py-3 text-center z-10">
-                                            <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-primary hover:text-primary-darker dark:hover:text-blue-300">
+                                        <td className="sticky left-[600px] bg-muted dark:bg-dark-background px-2 py-3 text-center z-10">
+                                            <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-primary hover:text-primary/80 dark:hover:text-primary/80">
                                                 <span className="text-xl">➕</span>
                                             </button>
                                         </td>
@@ -686,18 +686,18 @@ const StaffingPage: React.FC = () => {
                                         const client = getClientById(project.clientId);
                                         const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
                                         return (
-                                            <tr key={assignment.id} className="group hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm font-medium pl-8 z-10" style={{minWidth: '300px'}}>
-                                                    <Link to={`/projects?projectId=${project.id}`} className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate" title={project.name}>{project.name}</Link>
+                                            <tr key={assignment.id} className="group hover:bg-muted dark:hover:bg-dark-muted/50">
+                                                <td className="sticky left-0 bg-card dark:bg-dark-card group-hover:bg-muted dark:group-hover:bg-dark-muted/50 px-3 py-4 text-sm font-medium pl-8 z-10" style={{minWidth: '300px'}}>
+                                                    <Link to={`/projects?projectId=${project.id}`} className="text-primary hover:text-primary/80 hover:underline dark:text-dark-sidebar-foreground dark:hover:text-primary/80 block truncate" title={project.name}>{project.name}</Link>
                                                 </td>
-                                                <td className="hidden md:table-cell sticky left-[300px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate z-10" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
-                                                <td className="hidden md:table-cell sticky left-[450px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate z-10" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
-                                                <td className={`sticky left-[600px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-2 py-3 text-center z-10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <td className="hidden md:table-cell sticky left-[300px] bg-card dark:bg-dark-card group-hover:bg-muted dark:group-hover:bg-dark-muted/50 px-3 py-4 text-sm text-muted-foreground dark:text-dark-muted-foreground truncate z-10" title={client?.name || 'N/A'}>{client?.name || 'N/A'}</td>
+                                                <td className="hidden md:table-cell sticky left-[450px] bg-card dark:bg-dark-card group-hover:bg-muted dark:group-hover:bg-dark-muted/50 px-3 py-4 text-sm text-muted-foreground dark:text-dark-muted-foreground truncate z-10" title={project.projectManager || 'N/A'}>{project.projectManager || 'N/A'}</td>
+                                                <td className={`sticky left-[600px] bg-card dark:bg-dark-card group-hover:bg-muted dark:group-hover:bg-dark-muted/50 px-2 py-3 text-center z-10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     <div className="flex items-center justify-center space-x-2">
-                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-primary hover:text-primary-darker dark:hover:text-blue-300">
+                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-primary hover:text-primary/80 dark:hover:text-primary/80">
                                                             <span className="text-xl">🗓️</span>
                                                         </button>
-                                                        <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                                        <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-destructive hover:text-destructive/80 dark:hover:text-destructive/60">
                                                             <span className="text-xl">❌</span>
                                                         </button>
                                                     </div>
@@ -715,7 +715,7 @@ const StaffingPage: React.FC = () => {
                                         );
                                     }) : (
                                         <tr>
-                                            <td colSpan={4 + timeColumns.length} className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 italic pl-8">
+                                            <td colSpan={4 + timeColumns.length} className="px-3 py-4 text-sm text-muted-foreground dark:text-dark-muted-foreground italic pl-8">
                                                 Nessuna assegnazione trovata per i filtri correnti.
                                             </td>
                                         </tr>
@@ -760,21 +760,21 @@ const StaffingPage: React.FC = () => {
                  <form onSubmit={handleBulkSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Inizio</label>
-                            <input type="date" required value={bulkFormData.startDate} onChange={e => setBulkFormData(f => ({...f, startDate: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"/>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Data Inizio</label>
+                            <input type="date" required value={bulkFormData.startDate} onChange={e => setBulkFormData(f => ({...f, startDate: e.target.value}))} className="mt-1 block w-full rounded-md border-border dark:border-dark-border shadow-sm bg-card dark:bg-dark-muted focus:border-primary focus:ring-primary sm:text-sm"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Data Fine</label>
-                            <input type="date" required value={bulkFormData.endDate} onChange={e => setBulkFormData(f => ({...f, endDate: e.target.value}))} className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"/>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Data Fine</label>
+                            <input type="date" required value={bulkFormData.endDate} onChange={e => setBulkFormData(f => ({...f, endDate: e.target.value}))} className="mt-1 block w-full rounded-md border-border dark:border-dark-border shadow-sm bg-card dark:bg-dark-muted focus:border-primary focus:ring-primary sm:text-sm"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Percentuale ({bulkFormData.percentage}%)</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Percentuale ({bulkFormData.percentage}%)</label>
                             <input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={e => setBulkFormData(f => ({...f, percentage: parseInt(e.target.value)}))} className="mt-1 block w-full"/>
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
-                        <button type="button" onClick={() => setBulkModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker">Salva</button>
+                        <button type="button" onClick={() => setBulkModalOpen(false)} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80">Annulla</button>
+                        <button type="submit" className="px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker">Salva</button>
                     </div>
                 </form>
             </Modal>
@@ -784,7 +784,7 @@ const StaffingPage: React.FC = () => {
                 <form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96">
                     <div className="space-y-4 flex-grow">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Risorsa</label>
                             <SearchableSelect
                                 name="resourceId"
                                 value={newAssignmentData.resourceId}
@@ -795,7 +795,7 @@ const StaffingPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto/i</label>
+                            <label className="block text-sm font-medium text-foreground dark:text-dark-muted-foreground">Progetto/i</label>
                             <MultiSelectDropdown
                                 name="projectIds"
                                 selectedValues={newAssignmentData.projectIds}
@@ -806,8 +806,8 @@ const StaffingPage: React.FC = () => {
                         </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
-                        <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                        <button type="submit" className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker">Aggiungi Assegnazioni</button>
+                        <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-4 py-2 bg-muted text-foreground dark:bg-dark-muted dark:text-dark-foreground rounded-md hover:bg-muted/80 dark:hover:bg-dark-muted/80">Annulla</button>
+                        <button type="submit" className="px-4 py-2 bg-primary text-dark-foreground dark:text-dark-sidebar-foreground rounded-md hover:bg-primary-darker">Aggiungi Assegnazioni</button>
                     </div>
                 </form>
             </Modal>
@@ -816,31 +816,31 @@ const StaffingPage: React.FC = () => {
                     display: block;
                     width: 100%;
                     border-radius: 0.375rem;
-                    border: 1px solid #D1D5DB;
-                    background-color: #FFFFFF;
+                    border: 1px solid var(--color-border);
+                    background-color: var(--color-card);
                     padding: 0.5rem 0.75rem;
                     font-size: 0.875rem;
                     line-height: 1.25rem;
                 }
                 .dark .form-select {
-                    border-color: #4B5563;
-                    background-color: #374151;
-                    color: #F9FAFB;
+                    border-color: var(--color-dark-border);
+                    background-color: var(--color-dark-card);
+                    color: var(--color-dark-foreground);
                 }
                 .form-input {
                     display: block; 
                     width: 100%; 
                     border-radius: 0.375rem; 
-                    border: 1px solid #D1D5DB; 
-                    background-color: #FFFFFF; 
+                    border: 1px solid var(--color-border); 
+                    background-color: var(--color-card); 
                     padding: 0.5rem 0.75rem; 
                     font-size: 0.875rem; 
                     line-height: 1.25rem; 
                 } 
                 .dark .form-input { 
-                    border-color: #4B5563; 
-                    background-color: #374151; 
-                    color: #F9FAFB; 
+                    border-color: var(--color-dark-border); 
+                    background-color: var(--color-dark-card); 
+                    color: var(--color-dark-foreground); 
                 }
             `}</style>
         </div>

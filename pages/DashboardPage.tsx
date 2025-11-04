@@ -530,9 +530,9 @@ const DashboardPage: React.FC = () => {
      * @returns {string} La classe CSS per il colore.
      */
     const getAvgAllocationColor = (avg: number): string => {
-        if (avg > 90) return 'text-red-600 dark:text-red-400 font-bold';
-        if (avg >= 70) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
-        return 'text-green-600 dark:text-green-400';
+        if (avg > 90) return 'text-destructive dark:text-destructive font-bold';
+        if (avg >= 70) return 'text-warning dark:text-warning font-semibold';
+        return 'text-success dark:text-success';
     };
 
     const resourceOptions = useMemo(() => activeResources.map(r => ({ value: r.id!, label: r.name })), [activeResources]);
@@ -551,31 +551,31 @@ const DashboardPage: React.FC = () => {
 
     const SortableHeader: React.FC<{ label: string; sortKey: string; sortConfig: SortConfig<any> | null; requestSort: (key: string) => void; }> = 
         ({ label, sortKey, sortConfig, requestSort }) => (
-        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === sortKey ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <span className="text-gray-400">↕️</span>
+        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase">
+            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                <span className={sortConfig?.key === sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
+                <span className="text-muted-foreground">↕️</span>
             </button>
         </th>
     );
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-8">Dashboard</h1>
             
             {/* Nuove Card Aggregate */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3>
-                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(overallKPIs.totalBudget)}</p>
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Budget Complessivo</h3>
+                    <p className="mt-1 text-3xl font-semibold text-foreground dark:text-dark-foreground">{formatCurrency(overallKPIs.totalBudget)}</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3>
-                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(currentMonthKPIs.totalCost)}</p>
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Costo Stimato (Mese Corrente)</h3>
+                    <p className="mt-1 text-3xl font-semibold text-foreground dark:text-dark-foreground">{formatCurrency(currentMonthKPIs.totalCost)}</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3>
-                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Giorni Allocati (Mese Corrente)</h3>
+                    <p className="mt-1 text-3xl font-semibold text-foreground dark:text-dark-foreground">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
                 </div>
 
                 <div 
@@ -620,26 +620,26 @@ const DashboardPage: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Card Allocazione Media */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <div className="flex justify-between items-start mb-4">
                         <h2 className="text-xl font-semibold">Allocazione Media</h2>
                         <div className="w-48"><SearchableSelect name="resourceId" value={avgAllocFilter.resourceId} onChange={(_, v) => setAvgAllocFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                     </div>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0">
                                 <tr>
                                     <SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
                                     <SortableHeader label="Alloc. Mese Corrente" sortKey="avgCurrentMonth" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
                                     <SortableHeader label="Alloc. Mese Prossimo" sortKey="avgNextMonth" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody className="divide-y divide-border dark:divide-dark-border">
                                 {sortedAvgAllocation.map((data, index) => (
                                 <tr key={index}>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm">
                                         <div><Link to={`/workload?resourceId=${data.resource.id}`} className="text-primary hover:underline">{data.resource?.name}</Link></div>
-                                        <div className="text-xs text-gray-500">{data.role?.name}</div>
+                                        <div className="text-xs text-muted-foreground">{data.role?.name}</div>
                                     </td>
                                     <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgCurrentMonth)}`}>
                                         {data.avgCurrentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
@@ -651,7 +651,7 @@ const DashboardPage: React.FC = () => {
                                 ))}
                             </tbody>
                              <tfoot>
-                                 <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                                 <tr className="bg-muted dark:bg-dark-muted font-bold">
                                      <td className="px-4 py-2 text-left text-sm">Media Totale</td>
                                      <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.currentMonth)}`}>
                                         {avgAllocationTotals.currentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
@@ -666,74 +666,74 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card FTE per Progetto */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                      <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={fteFilter.clientId} onChange={(_, v) => setFteFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/></div></div>
                      <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="Giorni Alloc." sortKey="totalAllocatedDays" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="FTE" sortKey="fte" sortConfig={fteSortConfig} requestSort={requestFteSort}/></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedFte.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/projects?projectId=${data.id}`} className="text-primary hover:underline">{data.name}</Link></div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-primary dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="Giorni Alloc." sortKey="totalAllocatedDays" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="FTE" sortKey="fte" sortConfig={fteSortConfig} requestSort={requestFteSort}/></tr></thead>
+                            <tbody className="divide-y divide-border dark:divide-dark-border">{sortedFte.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/projects?projectId=${data.id}`} className="text-primary hover:underline">{data.name}</Link></div><div className="text-xs text-muted-foreground">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-primary dark:text-dark-sidebar-foreground">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-muted dark:bg-dark-muted font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Analisi Budget */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={budgetFilter.clientId} onChange={(_, v) => setBudgetFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/></div></div>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Budget" sortKey="fullBudget" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Varianza" sortKey="variance" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedBudget.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?projectId=${p.id}`} className="text-primary hover:underline">{p.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Budget" sortKey="fullBudget" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Varianza" sortKey="variance" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /></tr></thead>
+                             <tbody className="divide-y divide-border dark:divide-dark-border">{sortedBudget.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?projectId=${p.id}`} className="text-primary hover:underline">{p.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-muted-foreground dark:text-dark-muted-foreground">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-success dark:text-success' : 'text-destructive dark:text-destructive'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-muted dark:bg-dark-muted font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-success dark:text-success' : 'text-destructive dark:text-destructive'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Risorse Sottoutilizzate */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={underutilizedFilter} onChange={(e) => setUnderutilizedFilter(e.target.value)} className="form-input text-sm py-1 w-48"/></div>
                     <div className="overflow-y-auto max-h-96">
-                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Risorsa" sortKey="name" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /><SortableHeader label="Alloc. Media" sortKey="avgAllocation" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedUnderutilized.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/workload?resourceId=${r.id}`} className="text-primary hover:underline">{r.name}</Link></div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
+                         <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                             <thead className="bg-muted dark:bg-dark-muted sticky top-0"><tr><SortableHeader label="Risorsa" sortKey="name" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /><SortableHeader label="Alloc. Media" sortKey="avgAllocation" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /></tr></thead>
+                             <tbody className="divide-y divide-border dark:divide-dark-border">{sortedUnderutilized.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/workload?resourceId=${r.id}`} className="text-primary hover:underline">{r.name}</Link></div><div className="text-xs text-muted-foreground">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-warning dark:text-warning font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
                          </table>
                     </div>
                 </div>
 
                 {/* Card Sforzo per Cliente */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                      <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Sforzo per Cliente</h2><div className="w-48"><SearchableSelect name="sector" value={effortByClientFilter.sector} onChange={(_, v) => setEffortByClientFilter({ sector: v })} options={sectorOptions} placeholder="Tutti i Settori"/></div></div>
                      <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Valore Budget" sortKey="totalBudget" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/></tr></thead>
-                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedEffortByClient.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
-                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Valore Budget" sortKey="totalBudget" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/></tr></thead>
+                             <tbody className="divide-y divide-border dark:divide-dark-border">{sortedEffortByClient.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-muted dark:bg-dark-muted font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
 
                 {/* Card Costo Mensile per Cliente */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Costo Mensile per Cliente</h2>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/><SortableHeader label="Costo Stimato" sortKey="cost" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedClientCost.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
-                            <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/><SortableHeader label="Costo Stimato" sortKey="cost" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/></tr></thead>
+                            <tbody className="divide-y divide-border dark:divide-dark-border">{sortedClientCost.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
+                            <tfoot><tr className="bg-muted dark:bg-dark-muted font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
                         </table>
                     </div>
                 </div>
                 {/* Fix: Reconstructed corrupted file content which was causing parsing errors. */}
                 {/* Card Sforzo per Horizontal */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
                      <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr>
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0"><tr>
                                 <SortableHeader label="Horizontal" sortKey="name" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
                                 <SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
                             </tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody className="divide-y divide-border dark:divide-dark-border">
                                 {sortedEffortByHorizontal.map(h => (
                                 <tr key={h.name}>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{h.name}</td>
@@ -742,7 +742,7 @@ const DashboardPage: React.FC = () => {
                                 ))}
                             </tbody>
                             <tfoot>
-                                <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                                <tr className="bg-muted dark:bg-dark-muted font-bold">
                                     <td className="px-4 py-2 text-left text-sm">Totale</td>
                                     <td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
                                 </tr>
@@ -752,11 +752,11 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Card Analisi per Sede */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi per Sede (Mese Corrente)</h2>
                     <div className="overflow-y-auto max-h-96">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                        <table className="min-w-full divide-y divide-border dark:divide-dark-border">
+                            <thead className="bg-muted dark:bg-dark-muted sticky top-0">
                                 <tr>
                                     <SortableHeader label="Sede" sortKey="locationName" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
                                     <SortableHeader label="N. Risorse" sortKey="resourceCount" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
@@ -764,7 +764,7 @@ const DashboardPage: React.FC = () => {
                                     <SortableHeader label="Utilizzo Medio" sortKey="utilization" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody className="divide-y divide-border dark:divide-dark-border">
                                 {sortedLocation.map(loc => (
                                     <tr key={loc.locationName}>
                                         <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{loc.locationName}</td>
@@ -781,7 +781,7 @@ const DashboardPage: React.FC = () => {
                 </div>
             </div>
 
-            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };
