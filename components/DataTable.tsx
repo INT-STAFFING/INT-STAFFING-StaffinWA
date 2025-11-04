@@ -137,20 +137,26 @@ export function DataTable<T extends { id?: string }>({
     const getSortableHeader = (label: string, colKey?: string) => {
         const key = colKey || label;
         return (
-            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
-                {colKey ? (
-                    <button type="button" onClick={() => requestSort(colKey)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
-                        <span className={sortConfig?.key === colKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
-                        <span className="text-gray-400">↕️</span>
-                    </button>
-                ) : (
-                    <span>{label}</span>
-                )}
-                <div 
-                    ref={el => { resizerRef.current[key] = el; }}
-                    className="resize-handle"
-                    onMouseDown={(e) => handleMouseDown(key, e)} 
-                />
+            <th className="sticky top-0 z-20 bg-card dark:bg-dark-card px-6 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm">
+                <div className="relative pr-4">
+                    {colKey ? (
+                        <button
+                            type="button"
+                            onClick={() => requestSort(colKey)}
+                            className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground"
+                        >
+                            <span className={sortConfig?.key === colKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
+                            <span className="text-gray-400">↕️</span>
+                        </button>
+                    ) : (
+                        <span>{label}</span>
+                    )}
+                    <div
+                        ref={el => { resizerRef.current[key] = el; }}
+                        className="resize-handle"
+                        onMouseDown={(e) => handleMouseDown(key, e)}
+                    />
+                </div>
             </th>
         );
     };
@@ -168,31 +174,33 @@ export function DataTable<T extends { id?: string }>({
 
             <div className="bg-card dark:bg-dark-card rounded-lg shadow">
                 {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full" style={{ tableLayout: 'fixed' }}>
-                         <colgroup>
-                            {columns.map(col => {
-                                const key = col.sortKey || col.header;
-                                return (
-                                    <col
-                                        key={key}
-                                        style={columnWidths[key] ? { width: `${columnWidths[key]}px` } : undefined}
-                                    />
-                                );
-                            })}
-                            <col style={{ width: '120px' }} /> {/* for actions column */}
-                        </colgroup>
-                        <thead className="border-b border-border dark:border-dark-border">
-                            <tr>
-                                {columns.map(col => getSortableHeader(col.header, col.sortKey))}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border dark:divide-dark-border">
-                            {sortedData.map(item => renderRow(item))}
-                        </tbody>
-                    </table>
-                     {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                <div className="hidden md:block">
+                    <div className="max-h-[65vh] overflow-x-auto overflow-y-auto">
+                        <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                            <colgroup>
+                                {columns.map(col => {
+                                    const key = col.sortKey || col.header;
+                                    return (
+                                        <col
+                                            key={key}
+                                            style={columnWidths[key] ? { width: `${columnWidths[key]}px` } : undefined}
+                                        />
+                                    );
+                                })}
+                                <col style={{ width: '120px' }} /> {/* for actions column */}
+                            </colgroup>
+                            <thead className="border-b border-border dark:border-dark-border">
+                                <tr>
+                                    {columns.map(col => getSortableHeader(col.header, col.sortKey))}
+                                    <th className="sticky top-0 z-20 bg-card dark:bg-dark-card px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border dark:divide-dark-border">
+                                {sortedData.map(item => renderRow(item))}
+                            </tbody>
+                        </table>
+                        {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                    </div>
                 </div>
 
                 {/* Mobile Cards */}
