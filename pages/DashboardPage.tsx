@@ -8,6 +8,8 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
+import EmptyState from '../components/FeedbackState';
+import { ChartPieIcon, ArrowRightIcon } from '../components/icons';
 
 // --- Tipi e Hook per l'Ordinamento ---
 
@@ -78,6 +80,35 @@ const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, clientSectors, locations, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
+
+    if (resources.length === 0 || projects.length === 0) {
+        return (
+            <div className="py-12">
+                <EmptyState
+                    title="Completa l'onboarding dei dati"
+                    description="Per visualizzare la dashboard serve almeno una risorsa attiva e un progetto con budget associato."
+                    icon={<ChartPieIcon className="w-12 h-12" aria-hidden />}
+                    action={(
+                        <>
+                            <Link
+                                to="/projects"
+                                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-darker"
+                            >
+                                <ArrowRightIcon className="w-4 h-4" aria-hidden />
+                                Configura progetti
+                            </Link>
+                            <Link
+                                to="/resources"
+                                className="inline-flex items-center gap-2 rounded-xl border border-border/70 px-5 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/60"
+                            >
+                                Gestisci risorse
+                            </Link>
+                        </>
+                    )}
+                />
+            </div>
+        );
+    }
 
     // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });

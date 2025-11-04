@@ -11,6 +11,8 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
+import EmptyState from '../components/FeedbackState';
+import { UsersIcon, ArrowRightIcon, CloudArrowUpIcon } from '../components/icons';
 import { Link } from 'react-router-dom';
 
 /**
@@ -288,6 +290,36 @@ const StaffingPage: React.FC = () => {
     const [viewMode, setViewMode] = useState<ViewMode>('day');
     const { resources, projects, assignments, roles, clients, addMultipleAssignments, deleteAssignment, companyCalendar, isActionLoading } = useEntitiesContext();
     const { bulkUpdateAllocations } = useAllocationsContext();
+
+    if (resources.length === 0) {
+        return (
+            <div className="py-12">
+                <EmptyState
+                    title="Ancora nessuna risorsa caricata"
+                    description="Carica l'anagrafica del team o importa un file di staffing per iniziare a pianificare."
+                    icon={<UsersIcon className="w-12 h-12" aria-hidden />}
+                    action={(
+                        <>
+                            <Link
+                                to="/import"
+                                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-darker"
+                            >
+                                <CloudArrowUpIcon className="w-4 h-4" aria-hidden />
+                                Importa dati
+                            </Link>
+                            <Link
+                                to="/resources"
+                                className="inline-flex items-center gap-2 rounded-xl border border-border/70 px-5 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/60"
+                            >
+                                <ArrowRightIcon className="w-4 h-4" aria-hidden />
+                                Crea risorsa
+                            </Link>
+                        </>
+                    )}
+                />
+            </div>
+        );
+    }
     
     // Stati per la gestione delle modali.
     const [isBulkModalOpen, setBulkModalOpen] = useState(false);

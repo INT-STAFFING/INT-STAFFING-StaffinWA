@@ -7,11 +7,13 @@ import React, { useState, useMemo } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import EmptyState from '../components/FeedbackState';
+import { CloudArrowDownIcon, ChartBarIcon, UsersIcon } from '../components/icons';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';
 type ProjectCostSortKey = 'projectName' | 'clientName' | 'budget' | 'allocatedCost' | 'variance' | 'personDays' | 'avgCostPerDay';
-type ResourceUtilizationSortKey = 'resourceName' | 'roleName' | 'availableDays' | 'allocatedDays' | 'utilization' | 'allocatedCost';
+type ResourceUtilizationSortKey = 'resourceName' | 'roleName' | 'availableDays' | 'allocatedDays' | 'utilization' | 'allocatedCost' | 'horizontal';
 type SortDirection = 'ascending' | 'descending';
 
 // --- Funzioni di Utilità ---
@@ -74,28 +76,28 @@ const ProjectCostsReport: React.FC = () => {
                 let allocatedCost = 0;
                 let personDays = 0;
                 const projectAssignments = assignments.filter(a => a.projectId === project.id);
-                
+
                 projectAssignments.forEach(assignment => {
                     const resource = resources.find(r => r.id === assignment.resourceId);
                     if (!resource) return;
 
                     const role = roles.find(ro => ro.id === resource?.roleId);
                     const dailyRate = role?.dailyCost || 0;
-                    
+
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
-                             if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
+                            if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
 
-                             if (!isHoliday(new Date(dateStr), resource?.location || null, companyCalendar) && new Date(dateStr).getDay() !== 0 && new Date(dateStr).getDay() !== 6) {
+                            if (!isHoliday(new Date(dateStr), resource?.location || null, companyCalendar) && new Date(dateStr).getDay() !== 0 && new Date(dateStr).getDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 personDays += dayFraction;
                                 allocatedCost += dayFraction * dailyRate;
-                             }
+                            }
                         }
                     }
                 });
-                
+
                 const budget = Number(project.budget || 0);
                 const variance = budget - allocatedCost;
 
@@ -111,7 +113,7 @@ const ProjectCostsReport: React.FC = () => {
                 };
             });
     }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations]);
-    
+
     const sortedData = useMemo(() => {
         if (!sortConfig) return reportData;
         return [...reportData].sort((a, b) => {
@@ -120,7 +122,7 @@ const ProjectCostsReport: React.FC = () => {
             if (typeof valA === 'string' && typeof valB === 'string') {
                 return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
             }
-             if (typeof valA === 'number' && typeof valB === 'number') {
+            if (typeof valA === 'number' && typeof valB === 'number') {
                 return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
             }
             return 0;
@@ -144,31 +146,77 @@ const ProjectCostsReport: React.FC = () => {
 
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
+    const hasData = sortedData.length > 0;
 
     return (
-        <div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg mb-6">
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
-                    <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700">
-                        <span className="mr-2 text-xl">📥</span> Esporta CSV
+        <div className="space-y-6">
+            <div className="surface-card p-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end">
+                    <SearchableSelect
+                        name="clientId"
+                        value={filters.clientId}
+                        onChange={(_, v) => setFilters(f => ({ ...f, clientId: v }))}
+                        options={clientOptions}
+                        placeholder="Tutti i Clienti"
+                    />
+                    <SearchableSelect
+                        name="status"
+                        value={filters.status}
+                        onChange={(_, v) => setFilters(f => ({ ...f, status: v }))}
+                        options={statusOptions}
+                        placeholder="Tutti gli Stati"
+                    />
+                    <button
+                        onClick={exportToCSV}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-darker"
+                    >
+                        <CloudArrowDownIcon className="w-4 h-4" aria-hidden />
+                        Esporta CSV
                     </button>
-                 </div>
+                </div>
             </div>
-             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700"><tr><SortableHeader label="Progetto" sortKey="projectName" /><SortableHeader label="Cliente" sortKey="clientName" /><SortableHeader label="Budget" sortKey="budget" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /><SortableHeader label="Varianza" sortKey="variance" /><SortableHeader label="G/U Allocati" sortKey="personDays" /><SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" /></tr></thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+
+            <div className="overflow-x-auto rounded-3xl border border-border/70 dark:border-dark-border/70 bg-card dark:bg-dark-card shadow-soft">
+                <table className="min-w-full" style={{ tableLayout: 'auto' }}>
+                    <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm dark:bg-dark-muted/80">
+                        <tr>
+                            <SortableHeader label="Progetto" sortKey="projectName" />
+                            <SortableHeader label="Cliente" sortKey="clientName" />
+                            <SortableHeader label="Budget" sortKey="budget" />
+                            <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
+                            <SortableHeader label="Varianza" sortKey="variance" />
+                            <SortableHeader label="G/U Allocati" sortKey="personDays" />
+                            <SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" />
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60 dark:divide-dark-border/60 text-sm">
                         {sortedData.map(d => (
-                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{d.projectName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{d.clientName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.budget)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(d.variance)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.personDays.toFixed(2)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.avgCostPerDay)}</td></tr>
+                            <tr key={d.id} className="odd:bg-muted/40 dark:odd:bg-dark-muted/40">
+                                <td className="px-4 py-4 text-sm font-semibold text-foreground dark:text-dark-foreground">{d.projectName}</td>
+                                <td className="px-4 py-4 text-sm text-muted-foreground dark:text-dark-muted-foreground">{d.clientName}</td>
+                                <td className="px-4 py-4 text-sm">{formatCurrency(d.budget)}</td>
+                                <td className="px-4 py-4 text-sm">{formatCurrency(d.allocatedCost)}</td>
+                                <td className={`px-4 py-4 text-sm font-semibold ${d.variance >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(d.variance)}</td>
+                                <td className="px-4 py-4 text-sm">{d.personDays.toFixed(2)}</td>
+                                <td className="px-4 py-4 text-sm">{formatCurrency(d.avgCostPerDay)}</td>
+                            </tr>
                         ))}
                     </tbody>
                 </table>
+                {!hasData && (
+                    <div className="px-6 py-10">
+                        <EmptyState
+                            title="Nessun progetto disponibile"
+                            description="Applica filtri differenti o assicurati che i progetti abbiano budget e assegnazioni registrate."
+                            icon={<ChartBarIcon className="w-12 h-12" aria-hidden />}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
 };
+
 
 
 const ResourceUtilizationReport: React.FC = () => {
@@ -188,18 +236,18 @@ const ResourceUtilizationReport: React.FC = () => {
             .filter(r => (!filters.roleId || r.roleId === filters.roleId) && (!filters.horizontal || r.horizontal === filters.horizontal))
             .map(resource => {
                 const role = roles.find(ro => ro.id === resource.roleId);
-                
+
                 const effectiveStartDate = new Date(resource.hireDate) > firstDay ? new Date(resource.hireDate) : firstDay;
                 const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
 
                 if (effectiveStartDate > effectiveEndDate) return null;
 
                 const availableDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
-                
+
                 let allocatedDays = 0;
                 let allocatedCost = 0;
                 const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
-                
+
                 resourceAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
@@ -208,26 +256,39 @@ const ResourceUtilizationReport: React.FC = () => {
                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 allocatedDays += dayFraction;
-                                allocatedCost += dayFraction * (role?.dailyCost || 0);
+                                if (role?.dailyCost) {
+                                    allocatedCost += dayFraction * role.dailyCost;
+                                }
                             }
                         }
                     }
                 });
 
                 const utilization = availableDays > 0 ? (allocatedDays / availableDays) * 100 : 0;
-                
+
                 return {
-                    id: resource.id,
+                    id: resource.id!,
                     resourceName: resource.name,
                     roleName: role?.name || 'N/A',
                     availableDays,
                     allocatedDays,
                     utilization,
                     allocatedCost,
+                    horizontal: resource.horizontal || 'N/A',
                 };
-            }).filter(Boolean) as Exclude<ReturnType<typeof reportData[0]>, null>[];
-    }, [resources, roles, assignments, companyCalendar, month, filters, allocations]);
-    
+            })
+            .filter(Boolean) as {
+                id: string;
+                resourceName: string;
+                roleName: string;
+                availableDays: number;
+                allocatedDays: number;
+                utilization: number;
+                allocatedCost: number;
+                horizontal: string;
+            }[];
+    }, [resources, roles, assignments, allocations, month, companyCalendar, filters, horizontals]);
+
     const sortedData = useMemo(() => {
         if (!sortConfig) return reportData;
         return [...reportData].sort((a, b) => {
@@ -236,46 +297,116 @@ const ResourceUtilizationReport: React.FC = () => {
             if (typeof valA === 'string' && typeof valB === 'string') {
                 return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
             }
-             if (typeof valA === 'number' && typeof valB === 'number') {
+            if (typeof valA === 'number' && typeof valB === 'number') {
                 return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
             }
             return 0;
         });
     }, [reportData, sortConfig]);
-    
-    const exportToCSV = () => {
-        const headers = ["Risorsa", "Ruolo", "Giorni Disponibili", "Giorni Allocati", "Utilizzo (%)", "Costo Allocato"];
-        const rows = sortedData.map(d => [
-            `"${d.resourceName}"`, `"${d.roleName}"`, d.availableDays.toFixed(1), d.allocatedDays.toFixed(2), d.utilization.toFixed(2), d.allocatedCost.toFixed(2)
-        ]);
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csvContent, `report_utilizzo_${month}.csv`);
-    };
-    
+
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.map(h => ({ value: h.value, label: h.value })), [horizontals]);
 
+    const exportToCSV = () => {
+        const headers = ["Risorsa", "Ruolo", "Giorni Disponibili", "Giorni Allocati", "Utilizzo (%)", "Costo Allocato", "Horizontal"];
+        const rows = sortedData.map(d => [
+            `"${d.resourceName}"`,
+            `"${d.roleName}"`,
+            d.availableDays.toFixed(2),
+            d.allocatedDays.toFixed(2),
+            d.utilization.toFixed(2),
+            d.allocatedCost.toFixed(2),
+            `"${d.horizontal}"`
+        ]);
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+        downloadCSV(csvContent, 'report_utilizzo_risorse.csv');
+    };
+
+    const hasData = sortedData.length > 0;
+
     return (
-        <div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
-                    <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
-                    <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700">
-                        <span className="mr-2 text-xl">📥</span> Esporta CSV
+        <div className="space-y-6">
+            <div className="surface-card p-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-end">
+                    <div className="space-y-1">
+                        <label className="block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Mese</label>
+                        <input
+                            type="month"
+                            value={month}
+                            onChange={e => setMonth(e.target.value)}
+                            className="w-full rounded-xl border border-border/70 bg-card px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none"
+                        />
+                    </div>
+                    <SearchableSelect
+                        name="roleId"
+                        value={filters.roleId}
+                        onChange={(_, v) => setFilters(f => ({ ...f, roleId: v }))}
+                        options={roleOptions}
+                        placeholder="Tutti i Ruoli"
+                    />
+                    <SearchableSelect
+                        name="horizontal"
+                        value={filters.horizontal}
+                        onChange={(_, v) => setFilters(f => ({ ...f, horizontal: v }))}
+                        options={horizontalOptions}
+                        placeholder="Tutti gli Horizontal"
+                    />
+                    <button
+                        onClick={exportToCSV}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-soft hover:bg-primary-darker"
+                    >
+                        <CloudArrowDownIcon className="w-4 h-4" aria-hidden />
+                        Esporta CSV
                     </button>
                 </div>
             </div>
-             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700"><tr><SortableHeader label="Risorsa" sortKey="resourceName" /><SortableHeader label="Ruolo" sortKey="roleName" /><SortableHeader label="G/U Disponibili" sortKey="availableDays" /><SortableHeader label="G/U Allocati" sortKey="allocatedDays" /><SortableHeader label="Utilizzo" sortKey="utilization" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /></tr></thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                         {sortedData.map(d => (
-                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{d.resourceName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{d.roleName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.availableDays.toFixed(1)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.allocatedDays.toFixed(2)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.utilization > 100 ? 'text-red-600' : d.utilization >= 90 ? 'text-yellow-600' : 'text-green-600'}`}>{d.utilization.toFixed(1)}%</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td></tr>
+
+            <div className="overflow-x-auto rounded-3xl border border-border/70 dark:border-dark-border/70 bg-card dark:bg-dark-card shadow-soft">
+                <table className="min-w-full" style={{ tableLayout: 'auto' }}>
+                    <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm dark:bg-dark-muted/80">
+                        <tr>
+                            <SortableHeader label="Risorsa" sortKey="resourceName" />
+                            <SortableHeader label="Ruolo" sortKey="roleName" />
+                            <SortableHeader label="Disponibilità" sortKey="availableDays" />
+                            <SortableHeader label="Allocazione" sortKey="allocatedDays" />
+                            <SortableHeader label="Utilizzo" sortKey="utilization" />
+                            <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
+                            <SortableHeader label="Horizontal" sortKey="horizontal" />
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60 dark:divide-dark-border/60 text-sm">
+                        {sortedData.map(d => (
+                            <tr key={d.id} className="odd:bg-muted/40 dark:odd:bg-dark-muted/40">
+                                <td className="px-4 py-4 text-sm font-semibold text-foreground dark:text-dark-foreground">{d.resourceName}</td>
+                                <td className="px-4 py-4 text-sm text-muted-foreground dark:text-dark-muted-foreground">{d.roleName}</td>
+                                <td className="px-4 py-4 text-sm">{d.availableDays.toFixed(2)}</td>
+                                <td className="px-4 py-4 text-sm">{d.allocatedDays.toFixed(2)}</td>
+                                <td className="px-4 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-semibold">{d.utilization.toFixed(1)}%</span>
+                                        <div className="h-2 w-32 rounded-full bg-muted/60 dark:bg-dark-muted/60 overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full bg-primary"
+                                                style={{ width: `${Math.min(d.utilization, 120)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-4 py-4 text-sm">{formatCurrency(d.allocatedCost)}</td>
+                                <td className="px-4 py-4 text-sm">{d.horizontal}</td>
+                            </tr>
                         ))}
                     </tbody>
                 </table>
+                {!hasData && (
+                    <div className="px-6 py-10">
+                        <EmptyState
+                            title="Nessuna risorsa corrisponde ai filtri"
+                            description="Seleziona un altro mese o rimuovi i filtri per consultare l'utilizzo del team."
+                            icon={<UsersIcon className="w-12 h-12" aria-hidden />}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

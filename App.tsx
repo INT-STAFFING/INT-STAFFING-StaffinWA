@@ -3,8 +3,8 @@
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
  */
 
-import React, { useState, useContext } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import React, { useState, useContext, useMemo } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -32,6 +32,8 @@ import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagin
 import ContractsPage from './pages/ContractsPage'; // Importa la nuova pagina dei contratti
 import StaffingVisualizationPage from './pages/StaffingVisualizationPage'; // Importa la nuova pagina di visualizzazione
 import UserManualPage from './pages/UserManualPage'; // Importa la pagina del manuale
+import { CalendarIcon, MagnifierIcon, PlayIcon, ArrowRightIcon, BellIcon } from './components/icons';
+import { PageSkeleton } from './components/FeedbackState';
 
 /**
  * @interface HeaderProps
@@ -52,50 +54,98 @@ interface HeaderProps {
  */
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     const location = useLocation();
-    
-    /**
-     * Genera un titolo leggibile a partire dal percorso della URL per l'header.
-     * @param {string} pathname - Il percorso corrente della URL.
-     * @returns {string} Il titolo della pagina.
-     */
-    const getPageTitle = (pathname: string): string => {
-        const path = pathname.split('/').pop() || 'staffing';
-        switch (path) {
-            case 'staffing': return 'Staffing';
-            case 'dashboard': return 'Dashboard';
-            case 'forecasting': return 'Forecasting & Capacity';
-            case 'workload': return 'Carico Risorse';
-            case 'gantt': return 'Gantt Progetti';
-            case 'resources': return 'Gestione Risorse';
-            case 'projects': return 'Gestione Progetti';
-            case 'clients': return 'Gestione Clienti';
-            case 'roles': return 'Gestione Ruoli';
-            case 'contracts': return 'Gestione Contratti';
-            case 'calendar': return 'Calendario Aziendale';
-            case 'config': return 'Configurazioni';
-            case 'export': return 'Esportazione Dati';
-            case 'import': return 'Importazione Massiva';
-            case 'wbs': return 'Incarichi WBS';
-            case 'reports': return 'Report';
-            case 'admin-settings': return 'Impostazioni Admin';
-            case 'resource-requests': return 'Richiesta Risorse';
-            case 'interviews': return 'Gestione Colloqui';
-            case 'db-inspector': return 'Database Inspector';
-            case 'staffing-visualization': return 'Visualizzazione Staffing';
-            case 'manuale-utente': return 'Manuale Utente';
-            default: return 'Staffing Planner';
-        }
-    };
+
+    const breadcrumbs = useMemo(() => {
+        const segments = location.pathname.split('/').filter(Boolean);
+        if (segments.length === 0) return [{ label: 'Staffing', path: '/staffing' }];
+        const mappings: Record<string, string> = {
+            staffing: 'Staffing',
+            dashboard: 'Dashboard',
+            forecasting: 'Forecasting & Capacity',
+            workload: 'Carico Risorse',
+            gantt: 'Gantt Progetti',
+            resources: 'Gestione Risorse',
+            projects: 'Gestione Progetti',
+            clients: 'Gestione Clienti',
+            roles: 'Gestione Ruoli',
+            contracts: 'Gestione Contratti',
+            calendar: 'Calendario Aziendale',
+            config: 'Configurazioni',
+            export: 'Esportazione Dati',
+            import: 'Importazione Massiva',
+            reports: 'Report',
+            'admin-settings': 'Impostazioni Admin',
+            'resource-requests': 'Richiesta Risorse',
+            interviews: 'Gestione Colloqui',
+            'db-inspector': 'Database Inspector',
+            'staffing-visualization': 'Visualizzazione Staffing',
+            'manuale-utente': 'Manuale Utente',
+        };
+
+        return segments.map((segment, index) => ({
+            label: mappings[segment] ?? segment,
+            path: `/${segments.slice(0, index + 1).join('/')}`,
+        }));
+    }, [location.pathname]);
+
+    const pageTitle = breadcrumbs[breadcrumbs.length - 1]?.label ?? 'Staffing Planner';
+    const today = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
     return (
-        <header className="flex-shrink-0 bg-card dark:bg-dark-card shadow-md">
-            <div className="flex items-center justify-between p-4">
-                <button onClick={onToggleSidebar} className="text-muted-foreground focus:outline-none md:hidden">
-                    <span className="text-2xl">☰</span>
-                </button>
-                <h1 className="text-xl font-semibold text-foreground dark:text-dark-foreground md:text-2xl">{getPageTitle(location.pathname)}</h1>
-                 {/* Questo div serve a mantenere il titolo centrato quando il pulsante hamburger è presente */}
-                <div className="md:hidden w-6"></div>
+        <header className="flex-shrink-0 border-b border-border/60 dark:border-dark-border/60 bg-gradient-to-r from-card via-card to-muted/60 dark:from-dark-card dark:via-dark-card dark:to-dark-muted">
+            <div className="flex flex-col gap-4 px-4 py-5 sm:px-8">
+                <div className="flex items-center justify-between">
+                    <button
+                        onClick={onToggleSidebar}
+                        className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 text-muted-foreground hover:text-foreground hover:border-primary"
+                        aria-label="Apri menu"
+                    >
+                        <span className="text-lg font-semibold">≡</span>
+                    </button>
+
+                    <div className="hidden md:flex items-center gap-3 text-xs uppercase tracking-[0.32em] text-muted-foreground">
+                        <MagnifierIcon className="w-4 h-4" aria-hidden />
+                        Panoramica piattaforma
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button className="hidden md:inline-flex items-center gap-2 rounded-xl border border-border/80 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary">
+                            <CalendarIcon className="w-4 h-4" aria-hidden />
+                            {today}
+                        </button>
+                        <Link
+                            to="/manuale-utente"
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary text-white px-4 py-2 text-sm font-semibold shadow-soft hover:bg-primary-darker"
+                        >
+                            <PlayIcon className="w-4 h-4" aria-hidden />
+                            Avvia guida rapida
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <nav className="flex items-center gap-2 text-xs font-medium text-muted-foreground" aria-label="Breadcrumb">
+                        <Link to="/staffing" className="hover:text-foreground">Home</Link>
+                        {breadcrumbs.map(crumb => (
+                            <React.Fragment key={crumb.path}>
+                                <ArrowRightIcon className="w-3 h-3 text-muted-foreground" aria-hidden />
+                                <Link
+                                    to={crumb.path}
+                                    className={`hover:text-foreground ${location.pathname === crumb.path ? 'text-foreground dark:text-dark-foreground font-semibold' : ''}`}
+                                >
+                                    {crumb.label}
+                                </Link>
+                            </React.Fragment>
+                        ))}
+                    </nav>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <h1 className="text-2xl font-semibold text-foreground dark:text-dark-foreground sm:text-3xl">{pageTitle}</h1>
+                        <div className="inline-flex items-center gap-2 rounded-full bg-muted px-4 py-1.5 text-xs font-semibold text-muted-foreground dark:bg-dark-muted dark:text-dark-muted-foreground">
+                            <BellIcon className="w-4 h-4" aria-hidden />
+                            Aggiornato a {today}
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
     );
@@ -130,11 +180,8 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center w-full h-full">
-                <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+            <div className="flex-1 overflow-y-auto bg-muted dark:bg-dark-background p-6">
+                <PageSkeleton />
             </div>
         );
     }

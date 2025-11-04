@@ -4,6 +4,7 @@
  */
 
 import React, { ReactNode } from 'react';
+import { XMarkIcon } from './icons';
 
 /**
  * @interface ModalProps
@@ -27,30 +28,40 @@ interface ModalProps {
  * @returns {React.ReactElement | null} Il componente modale se `isOpen` è true, altrimenti null.
  */
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
-    // Non renderizzare nulla se la modale non è aperta.
     if (!isOpen) return null;
 
+    const handleBackdropClick = () => onClose();
+
     return (
-        // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in" onClick={onClose}>
-            <div 
-                // Contenitore della modale: impedisce la propagazione del click, gestisce il layout verticale e l'overflow.
-                className="bg-card dark:bg-dark-card rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full animate-scale-in" 
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 py-8 animate-fade-in"
+            onClick={handleBackdropClick}
+            role="presentation"
+        >
+            <div
+                className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-border/60 dark:border-dark-border/60 bg-card/95 dark:bg-dark-card/95 shadow-soft animate-scale-in"
                 onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-title"
             >
-                {/* Header: non si restringe e rimane sempre visibile in alto. */}
-                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border dark:border-dark-border">
-                    <h3 className="text-xl font-semibold text-foreground dark:text-dark-foreground">{title}</h3>
-                    <button 
-                        onClick={onClose} 
-                        className="text-muted-foreground hover:bg-muted dark:hover:bg-dark-muted hover:text-foreground dark:hover:text-dark-foreground rounded-lg text-sm p-1.5"
+                <div className="flex items-start justify-between gap-6 border-b border-border/60 dark:border-dark-border/60 px-6 py-5">
+                    <div className="space-y-1">
+                        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground">Dialogo</p>
+                        <h3 id="modal-title" className="text-2xl font-semibold text-foreground dark:text-dark-foreground">
+                            {title}
+                        </h3>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent text-muted-foreground transition-colors hover:text-foreground hover:border-border"
                         aria-label="Chiudi modale"
+                        type="button"
                     >
-                        <span className="text-xl">❌</span>
+                        <XMarkIcon className="w-5 h-5" aria-hidden />
                     </button>
                 </div>
-                {/* Area del contenuto: diventa scorrevole se il contenuto è troppo alto. */}
-                <div className="p-6 overflow-y-auto">
+                <div className="px-6 py-6 overflow-y-auto max-h-[70vh]">
                     {children}
                 </div>
             </div>

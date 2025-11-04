@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
+import { EmptyState } from './FeedbackState';
+import { ArrowRightIcon } from './icons';
 
 /**
  * @interface ColumnDef
@@ -156,21 +158,30 @@ export function DataTable<T extends { id?: string }>({
     };
 
     return (
-        <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">{title}</h1>
-                <button onClick={onAddNew} className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">{addNewButtonLabel}</button>
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground">{title}</h1>
+                    <p className="text-sm text-muted-foreground dark:text-dark-muted-foreground">Gestisci e filtra rapidamente i dati in vista tabellare o mobile.</p>
+                </div>
+                <button
+                    onClick={onAddNew}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-transform hover:scale-[1.02] hover:bg-primary-darker"
+                >
+                    {addNewButtonLabel}
+                    <ArrowRightIcon className="w-4 h-4" aria-hidden />
+                </button>
             </div>
 
-            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+            <div className="surface-card p-5">
                 {filtersNode}
             </div>
 
-            <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+            <div className="rounded-3xl border border-border/70 dark:border-dark-border/70 bg-card dark:bg-dark-card shadow-soft">
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full" style={{ tableLayout: 'fixed' }}>
-                         <colgroup>
+                        <colgroup>
                             {columns.map(col => {
                                 const key = col.sortKey || col.header;
                                 return (
@@ -180,25 +191,41 @@ export function DataTable<T extends { id?: string }>({
                                     />
                                 );
                             })}
-                            <col style={{ width: '120px' }} /> {/* for actions column */}
+                            <col style={{ width: '120px' }} />
                         </colgroup>
-                        <thead className="border-b border-border dark:border-dark-border">
-                            <tr>
+                        <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur-sm dark:bg-dark-muted/80">
+                            <tr className="text-left text-xs font-semibold uppercase text-muted-foreground dark:text-dark-muted-foreground">
                                 {columns.map(col => getSortableHeader(col.header, col.sortKey))}
-                                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
+                                <th className="px-6 py-4 text-right tracking-wider">Azioni</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border dark:divide-dark-border">
-                            {sortedData.map(item => renderRow(item))}
+                        <tbody className="divide-y divide-border/60 dark:divide-dark-border/60 text-sm">
+                            {sortedData.map((item, index) => (
+                                <React.Fragment key={(item as any).id ?? index}>
+                                    {renderRow(item)}
+                                </React.Fragment>
+                            ))}
                         </tbody>
                     </table>
-                     {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                    {sortedData.length === 0 && (
+                        <div className="px-6 py-10">
+                            <EmptyState
+                                title="Nessun dato disponibile"
+                                description="Modifica i filtri o aggiungi un nuovo elemento per iniziare a popolare questa sezione."
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Mobile Cards */}
                 <div className="md:hidden p-4 space-y-4">
                     {sortedData.map(item => renderMobileCard(item))}
-                    {sortedData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                    {sortedData.length === 0 && (
+                        <EmptyState
+                            title="Nessun dato disponibile"
+                            description="Modifica i filtri o aggiungi un nuovo elemento per iniziare a popolare questa sezione."
+                        />
+                    )}
                 </div>
             </div>
         </div>
