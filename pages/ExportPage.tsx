@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 // Fix: Import useAllocationsContext to get allocations data.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews } from '../utils/exportUtils';
+import Icon from '../components/Icon';
 
 type ExportType = 'core' | 'staffing' | 'requests' | 'interviews';
 
@@ -51,7 +52,7 @@ const ExportCard: React.FC<ExportCardProps> = ({ title, description, onExport, i
                 ) : (
                     <>
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">📥</span>
+                        <Icon name="Download" size={22} className="mr-[var(--space-2)]" />
                         Scarica File
                     </>
                 )}
@@ -107,7 +108,7 @@ const ExportPage: React.FC = () => {
                     onExport={() => handleExport('core')}
                     isExporting={exportingType === 'core'}
                     // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    icon={<span className="text-[var(--font-size-3xl)]">💼</span>}
+                    icon={<Icon name="Briefcase" size={30} />}
                 />
                 <ExportCard
                     title="Staffing"
@@ -115,7 +116,7 @@ const ExportPage: React.FC = () => {
                     onExport={() => handleExport('staffing')}
                     isExporting={exportingType === 'staffing'}
                     // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    icon={<span className="text-[var(--font-size-3xl)]">🗓️</span>}
+                    icon={<Icon name="CalendarDays" size={30} />}
                 />
                  <ExportCard
                     title="Richieste Risorse"
@@ -123,7 +124,7 @@ const ExportPage: React.FC = () => {
                     onExport={() => handleExport('requests')}
                     isExporting={exportingType === 'requests'}
                     // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    icon={<span className="text-[var(--font-size-3xl)]">📋</span>}
+                    icon={<Icon name="ClipboardList" size={30} />}
                 />
                  <ExportCard
                     title="Colloqui"
@@ -131,7 +132,7 @@ const ExportPage: React.FC = () => {
                     onExport={() => handleExport('interviews')}
                     isExporting={exportingType === 'interviews'}
                     // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    icon={<span className="text-[var(--font-size-3xl)]">👥</span>}
+                    icon={<Icon name="Users" size={30} />}
                 />
             </div>
         </div>

@@ -8,6 +8,7 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
+import Icon from '../components/Icon';
 
 // --- Tipi e Hook per l'Ordinamento ---
 
@@ -554,7 +555,7 @@ const DashboardPage: React.FC = () => {
         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
             <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
                 <span className={sortConfig?.key === sortKey ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <span className="text-gray-400">↕️</span>
+                <Icon name="ArrowUpDown" size={16} className="text-gray-400" />
             </button>
         </th>
     );
@@ -587,7 +588,7 @@ const DashboardPage: React.FC = () => {
                             <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
                             <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResources.length}</p>
                         </div>
-                        <span className="text-3xl opacity-50">👥</span>
+                        <Icon name="Users" size={32} className="opacity-50" />
                     </div>
                     {overallKPIs.unassignedResources.length > 0 && (
                         <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
@@ -606,7 +607,7 @@ const DashboardPage: React.FC = () => {
                             <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
                             <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjects.length}</p>
                         </div>
-                        <span className="text-3xl opacity-50">💼</span>
+                        <Icon name="Briefcase" size={32} className="opacity-50" />
                     </div>
                      {overallKPIs.unstaffedProjects.length > 0 && (
                         <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">

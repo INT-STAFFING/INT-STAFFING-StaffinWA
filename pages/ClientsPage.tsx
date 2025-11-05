@@ -10,6 +10,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import Icon from '../components/Icon';
 
 /**
  * Componente per la pagina di gestione dei Clienti.
@@ -98,11 +99,24 @@ const ClientsPage: React.FC = () => {
                     <td className="px-6 py-4"><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></td>
                     <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                        <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                            <button
+                                onClick={handleSaveInlineEdit}
+                                disabled={isSaving}
+                                className="icon-button"
+                                data-variant="success"
+                                type="button"
+                            >
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                            <button
+                                onClick={handleCancelInlineEdit}
+                                className="icon-button"
+                                data-variant="danger"
+                                type="button"
+                            >
+                                <Icon name="X" size={20} />
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -112,11 +126,33 @@ const ClientsPage: React.FC = () => {
              <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((client as any)[col.sortKey]) : undefined}>{col.cell(client)}</td>)}
                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteClient(client.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={() => openModalForEdit(client)}
+                            className="icon-button"
+                            data-variant="primary"
+                            title="Modifica Dettagli"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(client)}
+                            className="icon-button"
+                            data-variant="success"
+                            title="Modifica Rapida"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteClient(client.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            title="Elimina"
+                            type="button"
+                        >
+                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </td>
@@ -134,11 +170,24 @@ const ClientsPage: React.FC = () => {
                         <div><label className="text-xs font-medium text-gray-500">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                         <div><label className="text-xs font-medium text-gray-500">Settore</label><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></div>
                         <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                        <div className="flex justify-end space-x-2 pt-2">
-                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                        <div className="flex justify-end space-x-[var(--space-2)] pt-2">
+                             <button
+                                onClick={handleSaveInlineEdit}
+                                disabled={isSaving}
+                                className="icon-button"
+                                data-variant="success"
+                                type="button"
+                            >
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
+                            <button
+                                onClick={handleCancelInlineEdit}
+                                className="icon-button"
+                                data-variant="danger"
+                                type="button"
+                            >
+                                <Icon name="X" size={20} />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -151,11 +200,30 @@ const ClientsPage: React.FC = () => {
                         <p className="font-bold text-lg text-gray-900 dark:text-white">{client.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{client.contactEmail}</p>
                     </div>
-                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteClient(client.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center space-x-[var(--space-2)] flex-shrink-0 ml-4">
+                        <button
+                            onClick={() => openModalForEdit(client)}
+                            className="icon-button"
+                            data-variant="primary"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(client)}
+                            className="icon-button"
+                            data-variant="success"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteClient(client.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </div>

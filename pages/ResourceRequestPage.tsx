@@ -5,6 +5,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
+import Icon from '../components/Icon';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 // --- Types ---
@@ -210,10 +211,24 @@ const ResourceRequestPage: React.FC = () => {
         <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(request)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                    <button
+                        onClick={() => openModalForEdit(request)}
+                        className="icon-button"
+                        data-variant="primary"
+                        title="Modifica"
+                        type="button"
+                    >
+                        <Icon name="Pencil" size={20} />
+                    </button>
+                    <button
+                        onClick={() => setRequestToDelete(request)}
+                        className="icon-button"
+                        data-variant="danger"
+                        title="Elimina"
+                        type="button"
+                    >
+                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                     </button>
                 </div>
             </td>
@@ -240,10 +255,24 @@ const ResourceRequestPage: React.FC = () => {
                         {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-purple-800 bg-purple-100 dark:text-purple-100 dark:bg-purple-800 rounded-full">TECH</span>}
                     </div>
                 </div>
-                <div className="flex items-center space-x-2 mt-4 md:mt-0 self-end">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-muted-foreground hover:text-destructive rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Elimina">
-                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                <div className="flex items-center space-x-[var(--space-2)] mt-4 md:mt-0 self-end">
+                    <button
+                        onClick={() => openModalForEdit(request)}
+                        className="icon-button"
+                        data-variant="primary"
+                        title="Modifica"
+                        type="button"
+                    >
+                        <Icon name="Pencil" size={20} />
+                    </button>
+                    <button
+                        onClick={() => setRequestToDelete(request)}
+                        className="icon-button"
+                        data-variant="danger"
+                        title="Elimina"
+                        type="button"
+                    >
+                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                     </button>
                 </div>
             </div>

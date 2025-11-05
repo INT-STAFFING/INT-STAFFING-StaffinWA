@@ -12,6 +12,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
+import Icon from '../components/Icon';
 
 /**
  * @type ViewMode
@@ -625,7 +626,7 @@ const StaffingPage: React.FC = () => {
                     {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                     <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker">
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">➕</span>
+                        <Icon name="Plus" size={20} className="mr-[var(--space-2)]" />
                         Assegna Risorsa
                     </button>
                 </div>
@@ -696,9 +697,15 @@ const StaffingPage: React.FC = () => {
                                         </td>
                                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                                         <td className="sticky left-[600px] bg-gray-100 dark:bg-gray-900 px-[var(--space-2)] py-[var(--space-3)] text-center z-10">
-                                            <button onClick={() => openNewAssignmentModal(resource.id!)} title={`Aggiungi assegnazione per ${resource.name}`} className="text-primary hover:text-primary-darker dark:hover:text-blue-300">
+                                            <button
+                                                onClick={() => openNewAssignmentModal(resource.id!)}
+                                                title={`Aggiungi assegnazione per ${resource.name}`}
+                                                className="icon-button"
+                                                data-variant="primary"
+                                                type="button"
+                                            >
                                                 {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                                <span className="text-[var(--font-size-xl)]">➕</span>
+                                                <Icon name="Plus" size={20} />
                                             </button>
                                         </td>
                                         {timeColumns.map((col, index) => {
@@ -731,13 +738,25 @@ const StaffingPage: React.FC = () => {
                                                 <td className={`sticky left-[600px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-[var(--space-2)] py-[var(--space-3)] text-center z-10 ${isDeleting ? 'opacity-50 pointer-events-none' : ''}`}>
                                                     {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                                                     <div className="flex items-center justify-center space-x-[var(--space-2)]">
-                                                        <button onClick={() => openBulkModal(assignment)} title="Assegnazione Massiva" className="text-primary hover:text-primary-darker dark:hover:text-blue-300">
+                                                        <button
+                                                            onClick={() => openBulkModal(assignment)}
+                                                            title="Assegnazione Massiva"
+                                                            className="icon-button"
+                                                            data-variant="primary"
+                                                            type="button"
+                                                        >
                                                             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                                            <span className="text-[var(--font-size-xl)]">🗓️</span>
+                                                            <Icon name="CalendarDays" size={20} />
                                                         </button>
-                                                        <button onClick={() => setAssignmentToDelete(assignment)} title="Rimuovi Assegnazione" className="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                                                        <button
+                                                            onClick={() => setAssignmentToDelete(assignment)}
+                                                            title="Rimuovi Assegnazione"
+                                                            className="icon-button"
+                                                            data-variant="danger"
+                                                            type="button"
+                                                        >
                                                             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                                            <span className="text-[var(--font-size-xl)]">❌</span>
+                                                            <Icon name="X" size={20} />
                                                         </button>
                                                     </div>
                                                 </td>

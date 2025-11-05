@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
+import Icon from '../components/Icon';
 
 interface Column {
     column_name: string;
@@ -326,14 +327,36 @@ const DbInspectorPage: React.FC = () => {
                                     ))}
                                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                         {editingRowId === row.id ? (
-                                            <div className="flex items-center justify-end space-x-2">
-                                                <button onClick={handleSave} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                                            <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                                                <button
+                                                    onClick={handleSave}
+                                                    disabled={isSaving}
+                                                    className="icon-button"
+                                                    data-variant="success"
+                                                    type="button"
+                                                >
+                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                                                 </button>
-                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-gray-500 hover:text-gray-400 disabled:opacity-50"><span className="text-xl">❌</span></button>
+                                                <button
+                                                    onClick={handleCancel}
+                                                    disabled={isSaving}
+                                                    className="icon-button"
+                                                    data-variant="danger"
+                                                    type="button"
+                                                >
+                                                    <Icon name="X" size={20} />
+                                                </button>
                                             </div>
                                         ) : (
-                                            <button onClick={() => handleEdit(row)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                                            <button
+                                                onClick={() => handleEdit(row)}
+                                                className="icon-button"
+                                                data-variant="primary"
+                                                title="Modifica"
+                                                type="button"
+                                            >
+                                                <Icon name="Pencil" size={20} />
+                                            </button>
                                         )}
                                     </td>
                                 </tr>

@@ -7,6 +7,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
+import Icon from '../components/Icon';
 
 // Informa TypeScript che D3 e d3-sankey sono disponibili come variabili globali (da CDN).
 declare var d3: any;
@@ -394,11 +395,11 @@ const StaffingVisualizationPage: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                     <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
-                        <span className="mr-2">📥</span>
+                        <Icon name="Download" size={20} className="mr-2" />
                         SVG
                     </button>
                     <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
-                        <span className="mr-2">📥</span>
+                        <Icon name="Download" size={20} className="mr-2" />
                         PNG
                     </button>
                 </div>

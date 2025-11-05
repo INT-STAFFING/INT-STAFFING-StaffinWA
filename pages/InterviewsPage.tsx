@@ -6,6 +6,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import Icon from '../components/Icon';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -216,10 +217,24 @@ const InterviewsPage: React.FC = () => {
                     <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{interview.candidateName} {interview.candidateSurname} <span className="text-muted-foreground font-normal text-base">({interview.age ?? 'N/A'})</span></p>
                     <p className="text-sm text-primary font-medium">{interview.roleName || 'N/A'}</p>
                 </div>
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                <div className="flex items-center space-x-[var(--space-2)] flex-shrink-0">
+                    <button
+                        onClick={() => openModalForEdit(interview)}
+                        className="icon-button"
+                        data-variant="primary"
+                        title="Modifica"
+                        type="button"
+                    >
+                        <Icon name="Pencil" size={20} />
+                    </button>
+                    <button
+                        onClick={() => setInterviewToDelete(interview)}
+                        className="icon-button"
+                        data-variant="danger"
+                        title="Elimina"
+                        type="button"
+                    >
+                        {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                     </button>
                 </div>
             </div>
@@ -271,7 +286,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
                             </div>
-                            <span className="text-3xl text-gray-300">👥</span>
+                            <Icon name="Users" size={32} className="text-gray-300" />
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
                     </div>
@@ -284,7 +299,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
                             </div>
-                            <span className="text-3xl text-gray-300">✅</span>
+                            <Icon name="CheckCircle2" size={32} className="text-gray-300" />
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
                     </div>
@@ -297,7 +312,7 @@ const InterviewsPage: React.FC = () => {
                                 <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
                                 <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
                             </div>
-                            <span className="text-3xl text-gray-300">📅</span>
+                            <Icon name="CalendarDays" size={32} className="text-gray-300" />
                         </div>
                         {summaryCards.upcomingHires.length > 0 ? (
                             <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
@@ -347,7 +362,7 @@ const InterviewsPage: React.FC = () => {
                                             {col.sortKey ? (
                                                 <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
                                                     <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                                                    <span className="text-gray-400">↕️</span>
+                                                    <Icon name="ArrowUpDown" size={16} className="text-gray-400" />
                                                 </button>
                                             ) : (
                                                 <span>{col.header}</span>
@@ -370,10 +385,24 @@ const InterviewsPage: React.FC = () => {
                                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
                                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end space-x-3">
-                                                <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                                                <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                                                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                                            <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                                                <button
+                                                    onClick={() => openModalForEdit(interview)}
+                                                    className="icon-button"
+                                                    data-variant="primary"
+                                                    title="Modifica"
+                                                    type="button"
+                                                >
+                                                    <Icon name="Pencil" size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={() => setInterviewToDelete(interview)}
+                                                    className="icon-button"
+                                                    data-variant="danger"
+                                                    title="Elimina"
+                                                    type="button"
+                                                >
+                                                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                                                 </button>
                                             </div>
                                         </td>

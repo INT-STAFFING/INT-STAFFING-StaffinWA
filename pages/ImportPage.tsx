@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
+import Icon from '../components/Icon';
 
 type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews';
 
@@ -136,7 +137,7 @@ const ImportPage: React.FC = () => {
                         className="inline-flex items-center justify-center px-[var(--space-4)] py-[var(--space-2)] bg-gray-600 text-white font-semibold rounded-md shadow-sm hover:bg-gray-700 transition-colors duration-200"
                     >
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">📥</span>
+                        <Icon name="Download" size={22} className="mr-[var(--space-2)]" />
                         Scarica Template
                     </button>
                 </div>
@@ -175,7 +176,7 @@ const ImportPage: React.FC = () => {
                             ) : (
                                 <>
                                     {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                    <span className="mr-[var(--space-2)] text-[var(--font-size-xl)]">📤</span>
+                                    <Icon name="Upload" size={22} className="mr-[var(--space-2)]" />
                                     Importa Dati
                                 </>
                             )}

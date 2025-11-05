@@ -53,52 +53,87 @@ interface HeaderProps {
  */
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     const location = useLocation();
-    
+
+    interface PageMeta {
+        title: string;
+        section: string;
+    }
+
     /**
-     * Genera un titolo leggibile a partire dal percorso della URL per l'header.
+     * Genera le informazioni della pagina corrente (titolo e sezione) a partire dal percorso della URL.
      * @param {string} pathname - Il percorso corrente della URL.
-     * @returns {string} Il titolo della pagina.
+     * @returns {PageMeta} Titolo e sezione associata.
      */
-    const getPageTitle = (pathname: string): string => {
+    const getPageMeta = (pathname: string): PageMeta => {
         const path = pathname.split('/').pop() || 'staffing';
         switch (path) {
-            case 'staffing': return 'Staffing';
-            case 'dashboard': return 'Dashboard';
-            case 'forecasting': return 'Forecasting & Capacity';
-            case 'workload': return 'Carico Risorse';
-            case 'gantt': return 'Gantt Progetti';
-            case 'resources': return 'Gestione Risorse';
-            case 'projects': return 'Gestione Progetti';
-            case 'clients': return 'Gestione Clienti';
-            case 'roles': return 'Gestione Ruoli';
-            case 'contracts': return 'Gestione Contratti';
-            case 'calendar': return 'Calendario Aziendale';
-            case 'config': return 'Configurazioni';
-            case 'export': return 'Esportazione Dati';
-            case 'import': return 'Importazione Massiva';
-            case 'wbs': return 'Incarichi WBS';
-            case 'reports': return 'Report';
-            case 'admin-settings': return 'Impostazioni Admin';
-            case 'resource-requests': return 'Richiesta Risorse';
-            case 'interviews': return 'Gestione Colloqui';
-            case 'db-inspector': return 'Database Inspector';
-            case 'staffing-visualization': return 'Visualizzazione Staffing';
-            case 'manuale-utente': return 'Manuale Utente';
-            default: return 'Staffing Planner';
+            case 'staffing':
+                return { title: 'Staffing', section: 'Principale' };
+            case 'dashboard':
+                return { title: 'Dashboard', section: 'Principale' };
+            case 'forecasting':
+                return { title: 'Forecasting & Capacity', section: 'Analisi' };
+            case 'workload':
+                return { title: 'Carico Risorse', section: 'Principale' };
+            case 'gantt':
+                return { title: 'Gantt Progetti', section: 'Analisi' };
+            case 'resources':
+                return { title: 'Gestione Risorse', section: 'Gestione' };
+            case 'projects':
+                return { title: 'Gestione Progetti', section: 'Gestione' };
+            case 'clients':
+                return { title: 'Gestione Clienti', section: 'Gestione' };
+            case 'roles':
+                return { title: 'Gestione Ruoli', section: 'Gestione' };
+            case 'contracts':
+                return { title: 'Gestione Contratti', section: 'Gestione' };
+            case 'calendar':
+                return { title: 'Calendario Aziendale', section: 'Gestione' };
+            case 'config':
+                return { title: 'Configurazioni', section: 'Gestione' };
+            case 'export':
+                return { title: 'Esportazione Dati', section: 'Dati' };
+            case 'import':
+                return { title: 'Importazione Massiva', section: 'Dati' };
+            case 'reports':
+                return { title: 'Report', section: 'Analisi' };
+            case 'admin-settings':
+                return { title: 'Impostazioni Admin', section: 'Amministrazione' };
+            case 'resource-requests':
+                return { title: 'Richiesta Risorse', section: 'Principale' };
+            case 'interviews':
+                return { title: 'Gestione Colloqui', section: 'Principale' };
+            case 'db-inspector':
+                return { title: 'Database Inspector', section: 'Amministrazione' };
+            case 'staffing-visualization':
+                return { title: 'Visualizzazione Staffing', section: 'Analisi' };
+            case 'manuale-utente':
+                return { title: 'Manuale Utente', section: 'Principale' };
+            default:
+                return { title: 'Staffing Planner', section: 'Principale' };
         }
     };
+
+    const { title, section } = getPageMeta(location.pathname);
 
     return (
         <header className="flex-shrink-0 bg-card dark:bg-dark-card shadow-md">
             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <div className="flex items-center justify-between p-[var(--space-4)]">
+            <div className="flex items-center justify-between p-[var(--space-4)] gap-[var(--space-3)]">
                 <button onClick={onToggleSidebar} className="text-muted-foreground focus:outline-none md:hidden">
                     {/* MODIFICA: Sostituita emoji con icona vettoriale per coerenza. */}
                     <Icon name="Menu" size={24} />
                 </button>
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <h1 className="text-[var(--font-size-xl)] font-semibold text-foreground dark:text-dark-foreground md:text-[var(--font-size-2xl)]">{getPageTitle(location.pathname)}</h1>
-                 {/* Questo div serve a mantenere il titolo centrato quando il pulsante hamburger è presente */}
+                <div className="flex flex-1 flex-col items-center gap-[var(--space-2)] md:flex-row md:items-center md:justify-start md:gap-[var(--space-3)]">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+                    <h1 className="text-center text-[var(--font-size-xl)] font-semibold text-foreground dark:text-dark-foreground md:text-left md:text-[var(--font-size-2xl)]">
+                        {title}
+                    </h1>
+                    <span className="page-section-badge">
+                        {section}
+                    </span>
+                </div>
+                {/* Questo div serve a mantenere il titolo centrato quando il pulsante hamburger è presente */}
                 {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                 <div className="md:hidden w-[var(--space-6)]"></div>
             </div>
@@ -145,50 +180,58 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
         );
     }
     
+    const containerClasses = `container mx-auto px-[var(--space-4)] sm:px-[var(--space-6)] py-[var(--space-8)] ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`;
+    const contentClasses = `${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''} page-shell-content`;
+
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
              <Header onToggleSidebar={onToggleSidebar} />
              <main className={`flex-1 ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'} bg-muted dark:bg-dark-background`}>
                 {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <div className={`container mx-auto px-[var(--space-4)] sm:px-[var(--space-6)] py-[var(--space-8)] ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`}>
-                    <Routes>
-                        <Route path="/" element={<Navigate to="/staffing" replace />} />
-                        <Route path="/staffing" element={<StaffingPage />} />
-                        <Route path="/resources" element={<ResourcesPage />} />
-                        <Route path="/projects" element={<ProjectsPage />} />
-                        <Route path="/clients" element={<ClientsPage />} />
-                        <Route path="/roles" element={<RolesPage />} />
-                        <Route path="/contracts" element={<ContractsPage />} />
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/forecasting" element={<ForecastingPage />} />
-                        <Route path="/workload" element={<WorkloadPage />} />
-                        <Route path="/gantt" element={<GanttPage />} />
-                        <Route path="/calendar" element={<CalendarPage />} />
-                        <Route path="/export" element={<ExportPage />} />
-                        <Route path="/import" element={<ImportPage />} />
-                        <Route path="/config" element={<ConfigPage />} />
-                        <Route path="/reports" element={<ReportsPage />} />
-                        <Route path="/resource-requests" element={<ResourceRequestPage />} />
-                        <Route path="/interviews" element={<InterviewsPage />} />
-                        <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
-                        <Route path="/manuale-utente" element={<UserManualPage />} />
-                        <Route 
-                            path="/admin-settings" 
-                            element={
-                                <AdminRoute>
-                                    <AdminSettingsPage />
-                                </AdminRoute>
-                            } 
-                        />
-                        <Route 
-                            path="/db-inspector" 
-                            element={
-                                <AdminRoute>
-                                    <DbInspectorPage />
-                                </AdminRoute>
-                            } 
-                        />
-                    </Routes>
+                <div className={containerClasses}>
+                    <div className={`page-indicator-wrapper ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`}>
+                        <span className="page-indicator" aria-hidden="true"></span>
+                        <div className={contentClasses}>
+                            <Routes>
+                                <Route path="/" element={<Navigate to="/staffing" replace />} />
+                                <Route path="/staffing" element={<StaffingPage />} />
+                                <Route path="/resources" element={<ResourcesPage />} />
+                                <Route path="/projects" element={<ProjectsPage />} />
+                                <Route path="/clients" element={<ClientsPage />} />
+                                <Route path="/roles" element={<RolesPage />} />
+                                <Route path="/contracts" element={<ContractsPage />} />
+                                <Route path="/dashboard" element={<DashboardPage />} />
+                                <Route path="/forecasting" element={<ForecastingPage />} />
+                                <Route path="/workload" element={<WorkloadPage />} />
+                                <Route path="/gantt" element={<GanttPage />} />
+                                <Route path="/calendar" element={<CalendarPage />} />
+                                <Route path="/export" element={<ExportPage />} />
+                                <Route path="/import" element={<ImportPage />} />
+                                <Route path="/config" element={<ConfigPage />} />
+                                <Route path="/reports" element={<ReportsPage />} />
+                                <Route path="/resource-requests" element={<ResourceRequestPage />} />
+                                <Route path="/interviews" element={<InterviewsPage />} />
+                                <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
+                                <Route path="/manuale-utente" element={<UserManualPage />} />
+                                <Route
+                                    path="/admin-settings"
+                                    element={
+                                        <AdminRoute>
+                                            <AdminSettingsPage />
+                                        </AdminRoute>
+                                    }
+                                />
+                                <Route
+                                    path="/db-inspector"
+                                    element={
+                                        <AdminRoute>
+                                            <DbInspectorPage />
+                                        </AdminRoute>
+                                    }
+                                />
+                            </Routes>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>

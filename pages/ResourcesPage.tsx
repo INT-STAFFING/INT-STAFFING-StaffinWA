@@ -9,6 +9,7 @@ import { Resource } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
+import Icon from '../components/Icon';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
@@ -243,11 +244,24 @@ const ResourcesPage: React.FC = () => {
                     <td className={`px-6 py-4 text-sm ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
                     <td className="px-6 py-4 text-sm text-center">{resource.activeProjects}</td>
                     <td className="px-6 py-4 text-sm text-center">{resource.seniority.toFixed(1)}</td>
-                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={handleSaveInlineEdit}
+                            disabled={isSaving}
+                            className="icon-button"
+                            data-variant="success"
+                            type="button"
+                        >
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button
+                            onClick={handleCancelInlineEdit}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                            <Icon name="X" size={20} />
+                        </button>
                     </div></td>
                 </tr>
             );
@@ -256,11 +270,33 @@ const ResourcesPage: React.FC = () => {
             <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((resource as any)[col.sortKey]) : undefined}>{col.cell(resource)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={() => openModalForEdit(resource)}
+                            className="icon-button"
+                            data-variant="primary"
+                            title="Modifica Dettagli"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(resource)}
+                            className="icon-button"
+                            data-variant="success"
+                            title="Modifica Rapida"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteResource(resource.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            title="Elimina"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </td>
@@ -278,10 +314,22 @@ const ResourcesPage: React.FC = () => {
                             {resource.resigned ? 'Dimesso' : 'Attivo'}
                         </span>
                     </div>
-                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center space-x-[var(--space-2)] flex-shrink-0 ml-4">
+                        <button
+                            onClick={() => openModalForEdit(resource)}
+                            className="icon-button"
+                            data-variant="primary"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteResource(resource.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </div>

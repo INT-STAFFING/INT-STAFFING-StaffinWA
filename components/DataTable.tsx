@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
+import Icon from './Icon';
 
 /**
  * @interface ColumnDef
@@ -149,7 +150,7 @@ export function DataTable<T extends { id?: string }>({
                             className="flex items-center space-x-[var(--space-1)] hover:text-foreground dark:hover:text-dark-foreground"
                         >
                             <span className={sortConfig?.key === colKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{label}</span>
-                            <span className="text-gray-400">↕️</span>
+                            <Icon name="ArrowUpDown" size={16} className="text-gray-400" />
                         </button>
                     ) : (
                         <span>{label}</span>

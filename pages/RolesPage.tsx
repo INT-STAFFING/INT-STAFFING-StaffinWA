@@ -10,6 +10,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import Icon from '../components/Icon';
 
 const formatCurrency = (value: number | undefined): string => {
     return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -103,11 +104,24 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                     <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                     <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
-                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={handleSaveInlineEdit}
+                            disabled={isSaving}
+                            className="icon-button"
+                            data-variant="success"
+                            type="button"
+                        >
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button
+                            onClick={handleCancelInlineEdit}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                            <Icon name="X" size={20} />
+                        </button>
                     </div></td>
                 </tr>
             );
@@ -116,11 +130,33 @@ const RolesPage: React.FC = () => {
             <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((role as any)[col.sortKey]) : undefined}>{col.cell(role)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(role)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={() => openModalForEdit(role)}
+                            className="icon-button"
+                            data-variant="primary"
+                            title="Modifica Dettagli"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(role)}
+                            className="icon-button"
+                            data-variant="success"
+                            title="Modifica Rapida"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteRole(role.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            title="Elimina"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </td>
@@ -139,11 +175,24 @@ const RolesPage: React.FC = () => {
                         <div><label className="text-xs font-medium text-gray-500">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
                         <div><label className="text-xs font-medium text-gray-500">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                         <div><label className="text-xs font-medium text-gray-500">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                        <div className="flex justify-end space-x-2 pt-2">
-                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                        <div className="flex justify-end space-x-[var(--space-2)] pt-2">
+                             <button
+                                onClick={handleSaveInlineEdit}
+                                disabled={isSaving}
+                                className="icon-button"
+                                data-variant="success"
+                                type="button"
+                            >
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
+                            <button
+                                onClick={handleCancelInlineEdit}
+                                className="icon-button"
+                                data-variant="danger"
+                                type="button"
+                            >
+                                <Icon name="X" size={20} />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -156,11 +205,30 @@ const RolesPage: React.FC = () => {
                         <p className="font-bold text-lg text-gray-900 dark:text-white">{role.name}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{role.seniorityLevel}</p>
                     </div>
-                    <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(role)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center space-x-[var(--space-2)] flex-shrink-0 ml-4">
+                        <button
+                            onClick={() => openModalForEdit(role)}
+                            className="icon-button"
+                            data-variant="primary"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(role)}
+                            className="icon-button"
+                            data-variant="success"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteRole(role.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </div>

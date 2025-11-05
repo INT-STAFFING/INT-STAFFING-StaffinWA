@@ -9,6 +9,7 @@ import { CalendarEvent, CalendarEventType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
+import Icon from '../components/Icon';
 
 /**
  * Formatta una data per la visualizzazione.
@@ -154,12 +155,27 @@ const CalendarPage: React.FC = () => {
                                     {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                                     <td className="px-[var(--space-6)] py-[var(--space-4)] whitespace-nowrap text-right text-[var(--font-size-sm)] font-medium">
                                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                        <div className="flex items-center justify-end space-x-[var(--space-3)]">
+                                        <div className="flex items-center justify-end space-x-[var(--space-2)]">
                                             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                            <button onClick={() => openModalForEdit(event)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-[var(--font-size-xl)]">✏️</span></button>
-                                            <button onClick={() => deleteCalendarEvent(event.id!)} className="text-gray-500 hover:text-red-600" title="Elimina" disabled={isDeleting}>
+                                            <button
+                                                onClick={() => openModalForEdit(event)}
+                                                className="icon-button"
+                                                data-variant="primary"
+                                                title="Modifica"
+                                                type="button"
+                                            >
+                                                <Icon name="Pencil" size={20} />
+                                            </button>
+                                            <button
+                                                onClick={() => deleteCalendarEvent(event.id!)}
+                                                className="icon-button"
+                                                data-variant="danger"
+                                                title="Elimina"
+                                                disabled={isDeleting}
+                                                type="button"
+                                            >
                                                 {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                                {isDeleting ? <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/> : <span className="text-[var(--font-size-xl)]">🗑️</span>}
+                                                {isDeleting ? <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/> : <Icon name="Trash2" size={20} />}
                                             </button>
                                         </div>
                                     </td>

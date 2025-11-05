@@ -8,6 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { ConfigOption } from '../types';
 import Modal from '../components/Modal';
 import { SpinnerIcon } from '../components/icons';
+import Icon from '../components/Icon';
 
 /** @type ConfigType - Definisce i tipi di configurazione gestibili. */
 type ConfigType = 'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations';
@@ -100,14 +101,25 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                         <span className="text-[var(--font-size-sm)] text-gray-800 dark:text-gray-200">{option.value}</span>
                         <div>
                             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-[var(--space-3)] p-[var(--space-1)]" title="Modifica">
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <span className="text-[var(--font-size-lg)]">✏️</span>
+                            <button
+                                onClick={() => handleOpenModal(option)}
+                                className="icon-button mr-[var(--space-2)]"
+                                data-variant="primary"
+                                title="Modifica"
+                                type="button"
+                            >
+                                <Icon name="Pencil" size={20} />
                             </button>
                             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <button onClick={() => deleteConfigOption(configType, option.id!)} disabled={isDeleting} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-[var(--space-1)] disabled:opacity-50" title="Elimina">
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                {isDeleting ? <SpinnerIcon className="w-[var(--space-4)] h-[var(--space-4)]" /> : <span className="text-[var(--font-size-lg)]">🗑️</span>}
+                            <button
+                                onClick={() => deleteConfigOption(configType, option.id!)}
+                                disabled={isDeleting}
+                                className="icon-button"
+                                data-variant="danger"
+                                title="Elimina"
+                                type="button"
+                            >
+                                {isDeleting ? <SpinnerIcon className="w-[var(--space-4)] h-[var(--space-4)]" /> : <Icon name="Trash2" size={20} />}
                             </button>
                         </div>
                     </li>

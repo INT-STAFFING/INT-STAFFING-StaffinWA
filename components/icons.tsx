@@ -5,8 +5,9 @@
 
 import React from 'react';
 
-// All vector icons have been removed to be replaced by emojis as per user request.
-// Only the animated spinner icon is kept.
+// Icone vettoriali Lucide utilizzate in tutta l'applicazione.
+// Manteniamo qui solo le icone custom (come lo spinner) mentre le altre
+// vengono richiamate dinamicamente tramite il componente <Icon />.
 export const SpinnerIcon = (props: React.ComponentProps<'svg'>) => (
     // Fix: Corrected typo in viewBox attribute from "0 0 24" 24" to "0 0 24 24"
     <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" {...props}>

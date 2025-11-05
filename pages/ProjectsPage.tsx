@@ -10,6 +10,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import Icon from '../components/Icon';
 import { useSearchParams } from 'react-router-dom';
 
 
@@ -176,11 +177,24 @@ const ProjectsPage: React.FC = () => {
                     <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
                     <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={handleSaveInlineEdit}
+                            disabled={isSaving}
+                            className="icon-button"
+                            data-variant="success"
+                            type="button"
+                        >
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button
+                            onClick={handleCancelInlineEdit}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                            <Icon name="X" size={20} />
+                        </button>
                     </div></td>
                 </tr>
             );
@@ -189,11 +203,33 @@ const ProjectsPage: React.FC = () => {
             <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((project as any)[col.sortKey]) : undefined}>{col.cell(project)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                        <button
+                            onClick={() => openModalForEdit(project)}
+                            className="icon-button"
+                            data-variant="primary"
+                            title="Modifica Dettagli"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(project)}
+                            className="icon-button"
+                            data-variant="success"
+                            title="Modifica Rapida"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteProject(project.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            title="Elimina"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </td>
@@ -213,12 +249,25 @@ const ProjectsPage: React.FC = () => {
                        <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div className="flex justify-end space-x-2 pt-2">
-                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
-                           </button>
-                           <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
-                       </div>
+                        <div className="flex justify-end space-x-[var(--space-2)] pt-2">
+                            <button
+                                onClick={handleSaveInlineEdit}
+                                disabled={isSaving}
+                                className="icon-button"
+                                data-variant="success"
+                                type="button"
+                            >
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Check" size={20} />}
+                            </button>
+                           <button
+                                onClick={handleCancelInlineEdit}
+                                className="icon-button"
+                                data-variant="danger"
+                                type="button"
+                            >
+                                <Icon name="X" size={20} />
+                            </button>
+                        </div>
                    </div>
                </div>
            );
@@ -233,11 +282,30 @@ const ProjectsPage: React.FC = () => {
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{project.clientName}</p>
                     </div>
-                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <div className="flex items-center space-x-[var(--space-2)] flex-shrink-0 ml-4">
+                        <button
+                            onClick={() => openModalForEdit(project)}
+                            className="icon-button"
+                            data-variant="primary"
+                            type="button"
+                        >
+                            <Icon name="Pencil" size={20} />
+                        </button>
+                        <button
+                            onClick={() => handleStartInlineEdit(project)}
+                            className="icon-button"
+                            data-variant="success"
+                            type="button"
+                        >
+                            <Icon name="Edit3" size={20} />
+                        </button>
+                        <button
+                            onClick={() => deleteProject(project.id!)}
+                            className="icon-button"
+                            data-variant="danger"
+                            type="button"
+                        >
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                         </button>
                     </div>
                 </div>

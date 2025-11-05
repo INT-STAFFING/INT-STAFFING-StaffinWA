@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import Icon from '../components/Icon';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';
@@ -51,7 +52,7 @@ const useSort = <T extends string>() => {
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
             <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
                 <span className={sortConfig?.key === sortKey ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <span className="text-gray-400">↕️</span>
+                <Icon name="ArrowUpDown" size={16} className="text-gray-400" />
             </button>
         </th>
     );
@@ -152,7 +153,7 @@ const ProjectCostsReport: React.FC = () => {
                     <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
                     <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
                     <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700">
-                        <span className="mr-2 text-xl">📥</span> Esporta CSV
+                        <Icon name="Download" size={20} className="mr-2" /> Esporta CSV
                     </button>
                  </div>
             </div>
@@ -263,7 +264,7 @@ const ResourceUtilizationReport: React.FC = () => {
                     <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
                     <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
                     <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700">
-                        <span className="mr-2 text-xl">📥</span> Esporta CSV
+                        <Icon name="Download" size={20} className="mr-2" /> Esporta CSV
                     </button>
                 </div>
             </div>

@@ -12,6 +12,7 @@ import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import Icon from '../components/Icon';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -145,18 +146,34 @@ const ContractsPage: React.FC = () => {
         <tr key={contract.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(contract)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button 
-                        onClick={() => recalculateContractBacklog(contract.id!)} 
-                        className="text-gray-500 hover:text-blue-600" 
+                <div className="flex items-center justify-end space-x-[var(--space-2)]">
+                    <button
+                        onClick={() => openModalForEdit(contract)}
+                        className="icon-button"
+                        data-variant="primary"
+                        title="Modifica"
+                        type="button"
+                    >
+                        <Icon name="Pencil" size={20} />
+                    </button>
+                    <button
+                        onClick={() => recalculateContractBacklog(contract.id!)}
+                        className="icon-button"
+                        data-variant="primary"
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
+                        type="button"
                     >
-                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="RefreshCcw" size={20} />}
                     </button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <button
+                        onClick={() => setContractToDelete(contract)}
+                        className="icon-button"
+                        data-variant="danger"
+                        title="Elimina"
+                        type="button"
+                    >
+                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                     </button>
                 </div>
             </td>
@@ -171,18 +188,34 @@ const ContractsPage: React.FC = () => {
                     <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{contract.name}</p>
                     <p className="text-sm text-muted-foreground">CIG: {contract.cig}</p>
                 </div>
-                <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                     <button 
-                        onClick={() => recalculateContractBacklog(contract.id!)} 
-                        className="text-gray-500 hover:text-blue-600" 
+                <div className="flex items-center space-x-[var(--space-2)] flex-shrink-0">
+                    <button
+                        onClick={() => openModalForEdit(contract)}
+                        className="icon-button"
+                        data-variant="primary"
+                        title="Modifica"
+                        type="button"
+                    >
+                        <Icon name="Pencil" size={20} />
+                    </button>
+                     <button
+                        onClick={() => recalculateContractBacklog(contract.id!)}
+                        className="icon-button"
+                        data-variant="primary"
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
+                        type="button"
                     >
-                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="RefreshCcw" size={20} />}
                     </button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <button
+                        onClick={() => setContractToDelete(contract)}
+                        className="icon-button"
+                        data-variant="danger"
+                        title="Elimina"
+                        type="button"
+                    >
+                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <Icon name="Trash2" size={20} />}
                     </button>
                 </div>
             </div>

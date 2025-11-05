@@ -54,22 +54,22 @@ La sidebar, con sfondo scuro (`bg-gray-800`), è il principale strumento di navi
 *   **Comportamento:** È fissa su schermi desktop (da `md` in su) e si trasforma in un menu a scomparsa su dispositivi mobili, attivabile tramite il pulsante "hamburger" nell'header. Un backdrop scuro appare su mobile quando la sidebar è aperta per focalizzare l'attenzione.
 *   **Struttura:**
     *   **Logo/Titolo:** In alto, mostra il titolo "Staffing App".
-    *   **Link di Navigazione:** I link sono raggruppati per aree funzionali. Ogni link è composto da un'icona (emoji) e un'etichetta testuale.
+*   **Link di Navigazione:** I link sono raggruppati per aree funzionali. Ogni voce combina un'icona vettoriale Lucide e un'etichetta testuale per garantire coerenza visiva.
         *   **Link Attivo:** Evidenziato con uno sfondo più scuro (`bg-gray-700`) e testo bianco.
         *   **Sezioni:**
-            *   Principale: `🗓️ Staffing`, `👥 Carico Risorse`, `📊 Dashboard`, `📋 Richiesta Risorse`, `💬 Gestione Colloqui`, `ℹ️ Manuale Utente`.
-            *   Analisi: `📈 Forecasting`, `📏 Gantt Progetti`, `📄 Report`, `🎨 Visualizzazione`.
-            *   Gestione: `👥 Risorse`, `💼 Progetti`, `📜 Contratti`, `🏢 Clienti`, `🏷️ Ruoli`.
-            *   Amministrazione: `📅 Calendario`, `⚙️ Config`.
-            *   Dati: `📥 Esporta Dati`, `📤 Importa Dati`.
-            *   Amministrazione (solo Admin): `⚙️ Impostazioni Admin`, `🔍 Database Inspector`.
-    *   **Footer:** In basso, mostra il numero di versione dell'applicazione (`V600`) e il pulsante `🚪 Logout` (se l'autenticazione è attiva).
+            *   Principale: CalendarDays (Staffing), Users (Carico Risorse), LayoutGrid (Dashboard), ClipboardList (Richiesta Risorse), MessageSquare (Gestione Colloqui), Info (Manuale Utente).
+            *   Analisi: TrendingUp (Forecasting), GanttChartSquare (Gantt Progetti), FileText (Report), Palette (Visualizzazione).
+            *   Gestione: Users (Risorse), Briefcase (Progetti), FileSignature (Contratti), Building (Clienti), Tags (Ruoli).
+            *   Amministrazione: Calendar (Calendario), Settings (Config).
+            *   Dati: Download (Esporta Dati), Upload (Importa Dati).
+            *   Amministrazione (solo Admin): Settings (Impostazioni Admin), Search (Database Inspector).
+    *   **Footer:** In basso, mostra il numero di versione dell'applicazione (`V600`) e il pulsante di logout con icona LogOut (se l'autenticazione è attiva).
 
 ### Header di Pagina
 
 L'header si trova sopra l'area del contenuto principale.
 *   **Titolo Pagina:** Mostra dinamicamente il titolo della pagina corrente (es. "Gestione Risorse", "Dashboard"). Il titolo è determinato dal percorso URL.
-*   **Pulsante Hamburger (`☰`):** Visibile solo su schermi mobili (`md` e inferiori), apre la sidebar.
+*   **Pulsante Hamburger (icona Menu):** Visibile solo su schermi mobili (`md` e inferiori), apre la sidebar.
 
 ## 3. Dashboard: Il Tuo Centro di Controllo
 
@@ -114,8 +114,8 @@ Pagina per la pianificazione dettagliata delle allocazioni.
     *   **Selettore Vista:** `Giorno`, `Settimana`, `Mese`.
     *   **Filtri:** Per `Risorsa`, `Cliente`, `Project Manager`, `Progetto` tramite `SearchableSelect`.
 *   **Struttura Griglia:**
-    *   **Master Row (Risorsa):** Riga in grassetto (`bg-gray-100 dark:bg-gray-900`). Mostra nome risorsa, ruolo, `maxStaffingPercentage` e un pulsante `➕` per aggiungere assegnazioni. Nelle colonne temporali, visualizza il carico totale.
-    *   **Assignment Row (Progetto):** Riga per ogni progetto assegnato. Mostra nome progetto, cliente, PM e le azioni (`🗓️`, `❌`). Nelle colonne temporali, visualizza l'allocazione specifica per quel progetto.
+    *   **Master Row (Risorsa):** Riga in grassetto (`bg-gray-100 dark:bg-gray-900`). Mostra nome risorsa, ruolo, `maxStaffingPercentage` e un pulsante con icona Plus per aggiungere assegnazioni. Nelle colonne temporali, visualizza il carico totale.
+    *   **Assignment Row (Progetto):** Riga per ogni progetto assegnato. Mostra nome progetto, cliente, PM e le azioni (CalendarDays per l'assegnazione massiva, X per la rimozione). Nelle colonne temporali, visualizza l'allocazione specifica per quel progetto.
 *   **Calcoli e Logiche:**
     *   **Carico Totale Giornaliero (Vista Giorno):**
         *   **Formula:** `SUM(percentuale_allocazione)` di una risorsa su tutti i suoi progetti in un dato giorno.
@@ -128,8 +128,8 @@ Pagina per la pianificazione dettagliata delle allocazioni.
         *   I colori seguono la stessa logica, applicata alla media arrotondata.
 *   **Interazioni:**
     *   **Modifica Allocazione (Vista Giorno):** `select` con valori da 0 a 100 (step 5).
-    *   **Assegnazione Massiva (`🗓️`):** Modale con `Data Inizio`, `Data Fine` e `Percentuale` per applicare un'allocazione a un intervallo.
-    *   **Rimuovi Assegnazione (`❌`):** Modale di conferma per eliminare l'assegnazione e tutte le relative allocazioni.
+    *   **Assegnazione Massiva (icona CalendarDays):** Modale con `Data Inizio`, `Data Fine` e `Percentuale` per applicare un'allocazione a un intervallo.
+    *   **Rimuovi Assegnazione (icona X):** Modale di conferma per eliminare l'assegnazione e tutte le relative allocazioni.
 
 ### 4.2 Carico Risorse
 
@@ -201,7 +201,7 @@ Pagine dedicate al Create, Read, Update, Delete (CRUD) delle entità principali.
 
 *   **Creazione:** Usa il pulsante "Aggiungi..." per aprire un modulo dettagliato per inserire un nuovo record.
 *   **Modifica:** Ogni riga ha due icone a forma di matita (`✏️`). La prima apre il modulo di modifica completo. La seconda (dove presente) attiva la "modifica rapida", trasformando la riga in un form per aggiornamenti veloci.
-*   **Eliminazione (`🗑️`):** Rimuove un record. Una finestra di dialogo chiederà sempre una conferma.
+*   **Eliminazione (icona Trash2):** Rimuove un record. Una finestra di dialogo chiederà sempre una conferma.
 *   **Filtri e Ordinamento:** Usa i filtri in cima alla tabella per cercare i record e clicca sulle intestazioni delle colonne per ordinarli.
 *   **Intestazioni Fisse e Colonne Ridimensionabili:** Per facilitare la consultazione di tabelle con molti dati, la riga di intestazione rimane sempre visibile durante lo scorrimento verticale. Inoltre, è possibile ridimensionare la larghezza di ogni colonna posizionando il mouse sul bordo destro dell'intestazione e trascinando.
 
@@ -209,7 +209,7 @@ Pagine dedicate al Create, Read, Update, Delete (CRUD) delle entità principali.
 
 *   **Risorse:** Oltre ai dati anagrafici, qui definisci la `maxStaffingPercentage` (la percentuale massima di allocazione, es. 80% per un part-time) e gestisci le dimissioni (flaggando `resigned` e inserendo l'ultimo giorno di lavoro).
 *   **Progetti:** Definisci la `realizationPercentage`, una percentuale che rettifica il calcolo dei costi stimati. Qui puoi anche collegare un progetto a un **Contratto**.
-*   **Contratti:** Un'entità che raggruppa più progetti sotto un unico cappello finanziario. La `Capienza` è l'importo totale del contratto, mentre il `Backlog` è la capienza residua, calcolata sottraendo i budget dei progetti collegati. Puoi forzare il ricalcolo del backlog con l'icona `🔄`.
+*   **Contratti:** Un'entità che raggruppa più progetti sotto un unico cappello finanziario. La `Capienza` è l'importo totale del contratto, mentre il `Backlog` è la capienza residua, calcolata sottraendo i budget dei progetti collegati. Puoi forzare il ricalcolo del backlog con l'icona RefreshCcw.
 
 ## 7. Modulo HR & Recruitment
 

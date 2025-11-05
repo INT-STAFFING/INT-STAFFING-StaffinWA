@@ -79,7 +79,7 @@ const UserManualPage: React.FC = () => {
                         <li><strong>Griglia Interattiva:</strong> Per ogni risorsa e per ogni progetto a cui è assegnata, puoi definire la percentuale di allocazione per ogni singolo giorno tramite un menu a tendina (da 0% a 100% con step del 5%). I giorni non lavorativi (weekend e festività) sono visualizzati in grigio e non sono modificabili.</li>
                         <li><strong>Riga di Carico Totale:</strong> La prima riga per ogni risorsa mostra il suo carico di lavoro totale giornaliero, sommando tutte le sue allocazioni. Le celle si colorano per evidenziare il livello di carico: <span className="font-semibold text-yellow-600">giallo</span> (sottoutilizzo), <span className="font-semibold text-green-600">verde</span> (pieno utilizzo) e <span className="font-semibold text-red-600">rosso</span> (sovraccarico).</li>
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <li><strong>Assegnazione Massiva (<code className="text-[var(--font-size-sm)]">🗓️</code>):</strong> Invece di inserire le percentuali giorno per giorno, puoi cliccare sull'icona del calendario su una riga di assegnazione per aprire un pop-up e applicare una percentuale a un intero intervallo di date in un colpo solo.</li>
+                        <li><strong>Assegnazione Massiva (icona calendario):</strong> Invece di inserire le percentuali giorno per giorno, puoi cliccare sull'icona <em>CalendarDays</em> su una riga di assegnazione per aprire un pop-up e applicare una percentuale a un intero intervallo di date in un colpo solo.</li>
                         <li><strong>Filtri Potenti:</strong> Puoi isolare la vista per singola risorsa, progetto, cliente o project manager per concentrarti solo su ciò che ti interessa.</li>
                     </ul>
                 </SubSection>
@@ -95,9 +95,9 @@ const UserManualPage: React.FC = () => {
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                         <li><strong>Creazione:</strong> Usa il pulsante "Aggiungi..." per aprire un modulo dettagliato per inserire un nuovo record.</li>
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <li><strong>Modifica:</strong> Ogni riga ha due icone a forma di matita (<code className="text-[var(--font-size-sm)]">✏️</code>). La prima apre il modulo di modifica completo. La seconda (dove presente) attiva la "modifica rapida", trasformando la riga in un form per aggiornamenti veloci.</li>
+                        <li><strong>Modifica:</strong> Ogni riga ha due icone a forma di matita (icona <em>Pencil</em>). La prima apre il modulo di modifica completo. La seconda (dove presente) attiva la "modifica rapida", trasformando la riga in un form per aggiornamenti veloci.</li>
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <li><strong>Eliminazione (<code className="text-[var(--font-size-sm)]">🗑️</code>):</strong> Rimuove un record. Una finestra di dialogo chiederà sempre una conferma.</li>
+                        <li><strong>Eliminazione (icona cestino):</strong> Rimuove un record tramite l'icona <em>Trash2</em>. Una finestra di dialogo chiederà sempre una conferma.</li>
                         <li><strong>Filtri e Ordinamento:</strong> Usa i filtri in cima alla tabella per cercare i record e clicca sulle intestazioni delle colonne per ordinarli.</li>
                     </ul>
                 </SubSection>
@@ -106,7 +106,7 @@ const UserManualPage: React.FC = () => {
                         <li><strong>Risorse:</strong> Oltre ai dati anagrafici, qui definisci la <code>maxStaffingPercentage</code> (la percentuale massima di allocazione, es. 80% per un part-time) e gestisci le dimissioni (flaggando <code>resigned</code> e inserendo l'ultimo giorno di lavoro).</li>
                         <li><strong>Progetti:</strong> Definisci la <code>realizationPercentage</code>, una percentuale che rettifica il calcolo dei costi stimati. Qui puoi anche collegare un progetto a un <strong>Contratto</strong>.</li>
                         {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <li><strong>Contratti:</strong> Un'entità che raggruppa più progetti sotto un unico cappello finanziario. La <code>Capienza</code> è l'importo totale del contratto, mentre il <code>Backlog</code> è la capienza residua, calcolata sottraendo i budget dei progetti collegati. Puoi forzare il ricalcolo del backlog con l'icona <code className="text-[var(--font-size-sm)]">🔄</code>.</li>
+                        <li><strong>Contratti:</strong> Un'entità che raggruppa più progetti sotto un unico cappello finanziario. La <code>Capienza</code> è l'importo totale del contratto, mentre il <code>Backlog</code> è la capienza residua, calcolata sottraendo i budget dei progetti collegati. Puoi forzare il ricalcolo del backlog con l'icona <em>RefreshCcw</em>.</li>
                     </ul>
                 </SubSection>
             </Section>
