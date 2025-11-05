@@ -41,6 +41,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@0.395.0/dist/lucide-react.js"></script>
 <script type="importmap">
 {
   "imports": {
@@ -55,6 +56,7 @@
 }
 </script>
 <style>
+/* MODIFICA: Definite scale tipografiche e di spaziatura centralizzate tramite variabili CSS. */
 /* Centralized Spacing and Typography */
 :root {
   /* Spacing Scale (based on 0.25rem = 4px unit) */
@@ -82,6 +84,14 @@
   --font-size-2xl: 1.5rem;    /* 24px */
   --font-size-3xl: 1.875rem;  /* 30px */
   --font-size-5xl: 3rem;      /* 48px */
+
+  /* MODIFICA: Aggiunte variabili per lo stile della navigazione. */
+  /* Sidebar Navigation Styles */
+  --nav-bg-hover: var(--color-primary);
+  --nav-text-hover: #ffffff;
+  --nav-bg-active: var(--color-primary-darker);
+  --nav-text-active: #ffffff;
+  --nav-indicator-active: #f59e0b;
 }
 
 @keyframes fade-in {

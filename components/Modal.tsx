@@ -4,6 +4,7 @@
  */
 
 import React, { ReactNode } from 'react';
+import Icon from './Icon';
 
 /**
  * @interface ModalProps
@@ -32,6 +33,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
 
     return (
         // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
+        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-[var(--space-4)] animate-fade-in" onClick={onClose}>
             <div 
                 // Contenitore della modale: impedisce la propagazione del click, gestisce il layout verticale e l'overflow.
@@ -39,17 +41,22 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header: non si restringe e rimane sempre visibile in alto. */}
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                 <div className="flex-shrink-0 flex justify-between items-center p-[var(--space-4)] border-b border-border dark:border-dark-border">
+                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                     <h3 className="text-[var(--font-size-xl)] font-semibold text-foreground dark:text-dark-foreground">{title}</h3>
                     <button 
                         onClick={onClose} 
-                        className="text-muted-foreground hover:bg-muted dark:hover:bg-dark-muted hover:text-foreground dark:hover:text-dark-foreground rounded-lg text-[var(--font-size-sm)] p-[var(--space-1-5)]"
+                        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
+                        className="text-muted-foreground hover:bg-muted dark:hover:bg-dark-muted hover:text-foreground dark:hover:text-dark-foreground rounded-full p-[var(--space-1-5)] transition-colors"
                         aria-label="Chiudi modale"
                     >
-                        <span className="text-[var(--font-size-xl)]">❌</span>
+                        {/* MODIFICA: Sostituita emoji con icona vettoriale per coerenza. */}
+                        <Icon name="X" size={20} />
                     </button>
                 </div>
                 {/* Area del contenuto: diventa scorrevole se il contenuto è troppo alto. */}
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                 <div className="p-[var(--space-6)] overflow-y-auto">
                     {children}
                 </div>

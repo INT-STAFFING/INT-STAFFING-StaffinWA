@@ -28,11 +28,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <div className="text-foreground dark:text-dark-foreground">
                 {message}
             </div>
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
             <div className="mt-[var(--space-6)] flex justify-end space-x-[var(--space-3)]">
                 <button
                     type="button"
                     onClick={onClose}
                     disabled={isConfirming}
+                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
                     className="px-[var(--space-4)] py-[var(--space-2)] border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted disabled:opacity-50"
                 >
                     {cancelButtonText}
@@ -41,9 +43,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     type="button"
                     onClick={onConfirm}
                     disabled={isConfirming}
+                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
                     className="flex justify-center items-center px-[var(--space-4)] py-[var(--space-2)] bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 >
                     {isConfirming ? (
+                       // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
                        <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/>
                     ) : (
                         confirmButtonText

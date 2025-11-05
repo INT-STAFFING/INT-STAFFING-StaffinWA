@@ -6,6 +6,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Icon from './Icon';
 
 /**
  * @interface SidebarProps
@@ -27,8 +28,9 @@ interface SidebarProps {
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
-    const navLinkClasses = "flex items-center px-[var(--space-4)] py-[var(--space-2)] text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200";
-    const activeNavLinkClasses = "bg-gray-700 text-white";
+    // MODIFICA: Stili dei link aggiornati per usare le nuove variabili CSS e un indicatore di stato attivo.
+    const navLinkClasses = "flex items-center px-[var(--space-4)] py-[var(--space-2)] text-gray-400 rounded-md hover:bg-[var(--nav-bg-hover)] hover:text-[var(--nav-text-hover)] transition-colors duration-200 relative";
+    const activeNavLinkClasses = "bg-[var(--nav-bg-active)] text-[var(--nav-text-active)] font-semibold before:content-[''] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-2/3 before:w-1 before:bg-[var(--nav-indicator-active)] before:rounded-r-full";
 
     /**
      * Determina le classi CSS per un NavLink in base al suo stato (attivo o non).
@@ -58,107 +60,124 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     return (
         <aside className={sidebarClasses}>
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
             <div className="flex items-center justify-between h-[var(--space-20)] shadow-md px-[var(--space-4)]">
+                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                 <h1 className="text-[var(--font-size-2xl)] font-bold tracking-wider">Staffing App</h1>
                  <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white">
-                    <span className="text-[var(--font-size-xl)]">❌</span>
+                    {/* MODIFICA: Sostituita emoji con icona vettoriale per coerenza. */}
+                    <Icon name="X" size={24} />
                 </button>
             </div>
-            <nav className="flex-1 flex flex-col px-[var(--space-2)] py-[var(--space-4)] space-y-[var(--space-2)] overflow-y-auto">
+            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
+            <nav className="flex-1 flex flex-col px-[var(--space-2)] py-[var(--space-4)] space-y-[var(--space-1)] overflow-y-auto">
                 <div>
                     <NavLink to="/staffing" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">🗓️</span>
+                        <Icon name="CalendarDays" size={20} className="mr-3 flex-shrink-0" />
                         Staffing
                     </NavLink>
                     <NavLink to="/workload" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">👥</span>
+                        <Icon name="Users" size={20} className="mr-3 flex-shrink-0" />
                         Carico Risorse
                     </NavLink>
                     <NavLink to="/dashboard" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📊</span>
+                        <Icon name="LayoutGrid" size={20} className="mr-3 flex-shrink-0" />
                         Dashboard
                     </NavLink>
                     <NavLink to="/resource-requests" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📋</span>
+                        <Icon name="ClipboardList" size={20} className="mr-3 flex-shrink-0" />
                         Richiesta Risorse
                     </NavLink>
                     <NavLink to="/interviews" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">💬</span>
+                        <Icon name="MessageSquare" size={20} className="mr-3 flex-shrink-0" />
                         Gestione Colloqui
                     </NavLink>
                     <NavLink to="/manuale-utente" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">ℹ️</span>
+                        <Icon name="Info" size={20} className="mr-3 flex-shrink-0" />
                         Manuale Utente
                     </NavLink>
-
-                    <div className="px-[var(--space-4)] pt-[var(--space-4)] pb-[var(--space-2)] text-[var(--font-size-xs)] font-semibold text-gray-500 uppercase tracking-wider">Analisi</div>
+                    {/* MODIFICA: Migliorata la visibilità delle sezioni. */}
+                    <div className="px-4 pt-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                        Analisi
+                    </div>
                     <NavLink to="/forecasting" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📈</span>
+                        <Icon name="TrendingUp" size={20} className="mr-3 flex-shrink-0" />
                         Forecasting
                     </NavLink>
                     <NavLink to="/gantt" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📏</span>
+                        <Icon name="GanttChartSquare" size={20} className="mr-3 flex-shrink-0" />
                         Gantt Progetti
                     </NavLink>
                     <NavLink to="/reports" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📄</span>
+                        <Icon name="FileText" size={20} className="mr-3 flex-shrink-0" />
                         Report
                     </NavLink>
                     <NavLink to="/staffing-visualization" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">🎨</span>
+                        <Icon name="Palette" size={20} className="mr-3 flex-shrink-0" />
                         Visualizzazione
                     </NavLink>
-                    
-                    <div className="px-[var(--space-4)] pt-[var(--space-4)] pb-[var(--space-2)] text-[var(--font-size-xs)] font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>
+                    {/* MODIFICA: Migliorata la visibilità delle sezioni. */}
+                    <div className="px-4 pt-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                        Gestione
+                    </div>
                     
                     <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">👥</span>
+                        <Icon name="Users" size={20} className="mr-3 flex-shrink-0" />
                         Risorse
                     </NavLink>
                     <NavLink to="/projects" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">💼</span>
+                        <Icon name="Briefcase" size={20} className="mr-3 flex-shrink-0" />
                         Progetti
                     </NavLink>
                     <NavLink to="/contracts" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📜</span>
+                        <Icon name="FileSignature" size={20} className="mr-3 flex-shrink-0" />
                         Contratti
                     </NavLink>
                     <NavLink to="/clients" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">🏢</span>
+                        <Icon name="Building" size={20} className="mr-3 flex-shrink-0" />
                         Clienti
                     </NavLink>
                     <NavLink to="/roles" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">🏷️</span>
+                        <Icon name="Tags" size={20} className="mr-3 flex-shrink-0" />
                         Ruoli
                     </NavLink>
                      <NavLink to="/calendar" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📅</span>
+                        <Icon name="Calendar" size={20} className="mr-3 flex-shrink-0" />
                         Calendario
                     </NavLink>
                      <NavLink to="/config" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">⚙️</span>
+                        <Icon name="Settings" size={20} className="mr-3 flex-shrink-0" />
                         Config
                     </NavLink>
-
-                     <div className="px-[var(--space-4)] pt-[var(--space-4)] pb-[var(--space-2)] text-[var(--font-size-xs)] font-semibold text-gray-500 uppercase tracking-wider">Dati</div>
+                    {/* MODIFICA: Migliorata la visibilità delle sezioni. */}
+                     <div className="px-4 pt-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                         Dati
+                    </div>
                      <NavLink to="/export" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📥</span>
+                        <Icon name="Download" size={20} className="mr-3 flex-shrink-0" />
                         Esporta Dati
                     </NavLink>
                     <NavLink to="/import" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">📤</span>
+                        <Icon name="Upload" size={20} className="mr-3 flex-shrink-0" />
                         Importa Dati
                     </NavLink>
                     
                     {isAdmin && (
                         <>
-                            <div className="px-[var(--space-4)] pt-[var(--space-4)] pb-[var(--space-2)] text-[var(--font-size-xs)] font-semibold text-gray-500 uppercase tracking-wider">Amministrazione</div>
+                            {/* MODIFICA: Migliorata la visibilità delle sezioni. */}
+                            <div className="px-4 pt-6 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                                Amministrazione
+                            </div>
                             <NavLink to="/admin-settings" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                                <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">⚙️</span>
+                                <Icon name="Settings" size={20} className="mr-3 flex-shrink-0" />
                                 Impostazioni Admin
                             </NavLink>
                             <NavLink to="/db-inspector" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                                <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">🔍</span>
+                                <Icon name="Search" size={20} className="mr-3 flex-shrink-0" />
                                 Database Inspector
                             </NavLink>
                         </>
@@ -166,18 +185,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 </div>
                 {isAuthenticated && isLoginProtectionEnabled ? (
                     <div className="mt-auto">
+                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                         <div className="px-[var(--space-4)] py-[var(--space-2)] text-center text-[var(--font-size-xs)] text-gray-500">
                             Versione V600
                         </div>
                         <button
                             onClick={logout}
+                            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
                             className="flex items-center w-full px-[var(--space-4)] py-[var(--space-3)] text-red-400 rounded-md hover:bg-red-700/50 hover:text-white transition-colors duration-200"
                         >
-                            <span className="mr-[var(--space-3)] text-[var(--font-size-xl)] w-[var(--space-6)] text-center">🚪</span>
+                            <Icon name="LogOut" size={20} className="mr-3 flex-shrink-0" />
                             Logout
                         </button>
                     </div>
                 ) : (
+                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
                     <div className="mt-auto px-[var(--space-4)] py-[var(--space-4)] text-center text-[var(--font-size-xs)] text-gray-500">
                         Versione V600
                     </div>
