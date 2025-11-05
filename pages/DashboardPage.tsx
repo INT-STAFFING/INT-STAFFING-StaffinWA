@@ -8,7 +8,6 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
-import DashboardCard from '../components/DashboardCard';
 
 // --- Tipi e Hook per l'Ordinamento ---
 
@@ -562,200 +561,224 @@ const DashboardPage: React.FC = () => {
 
     return (
         <div>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <h1 className="text-[var(--font-size-3xl)] font-bold text-foreground dark:text-dark-foreground mb-[var(--space-8)]">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Dashboard</h1>
             
-            {/* MODIFICA: Sostituite le card personalizzate con il nuovo componente DashboardCard. */}
+            {/* Nuove Card Aggregate */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <DashboardCard
-                    title="Budget Complessivo"
-                    value={formatCurrency(overallKPIs.totalBudget)}
-                    icon="Landmark"
-                />
-                <DashboardCard
-                    title="Costo Stimato (Mese Corrente)"
-                    value={formatCurrency(currentMonthKPIs.totalCost)}
-                    icon="Calculator"
-                />
-                <DashboardCard
-                    title="Giorni Allocati (Mese Corrente)"
-                    value={currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}
-                    icon="CalendarClock"
-                />
-                <DashboardCard
-                    title="Risorse Non Allocate"
-                    value={overallKPIs.unassignedResources.length}
-                    icon="UserX"
-                    variant="warning"
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(overallKPIs.totalBudget)}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(currentMonthKPIs.totalCost)}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
+                </div>
+
+                <div 
+                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]"
                     onClick={() => navigate('/resources?filter=unassigned')}
                 >
+                    <div className="flex justify-between items-start w-full">
+                        <div>
+                            <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
+                            <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResources.length}</p>
+                        </div>
+                        <span className="text-3xl opacity-50">👥</span>
+                    </div>
                     {overallKPIs.unassignedResources.length > 0 && (
-                        <div className="text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
+                        <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
                             <ul className="list-disc list-inside">
                                 {overallKPIs.unassignedResources.map(r => <li key={r.id} className="truncate">{r.name}</li>)}
                             </ul>
                         </div>
                     )}
-                </DashboardCard>
-                <DashboardCard
-                    title="Progetti Senza Staff"
-                    value={overallKPIs.unstaffedProjects.length}
-                    icon="FolderX"
-                    variant="warning"
+                </div>
+                 <div 
+                    className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]"
                     onClick={() => navigate('/projects?filter=unstaffed')}
                 >
+                    <div className="flex justify-between items-start w-full">
+                        <div>
+                            <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
+                            <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjects.length}</p>
+                        </div>
+                        <span className="text-3xl opacity-50">💼</span>
+                    </div>
                      {overallKPIs.unstaffedProjects.length > 0 && (
-                        <div className="text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
+                        <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
                             <ul className="list-disc list-inside">
                                 {overallKPIs.unstaffedProjects.map(p => <li key={p.id} className="truncate">{p.name}</li>)}
                             </ul>
                         </div>
                     )}
-                </DashboardCard>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* MODIFICA: Sostituite le card di analisi con il nuovo componente DashboardCard. */}
-                <DashboardCard
-                    title="Allocazione Media"
-                    filters={<SearchableSelect name="resourceId" value={avgAllocFilter.resourceId} onChange={(_, v) => setAvgAllocFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le Risorse"/>}
-                >
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
-                            <tr>
-                                <SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
-                                <SortableHeader label="Alloc. Mese Corrente" sortKey="avgCurrentMonth" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
-                                <SortableHeader label="Alloc. Mese Prossimo" sortKey="avgNextMonth" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedAvgAllocation.map((data, index) => (
-                            <tr key={index}>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                    <div><Link to={`/workload?resourceId=${data.resource.id}`} className="text-primary hover:underline">{data.resource?.name}</Link></div>
-                                    <div className="text-xs text-gray-500">{data.role?.name}</div>
-                                </td>
-                                <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgCurrentMonth)}`}>
-                                    {data.avgCurrentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
-                                </td>
-                                <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgNextMonth)}`}>
-                                    {data.avgNextMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
-                                </td>
-                            </tr>
-                            ))}
-                        </tbody>
+                {/* Card Allocazione Media */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div className="flex justify-between items-start mb-4">
+                        <h2 className="text-xl font-semibold">Allocazione Media</h2>
+                        <div className="w-48"><SearchableSelect name="resourceId" value={avgAllocFilter.resourceId} onChange={(_, v) => setAvgAllocFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                    </div>
+                    <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                <tr>
+                                    <SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
+                                    <SortableHeader label="Alloc. Mese Corrente" sortKey="avgCurrentMonth" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
+                                    <SortableHeader label="Alloc. Mese Prossimo" sortKey="avgNextMonth" sortConfig={avgAllocSortConfig} requestSort={requestAvgAllocSort} />
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {sortedAvgAllocation.map((data, index) => (
+                                <tr key={index}>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                        <div><Link to={`/workload?resourceId=${data.resource.id}`} className="text-primary hover:underline">{data.resource?.name}</Link></div>
+                                        <div className="text-xs text-gray-500">{data.role?.name}</div>
+                                    </td>
+                                    <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgCurrentMonth)}`}>
+                                        {data.avgCurrentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                    </td>
+                                    <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(data.avgNextMonth)}`}>
+                                        {data.avgNextMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                    </td>
+                                </tr>
+                                ))}
+                            </tbody>
+                             <tfoot>
+                                 <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                                     <td className="px-4 py-2 text-left text-sm">Media Totale</td>
+                                     <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.currentMonth)}`}>
+                                        {avgAllocationTotals.currentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                     </td>
+                                     <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.nextMonth)}`}>
+                                        {avgAllocationTotals.nextMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
+                                     </td>
+                                 </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Card FTE per Progetto */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={fteFilter.clientId} onChange={(_, v) => setFteFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/></div></div>
+                     <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="Giorni Alloc." sortKey="totalAllocatedDays" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="FTE" sortKey="fte" sortConfig={fteSortConfig} requestSort={requestFteSort}/></tr></thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedFte.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/projects?projectId=${data.id}`} className="text-primary hover:underline">{data.name}</Link></div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-primary dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Card Analisi Budget */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={budgetFilter.clientId} onChange={(_, v) => setBudgetFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/></div></div>
+                    <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Budget" sortKey="fullBudget" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Varianza" sortKey="variance" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedBudget.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?projectId=${p.id}`} className="text-primary hover:underline">{p.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Card Risorse Sottoutilizzate */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={underutilizedFilter} onChange={(e) => setUnderutilizedFilter(e.target.value)} className="form-input text-sm py-1 w-48"/></div>
+                    <div className="overflow-y-auto max-h-96">
+                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Risorsa" sortKey="name" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /><SortableHeader label="Alloc. Media" sortKey="avgAllocation" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedUnderutilized.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/workload?resourceId=${r.id}`} className="text-primary hover:underline">{r.name}</Link></div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
+                         </table>
+                    </div>
+                </div>
+
+                {/* Card Sforzo per Cliente */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                     <div className="flex justify-between items-start mb-4"><h2 className="text-xl font-semibold">Analisi Sforzo per Cliente</h2><div className="w-48"><SearchableSelect name="sector" value={effortByClientFilter.sector} onChange={(_, v) => setEffortByClientFilter({ sector: v })} options={sectorOptions} placeholder="Tutti i Settori"/></div></div>
+                     <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Valore Budget" sortKey="totalBudget" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/></tr></thead>
+                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedEffortByClient.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
+                             <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Card Costo Mensile per Cliente */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 className="text-xl font-semibold mb-4">Costo Mensile per Cliente</h2>
+                    <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/><SortableHeader label="Costo Stimato" sortKey="cost" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/></tr></thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedClientCost.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
+                            <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+                {/* Fix: Reconstructed corrupted file content which was causing parsing errors. */}
+                {/* Card Sforzo per Horizontal */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
+                     <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr>
+                                <SortableHeader label="Horizontal" sortKey="name" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
+                                <SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
+                            </tr></thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {sortedEffortByHorizontal.map(h => (
+                                <tr key={h.name}>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{h.name}</td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
+                                </tr>
+                                ))}
+                            </tbody>
                             <tfoot>
                                 <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
-                                    <td className="px-4 py-2 text-left text-sm">Media Totale</td>
-                                    <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.currentMonth)}`}>
-                                    {avgAllocationTotals.currentMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
-                                    </td>
-                                    <td className={`px-4 py-2 whitespace-nowrap text-sm ${getAvgAllocationColor(avgAllocationTotals.nextMonth)}`}>
-                                    {avgAllocationTotals.nextMonth.toLocaleString('it-IT', { maximumFractionDigits: 0 })}%
-                                    </td>
+                                    <td className="px-4 py-2 text-left text-sm">Totale</td>
+                                    <td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
                                 </tr>
-                        </tfoot>
-                    </table>
-                </DashboardCard>
-
-                <DashboardCard
-                    title="FTE per Progetto"
-                    filters={<SearchableSelect name="clientId" value={fteFilter.clientId} onChange={(_, v) => setFteFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/>}
-                >
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="Giorni Alloc." sortKey="totalAllocatedDays" sortConfig={fteSortConfig} requestSort={requestFteSort}/><SortableHeader label="FTE" sortKey="fte" sortConfig={fteSortConfig} requestSort={requestFteSort}/></tr></thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedFte.map((data) => data && (<tr key={data.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/projects?projectId=${data.id}`} className="text-primary hover:underline">{data.name}</Link></div><div className="text-xs text-gray-500">{data.clientName}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{data.totalAllocatedDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-center font-bold text-primary dark:text-blue-400">{data.fte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>))}</tbody>
-                            <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totale / Media FTE</td><td className="px-4 py-2 text-center text-sm">{fteTotals.totalDays.toLocaleString('it-IT', { maximumFractionDigits: 1 })}</td><td className="px-4 py-2 text-center text-sm">{fteTotals.avgFte.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr></tfoot>
-                    </table>
-                </DashboardCard>
-
-                <DashboardCard
-                    title="Analisi Budget"
-                    filters={<SearchableSelect name="clientId" value={budgetFilter.clientId} onChange={(_, v) => setBudgetFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i Clienti"/>}
-                >
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Budget" sortKey="fullBudget" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /><SortableHeader label="Varianza" sortKey="variance" sortConfig={budgetSortConfig} requestSort={requestBudgetSort} /></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedBudget.map(p => (<tr key={p.id}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?projectId=${p.id}`} className="text-primary hover:underline">{p.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.fullBudget)}</td><td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(p.estimatedCost)}</td><td className={`px-4 py-2 whitespace-nowrap text-sm font-semibold ${p.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(p.variance)}</td></tr>))}</tbody>
-                            <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.budget)}</td><td className="px-4 py-2 text-sm">{formatCurrency(budgetTotals.cost)}</td><td className={`px-4 py-2 text-sm ${budgetTotals.variance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(budgetTotals.variance)}</td></tr></tfoot>
-                    </table>
-                </DashboardCard>
-
-                <DashboardCard
-                    title="Risorse Sottoutilizzate"
-                    filters={<input type="month" value={underutilizedFilter} onChange={(e) => setUnderutilizedFilter(e.target.value)} className="form-input text-sm py-1 w-full"/>}
-                >
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Risorsa" sortKey="name" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /><SortableHeader label="Alloc. Media" sortKey="avgAllocation" sortConfig={underutilizedSortConfig} requestSort={requestUnderutilizedSort} /></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedUnderutilized.map(r => (<tr key={r.id}><td className="px-4 py-2 whitespace-nowrap text-sm"><div><Link to={`/workload?resourceId=${r.id}`} className="text-primary hover:underline">{r.name}</Link></div><div className="text-xs text-gray-500">{r.role}</div></td><td className="px-4 py-2 whitespace-nowrap text-sm text-yellow-600 dark:text-yellow-400 font-semibold">{r.avgAllocation.toLocaleString('it-IT')}%</td></tr>))}</tbody>
+                            </tfoot>
                         </table>
-                </DashboardCard>
+                    </div>
+                </div>
 
-                <DashboardCard
-                    title="Analisi Sforzo per Cliente"
-                    filters={<SearchableSelect name="sector" value={effortByClientFilter.sector} onChange={(_, v) => setEffortByClientFilter({ sector: v })} options={sectorOptions} placeholder="Tutti i Settori"/>}
-                >
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/><SortableHeader label="Valore Budget" sortKey="totalBudget" sortConfig={effortClientSortConfig} requestSort={requestEffortClientSort}/></tr></thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedEffortByClient.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm text-center">{c.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.totalBudget)}</td></tr>))}</tbody>
-                            <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Totali</td><td className="px-4 py-2 text-center text-sm">{effortByClientTotals.days.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td><td className="px-4 py-2 text-sm">{formatCurrency(effortByClientTotals.budget)}</td></tr></tfoot>
-                    </table>
-                </DashboardCard>
-
-                <DashboardCard title="Costo Mensile per Cliente">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/><SortableHeader label="Costo Stimato" sortKey="cost" sortConfig={clientCostSortConfig} requestSort={requestClientCostSort}/></tr></thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{sortedClientCost.map(c => (<tr key={c.name}><td className="px-4 py-2 whitespace-nowrap text-sm font-medium"><Link to={`/projects?clientId=${c.id}`} className="text-primary hover:underline">{c.name}</Link></td><td className="px-4 py-2 whitespace-nowrap text-sm">{formatCurrency(c.cost)}</td></tr>))}</tbody>
-                        <tfoot><tr className="bg-gray-100 dark:bg-gray-700 font-bold"><td className="px-4 py-2 text-left text-sm">Costo Totale Mese</td><td className="px-4 py-2 text-sm">{formatCurrency(currentMonthKPIs.totalCost)}</td></tr></tfoot>
-                    </table>
-                </DashboardCard>
-                
-                <DashboardCard title="Analisi Sforzo per Horizontal">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr>
-                            <SortableHeader label="Horizontal" sortKey="name" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
-                            <SortableHeader label="Giorni-Uomo" sortKey="totalPersonDays" sortConfig={effortHorizontalSortConfig} requestSort={requestEffortHorizontalSort}/>
-                        </tr></thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedEffortByHorizontal.map(h => (
-                            <tr key={h.name}>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{h.name}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{h.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
-                            </tr>
-                            ))}
-                        </tbody>
-                        <tfoot>
-                            <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
-                                <td className="px-4 py-2 text-left text-sm">Totale</td>
-                                <td className="px-4 py-2 text-center text-sm">{effortByHorizontalTotal.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </DashboardCard>
-
-                <DashboardCard title="Analisi per Sede (Mese Corrente)">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
-                            <tr>
-                                <SortableHeader label="Sede" sortKey="locationName" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
-                                <SortableHeader label="N. Risorse" sortKey="resourceCount" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
-                                <SortableHeader label="G/U Allocati" sortKey="personDays" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
-                                <SortableHeader label="Utilizzo Medio" sortKey="utilization" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {sortedLocation.map(loc => (
-                                <tr key={loc.locationName}>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{loc.locationName}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{loc.resourceCount}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{loc.personDays.toFixed(1)}</td>
-                                    <td className={`px-4 py-2 whitespace-nowrap text-sm text-center font-semibold ${getAvgAllocationColor(loc.utilization)}`}>
-                                        {loc.utilization.toFixed(1)}%
-                                    </td>
+                {/* Card Analisi per Sede */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h2 className="text-xl font-semibold mb-4">Analisi per Sede (Mese Corrente)</h2>
+                    <div className="overflow-y-auto max-h-96">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                                <tr>
+                                    <SortableHeader label="Sede" sortKey="locationName" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
+                                    <SortableHeader label="N. Risorse" sortKey="resourceCount" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
+                                    <SortableHeader label="G/U Allocati" sortKey="personDays" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
+                                    <SortableHeader label="Utilizzo Medio" sortKey="utilization" sortConfig={locationSortConfig} requestSort={requestLocationSort}/>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </DashboardCard>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {sortedLocation.map(loc => (
+                                    <tr key={loc.locationName}>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{loc.locationName}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{loc.resourceCount}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-center">{loc.personDays.toFixed(1)}</td>
+                                        <td className={`px-4 py-2 whitespace-nowrap text-sm text-center font-semibold ${getAvgAllocationColor(loc.utilization)}`}>
+                                            {loc.utilization.toFixed(1)}%
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>

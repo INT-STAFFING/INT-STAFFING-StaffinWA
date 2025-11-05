@@ -79,13 +79,9 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
     };
     
     return (
-        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-[var(--space-6)]">
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
             <div className="flex justify-between items-center mb-[var(--space-4)]">
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                 <h2 className="text-[var(--font-size-xl)] font-semibold">{title}</h2>
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                 <button onClick={() => handleOpenModal()} className="px-[var(--space-3)] py-[var(--space-1-5)] bg-primary text-white text-[var(--font-size-sm)] rounded-md shadow-sm hover:bg-primary-darker">
                     Aggiungi
                 </button>
@@ -94,19 +90,13 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                 {options.map(option => {
                     const isDeleting = isActionLoading(`deleteConfig-${configType}-${option.id}`);
                     return (
-                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
                     <li key={option.id} className="py-[var(--space-2)] flex justify-between items-center">
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                         <span className="text-[var(--font-size-sm)] text-gray-800 dark:text-gray-200">{option.value}</span>
                         <div>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                             <button onClick={() => handleOpenModal(option)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mr-[var(--space-3)] p-[var(--space-1)]" title="Modifica">
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                                 <span className="text-[var(--font-size-lg)]">✏️</span>
                             </button>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                             <button onClick={() => deleteConfigOption(configType, option.id!)} disabled={isDeleting} className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200 p-[var(--space-1)] disabled:opacity-50" title="Elimina">
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                                 {isDeleting ? <SpinnerIcon className="w-[var(--space-4)] h-[var(--space-4)]" /> : <span className="text-[var(--font-size-lg)]">🗑️</span>}
                             </button>
                         </div>
@@ -116,7 +106,6 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
              {editingOption && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingOption ? `Modifica ${title}` : `Aggiungi ${title}`}>
                      <form onSubmit={handleSubmit}>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                         <label className="block text-[var(--font-size-sm)] font-medium mb-[var(--space-2)]">Valore *</label>
                         <input
                             type="text"
@@ -125,13 +114,9 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                             required
                             className="w-full form-input"
                         />
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                         <div className="flex justify-end space-x-[var(--space-3)] pt-[var(--space-5)]">
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                             <button type="button" onClick={handleCloseModal} className="px-[var(--space-4)] py-[var(--space-2)] bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                             {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                              <button type="submit" disabled={isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)} className="flex justify-center items-center px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
                                 {(isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)) ? <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/> : 'Salva'}
                             </button>
                         </div>
@@ -152,10 +137,8 @@ const ConfigPage: React.FC = () => {
 
     return (
         <div>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
             <h1 className="text-[var(--font-size-3xl)] font-bold text-gray-800 dark:text-white mb-[var(--space-8)]">Configurazioni</h1>
 
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--space-8)]">
                 <ConfigSection title="Horizontals (Risorse)" configType="horizontals" options={horizontals} />
                 <ConfigSection title="Livelli Seniority (Ruoli)" configType="seniorityLevels" options={seniorityLevels} />
