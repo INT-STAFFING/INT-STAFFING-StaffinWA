@@ -388,52 +388,139 @@ const InterviewsPage: React.FC = () => {
             </div>
 
             {view === 'table' ? (
-                <div className="bg-card dark:bg-dark-card rounded-lg shadow overflow-x-auto">
-                    <table className="min-w-full">
-                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
-                            <tr>
-                                {columns.map(col => (
-                                    <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
-                                        {col.sortKey ? (
-                                            <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
-                                                <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                                                <span className="text-gray-400">↕️</span>
-                                            </button>
+    <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+        {/* Contenitore scrollabile della tabella */}
+        <div
+            className="
+                max-h-[640px]    
+                overflow-y-auto  
+                overflow-x-auto  
+            "
+        >
+            /* ≈ 20 righe se la riga è h-8 */
+            /* scroll verticale SOLO sulle righe */
+            /* scroll orizzontale quando necessario */
+            <table className="min-w-full table-fixed">
+                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
+                    <tr>
+                        {columns.map(col => (
+                            <th
+                                key={col.header}
+                                className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider"
+                            >
+                                {col.sortKey ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => requestSort(col.sortKey!)}
+                                        className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground"
+                                    >
+                                        <span
+                                            className={
+                                                sortConfig?.key === col.sortKey
+                                                    ? 'font-bold text-foreground dark:text-dark-foreground'
+                                                    : ''
+                                            }
+                                        >
+                                            {col.header}
+                                        </span>
+                                        <span className="text-gray-400">↕️</span>
+                                    </button>
+                                ) : (
+                                    <span>{col.header}</span>
+                                )}
+                            </th>
+                        ))}
+                        <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+                            Azioni
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody className="divide-y divide-border dark:divide-dark-border">
+                    {sortedAndFilteredData.map(interview => (
+                        <tr
+                            key={interview.id}
+                            className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                        >
+                            <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                <div className="font-medium">
+                                    {interview.candidateName} {interview.candidateSurname}{' '}
+                                    <span className="text-gray-500">({interview.age ?? 'N/A'})</span>
+                                </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                {interview.roleName || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                <span className="text-xs">
+                                    {interview.resourceRequestLabel || 'Nessuna'}
+                                </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                <span className="text-xs">
+                                    {interview.interviewersNames.join(', ')}
+                                </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                {formatDate(interview.interviewDate)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                {interview.feedback || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                <span
+                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(
+                                        interview.hiringStatus
+                                    )}`}
+                                >
+                                    {interview.hiringStatus || 'N/A'}
+                                </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                {formatDate(interview.entryDate)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                                <span
+                                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(
+                                        interview.status
+                                    )}`}
+                                >
+                                    {interview.status}
+                                </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex items-center justify-end space-x-3">
+                                    <button
+                                        onClick={() => openModalForEdit(interview)}
+                                        className="text-gray-500 hover:text-blue-600"
+                                        title="Modifica"
+                                    >
+                                        <span className="text-xl">✏️</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setInterviewToDelete(interview)}
+                                        className="text-gray-500 hover:text-red-600"
+                                        title="Elimina"
+                                    >
+                                        {isActionLoading(`deleteInterview-${interview.id}`) ? (
+                                            <SpinnerIcon className="w-5 h-5" />
                                         ) : (
-                                            <span>{col.header}</span>
+                                            <span className="text-xl">🗑️</span>
                                         )}
-                                    </th>
-                                ))}
-                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border dark:divide-dark-border">
-                            {sortedAndFilteredData.map(interview => (
-                                <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                                            <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                                                {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
-                </div>
-            ) : (
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+
+        {sortedAndFilteredData.length === 0 && (
+            <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>
+        )}
+    </div>
+) : (
                 <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
                     {sortedAndFilteredData.length > 0 ? sortedAndFilteredData.map(renderCard) : <div className="col-span-full text-center py-8 text-muted-foreground bg-card dark:bg-dark-card rounded-lg shadow">Nessun colloquio trovato con i filtri correnti.</div>}
                 </div>
