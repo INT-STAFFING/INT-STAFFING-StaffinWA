@@ -125,7 +125,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     const location = useLocation();
 
     // Identifica le pagine che gestiscono il proprio scroll interno e richiedono un layout a piena altezza.
-    const pagesWithInternalScroll = ['/staffing', '/workload', '/gantt', '/interviews'];
+    const pagesWithInternalScroll = ['/staffing', '/workload', '/gantt'];
     const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
 
 

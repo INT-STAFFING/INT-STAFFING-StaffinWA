@@ -284,168 +284,160 @@ const InterviewsPage: React.FC = () => {
     );
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Header fisso */}
-            <div className="flex-shrink-0">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div
-                        onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: 'Aperto', hiringStatus: '' })}
-                        className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
-                    >
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
-                                <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
-                            </div>
-                            <span className="text-3xl text-gray-300">👥</span>
+        <div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div
+                    onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: 'Aperto', hiringStatus: '' })}
+                    className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+                >
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
+                            <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
+                        <span className="text-3xl text-gray-300">👥</span>
                     </div>
-                    <div
-                        onClick={() => setFilters({ name: '', roleId: '', feedback: 'Positivo', status: '', hiringStatus: '' })}
-                        className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
-                    >
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
-                                <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
-                            </div>
-                            <span className="text-3xl text-gray-300">✅</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
-                    </div>
-                    <div
-                        onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: '', hiringStatus: 'SI' })}
-                        className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
-                    >
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
-                                <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
-                            </div>
-                            <span className="text-3xl text-gray-300">📅</span>
-                        </div>
-                        {summaryCards.upcomingHires.length > 0 ? (
-                            <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
-                                {summaryCards.upcomingHires.slice(0, 3).map(hire => (
-                                    <div key={hire.id} className="flex justify-between items-center">
-                                        <span className="truncate pr-2">{hire.candidateName} {hire.candidateSurname}</span>
-                                        <span className="font-medium text-foreground dark:text-dark-foreground flex-shrink-0">{formatDate(hire.entryDate)}</span>
-                                    </div>
-                                ))}
-                                {summaryCards.upcomingHires.length > 3 && <p className="text-center mt-1">... e altri {summaryCards.upcomingHires.length - 3}</p>}
-                            </div>
-                        ) : (
-                            <div className="mt-2 text-xs text-muted-foreground">Nessun ingresso pianificato.</div>
-                        )}
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
                 </div>
-
-                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-4">Pipeline per Richiesta Attiva</h2>
-                    <div className="overflow-x-auto max-h-60">
-                        <table className="min-w-full text-sm">
-                            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
-                                <tr>
-                                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">Richiesta</th>
-                                    <th className="px-4 py-2 text-center font-medium text-muted-foreground">N. Colloqui</th>
-                                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">Candidati in Pipeline</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border dark:divide-dark-border">
-                                {pipelineData.map(({ request, projectName, roleName, interviewCount, candidates }) => (
-                                    <tr key={request.id} className={interviewCount === 0 ? 'bg-red-50 dark:bg-red-900/20' : ''}>
-                                        <td className="px-4 py-2">
-                                            <div className="font-semibold">{projectName} - {roleName}</div>
-                                            <div className="text-xs text-muted-foreground font-mono">{request.requestCode}</div>
-                                        </td>
-                                        <td className="px-4 py-2 text-center font-semibold">{interviewCount}</td>
-                                        <td className="px-4 py-2 text-xs text-muted-foreground">{candidates.join(', ') || <span className="italic">Nessun candidato</span>}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-
-                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
-                     <div className="flex items-center gap-4 w-full md:w-auto">
-                         <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                            <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                            <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                <div
+                    onClick={() => setFilters({ name: '', roleId: '', feedback: 'Positivo', status: '', hiringStatus: '' })}
+                    className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+                >
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
+                            <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
                         </div>
-                        <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
+                        <span className="text-3xl text-gray-300">✅</span>
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
                 </div>
-                <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-20">
-                     <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..."/>
-                        <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli"/>
-                        <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback"/>
-                        <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione"/>
-                        <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
+                <div
+                    onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: '', hiringStatus: 'SI' })}
+                    className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+                >
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
+                            <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
+                        </div>
+                        <span className="text-3xl text-gray-300">📅</span>
                     </div>
+                    {summaryCards.upcomingHires.length > 0 ? (
+                        <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
+                            {summaryCards.upcomingHires.slice(0, 3).map(hire => (
+                                <div key={hire.id} className="flex justify-between items-center">
+                                    <span className="truncate pr-2">{hire.candidateName} {hire.candidateSurname}</span>
+                                    <span className="font-medium text-foreground dark:text-dark-foreground flex-shrink-0">{formatDate(hire.entryDate)}</span>
+                                </div>
+                            ))}
+                            {summaryCards.upcomingHires.length > 3 && <p className="text-center mt-1">... e altri {summaryCards.upcomingHires.length - 3}</p>}
+                        </div>
+                    ) : (
+                        <div className="mt-2 text-xs text-muted-foreground">Nessun ingresso pianificato.</div>
+                    )}
                 </div>
             </div>
 
-            {/* Contenuto scorrevole */}
-            <div className="flex-grow flex flex-col min-h-0">
-                {view === 'table' ? (
-                    <div className="bg-card dark:bg-dark-card rounded-lg shadow overflow-auto">
-                        <table className="min-w-full">
-                            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
-                                <tr>
-                                    {columns.map(col => (
-                                        <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
-                                            {col.sortKey ? (
-                                                <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
-                                                    <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                                                    <span className="text-gray-400">↕️</span>
-                                                </button>
-                                            ) : (
-                                                <span>{col.header}</span>
-                                            )}
-                                        </th>
-                                    ))}
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mb-6">
+                <h2 className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-4">Pipeline per Richiesta Attiva</h2>
+                <div className="overflow-x-auto max-h-60">
+                    <table className="min-w-full text-sm">
+                        <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Richiesta</th>
+                                <th className="px-4 py-2 text-center font-medium text-muted-foreground">N. Colloqui</th>
+                                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Candidati in Pipeline</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border dark:divide-dark-border">
+                            {pipelineData.map(({ request, projectName, roleName, interviewCount, candidates }) => (
+                                <tr key={request.id} className={interviewCount === 0 ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                                    <td className="px-4 py-2">
+                                        <div className="font-semibold">{projectName} - {roleName}</div>
+                                        <div className="text-xs text-muted-foreground font-mono">{request.requestCode}</div>
+                                    </td>
+                                    <td className="px-4 py-2 text-center font-semibold">{interviewCount}</td>
+                                    <td className="px-4 py-2 text-xs text-muted-foreground">{candidates.join(', ') || <span className="italic">Nessun candidato</span>}</td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border dark:divide-dark-border">
-                                {sortedAndFilteredData.map(interview => (
-                                    <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end space-x-3">
-                                                <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                                                <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                                                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
-                    </div>
-                ) : (
-                    <div className="overflow-auto">
-                        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-                            {sortedAndFilteredData.length > 0 ? sortedAndFilteredData.map(renderCard) : <div className="col-span-full text-center py-8 text-muted-foreground bg-card dark:bg-dark-card rounded-lg shadow">Nessun colloquio trovato con i filtri correnti.</div>}
-                        </div>
-                    </div>
-                )}
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
+
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                    </div>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Colloquio</button>
+                </div>
+            </div>
+            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-20">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                    <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..."/>
+                    <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli"/>
+                    <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback"/>
+                    <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione"/>
+                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
+                </div>
+            </div>
+
+            {view === 'table' ? (
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow overflow-x-auto">
+                    <table className="min-w-full">
+                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
+                            <tr>
+                                {columns.map(col => (
+                                    <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+                                        {col.sortKey ? (
+                                            <button type="button" onClick={() => requestSort(col.sortKey!)} className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground">
+                                                <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
+                                                <span className="text-gray-400">↕️</span>
+                                            </button>
+                                        ) : (
+                                            <span>{col.header}</span>
+                                        )}
+                                    </th>
+                                ))}
+                                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border dark:divide-dark-border">
+                            {sortedAndFilteredData.map(interview => (
+                                <tr key={interview.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm"><div className="font-medium">{interview.candidateName} {interview.candidateSurname} <span className="text-gray-500">({interview.age ?? 'N/A'})</span></div></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className="text-xs">{interview.interviewersNames.join(', ')}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'N/A'}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span></td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                                            <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                                                {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+                </div>
+            ) : (
+                <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+                    {sortedAndFilteredData.length > 0 ? sortedAndFilteredData.map(renderCard) : <div className="col-span-full text-center py-8 text-muted-foreground bg-card dark:bg-dark-card rounded-lg shadow">Nessun colloquio trovato con i filtri correnti.</div>}
+                </div>
+            )}
             
             {editingInterview && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>
