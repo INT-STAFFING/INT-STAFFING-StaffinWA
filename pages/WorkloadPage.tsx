@@ -42,8 +42,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
 
     if (isNonWorkingDay) {
         return (
-            // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-            <td className="border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+            <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
                 -
             </td>
         );
@@ -71,8 +70,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
 
 
     return (
-        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold ${cellColor}`}>
+        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {total > 0 ? `${total}%` : '-'}
         </td>
     );
@@ -144,8 +142,7 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
 
 
     return (
-        // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-        <td className={`border-t border-gray-200 dark:border-gray-700 px-[var(--space-2)] py-[var(--space-3)] text-center text-[var(--font-size-sm)] font-semibold ${cellColor}`}>
+        <td className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
             {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
         </td>
     );
@@ -175,7 +172,7 @@ const WorkloadPage: React.FC = () => {
     }, [searchParams, setSearchParams]);
     
     const timeColumns = useMemo(() => {
-        const cols: { label: string; subLabel: string; startDate: Date; endDate: Date; isNonWorkingHeader?: boolean; }[] = [];
+        const cols = [];
         let d = new Date(currentDate);
 
         if (viewMode === 'day') {
@@ -240,14 +237,13 @@ const WorkloadPage: React.FC = () => {
             return newDate;
         });
     }, [viewMode]);
-
     const handleToday = () => setCurrentDate(new Date());
 
     const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleFilterMultiSelectChange = (name: string, values: string[]) => {
+    const handleMultiSelectFilterChange = (name: string, values: string[]) => {
         setFilters(prev => ({ ...prev, [name]: values }));
     };
 
@@ -255,132 +251,117 @@ const WorkloadPage: React.FC = () => {
         setFilters({ resourceId: '', projectId: '', clientId: '', roleIds: [] });
     };
 
-    const displayData = useMemo(() => {
-        let visibleResources = resources.filter(r => !r.resigned);
+    // Calcola e memoizza le risorse da visualizzare, applicando i filtri.
+    const displayResources = useMemo(() => {
+        const activeResources = resources.filter(r => !r.resigned);
+        let finalResources = [...activeResources];
+
+        if (filters.roleIds.length > 0) {
+            finalResources = finalResources.filter(r => filters.roleIds.includes(r.roleId));
+        }
 
         if (filters.resourceId) {
-            visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
-        }
-        if (filters.roleIds.length > 0) {
-            const roleIdsSet = new Set(filters.roleIds);
-            visibleResources = visibleResources.filter(r => roleIdsSet.has(r.roleId));
+            finalResources = finalResources.filter(r => r.id === filters.resourceId);
         }
 
         if (filters.projectId || filters.clientId) {
-            let relevantAssignments = [...assignments];
-            if (filters.projectId) {
-                relevantAssignments = relevantAssignments.filter(a => a.projectId === filters.projectId);
-            }
-            if (filters.clientId) {
-                const clientProjectIds = new Set(projects.filter(p => p.clientId === filters.clientId).map(p => p.id));
-                relevantAssignments = relevantAssignments.filter(a => clientProjectIds.has(a.projectId));
-            }
-            const resourceIdsFromAssignments = new Set(relevantAssignments.map(a => a.resourceId));
-            visibleResources = visibleResources.filter(r => resourceIdsFromAssignments.has(r.id!));
-        }
+            let relevantResourceIds: Set<string>;
 
-        return visibleResources.sort((a,b) => a.name.localeCompare(b.name));
+            if (filters.projectId) {
+                relevantResourceIds = new Set(assignments.filter(a => a.projectId === filters.projectId).map(a => a.resourceId));
+            } else { // filters.clientId
+                const clientProjectIds = new Set(projects.filter(p => p.clientId === filters.clientId).map(p => p.id));
+                relevantResourceIds = new Set(assignments.filter(a => clientProjectIds.has(a.projectId)).map(a => a.resourceId));
+            }
+            finalResources = finalResources.filter(r => relevantResourceIds.has(r.id!));
+        }
+        
+        return finalResources.sort((a,b) => a.name.localeCompare(b.name));
+
     }, [resources, assignments, projects, filters]);
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
-    const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
 
     return (
         <div className="flex flex-col h-full">
-            {/* Contenitore fisso per controlli e filtri */}
             <div className="flex-shrink-0">
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-[var(--space-4)] gap-[var(--space-4)]">
-                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                    <div className="flex items-center justify-center space-x-[var(--space-2)]">
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <button onClick={handlePrev} className="px-[var(--space-3)] py-[var(--space-2)] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-[var(--font-size-sm)]">← Prec.</button>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <button onClick={handleToday} className="px-[var(--space-4)] py-[var(--space-2)] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <button onClick={handleNext} className="px-[var(--space-3)] py-[var(--space-2)] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-[var(--font-size-sm)]">Succ. →</button>
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+                    <div className="flex items-center justify-start space-x-2">
+                        <button onClick={handlePrev} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">← Prec.</button>
+                        <button onClick={handleToday} className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">Oggi</button>
+                        <button onClick={handleNext} className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm">Succ. →</button>
                     </div>
-                    {/* Selettore della vista temporale (giorno, settimana, mese). */}
-                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                    <div className="flex items-center space-x-[var(--space-1)] bg-gray-200 dark:bg-gray-700 p-[var(--space-1)] rounded-md">
+                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
                         {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button key={level} onClick={() => setViewMode(level)}
-                                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                                className={`px-[var(--space-3)] py-[var(--space-1)] text-[var(--font-size-sm)] font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${viewMode === level ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>
                                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
                             </button>
                         ))}
                     </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
+                        Vista di sola lettura. <a href="/staffing" className="text-blue-500 hover:underline">Vai a Staffing per modifiche</a>.
+                    </div>
                 </div>
 
                 {/* Sezione Filtri */}
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <div className="mb-[var(--space-4)] p-[var(--space-4)] bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
-                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                    <div className="grid grid-cols-1 md:grid-cols-6 gap-[var(--space-4)] items-end">
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <div className="md:col-span-2"><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <div className="md:col-span-2"><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Ruolo/i</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleFilterMultiSelectChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <div><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <div><label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <button onClick={clearFilters} className="px-[var(--space-4)] py-[var(--space-2)] bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:col-start-6">Reset Filtri</button>
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Ruolo</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                        <button onClick={clearFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
                     </div>
                 </div>
             </div>
 
-            {/* Griglia di Carico */}
+            {/* Griglia Carico */}
             <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                         <tr>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-[var(--space-3)] py-[var(--space-3-5)] text-left text-[var(--font-size-sm)] font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '250px' }}>Risorsa</th>
+                            <th className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30" style={{ minWidth: '200px' }}>Carico Totale Risorsa</th>
                             {timeColumns.map((col, index) => (
-                                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                                <th key={index} className={`px-[var(--space-2)] py-[var(--space-3-5)] text-center text-[var(--font-size-sm)] font-semibold w-24 md:w-28 ${col.isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
+                                <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${col.isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''}`}>
                                     <div className="flex flex-col items-center">
                                         <span className={col.isNonWorkingHeader ? 'text-gray-500' : 'text-gray-900 dark:text-white'}>{col.label}</span>
-                                        {col.subLabel && <span className="text-[var(--font-size-xs)] text-gray-500">{col.subLabel}</span>}
+                                        {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
                                     </div>
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {displayData.map(resource => {
-                            const role = roles.find(r => r.id === resource.roleId);
-                            return (
-                                <tr key={resource.id} className="group hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    <td className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-[var(--space-3)] py-[var(--space-4)] text-[var(--font-size-sm)] font-medium z-10" style={{ minWidth: '250px' }}>
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-900 dark:text-white truncate" title={resource.name}>{resource.name}</span>
-                                            <span className="text-[var(--font-size-xs)] text-gray-500 truncate" title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}>{role?.name} (Max: {resource.maxStaffingPercentage}%)</span>
-                                        </div>
-                                    </td>
-                                    {timeColumns.map((col, index) => {
-                                        if (viewMode === 'day') {
-                                            const day = col.startDate;
-                                            const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
-                                            return <ReadonlyDailyTotalCell key={index} resource={resource} date={formatDate(day, 'iso')} isNonWorkingDay={col.isNonWorkingHeader || isDayHoliday} />;
-                                        } else {
-                                            return <ReadonlyAggregatedWorkloadCell key={index} resource={resource} startDate={col.startDate} endDate={col.endDate} />;
-                                        }
-                                    })}
-                                </tr>
-                            );
-                        })}
+                        {displayResources.map((resource) => (
+                            <tr key={resource.id} className="bg-gray-100/50 dark:bg-gray-900/50 font-bold">
+                                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300 z-10">{resource.name} (Max: {resource.maxStaffingPercentage}%)</td>
+                                {timeColumns.map((col, index) => {
+                                    if (viewMode === 'day') {
+                                        const day = col.startDate;
+                                        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                                        const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                                        return (
+                                            <ReadonlyDailyTotalCell key={index} resource={resource} date={formatDate(day, 'iso')} isNonWorkingDay={isWeekend || isDayHoliday} />
+                                        )
+                                    } else {
+                                        return (
+                                            <ReadonlyAggregatedWorkloadCell key={index} resource={resource} startDate={col.startDate} endDate={col.endDate} />
+                                        )
+                                    }
+                                })}
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
-                 {displayData.length === 0 && (
-                    <p className="text-center py-8 text-gray-500">Nessuna risorsa trovata per i filtri correnti.</p>
+                 {displayResources.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">Nessuna risorsa trovata con i filtri correnti.</div>
                 )}
             </div>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };

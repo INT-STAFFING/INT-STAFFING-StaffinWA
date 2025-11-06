@@ -50,24 +50,18 @@ const ThemeEditor: React.FC = () => {
     const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
 
     return (
-         // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-         <div className="bg-card dark:bg-dark-card rounded-lg shadow p-[var(--space-6)] mt-[var(--space-8)]">
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <h2 className="text-[var(--font-size-xl)] font-semibold mb-[var(--space-6)]">Personalizzazione Tema</h2>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[var(--space-6)]">
+         <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-6">Personalizzazione Tema</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Object.entries(colorLabels).map(([key, label]) => (
                     <div key={key}>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <label className="block text-[var(--font-size-sm)] font-medium text-muted-foreground mb-[var(--space-1)]">{label}</label>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <div className="flex items-center space-x-[var(--space-2)]">
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">{label}</label>
+                        <div className="flex items-center space-x-2">
                             <input
                                 type="color"
                                 value={editedTheme[key as keyof Theme]}
                                 onChange={(e) => handleColorChange(key as keyof Theme, e.target.value)}
-                                // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                                className="w-[var(--space-10)] h-[var(--space-10)] p-[var(--space-1)] border border-border dark:border-dark-border rounded-md cursor-pointer"
+                                className="w-10 h-10 p-1 border border-border dark:border-dark-border rounded-md cursor-pointer"
                                 style={{ backgroundColor: editedTheme[key as keyof Theme] }}
                             />
                             <input
@@ -82,21 +76,18 @@ const ThemeEditor: React.FC = () => {
                     </div>
                 ))}
             </div>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <div className="mt-[var(--space-8)] flex justify-end space-x-[var(--space-3)]">
+            <div className="mt-8 flex justify-end space-x-3">
                 <button 
                     onClick={handleReset} 
                     disabled={isThemeDefault}
-                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    className="px-[var(--space-4)] py-[var(--space-2)] border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted disabled:opacity-50"
+                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted disabled:opacity-50"
                 >
                     Ripristina Tema Default
                 </button>
                  <button 
                     onClick={handleSave}
                     disabled={!isThemeChanged}
-                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    className="px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
                 >
                     Salva Modifiche
                 </button>
@@ -119,18 +110,13 @@ const AdminSettingsPage: React.FC = () => {
 
     return (
         <div>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <h1 className="text-[var(--font-size-3xl)] font-bold text-foreground dark:text-dark-foreground mb-[var(--space-8)]">Impostazioni Amministratore</h1>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-[var(--space-6)] max-w-2xl">
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <h2 className="text-[var(--font-size-xl)] font-semibold mb-[var(--space-4)]">Sicurezza</h2>
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <div className="flex items-center justify-between p-[var(--space-4)] border border-border dark:border-dark-border rounded-lg">
+            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-8">Impostazioni Amministratore</h1>
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 max-w-2xl">
+                <h2 className="text-xl font-semibold mb-4">Sicurezza</h2>
+                <div className="flex items-center justify-between p-4 border border-border dark:border-dark-border rounded-lg">
                     <div>
                         <h3 className="font-medium text-foreground dark:text-dark-foreground">Protezione con Password</h3>
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <p className="text-[var(--font-size-sm)] text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                             Se attivata, tutti gli utenti dovranno inserire una password per accedere all'applicazione.
                         </p>
                     </div>

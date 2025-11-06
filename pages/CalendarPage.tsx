@@ -108,14 +108,11 @@ const CalendarPage: React.FC = () => {
 
     return (
         <div>
-            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-            <div className="flex flex-col md:flex-row justify-between items-center mb-[var(--space-6)] gap-[var(--space-4)]">
-                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                <h1 className="text-[var(--font-size-3xl)] font-bold text-gray-800 dark:text-white">Gestione Calendario</h1>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Gestione Calendario</h1>
                 <button
                     onClick={openModalForNew}
-                    // MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza.
-                    className="px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker"
+                    className="px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker"
                 >
                     Aggiungi Evento
                 </button>
@@ -126,16 +123,11 @@ const CalendarPage: React.FC = () => {
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-700">
                             <tr>
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <th className="px-[var(--space-6)] py-[var(--space-3)] text-left text-[var(--font-size-xs)] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome Evento</th>
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <th className="px-[var(--space-6)] py-[var(--space-3)] text-left text-[var(--font-size-xs)] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data</th>
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <th className="px-[var(--space-6)] py-[var(--space-3)] text-left text-[var(--font-size-xs)] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tipo</th>
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <th className="px-[var(--space-6)] py-[var(--space-3)] text-left text-[var(--font-size-xs)] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sede (se locale)</th>
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <th className="px-[var(--space-6)] py-[var(--space-3)] text-right text-[var(--font-size-xs)] font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome Evento</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tipo</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sede (se locale)</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -143,23 +135,15 @@ const CalendarPage: React.FC = () => {
                                 const isDeleting = isActionLoading(`deleteCalendarEvent-${event.id}`);
                                 return (
                                 <tr key={event.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                    <td className="px-[var(--space-6)] py-[var(--space-4)] whitespace-nowrap text-[var(--font-size-sm)] font-medium text-gray-900 dark:text-white">{event.name}</td>
-                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                    <td className="px-[var(--space-6)] py-[var(--space-4)] whitespace-nowrap text-[var(--font-size-sm)] text-gray-600 dark:text-gray-300">{formatDateForDisplay(event.date)}</td>
-                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                    <td className="px-[var(--space-6)] py-[var(--space-4)] whitespace-nowrap text-[var(--font-size-sm)] text-gray-600 dark:text-gray-300">{formatEventType(event.type)}</td>
-                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                    <td className="px-[var(--space-6)] py-[var(--space-4)] whitespace-nowrap text-[var(--font-size-sm)] text-gray-600 dark:text-gray-300">{event.location || 'N/A'}</td>
-                                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                    <td className="px-[var(--space-6)] py-[var(--space-4)] whitespace-nowrap text-right text-[var(--font-size-sm)] font-medium">
-                                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                        <div className="flex items-center justify-end space-x-[var(--space-3)]">
-                                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                            <button onClick={() => openModalForEdit(event)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-[var(--font-size-xl)]">✏️</span></button>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{event.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(event.date)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatEventType(event.type)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{event.location || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end space-x-3">
+                                            <button onClick={() => openModalForEdit(event)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                                             <button onClick={() => deleteCalendarEvent(event.id!)} className="text-gray-500 hover:text-red-600" title="Elimina" disabled={isDeleting}>
-                                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                                {isDeleting ? <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/> : <span className="text-[var(--font-size-xl)]">🗑️</span>}
+                                                {isDeleting ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
                                             </button>
                                         </div>
                                     </td>
@@ -173,40 +157,31 @@ const CalendarPage: React.FC = () => {
 
             {editingEvent && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingEvent ? 'Modifica Evento' : 'Aggiungi Evento'}>
-                    {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                    <form onSubmit={handleSubmit} className="space-y-[var(--space-4)]">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300 mb-[var(--space-1)]">Nome Evento *</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Evento *</label>
                             <input type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300 mb-[var(--space-1)]">Data *</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data *</label>
                             <input type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300 mb-[var(--space-1)]">Tipo *</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo *</label>
                             <select name="type" value={editingEvent.type} onChange={handleChange} required className="form-select">
                                 {eventTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                             </select>
                         </div>
                         {editingEvent.type === 'LOCAL_HOLIDAY' && (
                             <div>
-                                {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                                <label className="block text-[var(--font-size-sm)] font-medium text-gray-700 dark:text-gray-300 mb-[var(--space-1)]">Sede *</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
                                 <SearchableSelect name="location" value={editingEvent.location || ''} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required/>
                             </div>
                         )}
-                        {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                        <div className="flex justify-end space-x-[var(--space-3)] pt-[var(--space-4)]">
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <button type="button" onClick={handleCloseModal} className="px-[var(--space-4)] py-[var(--space-2)] bg-gray-200 rounded-md">Annulla</button>
-                            {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-[var(--space-4)] py-[var(--space-2)] bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
-                               {/* MODIFICA: Sostituita utility class con variabile CSS centralizzata per coerenza. */}
-                               {(isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)) ? <SpinnerIcon className="w-[var(--space-5)] h-[var(--space-5)]"/> : 'Salva'}
+                        <div className="flex justify-end space-x-3 pt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                               {(isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
