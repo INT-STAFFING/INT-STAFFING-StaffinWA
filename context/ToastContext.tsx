@@ -5,6 +5,7 @@
 import React, { createContext, useState, useCallback, useContext, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from '../components/Toast';
+import { useTheme } from './ThemeContext';
 
 type ToastType = 'success' | 'error';
 
@@ -20,6 +21,18 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+const getPositionClasses = (position: string) => {
+    switch(position) {
+        case 'top-right': return 'top-5 right-5';
+        case 'top-left': return 'top-5 left-5';
+        case 'bottom-center': return 'bottom-5 left-1/2 -translate-x-1/2';
+        case 'bottom-right': return 'bottom-5 right-5';
+        case 'bottom-left': return 'bottom-5 left-5';
+        case 'top-center':
+        default:
+            return 'top-5 left-1/2 -translate-x-1/2';
+    }
+}
 /**
  * Fornisce la funzionalità di notifica a tutti i componenti figli.
  * Renderizza anche il contenitore in cui verranno visualizzati i toast.
@@ -29,6 +42,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
  */
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const { theme } = useTheme();
 
   /**
    * Aggiunge una nuova notifica alla coda.
@@ -51,8 +65,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      {/* Contenitore dei toast, posizionato in modo fisso in alto a destra */}
-      <div className="fixed top-5 right-5 z-[100] w-full max-w-lg space-y-3">
+      {/* Contenitore dei toast, posizionato dinamicamente in base al tema */}
+      <div className={`fixed z-[100] w-full max-w-lg space-y-3 ${getPositionClasses(theme.toastPosition)}`}>
         {toasts.map(toast => (
           <Toast
             key={toast.id}

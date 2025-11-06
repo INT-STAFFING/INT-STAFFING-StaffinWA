@@ -24,6 +24,11 @@ const colorLabels: { [key in keyof Theme]: string } = {
     darkBorder: 'Borders (Dark)',
     darkMuted: 'Muted Background (Dark)',
     darkMutedForeground: 'Muted Text (Dark)',
+    toastPosition: 'Posizione Notifiche',
+    toastSuccessBackground: 'Sfondo Successo',
+    toastSuccessForeground: 'Testo Successo',
+    toastErrorBackground: 'Sfondo Errore',
+    toastErrorForeground: 'Testo Errore',
 };
 
 const ThemeEditor: React.FC = () => {
@@ -46,28 +51,30 @@ const ThemeEditor: React.FC = () => {
         resetTheme();
     };
     
+    const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast')) as (keyof Theme)[];
+
     const isThemeChanged = JSON.stringify(theme) !== JSON.stringify(editedTheme);
     const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
 
     return (
          <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
-            <h2 className="text-xl font-semibold mb-6">Personalizzazione Tema</h2>
+            <h2 className="text-xl font-semibold mb-6">Personalizzazione Tema Globale</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Object.entries(colorLabels).map(([key, label]) => (
+                {themeKeysToEdit.map((key) => (
                     <div key={key}>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">{label}</label>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels[key]}</label>
                         <div className="flex items-center space-x-2">
                             <input
                                 type="color"
-                                value={editedTheme[key as keyof Theme]}
-                                onChange={(e) => handleColorChange(key as keyof Theme, e.target.value)}
+                                value={editedTheme[key]}
+                                onChange={(e) => handleColorChange(key, e.target.value)}
                                 className="w-10 h-10 p-1 border border-border dark:border-dark-border rounded-md cursor-pointer"
-                                style={{ backgroundColor: editedTheme[key as keyof Theme] }}
+                                style={{ backgroundColor: editedTheme[key] }}
                             />
                             <input
                                 type="text"
-                                value={editedTheme[key as keyof Theme]}
-                                onChange={(e) => handleColorChange(key as keyof Theme, e.target.value)}
+                                value={editedTheme[key]}
+                                onChange={(e) => handleColorChange(key, e.target.value)}
                                 className="form-input w-full"
                                 pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
                                 title="Enter a valid hex color code (e.g., #RRGGBB)"
@@ -90,6 +97,117 @@ const ThemeEditor: React.FC = () => {
                     className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
                 >
                     Salva Modifiche
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const ToastEditor: React.FC = () => {
+    const { theme, setTheme, resetTheme } = useTheme();
+    const [editedTheme, setEditedTheme] = useState<Theme>(theme);
+
+    useEffect(() => {
+        setEditedTheme(theme);
+    }, [theme]);
+
+    const handleSettingChange = (key: keyof Theme, value: string) => {
+        setEditedTheme(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handleSave = () => {
+        setTheme(editedTheme);
+    };
+    
+    const handleReset = () => {
+        // Reset only toast settings to default
+        const newTheme = { ...theme };
+        Object.keys(theme).forEach(key => {
+            if (key.startsWith('toast')) {
+                (newTheme as any)[key] = (defaultTheme as any)[key];
+            }
+        });
+        setTheme(newTheme);
+    };
+    
+    const isToastSettingsChanged = 
+        theme.toastPosition !== editedTheme.toastPosition ||
+        theme.toastSuccessBackground !== editedTheme.toastSuccessBackground ||
+        theme.toastSuccessForeground !== editedTheme.toastSuccessForeground ||
+        theme.toastErrorBackground !== editedTheme.toastErrorBackground ||
+        theme.toastErrorForeground !== editedTheme.toastErrorForeground;
+
+    const toastPositionOptions = [
+        { label: 'In Alto al Centro', value: 'top-center' },
+        { label: 'In Alto a Destra', value: 'top-right' },
+        { label: 'In Alto a Sinistra', value: 'top-left' },
+        { label: 'In Basso al Centro', value: 'bottom-center' },
+        { label: 'In Basso a Destra', value: 'bottom-right' },
+        { label: 'In Basso a Sinistra', value: 'bottom-left' },
+    ];
+
+    return (
+        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-6">Personalizzazione Notifiche Toast</h2>
+            <div className="space-y-6">
+                <div>
+                    <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastPosition}</label>
+                    <select
+                        value={editedTheme.toastPosition}
+                        onChange={(e) => handleSettingChange('toastPosition', e.target.value)}
+                        className="form-select max-w-xs"
+                    >
+                        {toastPositionOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-border dark:border-dark-border">
+                    <h3 className="col-span-full font-medium text-lg">Stile Successo</h3>
+                    <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastSuccessBackground}</label>
+                        <div className="flex items-center space-x-2">
+                             <input type="color" value={editedTheme.toastSuccessBackground} onChange={e => handleSettingChange('toastSuccessBackground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
+                             <input type="text" value={editedTheme.toastSuccessBackground} onChange={e => handleSettingChange('toastSuccessBackground', e.target.value)} className="form-input w-full" />
+                        </div>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastSuccessForeground}</label>
+                        <div className="flex items-center space-x-2">
+                             <input type="color" value={editedTheme.toastSuccessForeground} onChange={e => handleSettingChange('toastSuccessForeground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
+                             <input type="text" value={editedTheme.toastSuccessForeground} onChange={e => handleSettingChange('toastSuccessForeground', e.target.value)} className="form-input w-full" />
+                        </div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-border dark:border-dark-border">
+                    <h3 className="col-span-full font-medium text-lg">Stile Errore</h3>
+                    <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastErrorBackground}</label>
+                        <div className="flex items-center space-x-2">
+                             <input type="color" value={editedTheme.toastErrorBackground} onChange={e => handleSettingChange('toastErrorBackground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
+                             <input type="text" value={editedTheme.toastErrorBackground} onChange={e => handleSettingChange('toastErrorBackground', e.target.value)} className="form-input w-full" />
+                        </div>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastErrorForeground}</label>
+                        <div className="flex items-center space-x-2">
+                             <input type="color" value={editedTheme.toastErrorForeground} onChange={e => handleSettingChange('toastErrorForeground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
+                             <input type="text" value={editedTheme.toastErrorForeground} onChange={e => handleSettingChange('toastErrorForeground', e.target.value)} className="form-input w-full" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+             <div className="mt-8 flex justify-end space-x-3">
+                <button 
+                    onClick={handleReset} 
+                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted"
+                >
+                    Ripristina Default Toast
+                </button>
+                 <button 
+                    onClick={handleSave}
+                    disabled={!isToastSettingsChanged}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                >
+                    Salva Modifiche Toast
                 </button>
             </div>
         </div>
@@ -135,9 +253,10 @@ const AdminSettingsPage: React.FC = () => {
                     </label>
                 </div>
             </div>
-
+            
+            <ToastEditor />
             <ThemeEditor />
-            <style>{`.form-input { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-foreground); } .dark .form-input { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
+            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-foreground); } .dark .form-input, .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };

@@ -20,6 +20,12 @@ export type Theme = {
     darkBorder: string;
     darkMuted: string;
     darkMutedForeground: string;
+    // Toast Customization
+    toastPosition: 'top-center' | 'top-right' | 'top-left' | 'bottom-center' | 'bottom-right' | 'bottom-left';
+    toastSuccessBackground: string;
+    toastSuccessForeground: string;
+    toastErrorBackground: string;
+    toastErrorForeground: string;
 };
 
 interface ThemeContextType {
@@ -53,6 +59,13 @@ export const defaultTheme: Theme = {
     darkBorder: '#1e293b',
     darkMuted: '#1e293b',
     darkMutedForeground: '#94a3b8',
+
+    // Toast Defaults
+    toastPosition: 'top-center',
+    toastSuccessBackground: 'rgba(220, 252, 231, 0.95)', // green-100 with opacity
+    toastSuccessForeground: '#14532d', // green-900
+    toastErrorBackground: 'rgba(254, 226, 226, 0.95)', // red-100 with opacity
+    toastErrorForeground: '#7f1d1d', // red-900
 };
 
 // --- Context ---
@@ -80,6 +93,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     useEffect(() => {
         const root = document.documentElement;
         Object.entries(theme).forEach(([key, value]) => {
+            if (key.startsWith('toast')) return; // Toast settings are not CSS variables
             const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
             root.style.setProperty(cssVarName, value);
         });
@@ -107,7 +121,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         theme,
         setTheme,
         resetTheme,
-    }), [theme, setTheme, resetTheme]);
+    }), [theme]);
 
     return (
         <ThemeContext.Provider value={contextValue}>
