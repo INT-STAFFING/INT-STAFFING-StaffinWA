@@ -6,7 +6,13 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Project, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
+import {
+  getCalendarDays,
+  formatDate,
+  addDays,
+  isHoliday,
+  getWorkingDaysBetween,
+} from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -26,40 +32,42 @@ interface AllocationCellProps {
   isNonWorkingDay: boolean;
 }
 
-const AllocationCell: React.FC<AllocationCellProps> = React.memo(({ assignment, date, isNonWorkingDay }) => {
-  const { allocations, updateAllocation } = useAllocationsContext();
-  const percentage = allocations[assignment.id]?.[date] || 0;
+const AllocationCell: React.FC<AllocationCellProps> = React.memo(
+  ({ assignment, date, isNonWorkingDay }) => {
+    const { allocations, updateAllocation } = useAllocationsContext();
+    const percentage = allocations[assignment.id]?.[date] || 0;
 
-  if (isNonWorkingDay) {
+    if (isNonWorkingDay) {
+      return (
+        <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
+          <span className="text-sm text-gray-400">-</span>
+        </td>
+      );
+    }
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      updateAllocation(assignment.id, date, parseInt(e.target.value, 10));
+    };
+
+    const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
+
     return (
-      <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
-        <span className="text-sm text-gray-400">-</span>
+      <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
+        <select
+          value={percentage}
+          onChange={handleChange}
+          className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
+        >
+          {percentageOptions.map((p) => (
+            <option key={p} value={p}>
+              {p > 0 ? `${p}%` : '-'}
+            </option>
+          ))}
+        </select>
       </td>
     );
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateAllocation(assignment.id, date, parseInt(e.target.value));
-  };
-
-  const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
-
-  return (
-    <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
-      <select
-        value={percentage}
-        onChange={handleChange}
-        className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
-      >
-        {percentageOptions.map((p) => (
-          <option key={p} value={p}>
-            {p > 0 ? `${p}%` : '-'}
-          </option>
-        ))}
-      </select>
-    </td>
-  );
-});
+  },
+);
 
 const ReadonlyAggregatedAllocationCell: React.FC<{
   assignment: Assignment;
@@ -79,7 +87,12 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
         : endDate;
     if (startDate > effectiveEndDate) return 0;
 
-    const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
+    const workingDays = getWorkingDaysBetween(
+      startDate,
+      effectiveEndDate,
+      companyCalendar,
+      resource.location,
+    );
     if (workingDays === 0) return 0;
 
     let totalPersonDays = 0;
@@ -89,7 +102,11 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
       while (currentDate <= effectiveEndDate) {
         const dateStr = formatDate(currentDate, 'iso');
         if (assignmentAllocations[dateStr]) {
-          if (!isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+          if (
+            !isHoliday(currentDate, resource.location, companyCalendar) &&
+            currentDate.getDay() !== 0 &&
+            currentDate.getDay() !== 6
+          ) {
             totalPersonDays += assignmentAllocations[dateStr] / 100;
           }
         }
@@ -100,7 +117,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
   }, [assignment.id, startDate, endDate, allocations, companyCalendar, resource]);
 
   const cellColor = useMemo(() => {
-    if (averageAllocation > 100) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+    if (averageAllocation > 100)
+      return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
     if (averageAllocation >= 95 && averageAllocation <= 100)
       return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
     if (averageAllocation > 0 && averageAllocation < 95)
@@ -123,46 +141,50 @@ interface DailyTotalCellProps {
   isNonWorkingDay: boolean;
 }
 
-const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, date, isNonWorkingDay }) => {
-  const { assignments } = useEntitiesContext();
-  const { allocations } = useAllocationsContext();
+const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
+  ({ resource, date, isNonWorkingDay }) => {
+    const { assignments } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
 
-  if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
-    isNonWorkingDay = true;
-  }
+    if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
+      isNonWorkingDay = true;
+    }
 
-  if (isNonWorkingDay) {
+    if (isNonWorkingDay) {
+      return (
+        <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+          -
+        </td>
+      );
+    }
+
+    const total = useMemo(() => {
+      const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
+      return resourceAssignments.reduce((sum, a) => {
+        return sum + (allocations[a.id]?.[date] || 0);
+      }, 0);
+    }, [assignments, allocations, resource.id, date]);
+
+    const cellColor = useMemo(() => {
+      const maxPercentage = resource.maxStaffingPercentage ?? 100;
+      if (total > maxPercentage)
+        return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+      if (total === maxPercentage)
+        return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+      if (total > 0 && total < maxPercentage)
+        return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+      return 'bg-gray-100 dark:bg-gray-800';
+    }, [total, resource.maxStaffingPercentage]);
+
     return (
-      <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
-        -
+      <td
+        className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      >
+        {total > 0 ? `${total}%` : '-'}
       </td>
     );
-  }
-
-  const total = useMemo(() => {
-    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
-    return resourceAssignments.reduce((sum, a) => {
-      return sum + (allocations[a.id]?.[date] || 0);
-    }, 0);
-  }, [assignments, allocations, resource.id, date]);
-
-  const cellColor = useMemo(() => {
-    const maxPercentage = resource.maxStaffingPercentage ?? 100;
-    if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-    if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-    if (total > 0 && total < maxPercentage)
-      return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-    return 'bg-gray-100 dark:bg-gray-800';
-  }, [total, resource.maxStaffingPercentage]);
-
-  return (
-    <td
-      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
-    >
-      {total > 0 ? `${total}%` : '-'}
-    </td>
-  );
-});
+  },
+);
 
 const ReadonlyAggregatedTotalCell: React.FC<{
   resource: Resource;
@@ -179,7 +201,12 @@ const ReadonlyAggregatedTotalCell: React.FC<{
         : endDate;
     if (startDate > effectiveEndDate) return 0;
 
-    const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
+    const workingDays = getWorkingDaysBetween(
+      startDate,
+      effectiveEndDate,
+      companyCalendar,
+      resource.location,
+    );
     if (workingDays === 0) return 0;
 
     const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
@@ -253,8 +280,15 @@ const StaffingPage: React.FC = () => {
   const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
-  const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
-  const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string; projectIds: string[] }>({
+  const [bulkFormData, setBulkFormData] = useState({
+    startDate: '',
+    endDate: '',
+    percentage: 50,
+  });
+  const [newAssignmentData, setNewAssignmentData] = useState<{
+    resourceId: string;
+    projectIds: string[];
+  }>({
     resourceId: '',
     projectIds: [],
   });
@@ -346,7 +380,10 @@ const StaffingPage: React.FC = () => {
     return cols;
   }, [currentDate, viewMode, companyCalendar]);
 
-  const assignableProjects = useMemo(() => projects.filter((p) => p.status !== 'Completato'), [projects]);
+  const assignableProjects = useMemo(
+    () => projects.filter((p) => p.status !== 'Completato'),
+    [projects],
+  );
 
   const handlePrev = useCallback(() => {
     setCurrentDate((prev) => {
@@ -423,10 +460,22 @@ const StaffingPage: React.FC = () => {
     setFilters({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
   };
 
-  const getResourceById = useCallback((id: string) => resources.find((r) => r.id === id), [resources]);
-  const getProjectById = useCallback((id: string) => projects.find((p) => p.id === id), [projects]);
-  const getRoleById = useCallback((id: string) => roles.find((r) => r.id === id), [roles]);
-  const getClientById = useCallback((id: string) => clients.find((c) => c.id === id), [clients]);
+  const getResourceById = useCallback(
+    (id: string) => resources.find((r) => r.id === id),
+    [resources],
+  );
+  const getProjectById = useCallback(
+    (id: string) => projects.find((p) => p.id === id),
+    [projects],
+  );
+  const getRoleById = useCallback(
+    (id: string) => roles.find((r) => r.id === id),
+    [roles],
+  );
+  const getClientById = useCallback(
+    (id: string) => clients.find((c) => c.id === id),
+    [clients],
+  );
 
   const displayData = useMemo(() => {
     const activeResources = resources.filter((r) => !r.resigned);
@@ -450,7 +499,9 @@ const StaffingPage: React.FC = () => {
       const projectIdsForPm = new Set(
         projects.filter((p) => p.projectManager === filters.projectManager).map((p) => p.id),
       );
-      relevantAssignments = relevantAssignments.filter((a) => projectIdsForPm.has(a.projectId));
+      relevantAssignments = relevantAssignments.filter((a) =>
+        projectIdsForPm.has(a.projectId),
+      );
     }
 
     const resourceIdsFromAssignments = new Set(relevantAssignments.map((a) => a.resourceId));
@@ -542,130 +593,131 @@ const StaffingPage: React.FC = () => {
   }, [projects]);
 
   return (
-  // Wrapper pagina: prende tutta la larghezza disponibile
-  // e BLOCCA l’overflow orizzontale della pagina
-  <div className="flex flex-col w-full max-w-full overflow-x-hidden">
-    {/* Controlli + Filtri */}
-    <div>
-      {/* Barra controlli tempo */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
-        <div className="flex items-center justify-center space-x-2">
-          <button
-            onClick={handlePrev}
-            className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
-          >
-            ← Prec.
-          </button>
-          <button
-            onClick={handleToday}
-            className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600"
-          >
-            Oggi
-          </button>
-          <button
-            onClick={handleNext}
-            className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
-          >
-            Succ. →
-          </button>
-        </div>
-
-        <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-          {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
+    // Pagina “normale”: nessuna altezza fissa, larghezza bloccata al contenitore
+    <div className="flex flex-col w-full max-w-full gap-4">
+      {/* Controlli + Filtri */}
+      <div className="w-full max-w-full space-y-4">
+        {/* Barra controlli periodo */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div className="flex items-center justify-center md:justify-start space-x-2">
             <button
-              key={level}
-              onClick={() => setViewMode(level)}
-              className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
-                viewMode === level
-                  ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow'
-                  : 'text-gray-600 dark:text-gray-300'
-              }`}
+              onClick={handlePrev}
+              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
             >
-              {level === 'day'
-                ? 'Giorno'
-                : level === 'week'
-                ? 'Settimana'
-                : 'Mese'}
+              ← Prec.
             </button>
-          ))}
-        </div>
+            <button
+              onClick={handleToday}
+              className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600"
+            >
+              Oggi
+            </button>
+            <button
+              onClick={handleNext}
+              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+            >
+              Succ. →
+            </button>
+          </div>
 
-        <button
-          onClick={() => openNewAssignmentModal()}
-          className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
-        >
-          <span className="mr-2 text-xl">➕</span>
-          Assegna Risorsa
-        </button>
-      </div>
+          <div className="flex items-center justify-center md:justify-start space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+            {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
+              <button
+                key={level}
+                onClick={() => setViewMode(level)}
+                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
+                  viewMode === level
+                    ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow'
+                    : 'text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
+              </button>
+            ))}
+          </div>
 
-      {/* Filtri */}
-      <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Risorsa
-            </label>
-            <SearchableSelect
-              name="resourceId"
-              value={filters.resourceId}
-              onChange={handleFilterChange}
-              options={resourceOptions}
-              placeholder="Tutte le Risorse"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Cliente
-            </label>
-            <SearchableSelect
-              name="clientId"
-              value={filters.clientId}
-              onChange={handleFilterChange}
-              options={clientOptions}
-              placeholder="Tutti i Clienti"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Project Manager
-            </label>
-            <SearchableSelect
-              name="projectManager"
-              value={filters.projectManager}
-              onChange={handleFilterChange}
-              options={projectManagerOptions}
-              placeholder="Tutti i PM"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Progetto
-            </label>
-            <SearchableSelect
-              name="projectId"
-              value={filters.projectId}
-              onChange={handleFilterChange}
-              options={projectOptions}
-              placeholder="Tutti i Progetti"
-            />
-          </div>
           <button
-            onClick={clearFilters}
-            className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+            onClick={() => openNewAssignmentModal()}
+            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
           >
-            Reset Filtri
+            <span className="mr-2 text-xl">➕</span>
+            Assegna Risorsa
           </button>
         </div>
-      </div>
-    </div>
 
-      {/* TABELLA in contenitore scrollabile interno */}
-       <div
-      ref={scrollContainerRef}
-      className="w-full overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow"
-    >
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        {/* Filtri: contenitore che NON allarga la pagina, ma può scrollare orizzontalmente se serve */}
+        <div className="w-full max-w-full overflow-x-auto">
+          <div className="mb-4 inline-block min-w-full align-middle">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Risorsa
+                  </label>
+                  <SearchableSelect
+                    name="resourceId"
+                    value={filters.resourceId}
+                    onChange={handleFilterChange}
+                    options={resourceOptions}
+                    placeholder="Tutte le Risorse"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Cliente
+                  </label>
+                  <SearchableSelect
+                    name="clientId"
+                    value={filters.clientId}
+                    onChange={handleFilterChange}
+                    options={clientOptions}
+                    placeholder="Tutti i Clienti"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Project Manager
+                  </label>
+                  <SearchableSelect
+                    name="projectManager"
+                    value={filters.projectManager}
+                    onChange={handleFilterChange}
+                    options={projectManagerOptions}
+                    placeholder="Tutti i PM"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Progetto
+                  </label>
+                  <SearchableSelect
+                    name="projectId"
+                    value={filters.projectId}
+                    onChange={handleFilterChange}
+                    options={projectOptions}
+                    placeholder="Tutti i Progetti"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <button
+                    onClick={clearFilters}
+                    className="w-full px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+                  >
+                    Reset Filtri
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* TABELLA: contenitore scrollabile interno (max ~20 righe visibili) */}
+      <div
+        ref={scrollContainerRef}
+        className="w-full max-w-full overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow"
+      >
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
             <tr>
               <th
@@ -702,7 +754,9 @@ const StaffingPage: React.FC = () => {
                   <div className="flex flex-col items-center">
                     <span
                       className={
-                        col.isNonWorkingDay ? 'text-gray-500' : 'text-gray-900 dark:text-white'
+                        col.isNonWorkingDay
+                          ? 'text-gray-500'
+                          : 'text-gray-900 dark:text-white'
                       }
                     >
                       {col.label}
@@ -721,11 +775,12 @@ const StaffingPage: React.FC = () => {
                 <td colSpan={4 + timeColumns.length} style={{ height: paddingTop, padding: 0 }} />
               </tr>
             )}
+
             {virtualItems.map(({ resource, assignments: resourceAssignments }) => {
               const role = getRoleById(resource.roleId);
               return (
                 <React.Fragment key={resource.id}>
-                  {/* Riga "master" della risorsa */}
+                  {/* Riga master Risorsa */}
                   <tr className="bg-gray-100 dark:bg-gray-900 font-bold sticky top-16 z-[5]">
                     <td
                       className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-10"
@@ -759,7 +814,11 @@ const StaffingPage: React.FC = () => {
                     {timeColumns.map((col, index) => {
                       if (viewMode === 'day') {
                         const day = col.startDate;
-                        const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                        const isDayHoliday = isHoliday(
+                          day,
+                          resource.location,
+                          companyCalendar,
+                        );
                         return (
                           <DailyTotalCell
                             key={index}
@@ -768,16 +827,15 @@ const StaffingPage: React.FC = () => {
                             isNonWorkingDay={col.isNonWorkingDay || isDayHoliday}
                           />
                         );
-                      } else {
-                        return (
-                          <ReadonlyAggregatedTotalCell
-                            key={index}
-                            resource={resource}
-                            startDate={col.startDate}
-                            endDate={col.endDate}
-                          />
-                        );
                       }
+                      return (
+                        <ReadonlyAggregatedTotalCell
+                          key={index}
+                          resource={resource}
+                          startDate={col.startDate}
+                          endDate={col.endDate}
+                        />
+                      );
                     })}
                   </tr>
 
@@ -786,7 +844,9 @@ const StaffingPage: React.FC = () => {
                     resourceAssignments.map((assignment) => {
                       const project = getProjectById(assignment.projectId)!;
                       const client = getClientById(project.clientId);
-                      const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
+                      const isDeleting = isActionLoading(
+                        `deleteAssignment-${assignment.id}`,
+                      );
                       return (
                         <tr
                           key={assignment.id}
@@ -841,7 +901,11 @@ const StaffingPage: React.FC = () => {
                           {timeColumns.map((col, index) => {
                             if (viewMode === 'day') {
                               const day = col.startDate;
-                              const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                              const isDayHoliday = isHoliday(
+                                day,
+                                resource.location,
+                                companyCalendar,
+                              );
                               return (
                                 <AllocationCell
                                   key={index}
@@ -850,16 +914,15 @@ const StaffingPage: React.FC = () => {
                                   isNonWorkingDay={col.isNonWorkingDay || isDayHoliday}
                                 />
                               );
-                            } else {
-                              return (
-                                <ReadonlyAggregatedAllocationCell
-                                  key={index}
-                                  assignment={assignment}
-                                  startDate={col.startDate}
-                                  endDate={col.endDate}
-                                />
-                              );
                             }
+                            return (
+                              <ReadonlyAggregatedAllocationCell
+                                key={index}
+                                assignment={assignment}
+                                startDate={col.startDate}
+                                endDate={col.endDate}
+                              />
+                            );
                           })}
                         </tr>
                       );
@@ -877,9 +940,13 @@ const StaffingPage: React.FC = () => {
                 </React.Fragment>
               );
             })}
+
             {paddingBottom > 0 && (
               <tr>
-                <td colSpan={4 + timeColumns.length} style={{ height: paddingBottom, padding: 0 }} />
+                <td
+                  colSpan={4 + timeColumns.length}
+                  style={{ height: paddingBottom, padding: 0 }}
+                />
               </tr>
             )}
           </tbody>
@@ -901,18 +968,25 @@ const StaffingPage: React.FC = () => {
           message={
             <>
               Sei sicuro di voler rimuovere l'assegnazione di{' '}
-              <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong> dal progetto{' '}
+              <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong> dal
+              progetto{' '}
               <strong>{getProjectById(assignmentToDelete.projectId)?.name}</strong>?
               <br />
               Tutte le allocazioni associate verranno eliminate.
             </>
           }
-          isConfirming={isActionLoading(`deleteAssignment-${assignmentToDelete.id}`)}
+          isConfirming={isActionLoading(
+            `deleteAssignment-${assignmentToDelete.id}`,
+          )}
         />
       )}
 
       {/* Modale Assegnazione Massiva */}
-      <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva">
+      <Modal
+        isOpen={isBulkModalOpen}
+        onClose={() => setBulkModalOpen(false)}
+        title="Assegnazione Massiva"
+      >
         <form onSubmit={handleBulkSubmit}>
           <div className="space-y-4">
             <div>
@@ -956,7 +1030,7 @@ const StaffingPage: React.FC = () => {
                 onChange={(e) =>
                   setBulkFormData((f) => ({
                     ...f,
-                    percentage: parseInt(e.target.value),
+                    percentage: parseInt(e.target.value, 10),
                   }))
                 }
                 className="mt-1 block w-full"
@@ -1012,7 +1086,10 @@ const StaffingPage: React.FC = () => {
                 name="projectIds"
                 selectedValues={newAssignmentData.projectIds}
                 onChange={handleNewAssignmentMultiSelectChange}
-                options={assignableProjects.map((p) => ({ value: p.id!, label: p.name }))}
+                options={assignableProjects.map((p) => ({
+                  value: p.id!,
+                  label: p.name,
+                }))}
                 placeholder="Seleziona uno o più progetti"
               />
             </div>

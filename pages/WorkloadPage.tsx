@@ -6,7 +6,13 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
+import {
+  getCalendarDays,
+  formatDate,
+  addDays,
+  isHoliday,
+  getWorkingDaysBetween,
+} from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useSearchParams } from 'react-router-dom';
@@ -86,7 +92,12 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
         : endDate;
     if (startDate > effectiveEndDate) return 0;
 
-    const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
+    const workingDays = getWorkingDaysBetween(
+      startDate,
+      effectiveEndDate,
+      companyCalendar,
+      resource.location,
+    );
     if (workingDays === 0) return 0;
 
     const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
@@ -136,10 +147,14 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
   );
 };
 
+/**
+ * Pagina Carico Risorse (sola lettura)
+ */
 const WorkloadPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
-  const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
+  const { resources, projects, assignments, clients, companyCalendar, roles } =
+    useEntitiesContext();
 
   const [filters, setFilters] = useState({
     resourceId: '',
@@ -182,7 +197,8 @@ const WorkloadPage: React.FC = () => {
           isNonWorkingHeader: isWeekend || !!holiday,
         };
       });
-    } else if (viewMode === 'week') {
+    }
+    if (viewMode === 'week') {
       d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1)); // Monday
       for (let i = 0; i < 8; i++) {
         const startOfWeek = new Date(d);
@@ -196,6 +212,7 @@ const WorkloadPage: React.FC = () => {
         d.setDate(d.getDate() + 7);
       }
     } else {
+      // month
       d.setDate(1);
       for (let i = 0; i < 6; i++) {
         const startOfMonth = new Date(d);
@@ -231,7 +248,6 @@ const WorkloadPage: React.FC = () => {
       return newDate;
     });
   }, [viewMode]);
-
   const handleToday = () => setCurrentDate(new Date());
 
   const handleFilterChange = (name: string, value: string) => {
@@ -263,9 +279,7 @@ const WorkloadPage: React.FC = () => {
 
       if (filters.projectId) {
         relevantResourceIds = new Set(
-          assignments
-            .filter((a) => a.projectId === filters.projectId)
-            .map((a) => a.resourceId),
+          assignments.filter((a) => a.projectId === filters.projectId).map((a) => a.resourceId),
         );
       } else {
         const clientProjectIds = new Set(
@@ -277,7 +291,6 @@ const WorkloadPage: React.FC = () => {
             .map((a) => a.resourceId),
         );
       }
-
       finalResources = finalResources.filter((r) => relevantResourceIds.has(r.id!));
     }
 
@@ -305,11 +318,11 @@ const WorkloadPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col w-full max-w-full overflow-x-hidden">
-      {/* Controlli + Filtri */}
-      <div>
-        {/* Barra controlli temporali */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+    // Larghezza bloccata al contenitore, niente h-full / min-h-screen
+    <div className="flex flex-col w-full max-w-full gap-4">
+      {/* Controlli + filtri */}
+      <div className="w-full max-w-full space-y-4">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="flex items-center justify-start space-x-2">
             <button
               onClick={handlePrev}
@@ -330,7 +343,7 @@ const WorkloadPage: React.FC = () => {
               Succ. →
             </button>
           </div>
-          <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+          <div className="flex items-center justify-start space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
               <button
                 key={level}
@@ -341,15 +354,11 @@ const WorkloadPage: React.FC = () => {
                     : 'text-gray-600 dark:text-gray-300'
                 }`}
               >
-                {level === 'day'
-                  ? 'Giorno'
-                  : level === 'week'
-                  ? 'Settimana'
-                  : 'Mese'}
+                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
               </button>
             ))}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
+          <div className="text-sm text-gray-600 dark:text-gray-400 text-left md:text-right">
             Vista di sola lettura.{' '}
             <a href="/staffing" className="text-blue-500 hover:underline">
               Vai a Staffing per modifiche
@@ -358,69 +367,75 @@ const WorkloadPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Filtri */}
-        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Risorsa
-              </label>
-              <SearchableSelect
-                name="resourceId"
-                value={filters.resourceId}
-                onChange={handleFilterChange}
-                options={resourceOptions}
-                placeholder="Tutte le Risorse"
-              />
+        {/* Filtri: wrapper con overflow-x-auto per non far uscire la larghezza dalla pagina */}
+        <div className="w-full max-w-full overflow-x-auto">
+          <div className="mb-4 inline-block min-w-full align-middle">
+            <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Risorsa
+                  </label>
+                  <SearchableSelect
+                    name="resourceId"
+                    value={filters.resourceId}
+                    onChange={handleFilterChange}
+                    options={resourceOptions}
+                    placeholder="Tutte le Risorse"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Ruolo
+                  </label>
+                  <MultiSelectDropdown
+                    name="roleIds"
+                    selectedValues={filters.roleIds}
+                    onChange={handleMultiSelectFilterChange}
+                    options={roleOptions}
+                    placeholder="Tutti i Ruoli"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Progetto
+                  </label>
+                  <SearchableSelect
+                    name="projectId"
+                    value={filters.projectId}
+                    onChange={handleFilterChange}
+                    options={projectOptions}
+                    placeholder="Tutti i Progetti"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Cliente
+                  </label>
+                  <SearchableSelect
+                    name="clientId"
+                    value={filters.clientId}
+                    onChange={handleFilterChange}
+                    options={clientOptions}
+                    placeholder="Tutti i Clienti"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <button
+                    onClick={clearFilters}
+                    className="w-full px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+                  >
+                    Reset Filtri
+                  </button>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Ruolo
-              </label>
-              <MultiSelectDropdown
-                name="roleIds"
-                selectedValues={filters.roleIds}
-                onChange={handleMultiSelectFilterChange}
-                options={roleOptions}
-                placeholder="Tutti i Ruoli"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Progetto
-              </label>
-              <SearchableSelect
-                name="projectId"
-                value={filters.projectId}
-                onChange={handleFilterChange}
-                options={projectOptions}
-                placeholder="Tutti i Progetti"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Cliente
-              </label>
-              <SearchableSelect
-                name="clientId"
-                value={filters.clientId}
-                onChange={handleFilterChange}
-                options={clientOptions}
-                placeholder="Tutti i Clienti"
-              />
-            </div>
-            <button
-              onClick={clearFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
-            >
-              Reset Filtri
-            </button>
           </div>
         </div>
       </div>
 
       {/* Contenitore SCROLLABILE interno per la tabella */}
-       <div className="flex-grow overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div className="w-full max-w-full overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow">
         {displayResources.length > 0 ? (
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
@@ -469,7 +484,11 @@ const WorkloadPage: React.FC = () => {
                     if (viewMode === 'day') {
                       const day = col.startDate;
                       const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                      const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                      const isDayHoliday = isHoliday(
+                        day,
+                        resource.location,
+                        companyCalendar,
+                      );
                       return (
                         <ReadonlyDailyTotalCell
                           key={index}
@@ -478,16 +497,15 @@ const WorkloadPage: React.FC = () => {
                           isNonWorkingDay={isWeekend || isDayHoliday}
                         />
                       );
-                    } else {
-                      return (
-                        <ReadonlyAggregatedWorkloadCell
-                          key={index}
-                          resource={resource}
-                          startDate={col.startDate}
-                          endDate={col.endDate}
-                        />
-                      );
                     }
+                    return (
+                      <ReadonlyAggregatedWorkloadCell
+                        key={index}
+                        resource={resource}
+                        startDate={col.startDate}
+                        endDate={col.endDate}
+                      />
+                    );
                   })}
                 </tr>
               ))}
