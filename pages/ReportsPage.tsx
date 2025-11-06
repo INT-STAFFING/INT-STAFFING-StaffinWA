@@ -17,7 +17,7 @@ type SortDirection = 'ascending' | 'descending';
 // --- Funzioni di Utilità ---
 const formatCurrency = (value: number) => (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const downloadCSV = (csvContent: string, fileName: string) => {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
     const link = document.createElement('a');
     if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
@@ -77,17 +77,17 @@ const ProjectCostsReport: React.FC = () => {
                 
                 projectAssignments.forEach(assignment => {
                     const resource = resources.find(r => r.id === assignment.resourceId);
-                    if (!resource) return;
+                    if (!resource || !assignment.id) return;
 
-                    const role = roles.find(ro => ro.id === resource?.roleId);
+                    const role = roles.find(ro => ro.id === resource.roleId);
                     const dailyRate = role?.dailyCost || 0;
                     
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                              if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
-
-                             if (!isHoliday(new Date(dateStr), resource?.location || null, companyCalendar) && new Date(dateStr).getDay() !== 0 && new Date(dateStr).getDay() !== 6) {
+                             const allocDate = new Date(dateStr);
+                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 personDays += dayFraction;
                                 allocatedCost += dayFraction * dailyRate;
@@ -130,13 +130,13 @@ const ProjectCostsReport: React.FC = () => {
     const exportToCSV = () => {
         const headers = ["Progetto", "Cliente", "Budget", "Costo Allocato", "Varianza", "Giorni/Uomo", "Costo Medio G/U"];
         const rows = sortedData.map(d => [
-            `"${d.projectName}"`,
-            `"${d.clientName}"`,
-            d.budget.toFixed(2),
-            d.allocatedCost.toFixed(2),
-            d.variance.toFixed(2),
-            d.personDays.toFixed(2),
-            d.avgCostPerDay.toFixed(2)
+            `"${d.projectName || ''}"`,
+            `"${d.clientName || ''}"`,
+            (d.budget || 0).toFixed(2),
+            (d.allocatedCost || 0).toFixed(2),
+            (d.variance || 0).toFixed(2),
+            (d.personDays || 0).toFixed(2),
+            (d.avgCostPerDay || 0).toFixed(2)
         ]);
         const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csvContent, 'report_costi_progetto.csv');
@@ -203,7 +203,7 @@ const ProjectCostsReport: React.FC = () => {
                                         {formatCurrency(d.variance)}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                        {d.personDays.toFixed(2)}
+                                        {(d.personDays || 0).toFixed(2)}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                                         {formatCurrency(d.avgCostPerDay)}
@@ -256,6 +256,7 @@ const ResourceUtilizationReport: React.FC = () => {
                 const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
                 
                 resourceAssignments.forEach(assignment => {
+                    if (!assignment.id) return;
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
@@ -301,7 +302,12 @@ const ResourceUtilizationReport: React.FC = () => {
     const exportToCSV = () => {
         const headers = ["Risorsa", "Ruolo", "Giorni Disponibili", "Giorni Allocati", "Utilizzo (%)", "Costo Allocato"];
         const rows = sortedData.map(d => [
-            `"${d.resourceName}"`, `"${d.roleName}"`, d.availableDays.toFixed(1), d.allocatedDays.toFixed(2), d.utilization.toFixed(2), d.allocatedCost.toFixed(2)
+            `"${d.resourceName || ''}"`, 
+            `"${d.roleName || ''}"`, 
+            (d.availableDays || 0).toFixed(1), 
+            (d.allocatedDays || 0).toFixed(2), 
+            (d.utilization || 0).toFixed(2), 
+            (d.allocatedCost || 0).toFixed(2)
         ]);
         const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csvContent, `report_utilizzo_${month}.csv`);
@@ -354,10 +360,10 @@ const ResourceUtilizationReport: React.FC = () => {
                                         {d.roleName}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                        {d.availableDays.toFixed(1)}
+                                        {(d.availableDays || 0).toFixed(1)}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                        {d.allocatedDays.toFixed(2)}
+                                        {(d.allocatedDays || 0).toFixed(2)}
                                     </td>
                                     <td
                                         className={`
@@ -371,7 +377,7 @@ const ResourceUtilizationReport: React.FC = () => {
                                             }
                                         `}
                                     >
-                                        {d.utilization.toFixed(1)}%
+                                        {(d.utilization || 0).toFixed(1)}%
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                                         {formatCurrency(d.allocatedCost)}

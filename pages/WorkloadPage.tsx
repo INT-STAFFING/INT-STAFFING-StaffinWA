@@ -305,7 +305,7 @@ const WorkloadPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full overflow-y-auto space-y-4">
       {/* Controlli + Filtri */}
       <div>
         {/* Barra controlli temporali */}
@@ -420,7 +420,7 @@ const WorkloadPage: React.FC = () => {
       </div>
 
       {/* Contenitore SCROLLABILE interno per la tabella */}
-      <div className="overflow-y-auto overflow-x-scroll max-h-[640px] bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div className="overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow">
         {displayResources.length > 0 ? (
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">

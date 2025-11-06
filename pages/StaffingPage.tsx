@@ -543,7 +543,7 @@ const StaffingPage: React.FC = () => {
 
   return (
     // Pagina "normale": niente h-full / flex-1
-    <div className="space-y-4">
+    <div className="flex flex-col h-full overflow-y-auto space-y-4">
       {/* Controlli + Filtri */}
       <div>
         {/* Barra controlli tempo */}
@@ -662,7 +662,7 @@ const StaffingPage: React.FC = () => {
       {/* TABELLA in contenitore scrollabile interno */}
       <div
         ref={scrollContainerRef}
-        className="overflow-y-auto overflow-x-scroll max-h-[640px] bg-white dark:bg-gray-800 rounded-lg shadow"
+        className="overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow"
       >
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
