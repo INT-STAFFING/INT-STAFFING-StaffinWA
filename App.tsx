@@ -122,12 +122,6 @@ interface AppContentProps {
  */
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     const { loading } = useEntitiesContext();
-    const location = useLocation();
-
-    // Identifica le pagine che gestiscono il proprio scroll interno e richiedono un layout a piena altezza.
-    const pagesWithInternalScroll = ['/staffing', '/workload', '/gantt'];
-    const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
-
 
     if (loading) {
         return (
@@ -141,10 +135,10 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     }
     
     return (
-        <div className="flex-1 flex flex-col overflow-hidden">
-             <Header onToggleSidebar={onToggleSidebar} />
-             <main className={`flex-1 ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'} bg-muted dark:bg-dark-background`}>
-                <div className={`container mx-auto px-4 sm:px-6 py-8 ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}`}>
+        <div className="flex-1 flex flex-col">
+            <Header onToggleSidebar={onToggleSidebar} />
+            <main className="flex-1 overflow-y-auto bg-muted dark:bg-dark-background">
+                <div className="container mx-auto px-4 sm:px-6 py-8">
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />
@@ -166,28 +160,29 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/interviews" element={<InterviewsPage />} />
                         <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
                         <Route path="/manuale-utente" element={<UserManualPage />} />
-                        <Route 
-                            path="/admin-settings" 
+                        <Route
+                            path="/admin-settings"
                             element={
                                 <AdminRoute>
                                     <AdminSettingsPage />
                                 </AdminRoute>
-                            } 
+                            }
                         />
-                        <Route 
-                            path="/db-inspector" 
+                        <Route
+                            path="/db-inspector"
                             element={
                                 <AdminRoute>
                                     <DbInspectorPage />
                                 </AdminRoute>
-                            } 
+                            }
                         />
                     </Routes>
                 </div>
             </main>
         </div>
-    )
-}
+    );
+};
+
 
 /**
  * Componente che gestisce il layout principale dell'applicazione (sidebar + contenuto).
@@ -205,7 +200,7 @@ const MainLayout: React.FC = () => {
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}
-            <div className="flex h-screen bg-background dark:bg-dark-background">
+            <div className="flex min-h-screen bg-background dark:bg-dark-background">
                 <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
             </div>
