@@ -51,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     // Classi condizionali per mostrare/nascondere la sidebar con una transizione.
     const sidebarClasses = `
         flex flex-col w-64 bg-gray-800 text-white transition-transform duration-300 ease-in-out
-        fixed inset-y-0 left-0 z-30
+        fixed inset-y-0 left-0 z-31
         md:relative md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     `;

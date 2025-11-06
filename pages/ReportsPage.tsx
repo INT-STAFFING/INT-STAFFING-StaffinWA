@@ -138,7 +138,7 @@ const ProjectCostsReport: React.FC = () => {
             d.personDays.toFixed(2),
             d.avgCostPerDay.toFixed(2)
         ]);
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csvContent, 'report_costi_progetto.csv');
     };
 
@@ -176,39 +176,47 @@ const ProjectCostsReport: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {sortedData.map(d => (
-                            <tr
-                                key={d.id}
-                                className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                            >
-                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                                    {d.projectName}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                                    {d.clientName}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                    {formatCurrency(d.budget)}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                    {formatCurrency(d.allocatedCost)}
-                                </td>
-                                <td
-                                    className={`
-                                        px-4 py-3 whitespace-nowrap text-sm font-semibold
-                                        ${d.variance >= 0 ? 'text-green-600' : 'text-red-600'}
-                                    `}
+                        {sortedData.length > 0 ? (
+                            sortedData.map(d => (
+                                <tr
+                                    key={d.id}
+                                    className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                                 >
-                                    {formatCurrency(d.variance)}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                    {d.personDays.toFixed(2)}
-                                </td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                    {formatCurrency(d.avgCostPerDay)}
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                        {d.projectName}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                        {d.clientName}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {formatCurrency(d.budget)}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {formatCurrency(d.allocatedCost)}
+                                    </td>
+                                    <td
+                                        className={`
+                                            px-4 py-3 whitespace-nowrap text-sm font-semibold
+                                            ${d.variance >= 0 ? 'text-green-600' : 'text-red-600'}
+                                        `}
+                                    >
+                                        {formatCurrency(d.variance)}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {d.personDays.toFixed(2)}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {formatCurrency(d.avgCostPerDay)}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                                    Nessun dato trovato per i filtri correnti.
                                 </td>
                             </tr>
-                        ))}
+                        )}
                     </tbody>
                 </table>
             </div>
@@ -295,7 +303,7 @@ const ResourceUtilizationReport: React.FC = () => {
         const rows = sortedData.map(d => [
             `"${d.resourceName}"`, `"${d.roleName}"`, d.availableDays.toFixed(1), d.allocatedDays.toFixed(2), d.utilization.toFixed(2), d.allocatedCost.toFixed(2)
         ]);
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csvContent, `report_utilizzo_${month}.csv`);
     };
     
@@ -333,45 +341,53 @@ const ResourceUtilizationReport: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {sortedData.map(d => (
-                            <tr
-                                key={d.id}
-                                className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                            >
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {d.resourceName}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        {d.roleName}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {d.availableDays.toFixed(1)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {d.allocatedDays.toFixed(2)}
-                    </td>
-                    <td
-                        className={`
-                            px-4 py-3 whitespace-nowrap text-sm font-semibold
-                            ${
-                                d.utilization > 100
-                                    ? 'text-red-600'
-                                    : d.utilization >= 90
-                                    ? 'text-yellow-600'
-                                    : 'text-green-600'
-                            }
-                        `}
-                    >
-                        {d.utilization.toFixed(1)}%
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        {formatCurrency(d.allocatedCost)}
-                    </td>
-                </tr>
-            ))}
-        </tbody>
-    </table>
-</div>
+                       {sortedData.length > 0 ? (
+                            sortedData.map(d => (
+                                <tr
+                                    key={d.id}
+                                    className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                >
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                        {d.resourceName}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                        {d.roleName}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {d.availableDays.toFixed(1)}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {d.allocatedDays.toFixed(2)}
+                                    </td>
+                                    <td
+                                        className={`
+                                            px-4 py-3 whitespace-nowrap text-sm font-semibold
+                                            ${
+                                                d.utilization > 100
+                                                    ? 'text-red-600'
+                                                    : d.utilization >= 90
+                                                    ? 'text-yellow-600'
+                                                    : 'text-green-600'
+                                            }
+                                        `}
+                                    >
+                                        {d.utilization.toFixed(1)}%
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {formatCurrency(d.allocatedCost)}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                             <tr>
+                                <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
+                                    Nessun dato trovato per i filtri correnti.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
         </div>
     );
