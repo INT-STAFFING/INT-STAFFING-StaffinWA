@@ -140,7 +140,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
 
             <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
                 {/* QUI controlli il padding laterale di tutte le pagine */}
-                <div className="w-full px-2 sm:px-4 lg:px-6 py-6">
+                <div className="w-full px-3 sm:px-5 lg:px-7 py-6">
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />
