@@ -1,4 +1,3 @@
-
 /**
  * @file config/dashboardLayout.ts
  * @description Shared configuration for the dashboard layout.
@@ -12,7 +11,6 @@ export type DashboardCardId =
   | 'ftePerProject'
   | 'budgetAnalysis'
   | 'underutilizedResources'
-  | 'effortByClient'
   | 'monthlyClientCost'
   | 'effortByHorizontal'
   | 'locationAnalysis'
@@ -29,19 +27,19 @@ export interface DashboardCardConfig {
 
 // A constant array defining all available cards and their properties.
 export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
-  { id: 'kpiHeader', label: 'KPI Principali (Budget, Costo, Giorni)', group: 'kpi' },
-  { id: 'attentionCards', label: 'Card di Attenzione (Risorse/Progetti)', group: 'kpi' },
+  { id: 'kpiHeader', label: 'KPI Header (Budget, Costo, Giorni)', group: 'kpi' },
+  { id: 'attentionCards', label: 'Avvisi (Risorse non allocate, Progetti senza staff)', group: 'kpi' },
   { id: 'averageAllocation', label: 'Allocazione Media', group: 'main' },
   { id: 'ftePerProject', label: 'FTE per Progetto', group: 'main' },
   { id: 'budgetAnalysis', label: 'Analisi Budget', group: 'main' },
   { id: 'underutilizedResources', label: 'Risorse Sottoutilizzate', group: 'main' },
-  { id: 'effortByClient', label: 'Analisi Sforzo per Cliente', group: 'main' },
   { id: 'monthlyClientCost', label: 'Costo Mensile per Cliente', group: 'main' },
-  { id: 'effortByHorizontal', label: 'Analisi Sforzo per Horizontal', group: 'main' },
+  { id: 'effortByHorizontal', label: 'Sforzo per Horizontal', group: 'main' },
   { id: 'locationAnalysis', label: 'Analisi per Sede', group: 'main' },
   { id: 'saturationTrend', label: 'Trend Saturazione Risorsa', group: 'full-width' },
   { id: 'costForecast', label: 'Forecast Costo Mensile', group: 'full-width' },
 ];
+
 
 // The default order in which cards should appear if no configuration is saved.
 export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
@@ -51,7 +49,6 @@ export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
   'ftePerProject',
   'budgetAnalysis',
   'underutilizedResources',
-  'effortByClient',
   'monthlyClientCost',
   'effortByHorizontal',
   'locationAnalysis',

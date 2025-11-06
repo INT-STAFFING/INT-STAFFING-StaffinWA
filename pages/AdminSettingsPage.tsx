@@ -1,4 +1,3 @@
-
 /**
  * @file AdminSettingsPage.tsx
  * @description Pagina per la gestione delle impostazioni riservate agli amministratori.
@@ -48,7 +47,7 @@ const ThemeEditor: React.FC = () => {
         setEditedTheme(theme);
     }, [theme]);
 
-    const handleColorChange = (key: keyof Omit<Theme, 'visualizationSettings'>, value: string) => {
+    const handleColorChange = (key: keyof Omit<Theme, 'visualizationSettings' | 'toastPosition' | 'toastSuccessBackground' | 'toastSuccessForeground' | 'toastErrorBackground' | 'toastErrorForeground'>, value: string) => {
         setEditedTheme(prev => ({ ...prev, [key]: value }));
     };
 
@@ -60,9 +59,7 @@ const ThemeEditor: React.FC = () => {
         resetTheme();
     };
     
-    // FIX: Narrow the type of `themeKeysToEdit` to correctly reflect the filtered keys.
     const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast') && key !== 'visualizationSettings') as Exclude<keyof Theme, 'toastPosition' | 'toastSuccessBackground' | 'toastSuccessForeground' | 'toastErrorBackground' | 'toastErrorForeground' | 'visualizationSettings'>[];
-
 
     const isThemeChanged = JSON.stringify(theme) !== JSON.stringify(editedTheme);
     const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
