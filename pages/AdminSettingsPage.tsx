@@ -29,6 +29,7 @@ const colorLabels: { [key in keyof Theme]: string } = {
     toastSuccessForeground: 'Testo Successo',
     toastErrorBackground: 'Sfondo Errore',
     toastErrorForeground: 'Testo Errore',
+    visualizationSettings: 'Impostazioni Visualizzazione',
 };
 
 const ThemeEditor: React.FC = () => {
@@ -39,7 +40,7 @@ const ThemeEditor: React.FC = () => {
         setEditedTheme(theme);
     }, [theme]);
 
-    const handleColorChange = (key: keyof Theme, value: string) => {
+    const handleColorChange = (key: keyof Omit<Theme, 'visualizationSettings'>, value: string) => {
         setEditedTheme(prev => ({ ...prev, [key]: value }));
     };
 
@@ -51,7 +52,8 @@ const ThemeEditor: React.FC = () => {
         resetTheme();
     };
     
-    const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast')) as (keyof Theme)[];
+    // FIX: Narrow the type of `themeKeysToEdit` to correctly reflect the filtered keys.
+    const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast') && key !== 'visualizationSettings') as Exclude<keyof Theme, 'visualizationSettings'>[];
 
     const isThemeChanged = JSON.stringify(theme) !== JSON.stringify(editedTheme);
     const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
@@ -66,14 +68,14 @@ const ThemeEditor: React.FC = () => {
                         <div className="flex items-center space-x-2">
                             <input
                                 type="color"
-                                value={editedTheme[key]}
+                                value={editedTheme[key] as string}
                                 onChange={(e) => handleColorChange(key, e.target.value)}
                                 className="w-10 h-10 p-1 border border-border dark:border-dark-border rounded-md cursor-pointer"
-                                style={{ backgroundColor: editedTheme[key] }}
+                                style={{ backgroundColor: editedTheme[key] as string }}
                             />
                             <input
                                 type="text"
-                                value={editedTheme[key]}
+                                value={editedTheme[key] as string}
                                 onChange={(e) => handleColorChange(key, e.target.value)}
                                 className="form-input w-full"
                                 pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
@@ -214,6 +216,100 @@ const ToastEditor: React.FC = () => {
     );
 };
 
+const VisualizationEditor: React.FC = () => {
+    const { theme, setTheme } = useTheme();
+    const [settings, setSettings] = useState(theme.visualizationSettings);
+
+    useEffect(() => {
+        setSettings(theme.visualizationSettings);
+    }, [theme]);
+
+    const handleChange = (graph: 'sankey' | 'network', key: string, value: string) => {
+        setSettings(prev => ({
+            ...prev,
+            [graph]: {
+                ...prev[graph],
+                [key]: Number(value)
+            }
+        }));
+    };
+
+    const handleSave = () => {
+        setTheme({ ...theme, visualizationSettings: settings });
+    };
+
+    const handleReset = () => {
+        setSettings(defaultTheme.visualizationSettings);
+        setTheme({ ...theme, visualizationSettings: defaultTheme.visualizationSettings });
+    };
+
+    const isChanged = JSON.stringify(theme.visualizationSettings) !== JSON.stringify(settings);
+
+    // Reusable slider component
+    const SettingsSlider: React.FC<{
+        graph: 'sankey' | 'network';
+        param: string;
+        label: string;
+        min: number;
+        max: number;
+        step: number;
+    }> = ({ graph, param, label, min, max, step }) => (
+        <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">{label} ({settings[graph][param as keyof typeof settings[typeof graph]]})</label>
+            <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={settings[graph][param as keyof typeof settings[typeof graph]]}
+                onChange={(e) => handleChange(graph, param, e.target.value)}
+                className="w-full"
+            />
+        </div>
+    );
+
+    return (
+        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-6">Personalizzazione Visualizzazioni Grafiche</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Sankey Settings */}
+                <div className="space-y-4 p-4 border border-border dark:border-dark-border rounded-lg">
+                    <h3 className="font-medium text-lg">Diagramma di Flusso (Sankey)</h3>
+                    <SettingsSlider graph="sankey" param="nodeWidth" label="Larghezza Nodi" min={5} max={50} step={1} />
+                    <SettingsSlider graph="sankey" param="nodePadding" label="Spaziatura Nodi" min={2} max={40} step={1} />
+                    <SettingsSlider graph="sankey" param="linkOpacity" label="Opacità Flussi" min={0.1} max={1} step={0.1} />
+                </div>
+                
+                {/* Network Settings */}
+                <div className="space-y-4 p-4 border border-border dark:border-dark-border rounded-lg">
+                    <h3 className="font-medium text-lg">Mappa delle Connessioni (Network)</h3>
+                    <SettingsSlider graph="network" param="chargeStrength" label="Forza Repulsione" min={-2000} max={-50} step={50} />
+                    <SettingsSlider graph="network" param="linkDistance" label="Distanza Link" min={30} max={500} step={10} />
+                    <SettingsSlider graph="network" param="nodeRadius" label="Raggio Nodi" min={3} max={30} step={1} />
+                    <SettingsSlider graph="network" param="centerStrength" label="Forza di Attrazione Centrale" min={0.01} max={0.2} step={0.01} />
+                </div>
+            </div>
+
+            <div className="mt-8 flex justify-end space-x-3">
+                <button 
+                    onClick={handleReset} 
+                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted"
+                >
+                    Ripristina Default
+                </button>
+                 <button 
+                    onClick={handleSave}
+                    disabled={!isChanged}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                >
+                    Salva Modifiche
+                </button>
+            </div>
+        </div>
+    );
+};
+
 
 const AdminSettingsPage: React.FC = () => {
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
@@ -255,6 +351,7 @@ const AdminSettingsPage: React.FC = () => {
             </div>
             
             <ToastEditor />
+            <VisualizationEditor />
             <ThemeEditor />
             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-foreground); } .dark .form-input, .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>

@@ -7,6 +7,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
+import { useTheme } from '../context/ThemeContext';
 
 // Informa TypeScript che D3 e d3-sankey sono disponibili come variabili globali (da CDN).
 declare var d3: any;
@@ -16,6 +17,7 @@ type ViewMode = 'sankey' | 'network';
 const StaffingVisualizationPage: React.FC = () => {
     const { resources, projects, clients, contracts, assignments, contractProjects, companyCalendar } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
+    const { theme } = useTheme();
 
     const [view, setView] = useState<ViewMode>('sankey');
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -175,9 +177,14 @@ const StaffingVisualizationPage: React.FC = () => {
             .style("font-size", "12px");
 
         if (view === 'sankey') {
+            // PARAMETRI SANKEY: Recupera le impostazioni dal tema.
+            const { nodeWidth, nodePadding, linkOpacity } = theme.visualizationSettings.sankey;
+
             const sankey = d3.sankey()
-                .nodeWidth(20)
-                .nodePadding(10)
+                // nodeWidth: Controlla la larghezza (spessore orizzontale) dei rettangoli verticali (nodi).
+                .nodeWidth(nodeWidth)
+                // nodePadding: Controlla lo spazio verticale tra i nodi all'interno della stessa colonna.
+                .nodePadding(nodePadding)
                 .extent([[1, 5], [width - 1, height - 5]]);
             
             const nodeById = new Map(data.nodes.map((d: any, i: number) => [d.id, i]));
@@ -217,7 +224,8 @@ const StaffingVisualizationPage: React.FC = () => {
 
             const link = svg.append("g")
                 .attr("fill", "none")
-                .attr("stroke-opacity", 0.5)
+                // linkOpacity: Controlla la trasparenza dei flussi. Utile per visualizzare meglio gli incroci.
+                .attr("stroke-opacity", linkOpacity)
                 .selectAll("g")
                 .data(links)
                 .join("g")
@@ -236,7 +244,7 @@ const StaffingVisualizationPage: React.FC = () => {
                     tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                 })
                 .on("mouseout", function() {
-                    d3.select(this).attr("stroke-opacity", 0.5);
+                    d3.select(this).attr("stroke-opacity", linkOpacity);
                     tooltip.style("visibility", "hidden");
                 });
 
@@ -253,6 +261,9 @@ const StaffingVisualizationPage: React.FC = () => {
                 .text((d: any) => d.name);
         
         } else { // network
+            // PARAMETRI NETWORK: Recupera le impostazioni dal tema.
+            const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
+
             const zoom = d3.zoom()
                 .scaleExtent([0.1, 4])
                 .on("zoom", (event: any) => {
@@ -267,11 +278,16 @@ const StaffingVisualizationPage: React.FC = () => {
                 .range(['#3b82f6', '#10b981', '#8b5cf6', '#f97316']);
 
             const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(100))
-                .force("charge", d3.forceManyBody().strength(-200))
+                // linkDistance: Imposta la distanza "ideale" che i collegamenti (le "molle") cercano di raggiungere.
+                .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
+                // chargeStrength: È la forza principale di repulsione tra tutti i nodi. Un valore più negativo aumenta la distanza tra loro.
+                .force("charge", d3.forceManyBody().strength(chargeStrength))
+                // center: Forza che attira l'intero grafico verso il centro dell'area di disegno.
                 .force("center", d3.forceCenter(width / 2, height / 2))
-                .force("x", d3.forceX(width / 2).strength(0.05))
-                .force("y", d3.forceY(height / 2).strength(0.05));
+                // x e y: Forze "gentili" che attirano i nodi verso il centro orizzontale e verticale.
+                // centerStrength: Controlla l'intensità di queste forze centripete.
+                .force("x", d3.forceX(width / 2).strength(centerStrength))
+                .force("y", d3.forceY(height / 2).strength(centerStrength));
                 
             const link = g.append("g")
                 .attr("stroke", "#999")
@@ -279,7 +295,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 .selectAll("line")
                 .data(data.links)
                 .join("line")
-                .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));
+                .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));  
 
             const nodeGroup = g.append("g")
                 .selectAll(".node-group")
@@ -293,7 +309,8 @@ const StaffingVisualizationPage: React.FC = () => {
                 );
 
             nodeGroup.append("circle")
-                .attr("r", 8)
+                // nodeRadius: Controlla la dimensione (raggio) dei cerchi che rappresentano i nodi.
+                .attr("r", nodeRadius)
                 .attr("fill", (d: any) => color(d.type))
                 .attr("stroke", "#fff")
                 .attr("stroke-width", 1.5);
@@ -333,7 +350,7 @@ const StaffingVisualizationPage: React.FC = () => {
             d3.select(".d3-tooltip").remove();
         };
 
-    }, [chartDataString, view]);
+    }, [chartDataString, view, theme.visualizationSettings]);
 
     const handleExportSVG = () => {
         if (!svgRef.current) return;

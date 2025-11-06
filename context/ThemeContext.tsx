@@ -26,6 +26,20 @@ export type Theme = {
     toastSuccessForeground: string;
     toastErrorBackground: string;
     toastErrorForeground: string;
+    // Visualization Settings
+    visualizationSettings: {
+        sankey: {
+            nodeWidth: number;
+            nodePadding: number;
+            linkOpacity: number;
+        };
+        network: {
+            chargeStrength: number;
+            linkDistance: number;
+            centerStrength: number;
+            nodeRadius: number;
+        };
+    }
 };
 
 interface ThemeContextType {
@@ -66,6 +80,21 @@ export const defaultTheme: Theme = {
     toastSuccessForeground: '#14532d', // green-900
     toastErrorBackground: 'rgba(254, 226, 226, 0.95)', // red-100 with opacity
     toastErrorForeground: '#7f1d1d', // red-900
+
+    // Visualization Setting Defaults
+    visualizationSettings: {
+        sankey: {
+            nodeWidth: 20,
+            nodePadding: 10,
+            linkOpacity: 0.5,
+        },
+        network: {
+            chargeStrength: -400,
+            linkDistance: 200,
+            centerStrength: 0.05,
+            nodeRadius: 15,
+        },
+    }
 };
 
 // --- Context ---
@@ -93,9 +122,10 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     useEffect(() => {
         const root = document.documentElement;
         Object.entries(theme).forEach(([key, value]) => {
-            if (key.startsWith('toast')) return; // Toast settings are not CSS variables
+            if (key.startsWith('toast') || key === 'visualizationSettings') return;
             const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-            root.style.setProperty(cssVarName, value);
+            // FIX: Cast value to string. The `if` condition above ensures `value` is not an object.
+            root.style.setProperty(cssVarName, value as string);
         });
     }, [theme]);
     

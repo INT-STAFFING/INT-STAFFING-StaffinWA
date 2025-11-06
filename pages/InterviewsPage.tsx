@@ -79,11 +79,12 @@ const InterviewsPage: React.FC = () => {
         return interviews.map(i => {
                 const request = resourceRequests.find(rr => rr.id === i.resourceRequestId);
                 const project = projects.find(p => p.id === request?.projectId);
+                const requestRole = roles.find(r => r.id === request?.roleId);
                 const role = roles.find(r => r.id === i.roleId);
                 const interviewers = resources.filter(r => i.interviewersIds?.includes(r.id!));
                 return {
                     ...i,
-                    resourceRequestLabel: request ? `${project?.name} - ${roles.find(r => r.id === request.roleId)?.name}` : null,
+                    resourceRequestLabel: request ? `${request.requestCode} - ${project?.name} - ${requestRole?.name}` : null,
                     roleName: role?.name || null,
                     interviewersNames: interviewers.map(r => r.name),
                     age: calculateAge(i.birthDate),
@@ -135,16 +136,40 @@ const InterviewsPage: React.FC = () => {
 
         return { activeCandidates, standByCandidates, positiveFeedback, positiveOnHoldFeedback, upcomingHires };
     }, [enrichedData]);
+
+    const pipelineData = useMemo(() => {
+        const activeRequests = resourceRequests.filter(req => req.status === 'ATTIVA');
+        
+        return activeRequests.map(req => {
+            const linkedInterviews = enrichedData.filter(i => i.resourceRequestId === req.id);
+            const project = projects.find(p => p.id === req.projectId);
+            const role = roles.find(r => r.id === req.roleId);
+            return {
+                request: req,
+                projectName: project?.name || 'N/A',
+                roleName: role?.name || 'N/A',
+                interviewCount: linkedInterviews.length,
+                candidates: linkedInterviews.map(i => `${i.candidateName} ${i.candidateSurname}`),
+            };
+        }).sort((a,b) => {
+            if (a.interviewCount === 0 && b.interviewCount > 0) return -1;
+            if (a.interviewCount > 0 && b.interviewCount === 0) return 1;
+            return a.projectName.localeCompare(b.projectName);
+        });
+    }, [resourceRequests, enrichedData, projects, roles]);
+
     
     // Options for selects
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.map(h => ({ value: h.value, label: h.value })), [horizontals]);
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
-    const requestOptions = useMemo(() => resourceRequests.map(rr => {
-        const project = projects.find(p => p.id === rr.projectId);
-        const role = roles.find(r => r.id === rr.roleId);
-        return { value: rr.id!, label: `${project?.name} - ${role?.name}` };
-    }), [resourceRequests, projects, roles]);
+    const requestOptions = useMemo(() => resourceRequests
+        .filter(rr => rr.status === 'ATTIVA')
+        .map(rr => {
+            const project = projects.find(p => p.id === rr.projectId);
+            const role = roles.find(r => r.id === rr.roleId);
+            return { value: rr.id!, label: `${rr.requestCode} - ${project?.name} - ${role?.name}` };
+        }), [resourceRequests, projects, roles]);
 
     const feedbackOptions: {value: InterviewFeedback, label: string}[] = [{value: 'Positivo', label: 'Positivo'}, {value: 'Positivo On Hold', label: 'Positivo On Hold'}, {value: 'Negativo', label: 'Negativo'}];
     const hiringStatusOptions: {value: InterviewHiringStatus, label: string}[] = [{value: 'SI', label: 'Sì'}, {value: 'NO', label: 'No'}, {value: 'No Rifiutato', label: 'No (Rifiutato)'}, {value: 'In Fase di Offerta', label: 'In Fase di Offerta'}];
@@ -250,6 +275,7 @@ const InterviewsPage: React.FC = () => {
             </div>
 
             <div className="text-xs text-muted-foreground mt-auto pt-3 border-t border-border dark:border-dark-border space-y-1">
+                 {interview.resourceRequestLabel && <p>Richiesta: <span className="font-medium text-foreground dark:text-dark-foreground">{interview.resourceRequestLabel}</span></p>}
                 <p>Colloquio del: <span className="font-medium text-foreground dark:text-dark-foreground">{formatDate(interview.interviewDate)}</span></p>
                 <p>Intervistatori: <span className="font-medium text-foreground dark:text-dark-foreground">{interview.interviewersNames.join(', ') || 'N/A'}</span></p>
                 {interview.hiringStatus === 'SI' && <p>Ingresso previsto: <span className="font-medium text-foreground dark:text-dark-foreground">{formatDate(interview.entryDate)}</span></p>}
@@ -314,6 +340,35 @@ const InterviewsPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mb-6">
+                    <h2 className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-4">Pipeline per Richiesta Attiva</h2>
+                    <div className="overflow-x-auto max-h-60">
+                        <table className="min-w-full text-sm">
+                            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">Richiesta</th>
+                                    <th className="px-4 py-2 text-center font-medium text-muted-foreground">N. Colloqui</th>
+                                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">Candidati in Pipeline</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border dark:divide-dark-border">
+                                {pipelineData.map(({ request, projectName, roleName, interviewCount, candidates }) => (
+                                    <tr key={request.id} className={interviewCount === 0 ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                                        <td className="px-4 py-2">
+                                            <div className="font-semibold">{projectName} - {roleName}</div>
+                                            <div className="text-xs text-muted-foreground font-mono">{request.requestCode}</div>
+                                        </td>
+                                        <td className="px-4 py-2 text-center font-semibold">{interviewCount}</td>
+                                        <td className="px-4 py-2 text-xs text-muted-foreground">{candidates.join(', ') || <span className="italic">Nessun candidato</span>}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+
                  <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
                      <div className="flex items-center gap-4 w-full md:w-auto">
@@ -400,7 +455,17 @@ const InterviewsPage: React.FC = () => {
                             <div><label className="block text-sm font-medium mb-1">Cognome Candidato *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
                         </div>
                         <div><label className="block text-sm font-medium mb-1">Data di Nascita</label><input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input"/></div>
-                        <div><label className="block text-sm font-medium mb-1">Richiesta di Riferimento (Opzionale)</label><SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Nessuna"/></div>
+                        
+                        <div><label className="block text-sm font-medium mb-1">Collega a Richiesta Risorsa</label>
+                            <SearchableSelect 
+                                name="resourceRequestId" 
+                                value={editingInterview.resourceRequestId || ''} 
+                                onChange={handleSelectChange} 
+                                options={requestOptions} 
+                                placeholder="Nessuna (Opzionale)"
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div><label className="block text-sm font-medium mb-1">Horizontal</label><SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona..."/></div>
                             <div><label className="block text-sm font-medium mb-1">Ruolo Proposto</label><SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona..."/></div>
