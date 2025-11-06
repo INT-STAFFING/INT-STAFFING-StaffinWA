@@ -87,7 +87,7 @@ const ProjectCostsReport: React.FC = () => {
                         for (const dateStr in assignmentAllocations) {
                              if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
                              const allocDate = new Date(dateStr);
-                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 personDays += dayFraction;
                                 allocatedCost += dayFraction * dailyRate;
@@ -261,7 +261,7 @@ const ResourceUtilizationReport: React.FC = () => {
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
-                            if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 allocatedDays += dayFraction;
                                 allocatedCost += dayFraction * (role?.dailyCost || 0);

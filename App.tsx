@@ -135,10 +135,10 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     }
     
     return (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col w-full max-w-full">
             <Header onToggleSidebar={onToggleSidebar} />
-            <main className="flex-1 overflow-y-auto bg-muted dark:bg-dark-background">
-                <div className="container mx-auto px-4 sm:px-6 py-8">
+            <main className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
+                <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />
@@ -200,7 +200,7 @@ const MainLayout: React.FC = () => {
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}
-            <div className="flex min-h-screen bg-background dark:bg-dark-background">
+            <div className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-background dark:bg-dark-background">
                 <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
             </div>
