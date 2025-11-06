@@ -1,3 +1,4 @@
+
 /**
  * @file AdminSettingsPage.tsx
  * @description Pagina per la gestione delle impostazioni riservate agli amministratori.
@@ -5,6 +6,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme, Theme, defaultTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext';
+import {
+  DashboardCardId,
+  DASHBOARD_CARDS_CONFIG,
+  DEFAULT_DASHBOARD_CARD_ORDER,
+  DASHBOARD_CARD_ORDER_STORAGE_KEY,
+} from '../config/dashboardLayout';
 
 const colorLabels: { [key in keyof Theme]: string } = {
     primary: 'Primary Action',
@@ -53,7 +61,8 @@ const ThemeEditor: React.FC = () => {
     };
     
     // FIX: Narrow the type of `themeKeysToEdit` to correctly reflect the filtered keys.
-    const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast') && key !== 'visualizationSettings') as Exclude<keyof Theme, 'visualizationSettings'>[];
+    const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast') && key !== 'visualizationSettings') as Exclude<keyof Theme, 'toastPosition' | 'toastSuccessBackground' | 'toastSuccessForeground' | 'toastErrorBackground' | 'toastErrorForeground' | 'visualizationSettings'>[];
+
 
     const isThemeChanged = JSON.stringify(theme) !== JSON.stringify(editedTheme);
     const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
@@ -310,6 +319,63 @@ const VisualizationEditor: React.FC = () => {
     );
 };
 
+const DashboardLayoutEditor: React.FC = () => {
+    const { addToast } = useToast();
+    const [cardOrder, setCardOrder] = useState<DashboardCardId[]>([]);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    useEffect(() => {
+        try {
+            const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
+            const savedOrder = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
+            setCardOrder(savedOrder);
+        } catch (error) {
+            setCardOrder(DEFAULT_DASHBOARD_CARD_ORDER);
+        }
+    }, []);
+
+    const moveCard = (index: number, direction: 'up' | 'down') => {
+        const newOrder = [...cardOrder];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
+        setCardOrder(newOrder);
+        setHasChanges(true);
+    };
+
+    const handleSave = () => {
+        localStorage.setItem(DASHBOARD_CARD_ORDER_STORAGE_KEY, JSON.stringify(cardOrder));
+        setHasChanges(false);
+        addToast('Ordine della dashboard salvato.', 'success');
+    };
+
+    const handleReset = () => {
+        setCardOrder(DEFAULT_DASHBOARD_CARD_ORDER);
+        setHasChanges(true);
+    };
+    
+    const cardLabels = new Map(DASHBOARD_CARDS_CONFIG.map(c => [c.id, c.label]));
+
+    return (
+        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-6">Ordinamento Card Dashboard</h2>
+            <div className="space-y-2 max-w-2xl mx-auto">
+                {cardOrder.map((cardId, index) => (
+                    <div key={cardId} className="flex items-center justify-between p-3 border border-border dark:border-dark-border rounded-md bg-muted/50 dark:bg-dark-muted/50">
+                        <span className="font-medium text-foreground dark:text-dark-foreground">{cardLabels.get(cardId) || cardId}</span>
+                        <div className="space-x-2">
+                            <button onClick={() => moveCard(index, 'up')} disabled={index === 0} className="px-2 py-1 rounded-md hover:bg-border dark:hover:bg-dark-border disabled:opacity-30">↑</button>
+                            <button onClick={() => moveCard(index, 'down')} disabled={index === cardOrder.length - 1} className="px-2 py-1 rounded-md hover:bg-border dark:hover:bg-dark-border disabled:opacity-30">↓</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <div className="mt-8 flex justify-end space-x-3">
+                <button onClick={handleReset} className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted">Ripristina Ordine Default</button>
+                <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50">Salva Ordine</button>
+            </div>
+        </div>
+    );
+};
 
 const AdminSettingsPage: React.FC = () => {
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
@@ -350,6 +416,7 @@ const AdminSettingsPage: React.FC = () => {
                 </div>
             </div>
             
+            <DashboardLayoutEditor />
             <ToastEditor />
             <VisualizationEditor />
             <ThemeEditor />
