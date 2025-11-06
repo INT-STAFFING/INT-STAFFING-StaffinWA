@@ -156,16 +156,63 @@ const ProjectCostsReport: React.FC = () => {
                     </button>
                  </div>
             </div>
-             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700"><tr><SortableHeader label="Progetto" sortKey="projectName" /><SortableHeader label="Cliente" sortKey="clientName" /><SortableHeader label="Budget" sortKey="budget" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /><SortableHeader label="Varianza" sortKey="variance" /><SortableHeader label="G/U Allocati" sortKey="personDays" /><SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" /></tr></thead>
+             <div
+                className="
+                    max-h-[640px]    // ~20 righe se h-8 ≈ 32px */
+                    overflow-y-auto  // scroll verticale interno */
+                    overflow-x-auto  // scroll orizzontale quando serve */
+                "
+            >
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
+                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <SortableHeader label="Progetto" sortKey="projectName" />
+                            <SortableHeader label="Cliente" sortKey="clientName" />
+                            <SortableHeader label="Budget" sortKey="budget" />
+                            <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
+                            <SortableHeader label="Varianza" sortKey="variance" />
+                            <SortableHeader label="G/U Allocati" sortKey="personDays" />
+                            <SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" />
+                        </tr>
+                    </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {sortedData.map(d => (
-                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{d.projectName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{d.clientName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.budget)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(d.variance)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.personDays.toFixed(2)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.avgCostPerDay)}</td></tr>
+                            <tr
+                                key={d.id}
+                                className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                            >
+                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    {d.projectName}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    {d.clientName}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    {formatCurrency(d.budget)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    {formatCurrency(d.allocatedCost)}
+                                </td>
+                                <td
+                                    className={`
+                                        px-4 py-3 whitespace-nowrap text-sm font-semibold
+                                        ${d.variance >= 0 ? 'text-green-600' : 'text-red-600'}
+                                    `}
+                                >
+                                    {formatCurrency(d.variance)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    {d.personDays.toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    {formatCurrency(d.avgCostPerDay)}
+                                </td>
+                            </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
         </div>
     );
 };
@@ -267,16 +314,65 @@ const ResourceUtilizationReport: React.FC = () => {
                     </button>
                 </div>
             </div>
-             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700"><tr><SortableHeader label="Risorsa" sortKey="resourceName" /><SortableHeader label="Ruolo" sortKey="roleName" /><SortableHeader label="G/U Disponibili" sortKey="availableDays" /><SortableHeader label="G/U Allocati" sortKey="allocatedDays" /><SortableHeader label="Utilizzo" sortKey="utilization" /><SortableHeader label="Costo Allocato" sortKey="allocatedCost" /></tr></thead>
+             <div
+                className="
+                    max-h-[640px]    // ~20 righe */
+                    overflow-y-auto  // scroll verticale interno */
+                    overflow-x-auto  // scroll orizzontale quando serve */
+                "
+            >
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
+                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <SortableHeader label="Risorsa" sortKey="resourceName" />
+                            <SortableHeader label="Ruolo" sortKey="roleName" />
+                            <SortableHeader label="G/U Disponibili" sortKey="availableDays" />
+                            <SortableHeader label="G/U Allocati" sortKey="allocatedDays" />
+                            <SortableHeader label="Utilizzo" sortKey="utilization" />
+                            <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
+                        </tr>
+                    </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                         {sortedData.map(d => (
-                        <tr key={d.id}><td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{d.resourceName}</td><td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{d.roleName}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.availableDays.toFixed(1)}</td><td className="px-4 py-3 whitespace-nowrap text-sm">{d.allocatedDays.toFixed(2)}</td><td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.utilization > 100 ? 'text-red-600' : d.utilization >= 90 ? 'text-yellow-600' : 'text-green-600'}`}>{d.utilization.toFixed(1)}%</td><td className="px-4 py-3 whitespace-nowrap text-sm">{formatCurrency(d.allocatedCost)}</td></tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        {sortedData.map(d => (
+                            <tr
+                                key={d.id}
+                                className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                            >
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {d.resourceName}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {d.roleName}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {d.availableDays.toFixed(1)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {d.allocatedDays.toFixed(2)}
+                    </td>
+                    <td
+                        className={`
+                            px-4 py-3 whitespace-nowrap text-sm font-semibold
+                            ${
+                                d.utilization > 100
+                                    ? 'text-red-600'
+                                    : d.utilization >= 90
+                                    ? 'text-yellow-600'
+                                    : 'text-green-600'
+                            }
+                        `}
+                    >
+                        {d.utilization.toFixed(1)}%
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        {formatCurrency(d.allocatedCost)}
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+    </table>
+</div>
+
         </div>
     );
 };

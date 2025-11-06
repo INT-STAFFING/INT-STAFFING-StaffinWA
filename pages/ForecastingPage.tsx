@@ -182,39 +182,82 @@ const ForecastingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tabella Dettagliata */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Mese</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">G/U Disponibili</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">G/U Allocati</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Utilizzo</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Surplus/Deficit (G/U)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {forecastData.map((data, index) => (
-                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{data.monthName}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">{data.availablePersonDays.toFixed(0)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">{data.allocatedPersonDays.toFixed(1)}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
-                                    <span className={data.utilization > 100 ? 'text-red-600 dark:text-red-400' : data.utilization > 90 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}>
-                                        {data.utilization.toFixed(1)}%
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
-                                     <span className={data.surplusDeficit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                                        {data.surplusDeficit.toFixed(1)}
-                                    </span>
-                                </td>
+            
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+              
+                <div
+                    className="
+                        max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8) */
+                        overflow-y-auto  // scroll verticale SOLO sulle righe */
+                        overflow-x-auto  // scroll orizzontale quando necessario */
+                    "
+                >
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
+                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Mese
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    G/U Disponibili
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    G/U Allocati
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Utilizzo
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    Surplus/Deficit (G/U)
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {forecastData.map((data, index) => (
+                                <tr
+                                    key={index}
+                                    className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                >
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                        {data.monthName}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">
+                                        {data.availablePersonDays.toFixed(0)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">
+                                        {data.allocatedPersonDays.toFixed(1)}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
+                                        <span
+                                            className={
+                                                data.utilization > 100
+                                                    ? 'text-red-600 dark:text-red-400'
+                                                    : data.utilization > 90
+                                                    ? 'text-yellow-600 dark:text-yellow-400'
+                                                    : 'text-green-600 dark:text-green-400'
+                                            }
+                                        >
+                                            {data.utilization.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
+                                        <span
+                                            className={
+                                                data.surplusDeficit >= 0
+                                                    ? 'text-green-600 dark:text-green-400'
+                                                    : 'text-red-600 dark:text-red-400'
+                                            }
+                                        >
+                                            {data.surplusDeficit.toFixed(1)}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
              <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );

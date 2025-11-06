@@ -324,23 +324,40 @@ export const ResourceRequestPage: React.FC = () => {
             </div>
 
             {view === 'table' ? (
-                <DataTable<EnrichedRequest>
-                    // Pass props to a simplified DataTable that doesn't render its own headers/buttons
-                    title=""
-                    addNewButtonLabel=""
-                    data={dataForTable}
-                    columns={columns}
-                    filtersNode={<></>}
-                    onAddNew={() => {}}
-                    renderRow={renderRow}
-                    renderMobileCard={renderCard} // Use the horizontal card for mobile view
-                    initialSortKey="startDate"
-                />
+                <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+                   
+                    <div
+                        className="
+                            max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8)
+                            overflow-y-auto  // scroll verticale SOLO sul contenuto della tabella
+                            overflow-x-auto  // scroll orizzontale quando necessario
+                        "
+                    >
+                        <DataTable<EnrichedRequest>
+                            title=""
+                            addNewButtonLabel=""
+                            data={dataForTable}
+                            columns={columns}
+                            filtersNode={<></>}
+                            onAddNew={() => {}}
+                            renderRow={renderRow}
+                            renderMobileCard={renderCard}
+                            initialSortKey="startDate"
+                        />
+                    </div>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-                    {dataForTable.length > 0 ? dataForTable.map(renderCard) : <p className="col-span-full text-center py-8 text-muted-foreground">Nessuna richiesta trovata.</p>}
+                    {dataForTable.length > 0 ? (
+                        dataForTable.map(renderCard)
+                    ) : (
+                        <p className="col-span-full text-center py-8 text-muted-foreground">
+                            Nessuna richiesta trovata.
+                        </p>
+                    )}
                 </div>
             )}
+
 
 
             {editingRequest && (
