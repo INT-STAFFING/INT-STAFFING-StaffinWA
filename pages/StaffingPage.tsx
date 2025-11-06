@@ -542,129 +542,130 @@ const StaffingPage: React.FC = () => {
   }, [projects]);
 
   return (
-    // Pagina "normale": niente h-full / flex-1
-    <div className="flex flex-col w-full max-w-full"> 
-      {/* Controlli + Filtri */}
-      <div>
-        {/* Barra controlli tempo */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
-          <div className="flex items-center justify-center space-x-2">
-            <button
-              onClick={handlePrev}
-              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
-            >
-              ← Prec.
-            </button>
-            <button
-              onClick={handleToday}
-              className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600"
-            >
-              Oggi
-            </button>
-            <button
-              onClick={handleNext}
-              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
-            >
-              Succ. →
-            </button>
-          </div>
-
-          <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-            {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
-              <button
-                key={level}
-                onClick={() => setViewMode(level)}
-                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
-                  viewMode === level
-                    ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow'
-                    : 'text-gray-600 dark:text-gray-300'
-                }`}
-              >
-                {level === 'day'
-                  ? 'Giorno'
-                  : level === 'week'
-                  ? 'Settimana'
-                  : 'Mese'}
-              </button>
-            ))}
-          </div>
-
+  // Wrapper pagina: prende tutta la larghezza disponibile
+  // e BLOCCA l’overflow orizzontale della pagina
+  <div className="flex flex-col w-full max-w-full overflow-x-hidden">
+    {/* Controlli + Filtri */}
+    <div>
+      {/* Barra controlli tempo */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+        <div className="flex items-center justify-center space-x-2">
           <button
-            onClick={() => openNewAssignmentModal()}
-            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
+            onClick={handlePrev}
+            className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
           >
-            <span className="mr-2 text-xl">➕</span>
-            Assegna Risorsa
+            ← Prec.
+          </button>
+          <button
+            onClick={handleToday}
+            className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600"
+          >
+            Oggi
+          </button>
+          <button
+            onClick={handleNext}
+            className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+          >
+            Succ. →
           </button>
         </div>
 
-        {/* Filtri */}
-        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Risorsa
-              </label>
-              <SearchableSelect
-                name="resourceId"
-                value={filters.resourceId}
-                onChange={handleFilterChange}
-                options={resourceOptions}
-                placeholder="Tutte le Risorse"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Cliente
-              </label>
-              <SearchableSelect
-                name="clientId"
-                value={filters.clientId}
-                onChange={handleFilterChange}
-                options={clientOptions}
-                placeholder="Tutti i Clienti"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Project Manager
-              </label>
-              <SearchableSelect
-                name="projectManager"
-                value={filters.projectManager}
-                onChange={handleFilterChange}
-                options={projectManagerOptions}
-                placeholder="Tutti i PM"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Progetto
-              </label>
-              <SearchableSelect
-                name="projectId"
-                value={filters.projectId}
-                onChange={handleFilterChange}
-                options={projectOptions}
-                placeholder="Tutti i Progetti"
-              />
-            </div>
+        <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+          {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
             <button
-              onClick={clearFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+              key={level}
+              onClick={() => setViewMode(level)}
+              className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
+                viewMode === level
+                  ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow'
+                  : 'text-gray-600 dark:text-gray-300'
+              }`}
             >
-              Reset Filtri
+              {level === 'day'
+                ? 'Giorno'
+                : level === 'week'
+                ? 'Settimana'
+                : 'Mese'}
             </button>
-          </div>
+          ))}
         </div>
+
+        <button
+          onClick={() => openNewAssignmentModal()}
+          className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
+        >
+          <span className="mr-2 text-xl">➕</span>
+          Assegna Risorsa
+        </button>
       </div>
 
+      {/* Filtri */}
+      <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Risorsa
+            </label>
+            <SearchableSelect
+              name="resourceId"
+              value={filters.resourceId}
+              onChange={handleFilterChange}
+              options={resourceOptions}
+              placeholder="Tutte le Risorse"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Cliente
+            </label>
+            <SearchableSelect
+              name="clientId"
+              value={filters.clientId}
+              onChange={handleFilterChange}
+              options={clientOptions}
+              placeholder="Tutti i Clienti"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Project Manager
+            </label>
+            <SearchableSelect
+              name="projectManager"
+              value={filters.projectManager}
+              onChange={handleFilterChange}
+              options={projectManagerOptions}
+              placeholder="Tutti i PM"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Progetto
+            </label>
+            <SearchableSelect
+              name="projectId"
+              value={filters.projectId}
+              onChange={handleFilterChange}
+              options={projectOptions}
+              placeholder="Tutti i Progetti"
+            />
+          </div>
+          <button
+            onClick={clearFilters}
+            className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+          >
+            Reset Filtri
+          </button>
+        </div>
+      </div>
+    </div>
+
       {/* TABELLA in contenitore scrollabile interno */}
-      <div
-        ref={scrollContainerRef}
-        className="overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow"
-      >
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+       <div
+      ref={scrollContainerRef}
+      className="w-full overflow-y-auto overflow-x-scroll max-h-[680px] bg-white dark:bg-gray-800 rounded-lg shadow"
+    >
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
             <tr>
               <th
