@@ -389,7 +389,7 @@ const InterviewsPage: React.FC = () => {
 
             {view === 'table' ? (
     <div className="bg-card dark:bg-dark-card rounded-lg shadow">
-        {/* Contenitore scrollabile della tabella */}
+        {/* 20 righe se la riga è h-8 , scroll verticale SOLO sulle righe , scroll orizzontale quando necessario */}
         <div
             className="
                 max-h-[640px]    
@@ -397,9 +397,7 @@ const InterviewsPage: React.FC = () => {
                 overflow-x-auto  
             "
         >
-            // ≈ 20 righe se la riga è h-8 
-            // scroll verticale SOLO sulle righe 
-            // scroll orizzontale quando necessario
+           
             <table className="min-w-full table-fixed">
                 <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
                     <tr>
