@@ -321,9 +321,8 @@ const DashboardPage: React.FC = () => {
     const trendChartRef = useRef<SVGSVGElement>(null);
     const costForecastChartRef = useRef<SVGSVGElement>(null);
 
-    // --- Calcoli per le Card (invariati) ---
-    // (Omitted for brevity, the logic is identical to the original file)
     const activeResources = useMemo(() => resources.filter(r => !r.resigned), [resources]);
+
     const overallKPIs = useMemo(() => {
         const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
@@ -354,7 +353,7 @@ const DashboardPage: React.FC = () => {
             const assignmentAllocations = allocations[assignment.id!];
             if (assignmentAllocations) {
                 for (const dateStr in assignmentAllocations) {
-                    const allocDate = new Date(dateStr);
+                    const allocDate = parseISODate(dateStr);
                     if (allocDate >= firstDay && allocDate <= lastDay) {
                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                             const personDayFraction = (assignmentAllocations[dateStr] / 100);
@@ -372,18 +371,269 @@ const DashboardPage: React.FC = () => {
         return { totalCost, totalPersonDays, clientCostArray: Object.values(costByClient).filter(c => c.cost > 0) };
     }, [assignments, resources, roles, projects, allocations, companyCalendar, clients]);
 
-    const averageAllocationData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const fteData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const budgetAnalysisData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const underutilizedResourcesData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const effortByHorizontalData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const analysisByLocationData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const saturationTrendData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    const monthlyCostForecastData = useMemo(() => {/* ... logic ... */ return [];}, [/* dependencies */]);
-    
-    // ... all other calculation useMemos ...
+    const averageAllocationData = useMemo(() => {
+        const filteredResources = avgAllocFilter.resourceId
+            ? activeResources.filter(r => r.id === avgAllocFilter.resourceId)
+            : activeResources;
 
-    // Sorting hooks and totals (unchanged)
+        return filteredResources.map(resource => {
+            const calculateAvgForMonth = (monthOffset: number) => {
+                const now = new Date();
+                const firstDay = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+                const lastDay = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0);
+                const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                if (workingDays === 0) return 0;
+                
+                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                let totalPersonDays = 0;
+                resourceAssignments.forEach(assignment => {
+                    const assignmentAllocations = allocations[assignment.id!];
+                    if(assignmentAllocations){
+                        for(const dateStr in assignmentAllocations){
+                            const allocDate = parseISODate(dateStr);
+                            if(allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6){
+                                totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
+                    }
+                });
+                return (totalPersonDays / workingDays) * 100;
+            };
+
+            return {
+                resource,
+                currentMonth: calculateAvgForMonth(0),
+                nextMonth: calculateAvgForMonth(1),
+            };
+        });
+    }, [activeResources, assignments, allocations, companyCalendar, avgAllocFilter]);
+    
+    const fteData = useMemo(() => {
+        const filteredProjects = fteFilter.clientId
+            ? projects.filter(p => p.clientId === fteFilter.clientId)
+            : projects;
+
+        return filteredProjects.map(project => {
+            if (!project.startDate || !project.endDate) return { ...project, totalPersonDays: 0, fte: 0 };
+            
+            const firstDay = parseISODate(project.startDate);
+            const lastDay = parseISODate(project.endDate);
+            const totalWorkingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, null);
+            if (totalWorkingDays === 0) return { ...project, totalPersonDays: 0, fte: 0 };
+
+            const projectAssignments = assignments.filter(a => a.projectId === project.id);
+            let totalPersonDays = 0;
+            projectAssignments.forEach(assignment => {
+                const resource = resources.find(r => r.id === assignment.resourceId);
+                if(!resource) return;
+
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = parseISODate(dateStr);
+                        if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                        }
+                    }
+                }
+            });
+
+            return { ...project, totalPersonDays, fte: totalPersonDays / totalWorkingDays };
+        }).filter(p => p.totalPersonDays > 0);
+    }, [projects, assignments, allocations, companyCalendar, resources, fteFilter]);
+    
+    const budgetAnalysisData = useMemo(() => {
+        const filteredProjects = budgetFilter.clientId
+            ? projects.filter(p => p.clientId === budgetFilter.clientId)
+            : projects;
+
+        return filteredProjects.map(project => {
+            const projectAssignments = assignments.filter(a => a.projectId === project.id);
+            let estimatedCost = 0;
+            projectAssignments.forEach(assignment => {
+                const resource = resources.find(r => r.id === assignment.resourceId);
+                if (!resource) return;
+                const role = roles.find(ro => ro.id === resource.roleId);
+                const dailyRate = role?.dailyCost || 0;
+                
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                         if (!isHoliday(parseISODate(dateStr), resource.location, companyCalendar) && parseISODate(dateStr).getDay() !== 0 && parseISODate(dateStr).getDay() !== 6) {
+                            estimatedCost += ((assignmentAllocations[dateStr] / 100) * dailyRate);
+                        }
+                    }
+                }
+            });
+            const budget = Number(project.budget || 0);
+            estimatedCost = estimatedCost * (project.realizationPercentage / 100);
+            return { ...project, budget, estimatedCost, variance: budget - estimatedCost };
+        });
+    }, [projects, assignments, allocations, resources, roles, companyCalendar, budgetFilter]);
+    
+    const underutilizedResourcesData = useMemo(() => {
+        const [year, monthNum] = underutilizedFilter.split('-').map(Number);
+        const firstDay = new Date(year, monthNum - 1, 1);
+        const lastDay = new Date(year, monthNum, 0);
+
+        return activeResources.map(resource => {
+            const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+            if (workingDays === 0) return { resource, avgAllocation: 0 };
+            
+            const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+            let totalPersonDays = 0;
+            resourceAssignments.forEach(assignment => {
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = parseISODate(dateStr);
+                        if(allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6){
+                           totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                        }
+                    }
+                }
+            });
+            return { resource, avgAllocation: (totalPersonDays / workingDays) * 100 };
+        }).filter(d => d.avgAllocation < 100);
+    }, [activeResources, assignments, allocations, companyCalendar, underutilizedFilter]);
+
+    const effortByHorizontalData = useMemo(() => {
+        const data: {[key: string]: number} = {};
+        horizontals.forEach(h => data[h.value] = 0);
+
+        assignments.forEach(assignment => {
+            const resource = resources.find(r => r.id === assignment.resourceId);
+            if(!resource || !resource.horizontal || !data.hasOwnProperty(resource.horizontal)) return;
+
+            const assignmentAllocations = allocations[assignment.id!];
+            if(assignmentAllocations) {
+                for(const dateStr in assignmentAllocations) {
+                    const allocDate = parseISODate(dateStr);
+                     if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                        data[resource.horizontal] += (assignmentAllocations[dateStr] / 100);
+                    }
+                }
+            }
+        });
+        return Object.entries(data).map(([name, totalPersonDays]) => ({ name, totalPersonDays }));
+    }, [horizontals, resources, assignments, allocations, companyCalendar]);
+
+    const analysisByLocationData = useMemo(() => {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        return locations.map(location => {
+            const resourcesInLocation = activeResources.filter(r => r.location === location.value);
+            const resourceCount = resourcesInLocation.length;
+            
+            let allocatedDays = 0;
+            let availableDays = 0;
+
+            resourcesInLocation.forEach(resource => {
+                availableDays += getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                resourceAssignments.forEach(assignment => {
+                    const assignmentAllocations = allocations[assignment.id!];
+                    if (assignmentAllocations) {
+                        for (const dateStr in assignmentAllocations) {
+                            const allocDate = parseISODate(dateStr);
+                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                                allocatedDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
+                    }
+                });
+            });
+
+            return {
+                name: location.value,
+                resourceCount,
+                allocatedDays,
+                avgUtilization: availableDays > 0 ? (allocatedDays / availableDays) * 100 : 0,
+            };
+        });
+    }, [locations, activeResources, assignments, allocations, companyCalendar]);
+    
+    const saturationTrendData = useMemo(() => {
+        if (!trendResource) return [];
+        const resource = resources.find(r => r.id === trendResource);
+        if (!resource) return [];
+
+        const data = [];
+        const today = new Date();
+        for (let i = -6; i <= 3; i++) {
+            const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+            const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+            let totalPersonDays = 0;
+            
+            if (workingDays > 0) {
+                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                resourceAssignments.forEach(assignment => {
+                    const assignmentAllocations = allocations[assignment.id!];
+                    if (assignmentAllocations) {
+                        for (const dateStr in assignmentAllocations) {
+                            const allocDate = parseISODate(dateStr);
+                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                                totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                            }
+                        }
+                    }
+                });
+            }
+            data.push({ month: date, value: workingDays > 0 ? (totalPersonDays / workingDays) * 100 : 0 });
+        }
+        return data;
+    }, [trendResource, resources, assignments, allocations, companyCalendar]);
+    
+     const monthlyCostForecastData = useMemo(() => {
+        const calculateCostForMonth = (monthOffset: number): number => {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0);
+            let totalCost = 0;
+            
+            for (const assignment of assignments) {
+                const resource = activeResources.find(r => r.id === assignment.resourceId);
+                if (!resource) continue;
+                const role = roles.find(ro => ro.id === resource.roleId);
+                const dailyRate = role?.dailyCost || 0;
+                const project = projects.find(p => p.id === assignment.projectId);
+                const realization = (project?.realizationPercentage ?? 100) / 100;
+                
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = parseISODate(dateStr);
+                        if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            totalCost += ((assignmentAllocations[dateStr] / 100) * dailyRate * realization);
+                        }
+                    }
+                }
+            }
+            return totalCost;
+        };
+
+        const historicCosts = Array.from({ length: 6 }, (_, i) => calculateCostForMonth(-6 + i));
+        const avgHistoricCost = historicCosts.reduce((a, b) => a + b, 0) / 6;
+
+        const forecastData = [];
+        for (let i = 0; i <= 3; i++) {
+            const date = new Date(new Date().getFullYear(), new Date().getMonth() + i, 1);
+            forecastData.push({
+                month: date,
+                historic: avgHistoricCost,
+                forecast: calculateCostForMonth(i),
+            });
+        }
+        return forecastData;
+
+    }, [activeResources, assignments, allocations, roles, projects, companyCalendar]);
+
+    // Sorting hooks and totals
     const { items: sortedAvgAllocation, requestSort: requestAvgAllocSort, sortConfig: avgAllocSortConfig } = useSortableData(averageAllocationData, { key: 'resource.name', direction: 'ascending' });
     const { items: sortedFte, requestSort: requestFteSort, sortConfig: fteSortConfig } = useSortableData(fteData as any[], { key: 'name', direction: 'ascending' });
     const { items: sortedBudget, requestSort: requestBudgetSort, sortConfig: budgetSortConfig } = useSortableData(budgetAnalysisData, { key: 'name', direction: 'ascending' });
@@ -392,17 +642,85 @@ const DashboardPage: React.FC = () => {
     const { items: sortedEffortByHorizontal, requestSort: requestEffortHorizontalSort, sortConfig: effortHorizontalSortConfig } = useSortableData(effortByHorizontalData, { key: 'totalPersonDays', direction: 'descending' });
     const { items: sortedLocation, requestSort: requestLocationSort, sortConfig: locationSortConfig } = useSortableData(analysisByLocationData, { key: 'resourceCount', direction: 'descending' });
     
-    const avgAllocationTotals = useMemo(() => ({ currentMonth: 0, nextMonth: 0 }), []);
-    const fteTotals = useMemo(() => ({ totalDays: 0, avgFte: 0 }), []);
-    const budgetTotals = useMemo(() => ({ budget: 0, cost: 0, variance: 0 }), []);
-    const effortByHorizontalTotal = useMemo(() => 0, []);
+    const avgAllocationTotals = useMemo(() => {
+        const totalCurrent = averageAllocationData.reduce((sum, d) => sum + d.currentMonth, 0);
+        const totalNext = averageAllocationData.reduce((sum, d) => sum + d.nextMonth, 0);
+        const count = averageAllocationData.length || 1;
+        return { currentMonth: totalCurrent / count, nextMonth: totalNext / count };
+    }, [averageAllocationData]);
+
+    const fteTotals = useMemo(() => {
+        const totalDays = fteData.reduce((sum, d) => sum + d.totalPersonDays, 0);
+        const avgFte = fteData.reduce((sum, d) => sum + d.fte, 0) / (fteData.length || 1);
+        return { totalDays, avgFte };
+    }, [fteData]);
+
+    const budgetTotals = useMemo(() => {
+        const budget = budgetAnalysisData.reduce((sum, d) => sum + d.budget, 0);
+        const cost = budgetAnalysisData.reduce((sum, d) => sum + d.estimatedCost, 0);
+        return { budget, cost, variance: budget - cost };
+    }, [budgetAnalysisData]);
+
+    const effortByHorizontalTotal = useMemo(() => effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0), [effortByHorizontalData]);
     
     const resourceOptions = useMemo(() => activeResources.map((r) => ({ value: r.id!, label: r.name })), [activeResources]);
     const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
 
-    // Chart useEffects (unchanged)
-    useEffect(() => { /* Trend Chart logic... */ }, [saturationTrendData]);
-    useEffect(() => { /* Cost Forecast Chart logic... */ }, [monthlyCostForecastData]);
+    // Chart useEffects
+    useEffect(() => {
+        if (!trendResource || !trendChartRef.current || saturationTrendData.length === 0) {
+            if (trendChartRef.current) d3.select(trendChartRef.current).selectAll("*").remove();
+            return;
+        }
+
+        const svg = d3.select(trendChartRef.current);
+        svg.selectAll("*").remove();
+        
+        const margin = { top: 20, right: 30, bottom: 30, left: 40 };
+        const width = 800 - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleTime().domain(d3.extent(saturationTrendData, (d: any) => d.month)).range([0, width]);
+        const y = d3.scaleLinear().domain([0, d3.max(saturationTrendData, (d: any) => Math.max(110, d.value))]).range([height, 0]);
+
+        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d3.timeFormat("%b %y")));
+        g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d: number) => `${d}%`));
+
+        g.append("path").datum(saturationTrendData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 2)
+          .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.value)));
+        
+        g.append("line").attr("x1", 0).attr("x2", width).attr("y1", y(100)).attr("y2", y(100)).attr("stroke", "red").attr("stroke-width", 1.5).attr("stroke-dasharray", "4");
+
+    }, [saturationTrendData, trendResource]);
+
+    useEffect(() => {
+        if (!costForecastChartRef.current || monthlyCostForecastData.length === 0) return;
+        
+        const svg = d3.select(costForecastChartRef.current);
+        svg.selectAll("*").remove();
+
+        const margin = { top: 20, right: 50, bottom: 30, left: 60 };
+        const width = 800 - margin.left - margin.right;
+        const height = 300 - margin.top - margin.bottom;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleTime().domain(d3.extent(monthlyCostForecastData, (d: any) => d.month)).range([0, width]);
+        const yMax = d3.max(monthlyCostForecastData, (d: any) => Math.max(d.historic, d.forecast));
+        const y = d3.scaleLinear().domain([0, yMax * 1.1]).range([height, 0]);
+
+        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d3.timeFormat("%b %y")));
+        g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("~s")));
+
+        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", "#6b7280").attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
+            .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.historic)));
+        
+        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 2.5)
+            .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.forecast)));
+
+    }, [monthlyCostForecastData]);
 
     // --- Dynamic Card Rendering Logic ---
 
