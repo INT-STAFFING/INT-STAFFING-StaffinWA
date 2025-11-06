@@ -291,14 +291,14 @@ const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, r
         <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
         <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
     </div>
-    <div className="h-72">{ trendResource ? <svg ref={chartRef}></svg> : <div className="flex items-center justify-center h-full text-gray-500">Seleziona una risorsa per visualizzare il trend.</div> }</div>
+    <div className="h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-gray-500">Seleziona una risorsa per visualizzare il trend.</div> }</div>
   </div>
 );
 
 const CostForecastCard: React.FC<any> = ({ chartRef }) => (
   <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-8">
       <h2 className="text-lg font-semibold mb-4">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
-      <div className="h-72"><svg ref={chartRef}></svg></div>
+      <div className="h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
   </div>
 );
 
@@ -676,16 +676,19 @@ const DashboardPage: React.FC = () => {
         const svg = d3.select(trendChartRef.current);
         svg.selectAll("*").remove();
         
+        const { width: containerWidth, height: containerHeight } = svg.node().getBoundingClientRect();
         const margin = { top: 20, right: 30, bottom: 30, left: 40 };
-        const width = 800 - margin.left - margin.right;
-        const height = 300 - margin.top - margin.bottom;
+        const width = containerWidth - margin.left - margin.right;
+        const height = containerHeight - margin.top - margin.bottom;
+
+        if (width <= 0 || height <= 0) return;
 
         const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
         const x = d3.scaleTime().domain(d3.extent(saturationTrendData, (d: any) => d.month)).range([0, width]);
         const y = d3.scaleLinear().domain([0, d3.max(saturationTrendData, (d: any) => Math.max(110, d.value))]).range([height, 0]);
 
-        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d3.timeFormat("%b %y")));
+        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(Math.min(saturationTrendData.length, Math.floor(width / 80))).tickFormat(d3.timeFormat("%b %y")));
         g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d: number) => `${d}%`));
 
         g.append("path").datum(saturationTrendData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 2)
@@ -701,9 +704,12 @@ const DashboardPage: React.FC = () => {
         const svg = d3.select(costForecastChartRef.current);
         svg.selectAll("*").remove();
 
+        const { width: containerWidth, height: containerHeight } = svg.node().getBoundingClientRect();
         const margin = { top: 20, right: 50, bottom: 30, left: 60 };
-        const width = 800 - margin.left - margin.right;
-        const height = 300 - margin.top - margin.bottom;
+        const width = containerWidth - margin.left - margin.right;
+        const height = containerHeight - margin.top - margin.bottom;
+
+        if (width <= 0 || height <= 0) return;
 
         const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
@@ -711,7 +717,7 @@ const DashboardPage: React.FC = () => {
         const yMax = d3.max(monthlyCostForecastData, (d: any) => Math.max(d.historic, d.forecast));
         const y = d3.scaleLinear().domain([0, yMax * 1.1]).range([height, 0]);
 
-        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(d3.timeMonth.every(1)).tickFormat(d3.timeFormat("%b %y")));
+        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(Math.min(monthlyCostForecastData.length, Math.floor(width / 80))).tickFormat(d3.timeFormat("%b %y")));
         g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("~s")));
 
         g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", "#6b7280").attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
