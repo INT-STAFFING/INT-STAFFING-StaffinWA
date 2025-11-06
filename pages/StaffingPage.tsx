@@ -590,7 +590,7 @@ const StaffingPage: React.FC = () => {
 
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-screen">
             {/* Contenitore fisso per controlli e filtri */}
             <div className="flex-shrink-0">
                 {/* La barra dei controlli è stata resa responsive. Su mobile, gli elementi si impilano verticalmente. */}
@@ -616,7 +616,7 @@ const StaffingPage: React.FC = () => {
                 </div>
 
                 {/* Sezione Filtri con l'aggiunta del filtro per Project Manager. */}
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-29">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
                         <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
@@ -628,7 +628,11 @@ const StaffingPage: React.FC = () => {
             </div>
 
             {/* Griglia di Staffing */}
-            <div ref={scrollContainerRef} className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div
+                ref={scrollContainerRef}
+                className="flex-1 min-h-0 overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow"
+            >
+
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
                         <tr>
