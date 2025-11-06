@@ -305,7 +305,7 @@ const WorkloadPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-full">
+    <div className="flex flex-col w-full max-w-full">
       {/* Controlli + Filtri */}
       <div>
         {/* Barra controlli temporali */}
