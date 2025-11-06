@@ -13,23 +13,12 @@ import { useSearchParams } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-/**
- * @interface DailyTotalCellProps
- * @description Prop per il componente DailyTotalCell.
- */
 interface DailyTotalCellProps {
-  /** @property {Resource} resource - La risorsa per cui calcolare il totale. */
   resource: Resource;
-  /** @property {string} date - La data (YYYY-MM-DD) per cui calcolare il totale. */
   date: string;
-  /** @property {boolean} isNonWorkingDay - Indica se la data corrisponde a un giorno non lavorativo. */
   isNonWorkingDay: boolean;
 }
 
-/**
- * Componente per la cella che mostra il carico totale giornaliero di una risorsa (sola lettura).
- * Cambia colore in base al livello di carico.
- */
 const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({
   resource,
   date,
@@ -57,11 +46,9 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({
     }, 0);
   }, [assignments, allocations, resource.id, date]);
 
-  // Colori in base al carico vs maxStaffingPercentage
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
-    if (total > maxPercentage)
-      return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+    if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
     if (total === maxPercentage)
       return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
     if (total > 0 && total < maxPercentage)
@@ -78,19 +65,12 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({
   );
 };
 
-/**
- * @interface AggregatedWorkloadCellProps
- * @description Prop per la cella di carico aggregato (settimana/mese).
- */
 interface AggregatedWorkloadCellProps {
   resource: Resource;
   startDate: Date;
   endDate: Date;
 }
 
-/**
- * Cella per visualizzare il carico medio aggregato su un periodo (settimana/mese).
- */
 const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
   resource,
   startDate,
@@ -106,12 +86,7 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
         : endDate;
     if (startDate > effectiveEndDate) return 0;
 
-    const workingDays = getWorkingDaysBetween(
-      startDate,
-      effectiveEndDate,
-      companyCalendar,
-      resource.location,
-    );
+    const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
     if (workingDays === 0) return 0;
 
     const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
@@ -161,14 +136,10 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
   );
 };
 
-/**
- * Pagina Carico Risorse (sola lettura)
- */
 const WorkloadPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
-  const { resources, projects, assignments, clients, companyCalendar, roles } =
-    useEntitiesContext();
+  const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
 
   const [filters, setFilters] = useState({
     resourceId: '',
@@ -182,7 +153,6 @@ const WorkloadPage: React.FC = () => {
     const resourceId = searchParams.get('resourceId');
     if (resourceId) {
       setFilters((prev) => ({ ...prev, resourceId }));
-      // pulizia parametri dopo l'uso
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -218,10 +188,7 @@ const WorkloadPage: React.FC = () => {
         const startOfWeek = new Date(d);
         const endOfWeek = addDays(new Date(d), 6);
         cols.push({
-          label: `${formatDate(startOfWeek, 'short')} - ${formatDate(
-            endOfWeek,
-            'short',
-          )}`,
+          label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
           subLabel: `Settimana ${i + 1}`,
           startDate: startOfWeek,
           endDate: endOfWeek,
@@ -229,7 +196,6 @@ const WorkloadPage: React.FC = () => {
         d.setDate(d.getDate() + 7);
       }
     } else {
-      // month
       d.setDate(1);
       for (let i = 0; i < 6; i++) {
         const startOfMonth = new Date(d);
@@ -280,7 +246,6 @@ const WorkloadPage: React.FC = () => {
     setFilters({ resourceId: '', projectId: '', clientId: '', roleIds: [] });
   };
 
-  // Risorse da visualizzare (filtrate)
   const displayResources = useMemo(() => {
     const activeResources = resources.filter((r) => !r.resigned);
     let finalResources = [...activeResources];
@@ -340,10 +305,9 @@ const WorkloadPage: React.FC = () => {
   );
 
   return (
-    // WRAPPER pagina: flex col + full-height per consentire area scrollabile
-    <div className="flex flex-col h-full min-h-screen">
-      {/* Header + controlli + filtri: non scrollano con la tabella */}
-      <div className="flex-shrink-0">
+    <div className="space-y-4">
+      {/* Controlli + Filtri */}
+      <div>
         {/* Barra controlli temporali */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
           <div className="flex items-center justify-start space-x-2">
@@ -366,7 +330,6 @@ const WorkloadPage: React.FC = () => {
               Succ. →
             </button>
           </div>
-
           <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
               <button
@@ -386,7 +349,6 @@ const WorkloadPage: React.FC = () => {
               </button>
             ))}
           </div>
-
           <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
             Vista di sola lettura.{' '}
             <a href="/staffing" className="text-blue-500 hover:underline">
@@ -396,8 +358,8 @@ const WorkloadPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Filtri – z-index corretto per non sovrapporsi male alla sidebar */}
-        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+        {/* Filtri */}
+        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -457,9 +419,9 @@ const WorkloadPage: React.FC = () => {
         </div>
       </div>
 
-      {/* WRAPPER SCROLLABILE: flex-1 + min-h-0 per far funzionare lo scroll su mobile */}
-      <div className="flex-1 min-h-0">
-        <div className="h-full overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+      {/* Contenitore SCROLLABILE interno per la tabella */}
+      <div className="overflow-y-auto overflow-x-scroll max-h-[640px] bg-white dark:bg-gray-800 rounded-lg shadow">
+        {displayResources.length > 0 ? (
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
               <tr>
@@ -507,11 +469,7 @@ const WorkloadPage: React.FC = () => {
                     if (viewMode === 'day') {
                       const day = col.startDate;
                       const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                      const isDayHoliday = isHoliday(
-                        day,
-                        resource.location,
-                        companyCalendar,
-                      );
+                      const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
                       return (
                         <ReadonlyDailyTotalCell
                           key={index}
@@ -535,13 +493,11 @@ const WorkloadPage: React.FC = () => {
               ))}
             </tbody>
           </table>
-
-          {displayResources.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              Nessuna risorsa trovata con i filtri correnti.
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            Nessuna risorsa trovata con i filtri correnti.
+          </div>
+        )}
       </div>
 
       <style>{`
