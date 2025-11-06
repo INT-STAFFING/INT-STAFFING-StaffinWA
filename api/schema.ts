@@ -199,6 +199,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
     await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
+    await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS request_code TEXT UNIQUE;`;
+
 
     // New Interviews Table
     await db.sql`
@@ -229,4 +231,37 @@ export async function ensureDbTablesExist(db: VercelPool) {
             value VARCHAR(255) NOT NULL
         );
     `;
+
+    // Backfill request_code for existing resource_requests
+    const backfillClient = await db.connect();
+    try {
+        await backfillClient.query('BEGIN');
+        // Check if backfill is needed
+        const needsBackfillRes = await backfillClient.query(`SELECT id FROM resource_requests WHERE request_code IS NULL LIMIT 1;`);
+        if (needsBackfillRes.rows.length > 0) {
+            console.log('Backfilling request_code for resource_requests...');
+            // Get the last used code number
+            const lastCodeRes = await backfillClient.query(`SELECT request_code FROM resource_requests WHERE request_code IS NOT NULL ORDER BY request_code DESC LIMIT 1;`);
+            let lastNumber = 0;
+            if (lastCodeRes.rows.length > 0) {
+                lastNumber = parseInt(lastCodeRes.rows[0].request_code.replace('HCR', ''), 10);
+            }
+
+            // Get all rows that need a code, ordered by creation time
+            const rowsToUpdateRes = await backfillClient.query(`SELECT id, created_at FROM resource_requests WHERE request_code IS NULL ORDER BY created_at ASC;`);
+            for (const row of rowsToUpdateRes.rows) {
+                lastNumber++;
+                const newRequestCode = `HCR${String(lastNumber).padStart(5, '0')}`;
+                await backfillClient.query(`UPDATE resource_requests SET request_code = $1 WHERE id = $2;`, [newRequestCode, row.id]);
+            }
+            console.log(`${rowsToUpdateRes.rows.length} rows backfilled.`);
+        }
+        await backfillClient.query('COMMIT');
+    } catch (error) {
+        await backfillClient.query('ROLLBACK');
+        console.error('Error during request_code backfill:', error);
+        // Do not re-throw, allow the app to start, but log the error.
+    } finally {
+        backfillClient.release();
+    }
 }

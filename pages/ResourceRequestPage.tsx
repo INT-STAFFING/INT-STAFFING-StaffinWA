@@ -32,7 +32,8 @@ const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     }
 };
 
-const ResourceRequestPage: React.FC = () => {
+// FIX: Changed to a named export.
+export const ResourceRequestPage: React.FC = () => {
     const { 
         resourceRequests, projects, roles, resources, 
         addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading 
@@ -197,6 +198,7 @@ const ResourceRequestPage: React.FC = () => {
     ];
 
     const columns: ColumnDef<EnrichedRequest>[] = [
+        { header: 'ID Richiesta', sortKey: 'requestCode', cell: r => <span className="font-mono text-xs font-semibold">{r.requestCode}</span> },
         { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-gray-900 dark:text-white">{r.projectName}</span> },
         { header: 'Ruolo Richiesto', sortKey: 'roleName', cell: r => r.roleName },
         { header: 'Richiedente', sortKey: 'requestorName', cell: r => r.requestorName || 'N/A' },
@@ -224,7 +226,10 @@ const ResourceRequestPage: React.FC = () => {
     const renderCard = (request: EnrichedRequest) => (
         <div key={request.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card flex flex-col md:flex-row gap-4 justify-between">
             <div className="flex-grow">
-                <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{request.projectName}</p>
+                <div className="flex items-baseline gap-3">
+                    <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{request.projectName}</p>
+                    <span className="font-mono text-sm text-muted-foreground">{request.requestCode}</span>
+                </div>
                 <p className="text-sm text-muted-foreground">{request.roleName}</p>
                 <div className="mt-4 pt-4 border-t border-border dark:border-dark-border grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     <div><p className="text-muted-foreground">Periodo</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatDate(request.startDate)} - {formatDate(request.endDate)}</p></div>
@@ -341,6 +346,12 @@ const ResourceRequestPage: React.FC = () => {
             {editingRequest && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {'id' in editingRequest && editingRequest.id && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID Richiesta</label>
+                                <input type="text" value={(editingRequest as ResourceRequest).requestCode || ''} readOnly disabled className="form-input bg-gray-100 dark:bg-gray-700"/>
+                            </div>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Progetto *</label>
@@ -405,7 +416,7 @@ const ResourceRequestPage: React.FC = () => {
                     onClose={() => setRequestToDelete(null)}
                     onConfirm={handleDelete}
                     title="Conferma Eliminazione"
-                    message={`Sei sicuro di voler eliminare la richiesta per ${requestToDelete.roleName} sul progetto ${requestToDelete.projectName}?`}
+                    message={`Sei sicuro di voler eliminare la richiesta ${requestToDelete.requestCode || ''} per ${requestToDelete.roleName} sul progetto ${requestToDelete.projectName}?`}
                     isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
                 />
             )}
@@ -413,5 +424,3 @@ const ResourceRequestPage: React.FC = () => {
         </div>
     );
 };
-
-export default ResourceRequestPage;

@@ -42,7 +42,7 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100 NOT NULL, location VARCHAR(255), resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE );`,
     `CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL, cig_derivato VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0, UNIQUE(name), UNIQUE(cig) );`,
     `CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`,
-    `CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`,
+    `CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, request_code TEXT UNIQUE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`,
     `CREATE TABLE IF NOT EXISTS interviews ( id UUID PRIMARY KEY, resource_request_id UUID REFERENCES resource_requests(id) ON DELETE SET NULL, candidate_name VARCHAR(255) NOT NULL, candidate_surname VARCHAR(255) NOT NULL, birth_date DATE, horizontal VARCHAR(255), role_id UUID REFERENCES roles(id) ON DELETE SET NULL, cv_summary TEXT, interviewers_ids UUID[], interview_date DATE, feedback VARCHAR(50), notes TEXT, hiring_status VARCHAR(50), entry_date DATE, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`,
     `CREATE TABLE IF NOT EXISTS wbs_tasks ( id UUID PRIMARY KEY, elemento_wbs VARCHAR(255) NOT NULL UNIQUE, descrizione_wbe TEXT, client_id UUID REFERENCES clients(id) ON DELETE SET NULL, periodo VARCHAR(50), ore NUMERIC(10, 2), produzione_lorda NUMERIC(12, 2), ore_network_italia NUMERIC(10, 2), produzione_lorda_network_italia NUMERIC(12, 2), perdite NUMERIC(12, 2), realisation INT, spese_onorari_esterni NUMERIC(12, 2), spese_altro NUMERIC(12, 2), fatture_onorari NUMERIC(12, 2), fatture_spese NUMERIC(12, 2), iva NUMERIC(12, 2), incassi NUMERIC(12, 2), primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL, secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL );`,
     `CREATE TABLE IF NOT EXISTS company_calendar ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, date DATE NOT NULL, type VARCHAR(50) NOT NULL, location VARCHAR(255), UNIQUE(date, location) );`,
@@ -487,45 +487,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- GESTORE ENTITÀ: RICHIESTE RISORSE ---
         case 'resource-requests':
-            switch (method) {
-                case 'POST':
-                    try {
+            const rrClient = await db.connect();
+            try {
+                switch (method) {
+                    case 'POST':
+                        await rrClient.query('BEGIN');
+                        const lastCodeRes = await rrClient.query(`SELECT request_code FROM resource_requests ORDER BY request_code DESC LIMIT 1 FOR UPDATE;`);
+                        let lastNumber = 0;
+                        if (lastCodeRes.rows.length > 0 && lastCodeRes.rows[0].request_code) {
+                            lastNumber = parseInt(lastCodeRes.rows[0].request_code.replace('HCR', ''), 10);
+                        }
+                        const newRequestCode = `HCR${String(lastNumber + 1).padStart(5, '0')}`;
+                        
                         const { projectId, roleId, requestorId, startDate, endDate, commitmentPercentage, isUrgent, isLongTerm, isTechRequest, notes, status } = req.body;
                         const newId = uuidv4();
-                        await db.sql`
-                            INSERT INTO resource_requests (id, project_id, role_id, requestor_id, start_date, end_date, commitment_percentage, is_urgent, is_long_term, is_tech_request, notes, status)
-                            VALUES (${newId}, ${projectId}, ${roleId}, ${requestorId || null}, ${startDate}, ${endDate}, ${commitmentPercentage}, ${isUrgent}, ${isLongTerm}, ${isTechRequest}, ${notes}, ${status});
-                        `;
-                        return res.status(201).json({ id: newId, ...req.body });
-                    } catch (error) {
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
+                        const result = await rrClient.query(
+                            `INSERT INTO resource_requests (id, request_code, project_id, role_id, requestor_id, start_date, end_date, commitment_percentage, is_urgent, is_long_term, is_tech_request, notes, status)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *;`,
+                            [newId, newRequestCode, projectId, roleId, requestorId || null, startDate, endDate, commitmentPercentage, isUrgent, isLongTerm, isTechRequest, notes, status]
+                        );
+                        await rrClient.query('COMMIT');
+                        return res.status(201).json(toCamelCase(result.rows[0]));
 
-                case 'PUT':
-                    try {
-                        const { projectId, roleId, requestorId, startDate, endDate, commitmentPercentage, isUrgent, isLongTerm, isTechRequest, notes, status } = req.body;
-                        await db.sql`
+                    case 'PUT':
+                        const { projectId: uProjectId, roleId: uRoleId, requestorId: uRequestorId, startDate: uStartDate, endDate: uEndDate, commitmentPercentage: uCommitmentPercentage, isUrgent: uIsUrgent, isLongTerm: uIsLongTerm, isTechRequest: uIsTechRequest, notes: uNotes, status: uStatus } = req.body;
+                        const updateResult = await db.sql`
                             UPDATE resource_requests
-                            SET project_id = ${projectId}, role_id = ${roleId}, requestor_id = ${requestorId || null}, start_date = ${startDate}, end_date = ${endDate}, commitment_percentage = ${commitmentPercentage},
-                                is_urgent = ${isUrgent}, is_long_term = ${isLongTerm}, is_tech_request = ${isTechRequest}, notes = ${notes}, status = ${status}
-                            WHERE id = ${id as string};
+                            SET project_id = ${uProjectId}, role_id = ${uRoleId}, requestor_id = ${uRequestorId || null}, start_date = ${uStartDate}, end_date = ${uEndDate}, commitment_percentage = ${uCommitmentPercentage},
+                                is_urgent = ${uIsUrgent}, is_long_term = ${uIsLongTerm}, is_tech_request = ${uIsTechRequest}, notes = ${uNotes}, status = ${uStatus}
+                            WHERE id = ${id as string}
+                            RETURNING *;
                         `;
-                        return res.status(200).json({ id, ...req.body });
-                    } catch (error) {
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
+                        return res.status(200).json(toCamelCase(updateResult.rows[0]));
 
-                case 'DELETE':
-                    try {
+                    case 'DELETE':
                         await db.sql`DELETE FROM resource_requests WHERE id = ${id as string};`;
                         return res.status(204).end();
-                    } catch (error) {
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                
-                default:
-                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-                    return res.status(405).end(`Method ${method} Not Allowed`);
+                    
+                    default:
+                        res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                        return res.status(405).end(`Method ${method} Not Allowed`);
+                }
+            } catch (error) {
+                await rrClient.query('ROLLBACK');
+                return res.status(500).json({ error: (error as Error).message });
+            } finally {
+                rrClient.release();
             }
         
         // --- GESTORE ENTITÀ: COLLOQUI ---

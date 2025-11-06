@@ -26,7 +26,8 @@ import WorkloadPage from './pages/WorkloadPage';
 import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import AdminSettingsPage from './pages/AdminSettingsPage'; // Importa la nuova pagina Admin
-import ResourceRequestPage from './pages/ResourceRequestPage'; // Importa la nuova pagina
+// FIX: Changed to a named import as ResourceRequestPage is not a default export.
+import { ResourceRequestPage } from './pages/ResourceRequestPage'; // Importa la nuova pagina
 import InterviewsPage from './pages/InterviewsPage'; // Importa la nuova pagina
 import DbInspectorPage from './pages/DbInspectorPage'; // Importa la nuova pagina
 import ContractsPage from './pages/ContractsPage'; // Importa la nuova pagina dei contratti

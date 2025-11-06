@@ -723,7 +723,6 @@ const DashboardPage: React.FC = () => {
                         </table>
                     </div>
                 </div>
-                {/* Fix: Reconstructed corrupted file content which was causing parsing errors. */}
                 {/* Card Sforzo per Horizontal */}
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <h2 className="text-xl font-semibold mb-4">Analisi Sforzo per Horizontal</h2>

@@ -211,7 +211,6 @@ const RolesPage: React.FC = () => {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
                                 <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input"/>
                             </div>
-{/* Fix: complete truncated file */ }
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Standard (€)</label>
                                 <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || 0} onChange={handleChange} className="w-full form-input"/>

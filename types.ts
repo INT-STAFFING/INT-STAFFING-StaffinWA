@@ -243,6 +243,8 @@ export type ResourceRequestStatus = 'ATTIVA' | 'STANDBY' | 'CHIUSA';
 export interface ResourceRequest {
     /** @property {string} [id] - L'identificatore univoco, generato dal database. */
     id?: string;
+    /** @property {string} [requestCode] - L'identificatore univoco e leggibile (es. HCR00001). */
+    requestCode?: string;
     /** @property {string} projectId - L'ID del progetto di riferimento. */
     projectId: string;
     /** @property {string} roleId - L'ID del ruolo richiesto. */
