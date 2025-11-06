@@ -134,11 +134,13 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
         );
     }
     
-    return (
-        <div className="flex-1 flex flex-col w-full max-w-full">
+        return (
+        <div className="flex-1 flex flex-col min-h-0">
             <Header onToggleSidebar={onToggleSidebar} />
-            <main className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
-                <div className="w-full mx-auto px-2 sm:px-4 py-6">
+
+            <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
+                {/* QUI controlli il padding laterale di tutte le pagine */}
+                <div className="w-full px-2 sm:px-4 lg:px-6 py-6">
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />
@@ -160,27 +162,28 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                         <Route path="/interviews" element={<InterviewsPage />} />
                         <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
                         <Route path="/manuale-utente" element={<UserManualPage />} />
-                        <Route
-                            path="/admin-settings"
+                        <Route 
+                            path="/admin-settings" 
                             element={
                                 <AdminRoute>
                                     <AdminSettingsPage />
                                 </AdminRoute>
-                            }
+                            } 
                         />
-                        <Route
-                            path="/db-inspector"
+                        <Route 
+                            path="/db-inspector" 
                             element={
                                 <AdminRoute>
                                     <DbInspectorPage />
                                 </AdminRoute>
-                            }
+                            } 
                         />
                     </Routes>
                 </div>
             </main>
         </div>
     );
+
 };
 
 
@@ -200,7 +203,7 @@ const MainLayout: React.FC = () => {
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}
-            <div className="flex min-h-screen w-full max-w-full overflow-x-hidden bg-background dark:bg-dark-background">
+            <div className="flex min-h-screen w-screen overflow-x-hidden bg-background dark:bg-dark-background">
                 <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
                 <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
             </div>
