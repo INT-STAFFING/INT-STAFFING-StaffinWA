@@ -3,11 +3,13 @@
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
+
+declare var d3: any;
 
 // --- Tipi e Hook per l'Ordinamento ---
 
@@ -107,6 +109,9 @@ const DashboardPage: React.FC = () => {
     new Date().toISOString().slice(0, 7),
   ); // Formato YYYY-MM
   const [effortByClientFilter, setEffortByClientFilter] = useState({ sector: '' });
+  const [trendResource, setTrendResource] = useState<string>('');
+  const trendChartRef = useRef<SVGSVGElement>(null);
+
 
   // --- Lookup veloci e raggruppamenti ---
 
@@ -251,6 +256,7 @@ const DashboardPage: React.FC = () => {
       const role = resource.roleId ? roleById[String(resource.roleId)] : undefined;
       const dailyRate = role?.dailyCost || 0;
       const project = assignment.projectId ? projectById[String(assignment.projectId)] : undefined;
+      const realization = (project?.realizationPercentage ?? 100) / 100;
 
       const allocMap = allocations[assignmentId];
       const lastDayTs = resource.lastDayOfWork
@@ -270,7 +276,7 @@ const DashboardPage: React.FC = () => {
 
         const percentage = allocMap[dateStr];
         const personDayFraction = percentage / 100;
-        const dailyCost = personDayFraction * dailyRate;
+        const dailyCost = personDayFraction * dailyRate * realization;
 
         totalCost += dailyCost;
         totalPersonDays += personDayFraction;
@@ -873,6 +879,168 @@ const DashboardPage: React.FC = () => {
       .filter((d) => d.resourceCount > 0)
       .sort((a, b) => b.resourceCount - a.resourceCount);
   }, [activeResources, assignments, allocations, locations, companyCalendar, resourceById]);
+
+  // --- Calcoli per il Grafico di Trend ---
+    const saturationTrendData = useMemo(() => {
+        if (!trendResource) return [];
+        
+        const resource = resourceById[trendResource];
+        if (!resource) return [];
+
+        const results = [];
+        const today = new Date();
+        
+        for (let i = -6; i <= 3; i++) { // From 6 months ago to 3 months in the future
+            const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+            const effectiveStartDate = new Date(resource.hireDate) > firstDay ? new Date(resource.hireDate) : firstDay;
+            const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
+
+            if (effectiveStartDate > effectiveEndDate) {
+                results.push({ month: date, allocation: 0 });
+                continue;
+            };
+
+            const workingDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+
+            if (workingDays === 0) {
+                results.push({ month: date, allocation: 0 });
+                continue;
+            }
+
+            const resourceAssignments = assignmentsByResource[String(resource.id)] ?? [];
+            let totalPersonDays = 0;
+
+            resourceAssignments.forEach(assignment => {
+                const allocMap = assignment.id ? allocations[assignment.id] : undefined;
+                if (!allocMap) return;
+
+                for (const dateStr in allocMap) {
+                    const allocDate = parseISODate(dateStr);
+                    if (allocDate >= firstDay && allocDate <= lastDay) {
+                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            totalPersonDays += (allocMap[dateStr] / 100);
+                        }
+                    }
+                }
+            });
+            
+            const allocation = (totalPersonDays / workingDays) * 100;
+            results.push({ month: date, allocation });
+        }
+
+        return results;
+
+    }, [trendResource, resourceById, assignmentsByResource, allocations, companyCalendar]);
+
+    useEffect(() => {
+        const svgElement = trendChartRef.current;
+        if (!svgElement || saturationTrendData.length === 0) {
+            if (svgElement) {
+                d3.select(svgElement).selectAll("*").remove();
+            }
+            return;
+        }
+
+        const svg = d3.select(svgElement);
+        svg.selectAll("*").remove();
+
+        const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+        const width = 800 - margin.left - margin.right;
+        const height = 400 - margin.top - margin.bottom;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        const x = d3.scaleTime()
+            .domain(d3.extent(saturationTrendData, (d: any) => d.month))
+            .range([0, width]);
+
+        const yMax = Math.max(110, d3.max(saturationTrendData, (d: any) => d.allocation) * 1.1 || 110);
+        const y = d3.scaleLinear()
+            .domain([0, yMax])
+            .range([height, 0]);
+
+        // Add X axis
+        g.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(10).tickFormat(d3.timeFormat("%b '%y")));
+
+        // Add Y axis
+        g.append("g")
+            .call(d3.axisLeft(y).ticks(5).tickFormat((d: any) => `${d}%`));
+
+        // Add 100% threshold line
+        g.append("line")
+            .attr("x1", 0)
+            .attr("y1", y(100))
+            .attr("x2", width)
+            .attr("y2", y(100))
+            .attr("stroke", "red")
+            .attr("stroke-width", "2")
+            .attr("stroke-dasharray", "5,5");
+
+        g.append("text")
+            .attr("x", width)
+            .attr("y", y(100))
+            .attr("dy", "-0.5em")
+            .attr("text-anchor", "end")
+            .attr("fill", "red")
+            .attr("font-size", "10px")
+            .text("100% Carico");
+
+        // Add the line
+        const line = d3.line()
+            .x((d: any) => x(d.month))
+            .y((d: any) => y(d.allocation))
+            .curve(d3.curveMonotoneX);
+
+        g.append("path")
+            .datum(saturationTrendData)
+            .attr("fill", "none")
+            .attr("stroke", "#2563eb")
+            .attr("stroke-width", 2.5)
+            .attr("d", line);
+            
+        // Tooltip
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "trend-tooltip")
+            .style("position", "absolute")
+            .style("visibility", "hidden")
+            .style("background", "rgba(0, 0, 0, 0.7)")
+            .style("color", "#fff")
+            .style("padding", "5px 10px")
+            .style("border-radius", "5px")
+            .style("font-size", "12px");
+
+        // Add circles for data points
+        g.selectAll("circle")
+            .data(saturationTrendData)
+            .join("circle")
+            .attr("cx", (d: any) => x(d.month))
+            .attr("cy", (d: any) => y(d.allocation))
+            .attr("r", 4)
+            .attr("fill", "#2563eb")
+            .on("mouseover", (event: any, d: any) => {
+                tooltip
+                    .style("visibility", "visible")
+                    .html(`${d3.timeFormat("%B %Y")(d.month)}<br/>Alloc: <strong>${d.allocation.toFixed(1)}%</strong>`);
+            })
+            .on("mousemove", (event: any) => {
+                tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", () => {
+                tooltip.style("visibility", "hidden");
+            });
+            
+        // Cleanup tooltip on component unmount or re-render
+        return () => {
+            d3.select(".trend-tooltip").remove();
+        };
+
+    }, [saturationTrendData]);
+
 
   // --- Totali per le tabelle ---
 
@@ -1717,6 +1885,29 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-8">
+          <div className="flex justify-between items-start mb-4">
+            <h2 className="text-xl font-semibold">Trend Saturazione Risorsa</h2>
+            <div className="w-64">
+              <SearchableSelect
+                name="trendResource"
+                value={trendResource}
+                onChange={(_, v) => setTrendResource(v)}
+                options={resourceOptions}
+                placeholder="Seleziona una Risorsa"
+              />
+            </div>
+          </div>
+          <div className="w-full h-[400px] overflow-x-auto">
+            {trendResource && saturationTrendData.length > 0 ? (
+                <svg ref={trendChartRef} width="800" height="400"></svg>
+            ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                    {trendResource ? 'Calcolo dati...' : 'Seleziona una risorsa per visualizzare il trend.'}
+                </div>
+            )}
+          </div>
+        </div>
 
       <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
     </div>
