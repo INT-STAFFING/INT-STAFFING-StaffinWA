@@ -138,7 +138,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
         <div className="flex-1 flex flex-col w-full max-w-full">
             <Header onToggleSidebar={onToggleSidebar} />
             <main className="flex-1 w-full max-w-full overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
-                <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-8">
+                <div className="w-full mx-auto px-2 sm:px-4 py-6">
                     <Routes>
                         <Route path="/" element={<Navigate to="/staffing" replace />} />
                         <Route path="/staffing" element={<StaffingPage />} />
