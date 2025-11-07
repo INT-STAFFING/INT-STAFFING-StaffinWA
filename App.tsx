@@ -93,6 +93,11 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
+  const location = useLocation();
+
+  // Pagine che gestiscono lo scroll verticale interno (tabella con max-height + overflow-y-auto)
+  const pagesWithInternalScroll = ['/staffing', '/workload'];
+  const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
 
   if (loading) {
     return (
@@ -122,13 +127,23 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col overflow-hidden">
       <Header onToggleSidebar={onToggleSidebar} />
 
-      {/* Main scrolla verticalmente, MA non crea scroll orizzontale globale */}
-      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
-        {/* Padding globale delle pagine */}
-        <div className="w-full max-w-full px-3 sm:px-4 md:px-6 lg:px-8 py-6">
+      <main
+        className={`
+          flex-1 bg-muted dark:bg-dark-background
+          ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'}
+        `}
+      >
+        <div
+          className={`
+            w-full max-w-none
+            px-3 sm:px-4 md:px-6
+            py-4 sm:py-6
+            ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}
+          `}
+        >
           <Routes>
             <Route path="/" element={<Navigate to="/staffing" replace />} />
             <Route path="/staffing" element={<StaffingPage />} />
@@ -172,6 +187,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     </div>
   );
 };
+
 
 const MainLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

@@ -3,45 +3,36 @@
  * @description Pagina di visualizzazione del carico totale per risorsa (sola lettura).
  */
 
-import React, {
-  useState,
-  useMemo,
-  useCallback,
-  useEffect,
-} from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource } from '../types';
-import {
-  getCalendarDays,
-  formatDate,
-  addDays,
-  isHoliday,
-  getWorkingDaysBetween,
-} from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useSearchParams } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-/* -------------------------------------------------------------------------- */
-/*                                  CELLE TD                                  */
-/* -------------------------------------------------------------------------- */
-
+/**
+ * @interface DailyTotalCellProps
+ * @description Prop per il componente DailyTotalCell.
+ */
 interface DailyTotalCellProps {
+  /** @property {Resource} resource - La risorsa per cui calcolare il totale. */
   resource: Resource;
-  date: string; // YYYY-MM-DD
+  /** @property {string} date - La data (YYYY-MM-DD) per cui calcolare il totale. */
+  date: string;
+  /** @property {boolean} isNonWorkingDay - Indica se la data corrisponde a un giorno non lavorativo. */
   isNonWorkingDay: boolean;
 }
 
 /**
- * Cella giornaliera di carico totale (sola lettura).
+ * Componente per la cella che mostra il carico totale giornaliero di una risorsa (sola lettura).
+ * Cambia colore in base al livello di carico.
+ * @param {DailyTotalCellProps} props - Le prop del componente.
+ * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({
-  resource,
-  date,
-  isNonWorkingDay,
-}) => {
+const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
   const { assignments } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
@@ -58,22 +49,18 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({
   }
 
   const total = useMemo(() => {
-    const resourceAssignments = assignments.filter(
-      (a) => a.resourceId === resource.id
-    );
+    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     return resourceAssignments.reduce((sum, a) => {
       return sum + (allocations[a.id]?.[date] || 0);
     }, 0);
   }, [assignments, allocations, resource.id, date]);
 
+  // Logica colori unificata
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
-    if (total > maxPercentage)
-      return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-    if (total === maxPercentage)
-      return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-    if (total > 0 && total < maxPercentage)
-      return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+    if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+    if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+    if (total > 0 && total < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
     return 'bg-transparent';
   }, [total, resource.maxStaffingPercentage]);
 
@@ -86,6 +73,10 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({
   );
 };
 
+/**
+ * @interface AggregatedWorkloadCellProps
+ * @description Prop per la cella di carico aggregato (settimana/mese).
+ */
 interface AggregatedWorkloadCellProps {
   resource: Resource;
   startDate: Date;
@@ -93,11 +84,15 @@ interface AggregatedWorkloadCellProps {
 }
 
 /**
- * Cella aggregata (settimana/mese) di carico medio totale.
+ * Componente cella per visualizzare il carico di lavoro medio aggregato su un periodo (settimana o mese).
+ * @param {AggregatedWorkloadCellProps} props - Le prop del componente.
+ * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
-const ReadonlyAggregatedWorkloadCell: React.FC<
-  AggregatedWorkloadCellProps
-> = ({ resource, startDate, endDate }) => {
+const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
+  resource,
+  startDate,
+  endDate,
+}) => {
   const { assignments, companyCalendar } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
@@ -108,17 +103,10 @@ const ReadonlyAggregatedWorkloadCell: React.FC<
         : endDate;
     if (startDate > effectiveEndDate) return 0;
 
-    const workingDays = getWorkingDaysBetween(
-      startDate,
-      effectiveEndDate,
-      companyCalendar,
-      resource.location
-    );
+    const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
     if (workingDays === 0) return 0;
 
-    const resourceAssignments = assignments.filter(
-      (a) => a.resourceId === resource.id
-    );
+    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     let totalPersonDays = 0;
 
     resourceAssignments.forEach((assignment) => {
@@ -141,9 +129,10 @@ const ReadonlyAggregatedWorkloadCell: React.FC<
       }
     });
 
-  return (totalPersonDays / workingDays) * 100;
+    return (totalPersonDays / workingDays) * 100;
   }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
+  // Logica colori unificata con arrotondamento
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
     const roundedAverage = Math.round(averageAllocation);
@@ -165,16 +154,14 @@ const ReadonlyAggregatedWorkloadCell: React.FC<
   );
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              COMPONENTE PAGINA                             */
-/* -------------------------------------------------------------------------- */
-
+/**
+ * Componente principale della pagina Carico Risorse.
+ * Gestisce la navigazione temporale, i filtri e il rendering della griglia di carico.
+ */
 const WorkloadPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
-
-  const { resources, projects, assignments, clients, companyCalendar, roles } =
-    useEntitiesContext();
+  const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
 
   const [filters, setFilters] = useState({
     resourceId: '',
@@ -182,20 +169,16 @@ const WorkloadPage: React.FC = () => {
     clientId: '',
     roleIds: [] as string[],
   });
-
   const [searchParams, setSearchParams] = useSearchParams();
-
-  /* --------------------- Prefiltro da querystring (resourceId) -------------------- */
 
   useEffect(() => {
     const resourceId = searchParams.get('resourceId');
     if (resourceId) {
       setFilters((prev) => ({ ...prev, resourceId }));
+      // Rimuovi il parametro dall'URL dopo averlo applicato per non confondere l'utente
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
-
-  /* ------------------------------ Colonne temporali ------------------------------ */
 
   const timeColumns = useMemo(() => {
     const cols: {
@@ -212,7 +195,7 @@ const WorkloadPage: React.FC = () => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const holiday = companyCalendar.find(
-          (e) => e.date === formatDate(day, 'iso') && e.type !== 'LOCAL_HOLIDAY'
+          (e) => e.date === formatDate(day, 'iso') && e.type !== 'LOCAL_HOLIDAY',
         );
         return {
           label: formatDate(day, 'short'),
@@ -222,18 +205,13 @@ const WorkloadPage: React.FC = () => {
           isNonWorkingHeader: isWeekend || !!holiday,
         };
       });
-    }
-
-    if (viewMode === 'week') {
-      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1)); // Monday
+    } else if (viewMode === 'week') {
+      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1)); // Start from Monday
       for (let i = 0; i < 8; i++) {
         const startOfWeek = new Date(d);
         const endOfWeek = addDays(new Date(d), 6);
         cols.push({
-          label: `${formatDate(startOfWeek, 'short')} - ${formatDate(
-            endOfWeek,
-            'short'
-          )}`,
+          label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
           subLabel: `Settimana ${i + 1}`,
           startDate: startOfWeek,
           endDate: endOfWeek,
@@ -242,27 +220,21 @@ const WorkloadPage: React.FC = () => {
       }
     } else {
       // month
-      d.setDate(1);
+      d.setDate(1); // Start from first day of month
       for (let i = 0; i < 6; i++) {
         const startOfMonth = new Date(d);
         const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         cols.push({
-          label: d.toLocaleString('it-IT', {
-            month: 'long',
-            year: 'numeric',
-          }),
-          subLabel: '',
+          label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }),
+          subLabel: ``,
           startDate: startOfMonth,
           endDate: endOfMonth,
         });
         d.setMonth(d.getMonth() + 1);
       }
     }
-
     return cols;
   }, [currentDate, viewMode, companyCalendar]);
-
-  /* ------------------------------ Navigazione tempo ------------------------------ */
 
   const handlePrev = useCallback(() => {
     setCurrentDate((prev) => {
@@ -286,8 +258,6 @@ const WorkloadPage: React.FC = () => {
 
   const handleToday = () => setCurrentDate(new Date());
 
-  /* ----------------------------------- Filtri ----------------------------------- */
-
   const handleFilterChange = (name: string, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
@@ -297,24 +267,16 @@ const WorkloadPage: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setFilters({
-      resourceId: '',
-      projectId: '',
-      clientId: '',
-      roleIds: [],
-    });
+    setFilters({ resourceId: '', projectId: '', clientId: '', roleIds: [] });
   };
 
-  /* -------------------------- Risorse da visualizzare --------------------------- */
-
+  // Calcola e memoizza le risorse da visualizzare, applicando i filtri.
   const displayResources = useMemo(() => {
     const activeResources = resources.filter((r) => !r.resigned);
     let finalResources = [...activeResources];
 
     if (filters.roleIds.length > 0) {
-      finalResources = finalResources.filter((r) =>
-        filters.roleIds.includes(r.roleId)
-      );
+      finalResources = finalResources.filter((r) => filters.roleIds.includes(r.roleId));
     }
 
     if (filters.resourceId) {
@@ -326,60 +288,43 @@ const WorkloadPage: React.FC = () => {
 
       if (filters.projectId) {
         relevantResourceIds = new Set(
-          assignments
-            .filter((a) => a.projectId === filters.projectId)
-            .map((a) => a.resourceId)
+          assignments.filter((a) => a.projectId === filters.projectId).map((a) => a.resourceId),
         );
       } else {
+        // filters.clientId
         const clientProjectIds = new Set(
-          projects
-            .filter((p) => p.clientId === filters.clientId)
-            .map((p) => p.id)
+          projects.filter((p) => p.clientId === filters.clientId).map((p) => p.id),
         );
         relevantResourceIds = new Set(
-          assignments
-            .filter((a) => clientProjectIds.has(a.projectId))
-            .map((a) => a.resourceId)
+          assignments.filter((a) => clientProjectIds.has(a.projectId)).map((a) => a.resourceId),
         );
       }
-
-      finalResources = finalResources.filter((r) =>
-        relevantResourceIds.has(r.id!)
-      );
+      finalResources = finalResources.filter((r) => relevantResourceIds.has(r.id!));
     }
 
     return finalResources.sort((a, b) => a.name.localeCompare(b.name));
   }, [resources, assignments, projects, filters]);
 
-  /* ------------------------------ Opzioni filtri ------------------------------ */
-
   const resourceOptions = useMemo(
-    () =>
-      resources
-        .filter((r) => !r.resigned)
-        .map((r) => ({ value: r.id!, label: r.name })),
-    [resources]
+    () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
+    [resources],
   );
   const roleOptions = useMemo(
     () => roles.map((r) => ({ value: r.id!, label: r.name })),
-    [roles]
+    [roles],
   );
   const projectOptions = useMemo(
     () => projects.map((p) => ({ value: p.id!, label: p.name })),
-    [projects]
+    [projects],
   );
   const clientOptions = useMemo(
     () => clients.map((c) => ({ value: c.id!, label: c.name })),
-    [clients]
+    [clients],
   );
 
-  /* ------------------------------------------------------------------------ */
-  /*                                   RENDER                                 */
-  /* ------------------------------------------------------------------------ */
-
   return (
-    <div className="flex flex-col h-full">
-      {/* CONTROLLI + INFO TESTUALE */}
+    <div className="flex flex-col w-full max-w-full">
+      {/* Barra controlli + info */}
       <div className="flex-shrink-0">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
           <div className="flex items-center justify-start space-x-2">
@@ -402,8 +347,7 @@ const WorkloadPage: React.FC = () => {
               Succ. →
             </button>
           </div>
-
-          <div className="flex items-center justify-start md:justify-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+          <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
               <button
                 key={level}
@@ -414,32 +358,23 @@ const WorkloadPage: React.FC = () => {
                     : 'text-gray-600 dark:text-gray-300'
                 }`}
               >
-                {level === 'day'
-                  ? 'Giorno'
-                  : level === 'week'
-                  ? 'Settimana'
-                  : 'Mese'}
+                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
               </button>
             ))}
           </div>
-
-          <div className="text-sm text-gray-600 dark:text-gray-400 text-left md:text-right">
+          <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
             Vista di sola lettura.{' '}
-            <a
-              href="/staffing"
-              className="text-blue-500 hover:underline"
-            >
+            <a href="/staffing" className="text-blue-500 hover:underline">
               Vai a Staffing per modifiche
             </a>
             .
           </div>
         </div>
 
-        {/* FILTRI */}
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow w-full overflow-x-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end min-w-0">
-            {/* Risorsa */}
-            <div className="min-w-0">
+        {/* Sezione Filtri */}
+        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Risorsa
               </label>
@@ -451,9 +386,7 @@ const WorkloadPage: React.FC = () => {
                 placeholder="Tutte le Risorse"
               />
             </div>
-
-            {/* Ruolo */}
-            <div className="min-w-0">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Ruolo
               </label>
@@ -465,9 +398,7 @@ const WorkloadPage: React.FC = () => {
                 placeholder="Tutti i Ruoli"
               />
             </div>
-
-            {/* Progetto */}
-            <div className="min-w-0">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Progetto
               </label>
@@ -479,9 +410,7 @@ const WorkloadPage: React.FC = () => {
                 placeholder="Tutti i Progetti"
               />
             </div>
-
-            {/* Cliente */}
-            <div className="min-w-0">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Cliente
               </label>
@@ -493,121 +422,95 @@ const WorkloadPage: React.FC = () => {
                 placeholder="Tutti i Clienti"
               />
             </div>
+            <button
+              onClick={clearFilters}
+              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+            >
+              Reset Filtri
+            </button>
+          </div>
+        </div>
+      </div>
 
-            {/* Reset */}
-            <div className="min-w-0 flex">
-              <button
-                onClick={clearFilters}
-                className="w-full px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+      {/* Griglia Carico - con max height come Staffing */}
+      <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow max-h-[680px]">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
+            <tr>
+              <th
+                className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30"
+                style={{ minWidth: '200px' }}
               >
-                Reset Filtri
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* TABELLA: max height + scroll interno; orizzontale solo qui */}
-      <div className="w-full overflow-x-auto">
-        <div className="inline-block min-w-full align-middle">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-            <div className="max-h-[680px] overflow-y-auto overflow-x-scroll">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
-                  <tr>
-                    <th
-                      className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30"
-                      style={{ minWidth: '220px' }}
+                Carico Totale Risorsa
+              </th>
+              {timeColumns.map((col, index) => (
+                <th
+                  key={index}
+                  className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${
+                    col.isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <span
+                      className={
+                        col.isNonWorkingHeader ? 'text-gray-500' : 'text-gray-900 dark:text-white'
+                      }
                     >
-                      Carico Totale Risorsa
-                    </th>
-                    {timeColumns.map((col, index) => (
-                      <th
+                      {col.label}
+                    </span>
+                    {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {displayResources.map((resource) => (
+              <tr
+                key={resource.id}
+                className="bg-gray-100/50 dark:bg-gray-900/50 font-bold"
+              >
+                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300 z-10">
+                  {resource.name} (Max: {resource.maxStaffingPercentage}%)
+                </td>
+                {timeColumns.map((col, index) => {
+                  if (viewMode === 'day') {
+                    const day = col.startDate;
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                    const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
+                    return (
+                      <ReadonlyDailyTotalCell
                         key={index}
-                        className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${
-                          col.isNonWorkingHeader
-                            ? 'bg-gray-100 dark:bg-gray-700/50'
-                            : ''
-                        }`}
-                      >
-                        <div className="flex flex-col items-center">
-                          <span
-                            className={
-                              col.isNonWorkingHeader
-                                ? 'text-gray-500'
-                                : 'text-gray-900 dark:text-white'
-                            }
-                          >
-                            {col.label}
-                          </span>
-                          {col.subLabel && (
-                            <span className="text-xs text-gray-500">
-                              {col.subLabel}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {displayResources.map((resource) => (
-                    <tr
-                      key={resource.id}
-                      className="bg-gray-100/50 dark:bg-gray-900/50 font-bold"
-                    >
-                      <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300 z-10">
-                        {resource.name} (Max: {resource.maxStaffingPercentage}
-                        %)
-                      </td>
-                      {timeColumns.map((col, index) => {
-                        if (viewMode === 'day') {
-                          const day = col.startDate;
-                          const isWeekend =
-                            day.getDay() === 0 || day.getDay() === 6;
-                          const isDayHoliday = isHoliday(
-                            day,
-                            resource.location,
-                            companyCalendar
-                          );
-                          return (
-                            <ReadonlyDailyTotalCell
-                              key={index}
-                              resource={resource}
-                              date={formatDate(day, 'iso')}
-                              isNonWorkingDay={isWeekend || isDayHoliday}
-                            />
-                          );
-                        }
-                        return (
-                          <ReadonlyAggregatedWorkloadCell
-                            key={index}
-                            resource={resource}
-                            startDate={col.startDate}
-                            endDate={col.endDate}
-                          />
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {displayResources.length === 0 && (
-              <div className="text-center py-6 text-gray-500 dark:text-gray-400 text-sm">
-                Nessuna risorsa trovata con i filtri correnti.
-              </div>
-            )}
+                        resource={resource}
+                        date={formatDate(day, 'iso')}
+                        isNonWorkingDay={isWeekend || isDayHoliday}
+                      />
+                    );
+                  } else {
+                    return (
+                      <ReadonlyAggregatedWorkloadCell
+                        key={index}
+                        resource={resource}
+                        startDate={col.startDate}
+                        endDate={col.endDate}
+                      />
+                    );
+                  }
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {displayResources.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            Nessuna risorsa trovata con i filtri correnti.
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Stili base per input/select (coerenti con altre pagine) */}
+      {/* Stili input/select usati da alcuni componenti */}
       <style>{`
-        .form-input,
-        .form-select {
+        .form-input, .form-select {
           display: block;
           width: 100%;
           border-radius: 0.375rem;
@@ -617,8 +520,7 @@ const WorkloadPage: React.FC = () => {
           font-size: 0.875rem;
           line-height: 1.25rem;
         }
-        .dark .form-input,
-        .dark .form-select {
+        .dark .form-input, .dark .form-select {
           border-color: #4B5563;
           background-color: #374151;
           color: #F9FAFB;
