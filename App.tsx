@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, defaultTheme } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import StaffingPage from './pages/StaffingPage';
 import ResourcesPage from './pages/ResourcesPage';
@@ -92,48 +92,12 @@ interface AppContentProps {
 }
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
-  const { loading } = useEntitiesContext();
   const location = useLocation();
-
-  // Se ti serve in futuro sapere quali pagine hanno tabelle “pesanti”
-  // puoi tenere questa lista, ma NON la usiamo per l’overflow.
-  const pagesWithInternalScroll = ['/staffing', '/workload'];
-  const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center w-full h-full">
-        <svg
-          className="animate-spin h-10 w-10 text-primary"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header onToggleSidebar={onToggleSidebar} />
-
-      {/* QUI: niente più overflow-y-hidden condizionale */}
       <main className="flex-1 overflow-y-auto bg-muted dark:bg-dark-background">
-        {/* wrapper del contenuto, con padding orizzontale controllato */}
         <div className="w-full max-w-none px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           <Routes>
             <Route path="/" element={<Navigate to="/staffing" replace />} />
@@ -292,19 +256,42 @@ const AppRoutes: React.FC = () => (
   </Routes>
 );
 
+const ThemedAndAuthenticatedApp: React.FC = () => {
+    const { loading, appSettings } = useEntitiesContext();
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
+                <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+            </div>
+        );
+    }
+    
+    // Merge the loaded theme with defaults to ensure all keys are present
+    const initialTheme = appSettings?.theme ? { ...defaultTheme, ...appSettings.theme } : defaultTheme;
+
+    return (
+        <ThemeProvider initialTheme={initialTheme}>
+            <ToastProvider>
+                <AuthProvider>
+                    <BrowserRouter>
+                        <AppRoutes />
+                    </BrowserRouter>
+                </AuthProvider>
+            </ToastProvider>
+        </ThemeProvider>
+    );
+};
+
+
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AppProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </AuthProvider>
-        </AppProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <AppProvider>
+      <ThemedAndAuthenticatedApp />
+    </AppProvider>
   );
 };
 

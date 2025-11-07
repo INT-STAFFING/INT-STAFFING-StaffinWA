@@ -12,7 +12,6 @@ import {
   DashboardCardId,
   DASHBOARD_CARDS_CONFIG,
   DEFAULT_DASHBOARD_CARD_ORDER,
-  DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
 
 
@@ -345,7 +344,7 @@ const CostForecastCard: React.FC<any> = ({ chartRef }) => (
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar } = useEntitiesContext();
+    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, appSettings } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 
@@ -839,27 +838,17 @@ const DashboardPage: React.FC = () => {
     // --- Dynamic Card Rendering Logic ---
 
     const cardOrder = useMemo(() => {
-        try {
-            const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
-            const savedOrder: DashboardCardId[] = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
-            
-            const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
-            const savedIds = new Set(savedOrder);
-
-            const validOrder = savedOrder.filter(id => allKnownIds.has(id));
-            
-            allKnownIds.forEach(id => {
-                if (!savedIds.has(id)) {
-                    validOrder.push(id);
-                }
-            });
-
-            return validOrder;
-        } catch (error) {
-            console.error("Failed to load or parse dashboard card order from localStorage:", error);
-            return DEFAULT_DASHBOARD_CARD_ORDER;
-        }
-    }, []);
+        const savedOrder: DashboardCardId[] = appSettings.dashboardCardOrder || DEFAULT_DASHBOARD_CARD_ORDER;
+        const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
+        const savedIds = new Set(savedOrder);
+        const validOrder = savedOrder.filter(id => allKnownIds.has(id));
+        allKnownIds.forEach(id => {
+            if (!savedIds.has(id)) {
+                validOrder.push(id);
+            }
+        });
+        return validOrder;
+    }, [appSettings.dashboardCardOrder]);
 
     const renderCardById = (id: DashboardCardId) => {
         switch (id) {

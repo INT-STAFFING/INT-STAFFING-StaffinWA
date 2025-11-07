@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo } from 'react';
+import { useEntitiesContext } from './AppContext'; // Import context to access save function
 
 // --- Types ---
 
@@ -103,55 +104,46 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 // --- Provider ---
 
-const THEME_STORAGE_KEY = 'staffing-app-theme';
+interface ThemeProviderProps {
+    children: ReactNode;
+    initialTheme?: Theme;
+}
 
-export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [theme, _setTheme] = useState<Theme>(() => {
-        try {
-            const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-            if (storedTheme) {
-                // Merge stored theme with defaults to prevent missing keys on updates
-                return { ...defaultTheme, ...JSON.parse(storedTheme) };
-            }
-        } catch (error) {
-            console.error("Failed to parse theme from localStorage", error);
-        }
-        return defaultTheme;
-    });
-    
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, initialTheme }) => {
+    const [theme, _setTheme] = useState<Theme>(initialTheme || defaultTheme);
+    const { saveAppSetting } = useEntitiesContext();
+
     useEffect(() => {
         const root = document.documentElement;
         Object.entries(theme).forEach(([key, value]) => {
             if (key.startsWith('toast') || key === 'visualizationSettings') return;
             const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-            // FIX: Cast value to string. The `if` condition above ensures `value` is not an object.
             root.style.setProperty(cssVarName, value as string);
         });
     }, [theme]);
     
-    const setTheme = (newTheme: Theme) => {
-        try {
-            localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
-            _setTheme(newTheme);
-        } catch (error) {
-            console.error("Failed to save theme to localStorage", error);
+    // Sync with initialTheme if it changes (e.g., after initial data load)
+    useEffect(() => {
+        if (initialTheme) {
+            _setTheme(initialTheme);
         }
+    }, [initialTheme]);
+
+    const setTheme = (newTheme: Theme) => {
+        _setTheme(newTheme);
+        saveAppSetting('theme', newTheme);
     };
 
     const resetTheme = () => {
-        try {
-            localStorage.removeItem(THEME_STORAGE_KEY);
-            _setTheme(defaultTheme);
-        } catch (error) {
-            console.error("Failed to remove theme from localStorage", error);
-        }
+        _setTheme(defaultTheme);
+        saveAppSetting('theme', defaultTheme);
     };
     
     const contextValue = useMemo(() => ({
         theme,
         setTheme,
         resetTheme,
-    }), [theme]);
+    }), [theme, saveAppSetting]);
 
     return (
         <ThemeContext.Provider value={contextValue}>
@@ -165,7 +157,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 export const useTheme = () => {
     const context = useContext(ThemeContext);
     if (context === undefined) {
-        throw new Error('useTheme must be used within a ThemeProvider');
+        throw new Error('useTheme must be used within a ThemeProvider, which must be a child of AppProvider');
     }
     return context;
 };

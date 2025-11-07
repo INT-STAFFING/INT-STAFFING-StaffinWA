@@ -228,7 +228,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`
         CREATE TABLE IF NOT EXISTS app_config (
             key VARCHAR(255) PRIMARY KEY,
-            value VARCHAR(255) NOT NULL
+            value TEXT NOT NULL
         );
     `;
 

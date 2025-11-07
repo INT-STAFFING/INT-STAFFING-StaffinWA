@@ -40,6 +40,8 @@ export interface EntitiesContextType {
     resourceRequests: ResourceRequest[];
     interviews: Interview[];
     loading: boolean;
+    // Fix: Add appSettings to the context type.
+    appSettings: { [key: string]: any; };
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
     updateClient: (client: Client) => Promise<void>;
@@ -75,6 +77,8 @@ export interface EntitiesContextType {
     addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
     updateInterview: (interview: Interview) => Promise<void>;
     deleteInterview: (interviewId: string) => Promise<void>;
+    // Fix: Add saveAppSetting to the context type.
+    saveAppSetting: (key: string, value: any) => Promise<void>;
     fetchData: () => Promise<void>;
 }
 
@@ -129,6 +133,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
     const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
     const [interviews, setInterviews] = useState<Interview[]>([]);
+    // Fix: Add appSettings state.
+    const [appSettings, setAppSettings] = useState<{ [key: string]: any }>({});
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -154,6 +160,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setContracts(data.contracts || []);
             setContractProjects(data.contractProjects || []);
             setContractManagers(data.contractManagers || []);
+            // Fix: Set appSettings from fetched data.
+            setAppSettings(data.appSettings || {});
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -708,6 +716,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast, interviews]);
+
+    // Fix: Add saveAppSetting function.
+    const saveAppSetting = useCallback(async (key: string, value: any) => {
+        const actionKey = `saveSetting-${key}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const valueToSave = typeof value === 'string' ? value : JSON.stringify(value);
+            await apiFetch('/api/auth-config', {
+                method: 'POST',
+                body: JSON.stringify({ key, value: valueToSave }),
+            });
+            setAppSettings(prev => ({ ...prev, [key]: value }));
+            addToast(`Impostazione '${key}' salvata.`, 'success');
+        } catch (error) {
+            addToast(`Errore salvataggio impostazione: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
     
     // --- Allocations-specific functions ---
 
@@ -780,7 +808,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
+        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, appSettings, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -792,8 +820,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addWbsTask, updateWbsTask, deleteWbsTask,
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
         addInterview, updateInterview, deleteInterview,
+        saveAppSetting,
         fetchData
-    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
+    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, appSettings, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, saveAppSetting, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,
