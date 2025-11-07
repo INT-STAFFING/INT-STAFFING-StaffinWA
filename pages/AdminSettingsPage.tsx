@@ -328,9 +328,24 @@ const DashboardLayoutEditor: React.FC = () => {
     useEffect(() => {
         try {
             const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
-            const savedOrder = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
-            setCardOrder(savedOrder);
+            const savedOrder: DashboardCardId[] = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
+
+            const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
+            const savedIds = new Set(savedOrder);
+
+            // Filter out any stale IDs from the saved order that are no longer in the config
+            const validOrder = savedOrder.filter(id => allKnownIds.has(id));
+            
+            // Add any new cards from the config that aren't in the saved order yet
+            allKnownIds.forEach(id => {
+                if (!savedIds.has(id)) {
+                    validOrder.push(id);
+                }
+            });
+
+            setCardOrder(validOrder);
         } catch (error) {
+            console.error("Failed to load or parse dashboard card order from localStorage:", error);
             setCardOrder(DEFAULT_DASHBOARD_CARD_ORDER);
         }
     }, []);
