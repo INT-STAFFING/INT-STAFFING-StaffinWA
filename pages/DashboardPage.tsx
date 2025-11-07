@@ -185,34 +185,60 @@ const getAvgAllocationColor = (avg: number): string => {
 };
 
 // --- Individual Card Components ---
+
+/**
+ * A unified component for all dashboard cards that contain a table.
+ * This ensures consistent padding, shadow, header layout, and scrolling behavior.
+ */
+const DashboardTableCard: React.FC<{
+    headerContent: React.ReactNode;
+    children: React.ReactNode; // Expects the <table> element
+}> = ({ headerContent, children }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+        {/* Header section with title and filters */}
+        <div className="flex-shrink-0 mb-4">
+            {headerContent}
+        </div>
+        
+        {/* Scrollable table container */}
+        <div className="overflow-x-auto max-h-80 flex-grow">
+            {children}
+        </div>
+    </div>
+);
+
 const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, requestSort, sortConfig, totals }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Allocazione Media</h2>
-          <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
-      </div>
-      <div className="overflow-x-auto max-h-80">
-          <table className="min-w-full">
-              <thead><tr><SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Mese Corrente" sortKey="currentMonth" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Mese Prossimo" sortKey="nextMonth" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-              <tbody>
-                  {data.map((d: any) => (
-                      <tr key={d.resource.id} className="border-t border-gray-200 dark:border-gray-700">
-                          <td className="px-4 py-2"><Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link></td>
-                          <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</td>
-                          <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</td>
-                      </tr>
-                  ))}
-              </tbody>
-              <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Media</td><td className={`px-4 py-2 ${getAvgAllocationColor(totals.currentMonth)}`}>{totals.currentMonth.toFixed(0)}%</td><td className={`px-4 py-2 ${getAvgAllocationColor(totals.nextMonth)}`}>{totals.nextMonth.toFixed(0)}%</td></tr></tfoot>
-          </table>
-      </div>
-  </div>
+    <DashboardTableCard
+        headerContent={
+            <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Allocazione Media</h2>
+                <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
+            </div>
+        }
+    >
+        <table className="min-w-full">
+            <thead><tr><SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Mese Corrente" sortKey="currentMonth" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Mese Prossimo" sortKey="nextMonth" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
+            <tbody>
+                {data.map((d: any) => (
+                    <tr key={d.resource.id} className="border-t border-gray-200 dark:border-gray-700">
+                        <td className="px-4 py-2"><Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link></td>
+                        <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</td>
+                        <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</td>
+                    </tr>
+                ))}
+            </tbody>
+            <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Media</td><td className={`px-4 py-2 ${getAvgAllocationColor(totals.currentMonth)}`}>{totals.currentMonth.toFixed(0)}%</td><td className={`px-4 py-2 ${getAvgAllocationColor(totals.nextMonth)}`}>{totals.nextMonth.toFixed(0)}%</td></tr></tfoot>
+        </table>
+    </DashboardTableCard>
 );
 
 const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-    <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-    <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+  <DashboardTableCard
+    headerContent={
+        <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+    }
+  >
+    <table className="min-w-full">
         <thead><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="G/U Allocati" sortKey="totalPersonDays" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="FTE" sortKey="fte" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
         <tbody>
             {data.map((d: any) => (
@@ -223,15 +249,18 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                 </tr>
             ))}
         </tbody>
-        <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{totals.totalDays.toFixed(1)}</td><td className="px-4 py-2">{totals.avgFte.toFixed(2)}</td></tr></tfoot>
-    </table></div>
-  </div>
+        <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{totals.totalDays.toFixed(1)}</td><td className="px-4 py-2">{totals.totalFte.toFixed(2)}</td></tr></tfoot>
+    </table>
+  </DashboardTableCard>
 );
 
 const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-    <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-    <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+  <DashboardTableCard
+    headerContent={
+        <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+    }
+  >
+    <table className="min-w-full">
         <thead><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Budget" sortKey="budget" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Varianza" sortKey="variance" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
         <tbody>
             {data.map((d: any) => (
@@ -244,51 +273,57 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
             ))}
         </tbody>
         <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{formatCurrency(totals.budget)}</td><td className="px-4 py-2">{formatCurrency(totals.cost)}</td><td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td></tr></tfoot>
-    </table></div>
-  </div>
+    </table>
+  </DashboardTableCard>
 );
 
 const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-        <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
-        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-          <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
-          <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
-          <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
-        </div>
-      </div>
-      <div className="overflow-x-auto max-h-80"><table className="min-w-full">
-          <thead><tr>
-              <SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} />
-              <SortableHeader label="Budget Periodo" sortKey="periodBudget" sortConfig={sortConfig} requestSort={requestSort} />
-              <SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={sortConfig} requestSort={requestSort} />
-              <SortableHeader label="Varianza" sortKey="variance" sortConfig={sortConfig} requestSort={requestSort} />
-          </tr></thead>
-          <tbody>
-              {data.map((d: any) => (
-                  <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
-                      <td className="px-4 py-2">{d.name}</td>
-                      <td className="px-4 py-2">{formatCurrency(d.periodBudget)}</td>
-                      <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
-                      <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</td>
-                  </tr>
-              ))}
-          </tbody>
-          <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
-              <td className="px-4 py-2">Totale</td>
-              <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
-              <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
-              <td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td>
-          </tr></tfoot>
-      </table></div>
-    </div>
+    <DashboardTableCard
+        headerContent={
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
+                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                </div>
+            </div>
+        }
+    >
+        <table className="min-w-full">
+            <thead><tr>
+                <SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} />
+                <SortableHeader label="Budget Periodo" sortKey="periodBudget" sortConfig={sortConfig} requestSort={requestSort} />
+                <SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={sortConfig} requestSort={requestSort} />
+                <SortableHeader label="Varianza" sortKey="variance" sortConfig={sortConfig} requestSort={requestSort} />
+            </tr></thead>
+            <tbody>
+                {data.map((d: any) => (
+                    <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
+                        <td className="px-4 py-2">{d.name}</td>
+                        <td className="px-4 py-2">{formatCurrency(d.periodBudget)}</td>
+                        <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
+                        <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</td>
+                    </tr>
+                ))}
+            </tbody>
+            <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
+                <td className="px-4 py-2">Totale</td>
+                <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
+                <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
+                <td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td>
+            </tr></tfoot>
+        </table>
+    </DashboardTableCard>
   );
 
 const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, requestSort, sortConfig }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
-      <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+  <DashboardTableCard
+    headerContent={
+        <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
+    }
+  >
+      <table className="min-w-full">
           <thead><tr><SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Alloc. Media" sortKey="avgAllocation" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
           <tbody>
               {data.map((d: any) => (
@@ -298,14 +333,17 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, requ
                   </tr>
               ))}
           </tbody>
-      </table></div>
-  </div>
+      </table>
+  </DashboardTableCard>
 );
 
 const MonthlyClientCostCard: React.FC<any> = ({ data, requestSort, sortConfig, navigate }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-    <h2 className="text-lg font-semibold mb-4">Costo Mensile per Cliente</h2>
-    <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+  <DashboardTableCard
+    headerContent={
+        <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
+    }
+  >
+    <table className="min-w-full">
         <thead><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Costo Stimato" sortKey="cost" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
         <tbody>
             {data.map((d: any) => (
@@ -315,14 +353,17 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, requestSort, sortConfig, n
                 </tr>
             ))}
         </tbody>
-    </table></div>
-  </div>
+    </table>
+  </DashboardTableCard>
 );
 
 const EffortByHorizontalCard: React.FC<any> = ({ data, requestSort, sortConfig, total }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold mb-4">Analisi Sforzo per Horizontal</h2>
-      <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+  <DashboardTableCard
+    headerContent={
+        <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
+    }
+  >
+      <table className="min-w-full">
           <thead><tr><SortableHeader label="Horizontal" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="G/U Totali" sortKey="totalPersonDays" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
           <tbody>
               {data.map((d: any) => (
@@ -333,14 +374,17 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, requestSort, sortConfig, 
               ))}
           </tbody>
           <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{total.toFixed(1)}</td></tr></tfoot>
-      </table></div>
-  </div>
+      </table>
+  </DashboardTableCard>
 );
 
 const LocationAnalysisCard: React.FC<any> = ({ data, requestSort, sortConfig }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-    <h2 className="text-lg font-semibold mb-4">Analisi per Sede (Mese Corrente)</h2>
-    <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+  <DashboardTableCard
+    headerContent={
+        <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
+    }
+  >
+    <table className="min-w-full">
         <thead><tr><SortableHeader label="Sede" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="N. Risorse" sortKey="resourceCount" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="G/U Allocati" sortKey="allocatedDays" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Utilizzo Medio" sortKey="avgUtilization" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
         <tbody>
             {data.map((d: any) => (
@@ -352,8 +396,8 @@ const LocationAnalysisCard: React.FC<any> = ({ data, requestSort, sortConfig }) 
                 </tr>
             ))}
         </tbody>
-    </table></div>
-  </div>
+    </table>
+  </DashboardTableCard>
 );
 
 const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, resourceOptions, chartRef }) => (
@@ -787,8 +831,8 @@ const DashboardPage: React.FC = () => {
 
     const fteTotals = useMemo(() => {
         const totalDays = fteData.reduce((sum, d) => sum + d.totalPersonDays, 0);
-        const avgFte = fteData.reduce((sum, d) => sum + d.fte, 0) / (fteData.length || 1);
-        return { totalDays, avgFte };
+        const totalFte = fteData.reduce((sum, d) => sum + d.fte, 0);
+        return { totalDays, totalFte };
     }, [fteData]);
 
     const budgetTotals = useMemo(() => {
