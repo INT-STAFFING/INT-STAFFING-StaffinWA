@@ -682,7 +682,7 @@ const StaffingPage: React.FC = () => {
                       {/* Riga master risorsa */}
                       <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
                         <td
-                          className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-10"
+                          className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-9"
                           colSpan={4}
                         >
                           <div className="flex items-center justify-between gap-2">

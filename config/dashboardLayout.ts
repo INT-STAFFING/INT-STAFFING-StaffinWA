@@ -10,6 +10,7 @@ export type DashboardCardId =
   | 'averageAllocation'
   | 'ftePerProject'
   | 'budgetAnalysis'
+  | 'temporalBudgetAnalysis'
   | 'underutilizedResources'
   | 'monthlyClientCost'
   | 'effortByHorizontal'
@@ -32,6 +33,7 @@ export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
   { id: 'averageAllocation', label: 'Allocazione Media', group: 'main' },
   { id: 'ftePerProject', label: 'FTE per Progetto', group: 'main' },
   { id: 'budgetAnalysis', label: 'Analisi Budget', group: 'main' },
+  { id: 'temporalBudgetAnalysis', label: 'Analisi Budget Temporale', group: 'main' },
   { id: 'underutilizedResources', label: 'Risorse Sottoutilizzate', group: 'main' },
   { id: 'monthlyClientCost', label: 'Costo Mensile per Cliente', group: 'main' },
   { id: 'effortByHorizontal', label: 'Sforzo per Horizontal', group: 'main' },
@@ -48,6 +50,7 @@ export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
   'averageAllocation',
   'ftePerProject',
   'budgetAnalysis',
+  'temporalBudgetAnalysis',
   'underutilizedResources',
   'monthlyClientCost',
   'effortByHorizontal',

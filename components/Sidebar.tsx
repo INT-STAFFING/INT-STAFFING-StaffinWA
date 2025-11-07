@@ -167,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 {isAuthenticated && isLoginProtectionEnabled ? (
                     <div className="mt-auto">
                         <div className="px-4 py-2 text-center text-xs text-gray-500">
-                            Versione V1001
+                            Versione V1004
                         </div>
                         <button
                             onClick={logout}
@@ -179,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     </div>
                 ) : (
                     <div className="mt-auto px-4 py-4 text-center text-xs text-gray-500">
-                        Versione V1001
+                        Versione V1004
                     </div>
                 )}
             </nav>

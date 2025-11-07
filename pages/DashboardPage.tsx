@@ -214,6 +214,43 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
   </div>
 );
 
+const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
+        <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+          <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
+          <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
+          <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+        </div>
+      </div>
+      <div className="overflow-x-auto max-h-80"><table className="min-w-full">
+          <thead><tr>
+              <SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} />
+              <SortableHeader label="Budget Periodo" sortKey="periodBudget" sortConfig={sortConfig} requestSort={requestSort} />
+              <SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={sortConfig} requestSort={requestSort} />
+              <SortableHeader label="Varianza" sortKey="variance" sortConfig={sortConfig} requestSort={requestSort} />
+          </tr></thead>
+          <tbody>
+              {data.map((d: any) => (
+                  <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
+                      <td className="px-4 py-2">{d.name}</td>
+                      <td className="px-4 py-2">{formatCurrency(d.periodBudget)}</td>
+                      <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
+                      <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(d.variance)}</td>
+                  </tr>
+              ))}
+          </tbody>
+          <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
+              <td className="px-4 py-2">Totale</td>
+              <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
+              <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
+              <td className={`px-4 py-2 ${totals.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(totals.variance)}</td>
+          </tr></tfoot>
+      </table></div>
+    </div>
+  );
+
 const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, requestSort, sortConfig }) => (
   <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
@@ -316,6 +353,11 @@ const DashboardPage: React.FC = () => {
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
     const [fteFilter, setFteFilter] = useState({ clientId: '' });
     const [budgetFilter, setBudgetFilter] = useState({ clientId: '' });
+    const [temporalBudgetFilter, setTemporalBudgetFilter] = useState({
+        clientId: '',
+        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
+        endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+    });
     const [underutilizedFilter, setUnderutilizedFilter] = useState(new Date().toISOString().slice(0, 7));
     const [trendResource, setTrendResource] = useState<string>('');
     const trendChartRef = useRef<SVGSVGElement>(null);
@@ -470,6 +512,65 @@ const DashboardPage: React.FC = () => {
             return { ...project, budget, estimatedCost, variance: budget - estimatedCost };
         });
     }, [projects, assignments, allocations, resources, roles, companyCalendar, budgetFilter]);
+
+    const temporalBudgetAnalysisData = useMemo(() => {
+        const filteredProjects = temporalBudgetFilter.clientId
+            ? projects.filter(p => p.clientId === temporalBudgetFilter.clientId)
+            : projects;
+    
+        const filterStartDate = parseISODate(temporalBudgetFilter.startDate);
+        const filterEndDate = parseISODate(temporalBudgetFilter.endDate);
+        if (isNaN(filterStartDate.getTime()) || isNaN(filterEndDate.getTime())) {
+            return []; // Invalid date range
+        }
+    
+        return filteredProjects.map(project => {
+            if (!project.startDate || !project.endDate || !project.budget) {
+                return { ...project, name: project.name, periodBudget: 0, estimatedCost: 0, variance: 0 };
+            }
+    
+            const projectStartDate = parseISODate(project.startDate);
+            const projectEndDate = parseISODate(project.endDate);
+            
+            const totalProjectWorkingDays = getWorkingDaysBetween(projectStartDate, projectEndDate, companyCalendar, null);
+            const dailyBudget = totalProjectWorkingDays > 0 ? project.budget / totalProjectWorkingDays : 0;
+            
+            const overlapStartDate = new Date(Math.max(projectStartDate.getTime(), filterStartDate.getTime()));
+            const overlapEndDate = new Date(Math.min(projectEndDate.getTime(), filterEndDate.getTime()));
+            
+            let periodBudget = 0;
+            if (overlapStartDate <= overlapEndDate) {
+                const workingDaysInOverlap = getWorkingDaysBetween(overlapStartDate, overlapEndDate, companyCalendar, null);
+                periodBudget = workingDaysInOverlap * dailyBudget;
+            }
+    
+            const projectAssignments = assignments.filter(a => a.projectId === project.id);
+            let estimatedCost = 0;
+            projectAssignments.forEach(assignment => {
+                const resource = resources.find(r => r.id === assignment.resourceId);
+                if (!resource) return;
+                const role = roles.find(ro => ro.id === resource.roleId);
+                const dailyRate = role?.dailyCost || 0;
+                
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                    for (const dateStr in assignmentAllocations) {
+                        const allocDate = parseISODate(dateStr);
+                        if (allocDate >= filterStartDate && allocDate <= filterEndDate) {
+                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                                estimatedCost += ((assignmentAllocations[dateStr] / 100) * dailyRate);
+                            }
+                        }
+                    }
+                }
+            });
+            estimatedCost = estimatedCost * (project.realizationPercentage / 100);
+            
+            const variance = periodBudget - estimatedCost;
+    
+            return { ...project, periodBudget, estimatedCost, variance };
+        });
+    }, [projects, assignments, allocations, resources, roles, companyCalendar, temporalBudgetFilter]);
     
     const underutilizedResourcesData = useMemo(() => {
         const [year, monthNum] = underutilizedFilter.split('-').map(Number);
@@ -637,6 +738,7 @@ const DashboardPage: React.FC = () => {
     const { items: sortedAvgAllocation, requestSort: requestAvgAllocSort, sortConfig: avgAllocSortConfig } = useSortableData(averageAllocationData, { key: 'resource.name', direction: 'ascending' });
     const { items: sortedFte, requestSort: requestFteSort, sortConfig: fteSortConfig } = useSortableData(fteData as any[], { key: 'name', direction: 'ascending' });
     const { items: sortedBudget, requestSort: requestBudgetSort, sortConfig: budgetSortConfig } = useSortableData(budgetAnalysisData, { key: 'name', direction: 'ascending' });
+    const { items: sortedTemporalBudget, requestSort: requestTemporalBudgetSort, sortConfig: temporalBudgetSortConfig } = useSortableData(temporalBudgetAnalysisData, { key: 'name', direction: 'ascending' });
     const { items: sortedUnderutilized, requestSort: requestUnderutilizedSort, sortConfig: underutilizedSortConfig } = useSortableData(underutilizedResourcesData, { key: 'avgAllocation', direction: 'ascending' });
     const { items: sortedClientCost, requestSort: requestClientCostSort, sortConfig: clientCostSortConfig } = useSortableData(currentMonthKPIs.clientCostArray, { key: 'cost', direction: 'descending' });
     const { items: sortedEffortByHorizontal, requestSort: requestEffortHorizontalSort, sortConfig: effortHorizontalSortConfig } = useSortableData(effortByHorizontalData, { key: 'totalPersonDays', direction: 'descending' });
@@ -660,6 +762,12 @@ const DashboardPage: React.FC = () => {
         const cost = budgetAnalysisData.reduce((sum, d) => sum + d.estimatedCost, 0);
         return { budget, cost, variance: budget - cost };
     }, [budgetAnalysisData]);
+
+    const temporalBudgetTotals = useMemo(() => {
+        const budget = temporalBudgetAnalysisData.reduce((sum, d) => sum + d.periodBudget, 0);
+        const cost = temporalBudgetAnalysisData.reduce((sum, d) => sum + d.estimatedCost, 0);
+        return { budget, cost, variance: budget - cost };
+    }, [temporalBudgetAnalysisData]);
 
     const effortByHorizontalTotal = useMemo(() => effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0), [effortByHorizontalData]);
     
@@ -765,6 +873,8 @@ const DashboardPage: React.FC = () => {
                 return <FtePerProjectCard key={id} data={sortedFte} filter={fteFilter} setFilter={setFteFilter} clientOptions={clientOptions} requestSort={requestFteSort} sortConfig={fteSortConfig} totals={fteTotals} />;
             case 'budgetAnalysis':
                 return <BudgetAnalysisCard key={id} data={sortedBudget} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} requestSort={requestBudgetSort} sortConfig={budgetSortConfig} totals={budgetTotals} />;
+            case 'temporalBudgetAnalysis':
+                return <TemporalBudgetAnalysisCard key={id} data={sortedTemporalBudget} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} requestSort={requestTemporalBudgetSort} sortConfig={temporalBudgetSortConfig} totals={temporalBudgetTotals} />;
             case 'underutilizedResources':
                 return <UnderutilizedResourcesCard key={id} data={sortedUnderutilized} month={underutilizedFilter} setMonth={setUnderutilizedFilter} requestSort={requestUnderutilizedSort} sortConfig={underutilizedSortConfig} />;
             case 'monthlyClientCost':
