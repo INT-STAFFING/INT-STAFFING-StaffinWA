@@ -36,7 +36,7 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS project_statuses ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
     `CREATE TABLE IF NOT EXISTS client_sectors ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
     `CREATE TABLE IF NOT EXISTS locations ( id UUID PRIMARY KEY, value VARCHAR(255) NOT NULL UNIQUE );`,
-    `CREATE TABLE IF NOT EXISTS app_config ( key VARCHAR(255) PRIMARY KEY, value TEXT NOT NULL );`,
+    `CREATE TABLE IF NOT EXISTS app_config ( key VARCHAR(255) PRIMARY KEY, value VARCHAR(255) NOT NULL );`,
     `CREATE TABLE IF NOT EXISTS clients ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, sector VARCHAR(255), contact_email VARCHAR(255) );`,
     `CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2) );`,
     `CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100 NOT NULL, location VARCHAR(255), resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE );`,

@@ -323,7 +323,7 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
     `;
      await client.sql`
         INSERT INTO app_config (key, value) 
-        VALUES ('login_protection_enabled', 'true') 
+        VALUES ('login_protection_enabled', 'false') 
         ON CONFLICT (key) DO NOTHING;
     `;
 

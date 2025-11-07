@@ -39,7 +39,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(true);
+    const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(false);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const { addToast } = useToast();
 
@@ -103,10 +103,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const toggleLoginProtection = useCallback(async (enable: boolean) => {
         try {
-            // Fix: The API expects `key` and `value` in the body, not `isEnabled`.
             await apiFetch('/api/auth-config', {
                 method: 'POST',
-                body: JSON.stringify({ key: 'login_protection_enabled', value: String(enable) }),
+                body: JSON.stringify({ isEnabled: enable }),
             });
             setIsLoginProtectionEnabled(enable);
             addToast(`Protezione tramite login ${enable ? 'attivata' : 'disattivata'}.`, 'success');

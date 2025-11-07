@@ -66,8 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             interviewsRes,
             contractsRes,
             contractProjectsRes,
-            contractManagersRes,
-            appConfigRes, // Fetch app settings
+            contractManagersRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -88,7 +87,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM contracts;`,
             db.sql`SELECT * FROM contract_projects;`,
             db.sql`SELECT * FROM contract_managers;`,
-            db.sql`SELECT * FROM app_config;`, // Fetch app settings
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -111,17 +109,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             return event;
         }) as CalendarEvent[];
-
-        // Process app settings into a key-value object
-        const appSettings: { [key: string]: any } = {};
-        appConfigRes.rows.forEach(row => {
-            try {
-                // Attempt to parse JSON strings, otherwise keep as is
-                appSettings[row.key] = JSON.parse(row.value);
-            } catch (e) {
-                appSettings[row.key] = row.value;
-            }
-        });
 
 
         // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
@@ -155,7 +142,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }) as Contract[],
             contractProjects: contractProjectsRes.rows.map(toCamelCase),
             contractManagers: contractManagersRes.rows.map(toCamelCase),
-            appSettings, // Add settings to the payload
         };
 
         return res.status(200).json(data);

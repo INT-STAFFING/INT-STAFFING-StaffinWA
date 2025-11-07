@@ -25,23 +25,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         case 'POST':
             try {
-                const { key, value } = req.body;
-                
-                if (!key || value === undefined) {
-                    return res.status(400).json({ error: 'Invalid body. "key" and "value" are required.' });
+                const { isEnabled } = req.body;
+                if (typeof isEnabled !== 'boolean') {
+                    return res.status(400).json({ error: 'Invalid "isEnabled" value. Must be a boolean.' });
                 }
                 
                 await db.sql`
                     INSERT INTO app_config (key, value) 
-                    VALUES (${key}, ${value})
+                    VALUES (${CONFIG_KEY}, ${isEnabled.toString()})
                     ON CONFLICT (key) 
-                    DO UPDATE SET value = ${value};
+                    DO UPDATE SET value = ${isEnabled.toString()};
                 `;
 
-                return res.status(200).json({ success: true, key, value });
+                return res.status(200).json({ success: true, isEnabled });
 
             } catch (error) {
-                console.error('Failed to update app config:', error);
+                console.error('Failed to update auth config:', error);
                 return res.status(500).json({ error: (error as Error).message });
             }
 
