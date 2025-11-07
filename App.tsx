@@ -33,18 +33,10 @@ import ContractsPage from './pages/ContractsPage';
 import StaffingVisualizationPage from './pages/StaffingVisualizationPage';
 import UserManualPage from './pages/UserManualPage';
 
-/**
- * @interface HeaderProps
- * @description Prop per il componente Header.
- */
 interface HeaderProps {
-  /** Funzione callback per aprire/chiudere la sidebar su mobile. */
   onToggleSidebar: () => void;
 }
 
-/**
- * Header con titolo pagina + hamburger menu su mobile
- */
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const location = useLocation();
 
@@ -89,24 +81,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         <h1 className="text-xl font-semibold text-foreground dark:text-dark-foreground md:text-2xl">
           {getPageTitle(location.pathname)}
         </h1>
-        {/* spazio “finto” per tenere il titolo centrato su mobile */}
         <div className="md:hidden w-6" />
       </div>
     </header>
   );
 };
 
-/**
- * @interface AppContentProps
- */
 interface AppContentProps {
-  /** Callback per aprire la sidebar su mobile */
   onToggleSidebar: () => void;
 }
 
-/**
- * Contenuto principale dell'applicazione (pagine)
- */
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
 
@@ -141,9 +125,9 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     <div className="flex-1 flex flex-col min-h-0">
       <Header onToggleSidebar={onToggleSidebar} />
 
-      {/* Main scrolla verticalmente, MA non scrolla orizzontalmente */}
+      {/* Main scrolla verticalmente, MA non crea scroll orizzontale globale */}
       <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-muted dark:bg-dark-background">
-        {/* QUI controlli padding laterale di tutte le pagine */}
+        {/* Padding globale delle pagine */}
         <div className="w-full max-w-full px-3 sm:px-4 md:px-6 lg:px-8 py-6">
           <Routes>
             <Route path="/" element={<Navigate to="/staffing" replace />} />
@@ -189,23 +173,17 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   );
 };
 
-/**
- * Layout principale (sidebar + contenuto)
- */
 const MainLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <>
-      {/* Backdrop per sidebar mobile */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-
-      {/* h-screen + w-screen + overflow-hidden => nessuna scrollbar orizzontale globale */}
       <div className="flex h-screen w-screen overflow-hidden bg-background dark:bg-dark-background">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
@@ -214,9 +192,6 @@ const MainLayout: React.FC = () => {
   );
 };
 
-/**
- * Route protetta (login)
- */
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthLoading, isLoginProtectionEnabled, isAuthenticated } = useAuth();
 
@@ -254,9 +229,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
   return children;
 };
 
-/**
- * Route protetta Admin
- */
 const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthLoading, isLoginProtectionEnabled, isAuthenticated, isAdmin } = useAuth();
 
@@ -298,9 +270,6 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
   return children;
 };
 
-/**
- * Routing principale
- */
 const AppRoutes: React.FC = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
@@ -315,9 +284,6 @@ const AppRoutes: React.FC = () => (
   </Routes>
 );
 
-/**
- * Root app con tutti i provider
- */
 const App: React.FC = () => {
   return (
     <ThemeProvider>
