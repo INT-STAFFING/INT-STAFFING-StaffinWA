@@ -321,6 +321,10 @@ const DashboardLayoutEditor: React.FC = () => {
     const [cardOrder, setCardOrder] = useState<DashboardCardId[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
 
+    // For Drag & Drop
+    const dragItem = React.useRef<number | null>(null);
+    const dragOverItem = React.useRef<number | null>(null);
+
     useEffect(() => {
         try {
             const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
@@ -331,12 +335,32 @@ const DashboardLayoutEditor: React.FC = () => {
         }
     }, []);
 
-    const moveCard = (index: number, direction: 'up' | 'down') => {
-        const newOrder = [...cardOrder];
-        const targetIndex = direction === 'up' ? index - 1 : index + 1;
-        [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
-        setCardOrder(newOrder);
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, position: number) => {
+        dragItem.current = position;
+        e.currentTarget.classList.add('dragging');
+    };
+
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, position: number) => {
+        dragOverItem.current = position;
+    };
+
+    const handleDrop = () => {
+        if (dragItem.current === null || dragOverItem.current === null) return;
+
+        const newCardOrder = [...cardOrder];
+        const dragItemContent = newCardOrder[dragItem.current];
+        newCardOrder.splice(dragItem.current, 1);
+        newCardOrder.splice(dragOverItem.current, 0, dragItemContent);
+        
+        dragItem.current = null;
+        dragOverItem.current = null;
+        
+        setCardOrder(newCardOrder);
         setHasChanges(true);
+    };
+
+    const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+        e.currentTarget.classList.remove('dragging');
     };
 
     const handleSave = () => {
@@ -350,22 +374,39 @@ const DashboardLayoutEditor: React.FC = () => {
         setHasChanges(true);
     };
     
-    const cardLabels = new Map(DASHBOARD_CARDS_CONFIG.map(c => [c.id, c.label]));
+    const cardConfigMap = new Map(DASHBOARD_CARDS_CONFIG.map(c => [c.id, c]));
 
     return (
         <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
-            <h2 className="text-xl font-semibold mb-6">Ordinamento Card Dashboard</h2>
-            <div className="space-y-2 max-w-2xl mx-auto">
-                {cardOrder.map((cardId, index) => (
-                    <div key={cardId} className="flex items-center justify-between p-3 border border-border dark:border-dark-border rounded-md bg-muted/50 dark:bg-dark-muted/50">
-                        <span className="font-medium text-foreground dark:text-dark-foreground">{cardLabels.get(cardId) || cardId}</span>
-                        <div className="space-x-2">
-                            <button onClick={() => moveCard(index, 'up')} disabled={index === 0} className="px-2 py-1 rounded-md hover:bg-border dark:hover:bg-dark-border disabled:opacity-30">↑</button>
-                            <button onClick={() => moveCard(index, 'down')} disabled={index === cardOrder.length - 1} className="px-2 py-1 rounded-md hover:bg-border dark:hover:bg-dark-border disabled:opacity-30">↓</button>
+            <h2 className="text-xl font-semibold mb-2">Ordinamento Card Dashboard</h2>
+            <p className="text-sm text-muted-foreground mb-6 max-w-2xl mx-auto">Trascina le card per riordinarle come verranno visualizzate nella Dashboard.</p>
+            <div className="space-y-3 max-w-2xl mx-auto">
+                {cardOrder.map((cardId, index) => {
+                    const cardConfig = cardConfigMap.get(cardId);
+                    if (!cardConfig) return null;
+
+                    return (
+                        <div 
+                            key={cardId} 
+                            className="flex items-center p-4 border border-border dark:border-dark-border rounded-lg bg-background dark:bg-dark-background cursor-grab active:cursor-grabbing transition-shadow"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragEnter={(e) => handleDragEnter(e, index)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleDrop}
+                        >
+                            <span className="text-gray-400 mr-4 cursor-grab" title="Trascina per riordinare">⠿</span>
+                            <span className="text-2xl mr-4">{cardConfig.icon}</span>
+                            <div className="flex-grow">
+                                <p className="font-semibold text-foreground dark:text-dark-foreground">{cardConfig.label}</p>
+                                <p className="text-sm text-muted-foreground">{cardConfig.description}</p>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
+             <style>{`.dragging { opacity: 0.5; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }`}</style>
             <div className="mt-8 flex justify-end space-x-3">
                 <button onClick={handleReset} className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted">Ripristina Ordine Default</button>
                 <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50">Salva Ordine</button>
