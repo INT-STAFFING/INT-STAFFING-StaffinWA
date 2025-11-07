@@ -1,4 +1,3 @@
-
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -18,6 +17,40 @@ import {
 
 
 declare var d3: any;
+
+// --- Colori Centralizzati per la Dashboard ---
+const DASHBOARD_COLORS = {
+  attention: {
+    background: 'bg-amber-100 dark:bg-amber-900/50',
+    hoverBackground: 'hover:bg-amber-200 dark:hover:bg-amber-900/80',
+    text: 'text-amber-800 dark:text-amber-200',
+    strongText: 'text-amber-900 dark:text-amber-100',
+    icon: 'text-3xl opacity-50',
+  },
+  utilization: {
+    over: 'text-red-600 dark:text-red-400 font-bold',
+    high: 'text-green-600 dark:text-green-400',
+    normal: 'text-yellow-600 dark:text-yellow-400 font-semibold',
+    zero: 'text-gray-500 dark:text-gray-400',
+  },
+  variance: {
+    positive: 'text-green-600',
+    negative: 'text-red-600',
+  },
+  link: 'text-blue-600 hover:underline',
+  header: {
+    base: 'text-gray-500 dark:text-gray-300',
+    hover: 'hover:text-gray-900 dark:hover:text-white',
+    active: 'font-bold text-gray-800 dark:text-white',
+    icon: 'text-gray-400',
+  },
+  chart: {
+    primary: '#3b82f6', // blue
+    secondary: '#6b7280', // gray
+    threshold: 'red',
+  },
+};
+
 
 // --- Tipi e Hook per l'Ordinamento ---
 
@@ -104,30 +137,30 @@ const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any }> = ({
 
 const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ overallKPIs, navigate }) => (
     <>
-        <div className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]" onClick={() => navigate('/resources?filter=unassigned')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/resources?filter=unassigned')}>
             <div className="flex justify-between items-start w-full">
                 <div>
-                    <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Risorse Non Allocate</h3>
-                    <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unassignedResources.length}</p>
+                    <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Risorse Non Allocate</h3>
+                    <p className={`mt-1 text-3xl font-semibold ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unassignedResources.length}</p>
                 </div>
-                <span className="text-3xl opacity-50">👥</span>
+                <span className={DASHBOARD_COLORS.attention.icon}>👥</span>
             </div>
             {overallKPIs.unassignedResources.length > 0 && (
-                <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
+                <div className={`mt-2 text-xs ${DASHBOARD_COLORS.attention.text} overflow-y-auto max-h-20 pr-2 w-full`}>
                     <ul className="list-disc list-inside">{overallKPIs.unassignedResources.slice(0, 5).map((r: any) => <li key={r.id} className="truncate">{r.name}</li>)}</ul>
                 </div>
             )}
         </div>
-        <div className="bg-amber-100 dark:bg-amber-900/50 rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/80 min-h-[150px]" onClick={() => navigate('/projects?filter=unstaffed')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/projects?filter=unstaffed')}>
             <div className="flex justify-between items-start w-full">
                 <div>
-                    <h3 className="text-sm font-medium text-amber-800 dark:text-amber-200">Progetti Senza Staff</h3>
-                    <p className="mt-1 text-3xl font-semibold text-amber-900 dark:text-amber-100">{overallKPIs.unstaffedProjects.length}</p>
+                    <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Progetti Senza Staff</h3>
+                    <p className={`mt-1 text-3xl font-semibold ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unstaffedProjects.length}</p>
                 </div>
-                <span className="text-3xl opacity-50">💼</span>
+                <span className={DASHBOARD_COLORS.attention.icon}>💼</span>
             </div>
             {overallKPIs.unstaffedProjects.length > 0 && (
-                <div className="mt-2 text-xs text-amber-800 dark:text-amber-200 overflow-y-auto max-h-20 pr-2 w-full">
+                <div className={`mt-2 text-xs ${DASHBOARD_COLORS.attention.text} overflow-y-auto max-h-20 pr-2 w-full`}>
                     <ul className="list-disc list-inside">{overallKPIs.unstaffedProjects.slice(0, 5).map((p: any) => <li key={p.id} className="truncate">{p.name}</li>)}</ul>
                 </div>
             )}
@@ -136,19 +169,19 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
 );
 
 const SortableHeader: React.FC<{ label: string; sortKey: string; sortConfig: SortConfig<any> | null; requestSort: (key: string) => void; }> = ({ label, sortKey, sortConfig, requestSort }) => (
-    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-        <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-            <span className={sortConfig?.key === sortKey ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-            <span className="text-gray-400">↕️</span>
+    <th className={`px-4 py-2 text-left text-xs font-medium ${DASHBOARD_COLORS.header.base} uppercase tracking-wider`}>
+        <button type="button" onClick={() => requestSort(sortKey)} className={`flex items-center space-x-1 ${DASHBOARD_COLORS.header.hover}`}>
+            <span className={sortConfig?.key === sortKey ? DASHBOARD_COLORS.header.active : ''}>{label}</span>
+            <span className={DASHBOARD_COLORS.header.icon}>↕️</span>
         </button>
     </th>
 );
 
 const getAvgAllocationColor = (avg: number): string => {
-    if (avg > 100) return 'text-red-600 dark:text-red-400 font-bold';
-    if (avg > 90) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
-    if (avg > 0) return 'text-green-600 dark:text-green-400';
-    return 'text-gray-500 dark:text-gray-400';
+    if (avg > 100) return DASHBOARD_COLORS.utilization.over;
+    if (avg > 95) return DASHBOARD_COLORS.utilization.high;
+    if (avg > 0) return DASHBOARD_COLORS.utilization.normal;
+    return DASHBOARD_COLORS.utilization.zero;
 };
 
 // --- Individual Card Components ---
@@ -164,7 +197,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
               <tbody>
                   {data.map((d: any) => (
                       <tr key={d.resource.id} className="border-t border-gray-200 dark:border-gray-700">
-                          <td className="px-4 py-2"><Link to={`/workload?resourceId=${d.resource.id}`} className="text-blue-600 hover:underline">{d.resource.name}</Link></td>
+                          <td className="px-4 py-2"><Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link></td>
                           <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</td>
                           <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</td>
                       </tr>
@@ -206,11 +239,11 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                     <td className="px-4 py-2">{d.name}</td>
                     <td className="px-4 py-2">{formatCurrency(d.budget)}</td>
                     <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
-                    <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(d.variance)}</td>
+                    <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</td>
                 </tr>
             ))}
         </tbody>
-        <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{formatCurrency(totals.budget)}</td><td className="px-4 py-2">{formatCurrency(totals.cost)}</td><td className={`px-4 py-2 ${totals.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(totals.variance)}</td></tr></tfoot>
+        <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{formatCurrency(totals.budget)}</td><td className="px-4 py-2">{formatCurrency(totals.cost)}</td><td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td></tr></tfoot>
     </table></div>
   </div>
 );
@@ -238,7 +271,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                       <td className="px-4 py-2">{d.name}</td>
                       <td className="px-4 py-2">{formatCurrency(d.periodBudget)}</td>
                       <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
-                      <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(d.variance)}</td>
+                      <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</td>
                   </tr>
               ))}
           </tbody>
@@ -246,7 +279,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
               <td className="px-4 py-2">Totale</td>
               <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
               <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
-              <td className={`px-4 py-2 ${totals.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(totals.variance)}</td>
+              <td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td>
           </tr></tfoot>
       </table></div>
     </div>
@@ -261,7 +294,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, requ
               {data.map((d: any) => (
                   <tr key={d.resource.id} className="border-t border-gray-200 dark:border-gray-700">
                       <td className="px-4 py-2">{d.resource.name}</td>
-                      <td className="px-4 py-2 font-semibold text-yellow-600">{d.avgAllocation.toFixed(0)}%</td>
+                      <td className={`px-4 py-2 ${DASHBOARD_COLORS.utilization.high}`}>{d.avgAllocation.toFixed(0)}%</td>
                   </tr>
               ))}
           </tbody>
@@ -277,7 +310,7 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, requestSort, sortConfig, n
         <tbody>
             {data.map((d: any) => (
                 <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
-                    <td className="px-4 py-2"><button onClick={() => navigate(`/projects?clientId=${d.id}`)} className="text-blue-600 hover:underline">{d.name}</button></td>
+                    <td className="px-4 py-2"><button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button></td>
                     <td className="px-4 py-2">{formatCurrency(d.cost)}</td>
                 </tr>
             ))}
@@ -800,10 +833,10 @@ const DashboardPage: React.FC = () => {
         g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(Math.min(saturationTrendData.length, Math.floor(width / 80))).tickFormat(d3.timeFormat("%b %y")));
         g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d: number) => `${d}%`));
 
-        g.append("path").datum(saturationTrendData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 2)
+        g.append("path").datum(saturationTrendData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2)
           .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.value)));
         
-        g.append("line").attr("x1", 0).attr("x2", width).attr("y1", y(100)).attr("y2", y(100)).attr("stroke", "red").attr("stroke-width", 1.5).attr("stroke-dasharray", "4");
+        g.append("line").attr("x1", 0).attr("x2", width).attr("y1", y(100)).attr("y2", y(100)).attr("stroke", DASHBOARD_COLORS.chart.threshold).attr("stroke-width", 1.5).attr("stroke-dasharray", "4");
 
     }, [saturationTrendData, trendResource]);
 
@@ -829,10 +862,10 @@ const DashboardPage: React.FC = () => {
         g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(Math.min(monthlyCostForecastData.length, Math.floor(width / 80))).tickFormat(d3.timeFormat("%b %y")));
         g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("~s")));
 
-        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", "#6b7280").attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
+        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.secondary).attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
             .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.historic)));
         
-        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 2.5)
+        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2.5)
             .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.forecast)));
 
     }, [monthlyCostForecastData]);
