@@ -191,20 +191,37 @@ const getAvgAllocationColor = (avg: number): string => {
  * This ensures consistent padding, shadow, header layout, and scrolling behavior.
  */
 const DashboardTableCard: React.FC<{
-    headerContent: React.ReactNode;
-    children: React.ReactNode; // Expects the <table> element
+  headerContent: React.ReactNode;
+  children: React.ReactNode; // expects the <table> element
 }> = ({ headerContent, children }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
-        {/* Header section with title and filters */}
-        <div className="flex-shrink-0 mb-4">
-            {headerContent}
-        </div>
-        
-        {/* Scrollable table container */}
-        <div className="overflow-x-auto max-h-80 flex-grow">
-            {children}
-        </div>
+  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+    {/* Header (titolo + filtri) */}
+    <div className="flex-shrink-0 mb-4">{headerContent}</div>
+
+    {/* Contenitore scrollabile */}
+    <div className="flex-grow overflow-x-auto">
+      <div className="max-h-80 overflow-y-auto relative dashboard-table-container">
+        {children}
+      </div>
     </div>
+
+    <style>{`
+      /* Applica sticky header a qualsiasi thead interno */
+      .dashboard-table-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f9fafb; /* bg-gray-50 */
+      }
+      .dark .dashboard-table-container thead {
+        background-color: #374151; /* dark:bg-gray-700 */
+      }
+      /* Rimuovi eventuali trasparenze per evitare sovrapposizioni */
+      .dashboard-table-container th {
+        background-color: inherit;
+      }
+    `}</style>
+  </div>
 );
 
 const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, requestSort, sortConfig, totals }) => (
