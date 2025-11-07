@@ -433,7 +433,7 @@ const WorkloadPage: React.FC = () => {
       </div>
 
       {/* Griglia Carico - con max height come Staffing */}
-      <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow max-h-[680px]">
+      <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow max-h-[660px]">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
             <tr>

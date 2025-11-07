@@ -95,7 +95,8 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
   const location = useLocation();
 
-  // Pagine che gestiscono lo scroll verticale interno (tabella con max-height + overflow-y-auto)
+  // Se ti serve in futuro sapere quali pagine hanno tabelle “pesanti”
+  // puoi tenere questa lista, ma NON la usiamo per l’overflow.
   const pagesWithInternalScroll = ['/staffing', '/workload'];
   const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
 
@@ -115,12 +116,12 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
             r="10"
             stroke="currentColor"
             strokeWidth="4"
-          ></circle>
+          />
           <path
             className="opacity-75"
             fill="currentColor"
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
+          />
         </svg>
       </div>
     );
@@ -130,20 +131,10 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header onToggleSidebar={onToggleSidebar} />
 
-      <main
-        className={`
-          flex-1 bg-muted dark:bg-dark-background
-          ${needsInternalScrollLayout ? 'flex flex-col overflow-y-hidden' : 'overflow-y-auto'}
-        `}
-      >
-        <div
-          className={`
-            w-full max-w-none
-            px-3 sm:px-4 md:px-6
-            py-4 sm:py-6
-            ${needsInternalScrollLayout ? 'flex-1 flex flex-col min-h-0' : ''}
-          `}
-        >
+      {/* QUI: niente più overflow-y-hidden condizionale */}
+      <main className="flex-1 overflow-y-auto bg-muted dark:bg-dark-background">
+        {/* wrapper del contenuto, con padding orizzontale controllato */}
+        <div className="w-full max-w-none px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           <Routes>
             <Route path="/" element={<Navigate to="/staffing" replace />} />
             <Route path="/staffing" element={<StaffingPage />} />
@@ -187,6 +178,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     </div>
   );
 };
+
 
 
 const MainLayout: React.FC = () => {

@@ -630,7 +630,7 @@ const StaffingPage: React.FC = () => {
       <div className="flex-grow mt-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
           {/* Altezza massima ~20 righe + header */}
-          <div className="max-h-[680px] overflow-y-auto">
+          <div className="max-h-[660px] overflow-y-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
                 <tr>
