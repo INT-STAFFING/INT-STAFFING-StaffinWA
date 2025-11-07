@@ -39,7 +39,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(false);
+    const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(true);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const { addToast } = useToast();
 
