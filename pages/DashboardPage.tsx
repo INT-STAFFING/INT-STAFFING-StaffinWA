@@ -289,6 +289,47 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
     );
 };
 
+const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Progetto", sortKey: "name", cell: (d) => d.name },
+        { header: "Cliente", sortKey: "clientName", cell: (d) => d.clientName },
+        { header: "G/U Lavorati", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
+        { header: "Costo Totale", sortKey: "totalCost", cell: (d) => formatCurrency(d.totalCost) },
+        { header: "Tariffa Media G.", sortKey: "avgDailyRate", cell: (d) => <span className="font-semibold text-primary">{formatCurrency(d.avgDailyRate)}</span> },
+    ];
+
+    const footer = (
+        <tr>
+            <td className="px-4 py-2" colSpan={2}>Media Ponderata</td>
+            <td className="px-4 py-2">{totals.totalDays.toFixed(1)}</td>
+            <td className="px-4 py-2">{formatCurrency(totals.totalCost)}</td>
+            <td className="px-4 py-2 text-primary">{formatCurrency(totals.weightedAverage)}</td>
+        </tr>
+    );
+
+    return (
+        <DashboardTableCard
+            headerContent={
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
+                     <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                        <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    </div>
+                </div>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="name"
+            footerNode={footer}
+            maxVisibleRows={10}
+        />
+    );
+};
+
+
 const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLoading }) => {
     const columns: ColumnDef<any>[] = [
         { header: "Risorsa", sortKey: "resource.name", cell: (d) => d.resource.name },
@@ -411,6 +452,11 @@ const DashboardPage: React.FC = () => {
     const [fteFilter, setFteFilter] = useState({ clientId: '' });
     const [budgetFilter, setBudgetFilter] = useState({ clientId: '' });
     const [temporalBudgetFilter, setTemporalBudgetFilter] = useState({
+        clientId: '',
+        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
+        endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+    });
+    const [avgDailyRateFilter, setAvgDailyRateFilter] = useState({
         clientId: '',
         startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
         endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
@@ -629,6 +675,54 @@ const DashboardPage: React.FC = () => {
             return { ...project, periodBudget, estimatedCost, variance };
         });
     }, [projects, assignments, allocations, resources, roles, companyCalendar, temporalBudgetFilter]);
+
+    const averageDailyRateData = useMemo(() => {
+        const filteredProjects = avgDailyRateFilter.clientId
+            ? projects.filter(p => p.clientId === avgDailyRateFilter.clientId)
+            : projects;
+    
+        const filterStartDate = parseISODate(avgDailyRateFilter.startDate);
+        const filterEndDate = parseISODate(avgDailyRateFilter.endDate);
+        if (isNaN(filterStartDate.getTime()) || isNaN(filterEndDate.getTime())) {
+            return [];
+        }
+    
+        return filteredProjects.map(project => {
+            const projectAssignments = assignments.filter(a => a.projectId === project.id);
+            let totalCost = 0;
+            let totalPersonDays = 0;
+    
+            projectAssignments.forEach(assignment => {
+                const resource = resources.find(r => r.id === assignment.resourceId);
+                if (!resource) return;
+                const role = roles.find(ro => ro.id === resource.roleId);
+                const dailyRate = role?.dailyCost || 0;
+                
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                    let currentDate = new Date(filterStartDate);
+                    while (currentDate <= filterEndDate) {
+                        const dateStr = currentDate.toISOString().slice(0, 10);
+                        if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                            const personDayFraction = (assignmentAllocations[dateStr] / 100);
+                            totalPersonDays += personDayFraction;
+                            totalCost += personDayFraction * dailyRate * (project.realizationPercentage / 100);
+                        }
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                }
+            });
+    
+            return {
+                id: project.id,
+                name: project.name,
+                clientName: clients.find(c => c.id === project.clientId)?.name || 'N/A',
+                totalPersonDays,
+                totalCost,
+                avgDailyRate: totalPersonDays > 0 ? totalCost / totalPersonDays : 0,
+            };
+        }).filter(p => p.totalPersonDays > 0);
+    }, [projects, assignments, allocations, resources, roles, clients, companyCalendar, avgDailyRateFilter]);
     
     const underutilizedResourcesData = useMemo(() => {
         const [year, monthNum] = underutilizedFilter.split('-').map(Number);
@@ -819,6 +913,13 @@ const DashboardPage: React.FC = () => {
         return { budget, cost, variance: budget - cost };
     }, [temporalBudgetAnalysisData]);
 
+    const avgDailyRateTotals = useMemo(() => {
+        const totalDays = averageDailyRateData.reduce((sum, d) => sum + d.totalPersonDays, 0);
+        const totalCost = averageDailyRateData.reduce((sum, d) => sum + d.totalCost, 0);
+        return { totalDays, totalCost, weightedAverage: totalDays > 0 ? totalCost / totalDays : 0 };
+    }, [averageDailyRateData]);
+
+
     const effortByHorizontalTotal = useMemo(() => effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0), [effortByHorizontalData]);
     
     const resourceOptions = useMemo(() => activeResources.map((r) => ({ value: r.id!, label: r.name })), [activeResources]);
@@ -925,6 +1026,8 @@ const DashboardPage: React.FC = () => {
                 return <BudgetAnalysisCard key={id} data={budgetAnalysisData} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} totals={budgetTotals} isLoading={loading} />;
             case 'temporalBudgetAnalysis':
                 return <TemporalBudgetAnalysisCard key={id} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} totals={temporalBudgetTotals} isLoading={loading} />;
+            case 'averageDailyRate':
+                return <AverageDailyRateCard key={id} data={averageDailyRateData} filter={avgDailyRateFilter} setFilter={setAvgDailyRateFilter} clientOptions={clientOptions} totals={avgDailyRateTotals} isLoading={loading} />;
             case 'underutilizedResources':
                 return <UnderutilizedResourcesCard key={id} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} isLoading={loading} />;
             case 'monthlyClientCost':

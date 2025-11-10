@@ -16,7 +16,8 @@ export type DashboardCardId =
   | 'effortByHorizontal'
   | 'locationAnalysis'
   | 'saturationTrend'
-  | 'costForecast';
+  | 'costForecast'
+  | 'averageDailyRate'; // Aggiunta la nuova card
 
 // Interface defining the metadata for each dashboard card.
 export interface DashboardCardConfig {
@@ -36,6 +37,7 @@ export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
   { id: 'ftePerProject', label: 'FTE per Progetto', description: 'Calcola l\'equivalente a tempo pieno delle risorse per progetto.', icon: '👥', group: 'main' },
   { id: 'budgetAnalysis', label: 'Analisi Budget', description: 'Confronta budget, costi stimati totali e varianza per progetto.', icon: '💰', group: 'main' },
   { id: 'temporalBudgetAnalysis', label: 'Analisi Budget Temporale', description: 'Analizza budget e costi in un intervallo di date personalizzato.', icon: '📅', group: 'main' },
+  { id: 'averageDailyRate', label: 'Tariffa Media Giornaliera', description: 'Calcola il costo medio giornaliero effettivo per ogni progetto.', icon: '💶', group: 'main' },
   { id: 'underutilizedResources', label: 'Risorse Sottoutilizzate', description: 'Elenca le risorse con un carico di lavoro inferiore al 100%.', icon: '📉', group: 'main' },
   { id: 'monthlyClientCost', label: 'Costo Mensile per Cliente', description: 'Mostra il costo stimato per cliente nel mese corrente.', icon: '🏢', group: 'main' },
   { id: 'effortByHorizontal', label: 'Sforzo per Horizontal', description: 'Visualizza i giorni/uomo totali suddivisi per area di competenza.', icon: '🛠️', group: 'main' },
@@ -53,6 +55,7 @@ export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
   'ftePerProject',
   'budgetAnalysis',
   'temporalBudgetAnalysis',
+  'averageDailyRate', // Aggiunta la nuova card all'ordine di default
   'underutilizedResources',
   'monthlyClientCost',
   'effortByHorizontal',
