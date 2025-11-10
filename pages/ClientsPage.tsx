@@ -176,7 +176,7 @@ const ClientsPage: React.FC = () => {
     
     return (
         <div>
-            <DataTable
+            <DataTable<Client>
                 title="Gestione Clienti"
                 addNewButtonLabel="Aggiungi Cliente"
                 data={filteredClients}
@@ -198,6 +198,7 @@ const ClientsPage: React.FC = () => {
                 tableClassNames={{
                     base: 'w-full text-sm',
                 }}
+                hasActionsColumn={true}
             />
             
             {editingClient && (

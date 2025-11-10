@@ -183,7 +183,7 @@ const RolesPage: React.FC = () => {
 
     return (
         <div>
-            <DataTable
+            <DataTable<Role>
                 title="Gestione Ruoli"
                 addNewButtonLabel="Aggiungi Ruolo"
                 data={filteredRoles}
@@ -205,6 +205,7 @@ const RolesPage: React.FC = () => {
                 tableClassNames={{
                     base: 'w-full text-sm',
                 }}
+                hasActionsColumn={true}
             />
 
             {editingRole && (

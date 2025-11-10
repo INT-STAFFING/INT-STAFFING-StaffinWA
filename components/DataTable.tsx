@@ -71,50 +71,22 @@ interface TableClassNames {
  * @template T - Il tipo di dato di una riga, deve avere una proprietà 'id'.
  */
 interface DataTableProps<T extends { id?: string }> {
-    /** @property {string} title - Il titolo principale della pagina (es. "Gestione Clienti"). */
-    title: string;
-    /** @property {string} addNewButtonLabel - Il testo per il pulsante di aggiunta (es. "Aggiungi Cliente"). */
-    addNewButtonLabel: string;
-    /** @property {T[]} data - L'array di dati da visualizzare, già filtrato. */
+    title?: string;
+    addNewButtonLabel?: string;
     data: T[];
-    /** @property {ColumnDef<T>[]} columns - La definizione delle colonne per la tabella desktop. */
     columns: ColumnDef<T>[];
-    /** @property {React.ReactNode} filtersNode - Il componente React che contiene i controlli di filtro. */
-    filtersNode: React.ReactNode;
-    /** @property {() => void} onAddNew - Callback per il click sul pulsante di aggiunta. */
-    onAddNew: () => void;
-    /** @property {(item: T) => React.ReactNode} renderRow - Funzione che renderizza una riga completa della tabella (`<tr>`). */
-    renderRow: (item: T) => React.ReactNode;
-    /** @property {(item: T) => React.ReactNode} renderMobileCard - Funzione che renderizza la card per la visualizzazione mobile. */
-    renderMobileCard: (item: T) => React.ReactNode;
-    /** @property {string} [initialSortKey] - La chiave per l'ordinamento iniziale. */
+    filtersNode?: React.ReactNode;
+    onAddNew?: () => void;
+    renderRow?: (item: T) => React.ReactNode;
+    renderMobileCard?: (item: T) => React.ReactNode;
     initialSortKey?: string;
-
-    // --- Nuove prop “in stile ReUI”, tutte opzionali ---
-
-    /**
-     * Indica se i dati sono in fase di caricamento.
-     * Se true, vengono mostrati skeleton rows al posto dei dati.
-     */
     isLoading?: boolean;
-
-    /** Messaggio personalizzato da mostrare in fase di caricamento (fallback: "Caricamento..."). */
     loadingMessage?: React.ReactNode;
-
-    /** Messaggio da mostrare quando non ci sono dati (fallback: "Nessun dato trovato."). */
     emptyMessage?: React.ReactNode;
-
-    /**
-     * Configurazione layout tabella (dense, striped, sticky header, ecc.),
-     * ispirata alla prop `tableLayout` di ReUI.
-     */
     tableLayout?: TableLayoutProps;
-
-    /**
-     * Classi CSS personalizzabili per le parti principali della tabella,
-     * ispirata alla prop `tableClassNames` di ReUI.
-     */
     tableClassNames?: TableClassNames;
+    hasActionsColumn?: boolean; // New prop to control actions column
+    footerNode?: React.ReactNode; // New prop for table footer
 }
 
 /** Utility per combinare classNames senza dipendenze esterne. */
@@ -142,6 +114,8 @@ export function DataTable<T extends { id?: string }>({
     emptyMessage,
     tableLayout,
     tableClassNames,
+    hasActionsColumn = true, // Default to true for backward compatibility
+    footerNode,
 }: DataTableProps<T>) {
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(
         initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null
@@ -150,7 +124,6 @@ export function DataTable<T extends { id?: string }>({
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
 
-    // Default layout in stile ReUI
     const layout: Required<TableLayoutProps> = {
         dense: tableLayout?.dense ?? false,
         rowBorder: tableLayout?.rowBorder ?? true,
@@ -161,7 +134,6 @@ export function DataTable<T extends { id?: string }>({
         width: tableLayout?.width ?? 'fixed',
     };
 
-    // Classi base ispirate a ReUI, ma compatibili con il tuo tema esistente
     const classes: Required<TableClassNames> = {
         base: tableClassNames?.base ?? 'w-full',
         header: tableClassNames?.header ?? '',
@@ -211,10 +183,14 @@ export function DataTable<T extends { id?: string }>({
 
     const sortedData = useMemo(() => {
         if (!sortConfig) return data;
+        
+        const getNestedValue = (obj: any, path: string) =>
+            path.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
+
 
         return [...data].sort((a, b) => {
-            const aValue = (a as any)[sortConfig.key];
-            const bValue = (b as any)[sortConfig.key];
+            const aValue = getNestedValue(a, sortConfig.key as string);
+            const bValue = getNestedValue(b, sortConfig.key as string);
 
             if (aValue == null) return 1;
             if (bValue == null) return -1;
@@ -289,25 +265,40 @@ export function DataTable<T extends { id?: string }>({
     const desktopEmptyMessage = emptyMessage ?? 'Nessun dato trovato.';
     const loadingLabel = loadingMessage ?? 'Caricamento...';
 
+    const defaultRowRenderer = (item: T) => (
+        <tr key={item.id} className="group h-16 hover:bg-surface-container">
+            {columns.map(col => (
+                 <td key={col.header} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit ${col.className ?? ''}`}>
+                    {col.cell(item)}
+                </td>
+            ))}
+            {hasActionsColumn && <td className="px-6 py-4 bg-inherit"></td>}
+        </tr>
+    );
+
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">
-                    {title}
-                </h1>
-                <button
-                    onClick={onAddNew}
-                    className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker"
-                >
-                    {addNewButtonLabel}
-                </button>
-            </div>
+            {title && addNewButtonLabel && onAddNew && (
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">
+                        {title}
+                    </h1>
+                    <button
+                        onClick={onAddNew}
+                        className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker"
+                    >
+                        {addNewButtonLabel}
+                    </button>
+                </div>
+            )}
 
-            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
-                {filtersNode}
-            </div>
-
-            <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+            {filtersNode && (
+                <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+                    {filtersNode}
+                </div>
+            )}
+            
+            <div className={title ? "bg-card dark:bg-dark-card rounded-lg shadow" : ""}>
                 {/* Desktop Table */}
                 <div className="hidden md:block">
                     <div className="max-h-[65vh] overflow-x-auto overflow-y-auto">
@@ -329,7 +320,7 @@ export function DataTable<T extends { id?: string }>({
                                         />
                                     );
                                 })}
-                                <col style={{ width: '120px' }} /> {/* colonna Azioni */}
+                                {hasActionsColumn && <col style={{ width: '120px' }} />}
                             </colgroup>
 
                             <thead className={combineClassNames('bg-card dark:bg-dark-card', classes.header)}>
@@ -337,27 +328,28 @@ export function DataTable<T extends { id?: string }>({
                                     {columns.map(col =>
                                         getSortableHeader(col.header, col.sortKey)
                                     )}
-                                    <th
-                                        className={combineClassNames(
-                                            layout.headerSticky && 'sticky top-0 z-20',
-                                            'px-6',
-                                            layout.dense ? 'py-2' : 'py-3',
-                                            layout.headerBackground &&
-                                                'bg-card dark:bg-dark-card',
-                                            layout.headerBorder &&
-                                                'border-b border-border dark:border-dark-border',
-                                            'text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm',
-                                            classes.headerCell
-                                        )}
-                                    >
-                                        Azioni
-                                    </th>
+                                    {hasActionsColumn && (
+                                        <th
+                                            className={combineClassNames(
+                                                layout.headerSticky && 'sticky top-0 z-20',
+                                                'px-6',
+                                                layout.dense ? 'py-2' : 'py-3',
+                                                layout.headerBackground &&
+                                                    'bg-card dark:bg-dark-card',
+                                                layout.headerBorder &&
+                                                    'border-b border-border dark:border-dark-border',
+                                                'text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm',
+                                                classes.headerCell
+                                            )}
+                                        >
+                                            Azioni
+                                        </th>
+                                    )}
                                 </tr>
                             </thead>
 
                             <tbody className={classes.body}>
                                 {isLoading ? (
-                                    // Skeleton rows stile ReUI loading skeleton
                                     Array.from({ length: 5 }).map((_, rowIndex) => (
                                         <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
                                             {columns.map((col, colIndex) => (
@@ -371,22 +363,15 @@ export function DataTable<T extends { id?: string }>({
                                                     <div className="h-4 rounded bg-muted dark:bg-dark-muted" />
                                                 </td>
                                             ))}
-                                            <td
-                                                className={combineClassNames(
-                                                    'px-6 text-right',
-                                                    layout.dense ? 'py-2' : 'py-3'
-                                                )}
-                                            >
-                                                <div className="h-4 w-16 rounded bg-muted dark:bg-dark-muted" />
-                                            </td>
+                                            {hasActionsColumn && <td className={combineClassNames('px-6 text-right', layout.dense ? 'py-2' : 'py-3')}><div className="h-4 w-16 rounded bg-muted dark:bg-dark-muted" /></td>}
                                         </tr>
                                     ))
                                 ) : sortedData.length > 0 ? (
-                                    sortedData.map(item => renderRow(item))
+                                    sortedData.map(item => renderRow ? renderRow(item) : defaultRowRenderer(item))
                                 ) : (
                                     <tr>
                                         <td
-                                            colSpan={columns.length + 1}
+                                            colSpan={columns.length + (hasActionsColumn ? 1 : 0)}
                                             className="px-6 py-8 text-center text-muted-foreground"
                                         >
                                             {desktopEmptyMessage}
@@ -394,36 +379,43 @@ export function DataTable<T extends { id?: string }>({
                                     </tr>
                                 )}
                             </tbody>
+                            {footerNode && (
+                                <tfoot className="sticky bottom-0 bg-card dark:bg-dark-card border-t-2 border-border dark:border-dark-border font-bold">
+                                    {footerNode}
+                                </tfoot>
+                            )}
                         </table>
                     </div>
                 </div>
 
                 {/* Mobile Cards */}
-                <div className="md:hidden p-4 space-y-4">
-                    {isLoading ? (
-                        <>
-                            <p className="text-center text-muted-foreground mb-2">
-                                {loadingLabel}
-                            </p>
-                            {Array.from({ length: 3 }).map((_, idx) => (
-                                <div
-                                    key={`mobile-skeleton-${idx}`}
-                                    className="p-4 rounded-lg bg-muted dark:bg-dark-muted animate-pulse space-y-2"
-                                >
-                                    <div className="h-4 rounded bg-background dark:bg-dark-card" />
-                                    <div className="h-4 rounded bg-background dark:bg-dark-card" />
-                                    <div className="h-4 rounded bg-background dark:bg-dark-card w-1/2" />
-                                </div>
-                            ))}
-                        </>
-                    ) : sortedData.length > 0 ? (
-                        sortedData.map(item => renderMobileCard(item))
-                    ) : (
-                        <p className="text-center py-8 text-muted-foreground">
-                            {desktopEmptyMessage}
-                        </p>
-                    )}
-                </div>
+                {renderMobileCard && (
+                  <div className="md:hidden p-4 space-y-4">
+                      {isLoading ? (
+                          <>
+                              <p className="text-center text-muted-foreground mb-2">
+                                  {loadingLabel}
+                              </p>
+                              {Array.from({ length: 3 }).map((_, idx) => (
+                                  <div
+                                      key={`mobile-skeleton-${idx}`}
+                                      className="p-4 rounded-lg bg-muted dark:bg-dark-muted animate-pulse space-y-2"
+                                  >
+                                      <div className="h-4 rounded bg-background dark:bg-dark-card" />
+                                      <div className="h-4 rounded bg-background dark:bg-dark-card" />
+                                      <div className="h-4 rounded bg-background dark:bg-dark-card w-1/2" />
+                                  </div>
+                              ))}
+                          </>
+                      ) : sortedData.length > 0 ? (
+                          sortedData.map(item => renderMobileCard(item))
+                      ) : (
+                          <p className="text-center py-8 text-muted-foreground">
+                              {desktopEmptyMessage}
+                          </p>
+                      )}
+                  </div>
+                )}
             </div>
         </div>
     );

@@ -14,11 +14,13 @@ import {
   DEFAULT_DASHBOARD_CARD_ORDER,
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 
 declare var d3: any;
 
 // --- Colori Centralizzati per la Dashboard ---
+// Fix: Add 'chart' property for D3 chart colors to resolve property access errors.
 const DASHBOARD_COLORS = {
   attention: {
     background: 'bg-amber-100 dark:bg-amber-900/50',
@@ -38,69 +40,13 @@ const DASHBOARD_COLORS = {
     negative: 'text-red-600',
   },
   link: 'text-blue-600 hover:underline',
-  header: {
-    base: 'text-gray-500 dark:text-gray-300',
-    hover: 'hover:text-gray-900 dark:hover:text-white',
-    active: 'font-bold text-gray-800 dark:text-white',
-    icon: 'text-gray-400',
-  },
   chart: {
-    primary: '#3b82f6', // blue
-    secondary: '#6b7280', // gray
-    threshold: 'red',
+    primary: '#3b82f6',
+    secondary: '#9ca3af',
+    threshold: '#ef4444',
   },
 };
 
-
-// --- Tipi e Hook per l'Ordinamento ---
-
-type SortDirection = 'ascending' | 'descending';
-
-interface SortConfig<T> {
-  key: keyof T | string;
-  direction: SortDirection;
-}
-
-const useSortableData = <T extends object>(items: T[], initialConfig: SortConfig<T> | null = null) => {
-  const [sortConfig, setSortConfig] = useState<SortConfig<T> | null>(initialConfig);
-
-  const sortedItems = useMemo(() => {
-    let sortableItems = [...items];
-    if (sortConfig !== null) {
-      sortableItems.sort((a, b) => {
-        const getNestedValue = (obj: any, path: string) =>
-          path.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
-
-        const aValue = getNestedValue(a, sortConfig.key as string);
-        const bValue = getNestedValue(b, sortConfig.key as string);
-
-        if (aValue == null) return 1;
-        if (bValue == null) return -1;
-
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-        }
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sortConfig.direction === 'ascending'
-            ? aValue.localeCompare(bValue)
-            : bValue.localeCompare(aValue);
-        }
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [items, sortConfig]);
-
-  const requestSort = (key: keyof T | string) => {
-    let direction: SortDirection = 'ascending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  return { items: sortedItems, requestSort, sortConfig };
-};
 
 const formatCurrency = (value: number | string): string => {
   const numValue = Number(value) || 0;
@@ -168,15 +114,6 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
     </>
 );
 
-const SortableHeader: React.FC<{ label: string; sortKey: string; sortConfig: SortConfig<any> | null; requestSort: (key: string) => void; }> = ({ label, sortKey, sortConfig, requestSort }) => (
-    <th className={`px-4 py-2 text-left text-xs font-medium ${DASHBOARD_COLORS.header.base} uppercase tracking-wider`}>
-        <button type="button" onClick={() => requestSort(sortKey)} className={`flex items-center space-x-1 ${DASHBOARD_COLORS.header.hover}`}>
-            <span className={sortConfig?.key === sortKey ? DASHBOARD_COLORS.header.active : ''}>{label}</span>
-            <span className={DASHBOARD_COLORS.header.icon}>↕️</span>
-        </button>
-    </th>
-);
-
 const getAvgAllocationColor = (avg: number): string => {
     if (avg > 100) return DASHBOARD_COLORS.utilization.over;
     if (avg > 95) return DASHBOARD_COLORS.utilization.high;
@@ -186,37 +123,27 @@ const getAvgAllocationColor = (avg: number): string => {
 
 // --- Individual Card Components ---
 
-/**
- * A unified component for all dashboard cards that contain a table.
- * This ensures consistent padding, shadow, header layout, and scrolling behavior.
- */
 const DashboardTableCard: React.FC<{
   headerContent: React.ReactNode;
-  children: React.ReactNode; // expects the <table> element
+  children: React.ReactNode;
 }> = ({ headerContent, children }) => (
   <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
-    {/* Header (titolo + filtri) */}
     <div className="flex-shrink-0 mb-4">{headerContent}</div>
-
-    {/* Contenitore scrollabile */}
     <div className="flex-grow overflow-x-auto">
       <div className="max-h-80 overflow-y-auto relative dashboard-table-container">
         {children}
       </div>
     </div>
-
     <style>{`
-      /* Applica sticky header a qualsiasi thead interno */
       .dashboard-table-container thead {
         position: sticky;
         top: 0;
         z-index: 10;
-        background-color: #f9fafb; /* bg-gray-50 */
+        background-color: #f9fafb;
       }
       .dark .dashboard-table-container thead {
-        background-color: #374151; /* dark:bg-gray-700 */
+        background-color: #374151;
       }
-      /* Rimuovi eventuali trasparenze per evitare sovrapposizioni */
       .dashboard-table-container th {
         background-color: inherit;
       }
@@ -224,198 +151,191 @@ const DashboardTableCard: React.FC<{
   </div>
 );
 
-const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, requestSort, sortConfig, totals }) => (
-    <DashboardTableCard
-        headerContent={
-            <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold">Allocazione Media</h2>
-                <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
-            </div>
-        }
-    >
-        <table className="min-w-full">
-            <thead><tr><SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Mese Corrente" sortKey="currentMonth" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Mese Prossimo" sortKey="nextMonth" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-            <tbody>
-                {data.map((d: any) => (
-                    <tr key={d.resource.id} className="border-t border-gray-200 dark:border-gray-700">
-                        <td className="px-4 py-2"><Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link></td>
-                        <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</td>
-                        <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</td>
-                    </tr>
-                ))}
-            </tbody>
-            <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Media</td><td className={`px-4 py-2 ${getAvgAllocationColor(totals.currentMonth)}`}>{totals.currentMonth.toFixed(0)}%</td><td className={`px-4 py-2 ${getAvgAllocationColor(totals.nextMonth)}`}>{totals.nextMonth.toFixed(0)}%</td></tr></tfoot>
-        </table>
-    </DashboardTableCard>
-);
+const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Risorsa", sortKey: "resource.name", cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
+        { header: "Mese Corrente", sortKey: "currentMonth", cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
+        { header: "Mese Prossimo", sortKey: "nextMonth", cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</span> }
+    ];
 
-const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
-  <DashboardTableCard
-    headerContent={
-        <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-    }
-  >
-    <table className="min-w-full">
-        <thead><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="G/U Allocati" sortKey="totalPersonDays" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="FTE" sortKey="fte" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-        <tbody>
-            {data.map((d: any) => (
-                <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
-                    <td className="px-4 py-2">{d.name}</td>
-                    <td className="px-4 py-2">{d.totalPersonDays.toFixed(1)}</td>
-                    <td className="px-4 py-2 font-semibold">{d.fte.toFixed(2)}</td>
-                </tr>
-            ))}
-        </tbody>
-        <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{totals.totalDays.toFixed(1)}</td><td className="px-4 py-2">{totals.totalFte.toFixed(2)}</td></tr></tfoot>
-    </table>
-  </DashboardTableCard>
-);
+    const footer = (
+        <tr>
+            <td className="px-4 py-2">Media</td>
+            <td className={`px-4 py-2 ${getAvgAllocationColor(totals.currentMonth)}`}>{totals.currentMonth.toFixed(0)}%</td>
+            <td className={`px-4 py-2 ${getAvgAllocationColor(totals.nextMonth)}`}>{totals.nextMonth.toFixed(0)}%</td>
+        </tr>
+    );
 
-const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
-  <DashboardTableCard
-    headerContent={
-        <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-    }
-  >
-    <table className="min-w-full">
-        <thead><tr><SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Budget" sortKey="budget" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Varianza" sortKey="variance" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-        <tbody>
-            {data.map((d: any) => (
-                <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
-                    <td className="px-4 py-2">{d.name}</td>
-                    <td className="px-4 py-2">{formatCurrency(d.budget)}</td>
-                    <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
-                    <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</td>
-                </tr>
-            ))}
-        </tbody>
-        <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{formatCurrency(totals.budget)}</td><td className="px-4 py-2">{formatCurrency(totals.cost)}</td><td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td></tr></tfoot>
-    </table>
-  </DashboardTableCard>
-);
-
-const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, requestSort, sortConfig, totals }) => (
-    <DashboardTableCard
-        headerContent={
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
-                <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+    return (
+        <DashboardTableCard
+            headerContent={
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Allocazione Media</h2>
+                    <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                 </div>
-            </div>
+            }
+        >
+            <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
+        </DashboardTableCard>
+    );
+};
+
+const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Progetto", sortKey: "name", cell: d => d.name },
+        { header: "G/U Allocati", sortKey: "totalPersonDays", cell: d => d.totalPersonDays.toFixed(1) },
+        { header: "FTE", sortKey: "fte", cell: d => <span className="font-semibold">{d.fte.toFixed(2)}</span> }
+    ];
+
+    const footer = (
+        <tr>
+            <td className="px-4 py-2">Totale</td>
+            <td className="px-4 py-2">{totals.totalDays.toFixed(1)}</td>
+            <td className="px-4 py-2">{totals.totalFte.toFixed(2)}</td>
+        </tr>
+    );
+    
+    return (
+      <DashboardTableCard
+        headerContent={
+            <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
         }
-    >
-        <table className="min-w-full">
-            <thead><tr>
-                <SortableHeader label="Progetto" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} />
-                <SortableHeader label="Budget Periodo" sortKey="periodBudget" sortConfig={sortConfig} requestSort={requestSort} />
-                <SortableHeader label="Costo Stimato" sortKey="estimatedCost" sortConfig={sortConfig} requestSort={requestSort} />
-                <SortableHeader label="Varianza" sortKey="variance" sortConfig={sortConfig} requestSort={requestSort} />
-            </tr></thead>
-            <tbody>
-                {data.map((d: any) => (
-                    <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
-                        <td className="px-4 py-2">{d.name}</td>
-                        <td className="px-4 py-2">{formatCurrency(d.periodBudget)}</td>
-                        <td className="px-4 py-2">{formatCurrency(d.estimatedCost)}</td>
-                        <td className={`px-4 py-2 font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</td>
-                    </tr>
-                ))}
-            </tbody>
-            <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold">
-                <td className="px-4 py-2">Totale</td>
-                <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
-                <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
-                <td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td>
-            </tr></tfoot>
-        </table>
-    </DashboardTableCard>
-  );
+      >
+        <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
+      </DashboardTableCard>
+    );
+};
 
-const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, requestSort, sortConfig }) => (
-  <DashboardTableCard
-    headerContent={
-        <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
-    }
-  >
-      <table className="min-w-full">
-          <thead><tr><SortableHeader label="Risorsa" sortKey="resource.name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Alloc. Media" sortKey="avgAllocation" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-          <tbody>
-              {data.map((d: any) => (
-                  <tr key={d.resource.id} className="border-t border-gray-200 dark:border-gray-700">
-                      <td className="px-4 py-2">{d.resource.name}</td>
-                      <td className={`px-4 py-2 ${DASHBOARD_COLORS.utilization.high}`}>{d.avgAllocation.toFixed(0)}%</td>
-                  </tr>
-              ))}
-          </tbody>
-      </table>
-  </DashboardTableCard>
-);
+const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Progetto", sortKey: "name", cell: d => d.name },
+        { header: "Budget", sortKey: "budget", cell: d => formatCurrency(d.budget) },
+        { header: "Costo Stimato", sortKey: "estimatedCost", cell: d => formatCurrency(d.estimatedCost) },
+        { header: "Varianza", sortKey: "variance", cell: d => <span className={`font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</span> }
+    ];
+    
+    const footer = (
+        <tr>
+            <td className="px-4 py-2">Totale</td>
+            <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
+            <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
+            <td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td>
+        </tr>
+    );
 
-const MonthlyClientCostCard: React.FC<any> = ({ data, requestSort, sortConfig, navigate }) => (
-  <DashboardTableCard
-    headerContent={
-        <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
-    }
-  >
-    <table className="min-w-full">
-        <thead><tr><SortableHeader label="Cliente" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Costo Stimato" sortKey="cost" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-        <tbody>
-            {data.map((d: any) => (
-                <tr key={d.id} className="border-t border-gray-200 dark:border-gray-700">
-                    <td className="px-4 py-2"><button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button></td>
-                    <td className="px-4 py-2">{formatCurrency(d.cost)}</td>
-                </tr>
-            ))}
-        </tbody>
-    </table>
-  </DashboardTableCard>
-);
+    return (
+      <DashboardTableCard
+        headerContent={
+            <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+        }
+      >
+        <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
+      </DashboardTableCard>
+    );
+};
 
-const EffortByHorizontalCard: React.FC<any> = ({ data, requestSort, sortConfig, total }) => (
-  <DashboardTableCard
-    headerContent={
-        <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
-    }
-  >
-      <table className="min-w-full">
-          <thead><tr><SortableHeader label="Horizontal" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="G/U Totali" sortKey="totalPersonDays" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-          <tbody>
-              {data.map((d: any) => (
-                  <tr key={d.name} className="border-t border-gray-200 dark:border-gray-700">
-                      <td className="px-4 py-2">{d.name}</td>
-                      <td className="px-4 py-2">{d.totalPersonDays.toFixed(1)}</td>
-                  </tr>
-              ))}
-          </tbody>
-          <tfoot><tr className="border-t-2 border-gray-300 dark:border-gray-600 font-bold"><td className="px-4 py-2">Totale</td><td className="px-4 py-2">{total.toFixed(1)}</td></tr></tfoot>
-      </table>
-  </DashboardTableCard>
-);
+const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Progetto", sortKey: "name", cell: d => d.name },
+        { header: "Budget Periodo", sortKey: "periodBudget", cell: d => formatCurrency(d.periodBudget) },
+        { header: "Costo Stimato", sortKey: "estimatedCost", cell: d => formatCurrency(d.estimatedCost) },
+        { header: "Varianza", sortKey: "variance", cell: d => <span className={`font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</span> }
+    ];
+    
+    const footer = (
+        <tr>
+            <td className="px-4 py-2">Totale</td>
+            <td className="px-4 py-2">{formatCurrency(totals.budget)}</td>
+            <td className="px-4 py-2">{formatCurrency(totals.cost)}</td>
+            <td className={`px-4 py-2 ${totals.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(totals.variance)}</td>
+        </tr>
+    );
 
-const LocationAnalysisCard: React.FC<any> = ({ data, requestSort, sortConfig }) => (
-  <DashboardTableCard
-    headerContent={
-        <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
-    }
-  >
-    <table className="min-w-full">
-        <thead><tr><SortableHeader label="Sede" sortKey="name" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="N. Risorse" sortKey="resourceCount" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="G/U Allocati" sortKey="allocatedDays" sortConfig={sortConfig} requestSort={requestSort} /><SortableHeader label="Utilizzo Medio" sortKey="avgUtilization" sortConfig={sortConfig} requestSort={requestSort} /></tr></thead>
-        <tbody>
-            {data.map((d: any) => (
-                <tr key={d.name} className="border-t border-gray-200 dark:border-gray-700">
-                    <td className="px-4 py-2">{d.name}</td>
-                    <td className="px-4 py-2">{d.resourceCount}</td>
-                    <td className="px-4 py-2">{d.allocatedDays.toFixed(1)}</td>
-                    <td className={`px-4 py-2 font-semibold ${getAvgAllocationColor(d.avgUtilization)}`}>{d.avgUtilization.toFixed(0)}%</td>
-                </tr>
-            ))}
-        </tbody>
-    </table>
-  </DashboardTableCard>
-);
+    return (
+        <DashboardTableCard
+            headerContent={
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
+                    <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                    <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                    <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    </div>
+                </div>
+            }
+        >
+            <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
+        </DashboardTableCard>
+      );
+};
+
+const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Risorsa", sortKey: "resource.name", cell: d => d.resource.name },
+        { header: "Alloc. Media", sortKey: "avgAllocation", cell: d => <span className={DASHBOARD_COLORS.utilization.high}>{d.avgAllocation.toFixed(0)}%</span> }
+    ];
+    
+    return (
+      <DashboardTableCard
+        headerContent={
+            <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
+        }
+      >
+          <DataTable data={data} columns={columns} initialSortKey="avgAllocation" hasActionsColumn={false} tableLayout={{ dense: true, striped: true }} />
+      </DashboardTableCard>
+    );
+};
+
+const MonthlyClientCostCard: React.FC<any> = ({ data, navigate }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Cliente", sortKey: "name", cell: d => <button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button> },
+        { header: "Costo Stimato", sortKey: "cost", cell: d => formatCurrency(d.cost) }
+    ];
+
+    return (
+      <DashboardTableCard
+        headerContent={<h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>}
+      >
+        <DataTable data={data} columns={columns} initialSortKey="cost" hasActionsColumn={false} tableLayout={{ dense: true, striped: true }} />
+      </DashboardTableCard>
+    );
+};
+
+const EffortByHorizontalCard: React.FC<any> = ({ data, total }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Horizontal", sortKey: "name", cell: d => d.name },
+        { header: "G/U Totali", sortKey: "totalPersonDays", cell: d => d.totalPersonDays.toFixed(1) }
+    ];
+
+    const footer = (
+        <tr>
+            <td className="px-4 py-2">Totale</td>
+            <td className="px-4 py-2">{total.toFixed(1)}</td>
+        </tr>
+    );
+
+    return (
+      <DashboardTableCard headerContent={<h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>}>
+          <DataTable data={data} columns={columns} initialSortKey="totalPersonDays" hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
+      </DashboardTableCard>
+    );
+};
+
+const LocationAnalysisCard: React.FC<any> = ({ data }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Sede", sortKey: "name", cell: d => d.name },
+        { header: "N. Risorse", sortKey: "resourceCount", cell: d => d.resourceCount },
+        { header: "G/U Allocati", sortKey: "allocatedDays", cell: d => d.allocatedDays.toFixed(1) },
+        { header: "Utilizzo Medio", sortKey: "avgUtilization", cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.avgUtilization)}`}>{d.avgUtilization.toFixed(0)}%</span> }
+    ];
+
+    return (
+      <DashboardTableCard headerContent={<h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>}>
+        <DataTable data={data} columns={columns} initialSortKey="resourceCount" hasActionsColumn={false} tableLayout={{ dense: true, striped: true }} />
+      </DashboardTableCard>
+    );
+};
+
 
 const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, resourceOptions, chartRef }) => (
   <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-8">
@@ -444,7 +364,6 @@ const DashboardPage: React.FC = () => {
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 
-    // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
     const [fteFilter, setFteFilter] = useState({ clientId: '' });
     const [budgetFilter, setBudgetFilter] = useState({ clientId: '' });
@@ -538,6 +457,7 @@ const DashboardPage: React.FC = () => {
             };
 
             return {
+                id: resource.id,
                 resource,
                 currentMonth: calculateAvgForMonth(0),
                 nextMonth: calculateAvgForMonth(1),
@@ -674,7 +594,7 @@ const DashboardPage: React.FC = () => {
 
         return activeResources.map(resource => {
             const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
-            if (workingDays === 0) return { resource, avgAllocation: 0 };
+            if (workingDays === 0) return { id: resource.id, resource, avgAllocation: 0 };
             
             const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
             let totalPersonDays = 0;
@@ -689,7 +609,7 @@ const DashboardPage: React.FC = () => {
                     }
                 }
             });
-            return { resource, avgAllocation: (totalPersonDays / workingDays) * 100 };
+            return { id: resource.id, resource, avgAllocation: (totalPersonDays / workingDays) * 100 };
         }).filter(d => d.avgAllocation < 100);
     }, [activeResources, assignments, allocations, companyCalendar, underutilizedFilter]);
 
@@ -711,7 +631,7 @@ const DashboardPage: React.FC = () => {
                 }
             }
         });
-        return Object.entries(data).map(([name, totalPersonDays]) => ({ name, totalPersonDays }));
+        return Object.entries(data).map(([name, totalPersonDays]) => ({ id: name, name, totalPersonDays }));
     }, [horizontals, resources, assignments, allocations, companyCalendar]);
 
     const analysisByLocationData = useMemo(() => {
@@ -743,6 +663,7 @@ const DashboardPage: React.FC = () => {
             });
 
             return {
+                id: location.value,
                 name: location.value,
                 resourceCount,
                 allocatedDays,
@@ -828,16 +749,6 @@ const DashboardPage: React.FC = () => {
         return forecastData;
 
     }, [activeResources, assignments, allocations, roles, projects, companyCalendar]);
-
-    // Sorting hooks and totals
-    const { items: sortedAvgAllocation, requestSort: requestAvgAllocSort, sortConfig: avgAllocSortConfig } = useSortableData(averageAllocationData, { key: 'resource.name', direction: 'ascending' });
-    const { items: sortedFte, requestSort: requestFteSort, sortConfig: fteSortConfig } = useSortableData(fteData as any[], { key: 'name', direction: 'ascending' });
-    const { items: sortedBudget, requestSort: requestBudgetSort, sortConfig: budgetSortConfig } = useSortableData(budgetAnalysisData, { key: 'name', direction: 'ascending' });
-    const { items: sortedTemporalBudget, requestSort: requestTemporalBudgetSort, sortConfig: temporalBudgetSortConfig } = useSortableData(temporalBudgetAnalysisData, { key: 'name', direction: 'ascending' });
-    const { items: sortedUnderutilized, requestSort: requestUnderutilizedSort, sortConfig: underutilizedSortConfig } = useSortableData(underutilizedResourcesData, { key: 'avgAllocation', direction: 'ascending' });
-    const { items: sortedClientCost, requestSort: requestClientCostSort, sortConfig: clientCostSortConfig } = useSortableData(currentMonthKPIs.clientCostArray, { key: 'cost', direction: 'descending' });
-    const { items: sortedEffortByHorizontal, requestSort: requestEffortHorizontalSort, sortConfig: effortHorizontalSortConfig } = useSortableData(effortByHorizontalData, { key: 'totalPersonDays', direction: 'descending' });
-    const { items: sortedLocation, requestSort: requestLocationSort, sortConfig: locationSortConfig } = useSortableData(analysisByLocationData, { key: 'resourceCount', direction: 'descending' });
     
     const avgAllocationTotals = useMemo(() => {
         const totalCurrent = averageAllocationData.reduce((sum, d) => sum + d.currentMonth, 0);
@@ -931,8 +842,6 @@ const DashboardPage: React.FC = () => {
 
     }, [monthlyCostForecastData]);
 
-    // --- Dynamic Card Rendering Logic ---
-
     const cardOrder = useMemo(() => {
         try {
             const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
@@ -963,21 +872,21 @@ const DashboardPage: React.FC = () => {
             case 'attentionCards':
                 return <AttentionCards key={id} overallKPIs={overallKPIs} navigate={navigate} />;
             case 'averageAllocation': 
-                return <AverageAllocationCard key={id} data={sortedAvgAllocation} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} requestSort={requestAvgAllocSort} sortConfig={avgAllocSortConfig} totals={avgAllocationTotals} />;
+                return <AverageAllocationCard key={id} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} totals={avgAllocationTotals} />;
             case 'ftePerProject':
-                return <FtePerProjectCard key={id} data={sortedFte} filter={fteFilter} setFilter={setFteFilter} clientOptions={clientOptions} requestSort={requestFteSort} sortConfig={fteSortConfig} totals={fteTotals} />;
+                return <FtePerProjectCard key={id} data={fteData} filter={fteFilter} setFilter={setFteFilter} clientOptions={clientOptions} totals={fteTotals} />;
             case 'budgetAnalysis':
-                return <BudgetAnalysisCard key={id} data={sortedBudget} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} requestSort={requestBudgetSort} sortConfig={budgetSortConfig} totals={budgetTotals} />;
+                return <BudgetAnalysisCard key={id} data={budgetAnalysisData} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} totals={budgetTotals} />;
             case 'temporalBudgetAnalysis':
-                return <TemporalBudgetAnalysisCard key={id} data={sortedTemporalBudget} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} requestSort={requestTemporalBudgetSort} sortConfig={temporalBudgetSortConfig} totals={temporalBudgetTotals} />;
+                return <TemporalBudgetAnalysisCard key={id} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} totals={temporalBudgetTotals} />;
             case 'underutilizedResources':
-                return <UnderutilizedResourcesCard key={id} data={sortedUnderutilized} month={underutilizedFilter} setMonth={setUnderutilizedFilter} requestSort={requestUnderutilizedSort} sortConfig={underutilizedSortConfig} />;
+                return <UnderutilizedResourcesCard key={id} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} />;
             case 'monthlyClientCost':
-                return <MonthlyClientCostCard key={id} data={sortedClientCost} requestSort={requestClientCostSort} sortConfig={clientCostSortConfig} navigate={navigate} />;
+                return <MonthlyClientCostCard key={id} data={currentMonthKPIs.clientCostArray} navigate={navigate} />;
             case 'effortByHorizontal':
-                return <EffortByHorizontalCard key={id} data={sortedEffortByHorizontal} requestSort={requestEffortHorizontalSort} sortConfig={effortHorizontalSortConfig} total={effortByHorizontalTotal} />;
+                return <EffortByHorizontalCard key={id} data={effortByHorizontalData} total={effortByHorizontalTotal} />;
             case 'locationAnalysis':
-                return <LocationAnalysisCard key={id} data={sortedLocation} requestSort={requestLocationSort} sortConfig={locationSortConfig} />;
+                return <LocationAnalysisCard key={id} data={analysisByLocationData} />;
             case 'saturationTrend':
                 return <SaturationTrendCard key={id} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={resourceOptions} chartRef={trendChartRef} />;
             case 'costForecast':
@@ -986,7 +895,6 @@ const DashboardPage: React.FC = () => {
         }
     };
     
-    // Group cards by their layout type based on the loaded order
     const kpiGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'kpi');
     const mainGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'main');
     const fullWidthGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'full-width');
