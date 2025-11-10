@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme, Theme, defaultTheme } from '../context/ThemeContext';
+import { useTheme, Theme, defaultTheme, M3Palette } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import {
   DashboardCardId,
@@ -13,42 +13,73 @@ import {
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
 
-const colorLabels: { [key in keyof Theme]: string } = {
-    primary: 'Primary Action',
-    primaryDarker: 'Primary Action (Hover)',
-    destructive: 'Destructive Action',
-    success: 'Success State',
-    warning: 'Warning State',
-    background: 'Page Background (Light)',
-    foreground: 'Text Color (Light)',
-    card: 'Card/Component Background (Light)',
-    border: 'Borders (Light)',
-    muted: 'Muted Background (Light)',
-    mutedForeground: 'Muted Text (Light)',
-    darkBackground: 'Page Background (Dark)',
-    darkForeground: 'Text Color (Dark)',
-    darkCard: 'Card/Component Background (Dark)',
-    darkBorder: 'Borders (Dark)',
-    darkMuted: 'Muted Background (Dark)',
-    darkMutedForeground: 'Muted Text (Dark)',
-    toastPosition: 'Posizione Notifiche',
-    toastSuccessBackground: 'Sfondo Successo',
-    toastSuccessForeground: 'Testo Successo',
-    toastErrorBackground: 'Sfondo Errore',
-    toastErrorForeground: 'Testo Errore',
-    visualizationSettings: 'Impostazioni Visualizzazione',
-};
+const ColorInput: React.FC<{
+    label: string;
+    colorKey: keyof M3Palette;
+    value: string;
+    onChange: (key: keyof M3Palette, value: string) => void;
+}> = ({ label, colorKey, value, onChange }) => (
+    <div>
+        <label className="block text-sm font-medium text-on-surface-variant mb-1 capitalize">{label.replace(/([A-Z])/g, ' $1')}</label>
+        <div className="flex items-center space-x-2">
+            <input
+                type="color"
+                value={value}
+                onChange={(e) => onChange(colorKey, e.target.value)}
+                className="w-10 h-10 p-0 border-none rounded-md cursor-pointer bg-surface"
+            />
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => onChange(colorKey, e.target.value)}
+                className="w-full text-sm bg-surface-container-highest border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary px-3 py-2"
+                pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                title="Enter a valid hex color code (e.g., #RRGGBB)"
+            />
+        </div>
+    </div>
+);
+
+const PaletteGroup: React.FC<{
+    title: string;
+    palette: M3Palette;
+    keys: (keyof M3Palette)[];
+    onChange: (key: keyof M3Palette, value: string) => void;
+}> = ({ title, palette, keys, onChange }) => (
+    <div className="p-4 border border-outline-variant rounded-2xl">
+        <h3 className="text-lg font-medium text-on-surface mb-4">{title}</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {keys.map(key => (
+                <ColorInput
+                    key={key}
+                    label={key}
+                    colorKey={key}
+                    value={palette[key]}
+                    onChange={onChange}
+                />
+            ))}
+        </div>
+    </div>
+);
+
 
 const ThemeEditor: React.FC = () => {
     const { theme, setTheme, resetTheme } = useTheme();
     const [editedTheme, setEditedTheme] = useState<Theme>(theme);
+    const [activeMode, setActiveMode] = useState<'light' | 'dark'>('light');
 
     useEffect(() => {
         setEditedTheme(theme);
     }, [theme]);
 
-    const handleColorChange = (key: keyof Omit<Theme, 'visualizationSettings' | 'toastPosition' | 'toastSuccessBackground' | 'toastSuccessForeground' | 'toastErrorBackground' | 'toastErrorForeground'>, value: string) => {
-        setEditedTheme(prev => ({ ...prev, [key]: value }));
+    const handleColorChange = (key: keyof M3Palette, value: string) => {
+        setEditedTheme(prev => ({
+            ...prev,
+            [activeMode]: {
+                ...prev[activeMode],
+                [key]: value
+            }
+        }));
     };
 
     const handleSave = () => {
@@ -59,50 +90,54 @@ const ThemeEditor: React.FC = () => {
         resetTheme();
     };
     
-    const themeKeysToEdit = Object.keys(defaultTheme).filter(key => !key.startsWith('toast') && key !== 'visualizationSettings') as Exclude<keyof Theme, 'toastPosition' | 'toastSuccessBackground' | 'toastSuccessForeground' | 'toastErrorBackground' | 'toastErrorForeground' | 'visualizationSettings'>[];
-
     const isThemeChanged = JSON.stringify(theme) !== JSON.stringify(editedTheme);
     const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
 
+    const keyGroups = {
+        primary: ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer'] as (keyof M3Palette)[],
+        secondary: ['secondary', 'onSecondary', 'secondaryContainer', 'onSecondaryContainer'] as (keyof M3Palette)[],
+        tertiary: ['tertiary', 'onTertiary', 'tertiaryContainer', 'onTertiaryContainer'] as (keyof M3Palette)[],
+        error: ['error', 'onError', 'errorContainer', 'onErrorContainer'] as (keyof M3Palette)[],
+        surfaces: ['background', 'onBackground', 'surface', 'onSurface', 'surfaceVariant', 'onSurfaceVariant', 'surfaceContainerLowest', 'surfaceContainerLow', 'surfaceContainer', 'surfaceContainerHigh', 'surfaceContainerHighest'] as (keyof M3Palette)[],
+        other: ['outline', 'outlineVariant', 'shadow', 'scrim', 'inverseSurface', 'inverseOnSurface', 'inversePrimary'] as (keyof M3Palette)[],
+    };
+
     return (
-         <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
-            <h2 className="text-xl font-semibold mb-6">Personalizzazione Tema Globale</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {themeKeysToEdit.map((key) => (
-                    <div key={key}>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels[key]}</label>
-                        <div className="flex items-center space-x-2">
-                            <input
-                                type="color"
-                                value={editedTheme[key] as string}
-                                onChange={(e) => handleColorChange(key, e.target.value)}
-                                className="w-10 h-10 p-1 border border-border dark:border-dark-border rounded-md cursor-pointer"
-                                style={{ backgroundColor: editedTheme[key] as string }}
-                            />
-                            <input
-                                type="text"
-                                value={editedTheme[key] as string}
-                                onChange={(e) => handleColorChange(key, e.target.value)}
-                                className="form-input w-full"
-                                pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                                title="Enter a valid hex color code (e.g., #RRGGBB)"
-                            />
-                        </div>
-                    </div>
-                ))}
+         <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-6">Personalizzazione Tema Material 3</h2>
+            
+            <div className="border-b border-outline-variant mb-6">
+                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button onClick={() => setActiveMode('light')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeMode === 'light' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'}`}>
+                        Tema Chiaro
+                    </button>
+                    <button onClick={() => setActiveMode('dark')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeMode === 'dark' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'}`}>
+                        Tema Scuro
+                    </button>
+                </nav>
             </div>
+            
+            <div className="space-y-6">
+                <PaletteGroup title="Colori Primari" palette={editedTheme[activeMode]} keys={keyGroups.primary} onChange={handleColorChange} />
+                <PaletteGroup title="Colori Secondari" palette={editedTheme[activeMode]} keys={keyGroups.secondary} onChange={handleColorChange} />
+                <PaletteGroup title="Colori Terziari" palette={editedTheme[activeMode]} keys={keyGroups.tertiary} onChange={handleColorChange} />
+                <PaletteGroup title="Colori di Errore" palette={editedTheme[activeMode]} keys={keyGroups.error} onChange={handleColorChange} />
+                <PaletteGroup title="Superfici e Sfondi" palette={editedTheme[activeMode]} keys={keyGroups.surfaces} onChange={handleColorChange} />
+                <PaletteGroup title="Altri Colori" palette={editedTheme[activeMode]} keys={keyGroups.other} onChange={handleColorChange} />
+            </div>
+
             <div className="mt-8 flex justify-end space-x-3">
                 <button 
                     onClick={handleReset} 
                     disabled={isThemeDefault}
-                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted disabled:opacity-50"
+                    className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low disabled:opacity-50 text-primary"
                 >
-                    Ripristina Tema Default
+                    Ripristina Default
                 </button>
                  <button 
                     onClick={handleSave}
                     disabled={!isThemeChanged}
-                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                    className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
                 >
                     Salva Modifiche
                 </button>
@@ -128,7 +163,6 @@ const ToastEditor: React.FC = () => {
     };
     
     const handleReset = () => {
-        // Reset only toast settings to default
         const newTheme = { ...theme };
         Object.keys(theme).forEach(key => {
             if (key.startsWith('toast')) {
@@ -155,65 +189,31 @@ const ToastEditor: React.FC = () => {
     ];
 
     return (
-        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
             <h2 className="text-xl font-semibold mb-6">Personalizzazione Notifiche Toast</h2>
             <div className="space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastPosition}</label>
+                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Posizione Notifiche</label>
                     <select
                         value={editedTheme.toastPosition}
                         onChange={(e) => handleSettingChange('toastPosition', e.target.value)}
-                        className="form-select max-w-xs"
+                        className="w-full max-w-xs text-sm bg-surface-container-highest border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary px-3 py-2"
                     >
                         {toastPositionOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-border dark:border-dark-border">
-                    <h3 className="col-span-full font-medium text-lg">Stile Successo</h3>
-                    <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastSuccessBackground}</label>
-                        <div className="flex items-center space-x-2">
-                             <input type="color" value={editedTheme.toastSuccessBackground} onChange={e => handleSettingChange('toastSuccessBackground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
-                             <input type="text" value={editedTheme.toastSuccessBackground} onChange={e => handleSettingChange('toastSuccessBackground', e.target.value)} className="form-input w-full" />
-                        </div>
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastSuccessForeground}</label>
-                        <div className="flex items-center space-x-2">
-                             <input type="color" value={editedTheme.toastSuccessForeground} onChange={e => handleSettingChange('toastSuccessForeground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
-                             <input type="text" value={editedTheme.toastSuccessForeground} onChange={e => handleSettingChange('toastSuccessForeground', e.target.value)} className="form-input w-full" />
-                        </div>
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-border dark:border-dark-border">
-                    <h3 className="col-span-full font-medium text-lg">Stile Errore</h3>
-                    <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastErrorBackground}</label>
-                        <div className="flex items-center space-x-2">
-                             <input type="color" value={editedTheme.toastErrorBackground} onChange={e => handleSettingChange('toastErrorBackground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
-                             <input type="text" value={editedTheme.toastErrorBackground} onChange={e => handleSettingChange('toastErrorBackground', e.target.value)} className="form-input w-full" />
-                        </div>
-                    </div>
-                     <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-1">{colorLabels.toastErrorForeground}</label>
-                        <div className="flex items-center space-x-2">
-                             <input type="color" value={editedTheme.toastErrorForeground} onChange={e => handleSettingChange('toastErrorForeground', e.target.value)} className="w-10 h-10 p-1 border rounded-md" />
-                             <input type="text" value={editedTheme.toastErrorForeground} onChange={e => handleSettingChange('toastErrorForeground', e.target.value)} className="form-input w-full" />
-                        </div>
-                    </div>
                 </div>
             </div>
              <div className="mt-8 flex justify-end space-x-3">
                 <button 
                     onClick={handleReset} 
-                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted"
+                    className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary"
                 >
                     Ripristina Default Toast
                 </button>
                  <button 
                     onClick={handleSave}
                     disabled={!isToastSettingsChanged}
-                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                    className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
                 >
                     Salva Modifiche Toast
                 </button>
@@ -261,7 +261,7 @@ const VisualizationEditor: React.FC = () => {
         step: number;
     }> = ({ graph, param, label, min, max, step }) => (
         <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">{label} ({settings[graph][param as keyof typeof settings[typeof graph]]})</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1">{label} ({settings[graph][param as keyof typeof settings[typeof graph]]})</label>
             <input
                 type="range"
                 min={min}
@@ -269,18 +269,18 @@ const VisualizationEditor: React.FC = () => {
                 step={step}
                 value={settings[graph][param as keyof typeof settings[typeof graph]]}
                 onChange={(e) => handleChange(graph, param, e.target.value)}
-                className="w-full"
+                className="w-full accent-primary"
             />
         </div>
     );
 
     return (
-        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
             <h2 className="text-xl font-semibold mb-6">Personalizzazione Visualizzazioni Grafiche</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Sankey Settings */}
-                <div className="space-y-4 p-4 border border-border dark:border-dark-border rounded-lg">
+                <div className="space-y-4 p-4 border border-outline-variant rounded-2xl">
                     <h3 className="font-medium text-lg">Diagramma di Flusso (Sankey)</h3>
                     <SettingsSlider graph="sankey" param="nodeWidth" label="Larghezza Nodi" min={5} max={50} step={1} />
                     <SettingsSlider graph="sankey" param="nodePadding" label="Spaziatura Nodi" min={2} max={40} step={1} />
@@ -288,7 +288,7 @@ const VisualizationEditor: React.FC = () => {
                 </div>
                 
                 {/* Network Settings */}
-                <div className="space-y-4 p-4 border border-border dark:border-dark-border rounded-lg">
+                <div className="space-y-4 p-4 border border-outline-variant rounded-2xl">
                     <h3 className="font-medium text-lg">Mappa delle Connessioni (Network)</h3>
                     <SettingsSlider graph="network" param="chargeStrength" label="Forza Repulsione" min={-2000} max={-50} step={50} />
                     <SettingsSlider graph="network" param="linkDistance" label="Distanza Link" min={30} max={500} step={10} />
@@ -300,14 +300,14 @@ const VisualizationEditor: React.FC = () => {
             <div className="mt-8 flex justify-end space-x-3">
                 <button 
                     onClick={handleReset} 
-                    className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted"
+                    className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary"
                 >
                     Ripristina Default
                 </button>
                  <button 
                     onClick={handleSave}
                     disabled={!isChanged}
-                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                    className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
                 >
                     Salva Modifiche
                 </button>
@@ -392,9 +392,9 @@ const DashboardLayoutEditor: React.FC = () => {
     const cardConfigMap = new Map(DASHBOARD_CARDS_CONFIG.map(c => [c.id, c]));
 
     return (
-        <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mt-8">
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
             <h2 className="text-xl font-semibold mb-2">Ordinamento Card Dashboard</h2>
-            <p className="text-sm text-muted-foreground mb-6 max-w-2xl mx-auto">Trascina le card per riordinarle come verranno visualizzate nella Dashboard.</p>
+            <p className="text-sm text-on-surface-variant mb-6 max-w-2xl mx-auto">Trascina le card per riordinarle come verranno visualizzate nella Dashboard.</p>
             <div className="space-y-3 max-w-2xl mx-auto">
                 {cardOrder.map((cardId, index) => {
                     const cardConfig = cardConfigMap.get(cardId);
@@ -403,7 +403,7 @@ const DashboardLayoutEditor: React.FC = () => {
                     return (
                         <div 
                             key={cardId} 
-                            className="flex items-center p-4 border border-border dark:border-dark-border rounded-lg bg-background dark:bg-dark-background cursor-grab active:cursor-grabbing transition-shadow"
+                            className="flex items-center p-4 border border-outline-variant rounded-xl bg-surface cursor-grab active:cursor-grabbing transition-shadow"
                             draggable
                             onDragStart={(e) => handleDragStart(e, index)}
                             onDragEnter={(e) => handleDragEnter(e, index)}
@@ -411,11 +411,11 @@ const DashboardLayoutEditor: React.FC = () => {
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={handleDrop}
                         >
-                            <span className="text-gray-400 mr-4 cursor-grab" title="Trascina per riordinare">⠿</span>
+                            <span className="material-symbols-outlined text-on-surface-variant mr-4 cursor-grab" title="Trascina per riordinare">drag_indicator</span>
                             <span className="text-2xl mr-4">{cardConfig.icon}</span>
                             <div className="flex-grow">
-                                <p className="font-semibold text-foreground dark:text-dark-foreground">{cardConfig.label}</p>
-                                <p className="text-sm text-muted-foreground">{cardConfig.description}</p>
+                                <p className="font-semibold text-on-surface">{cardConfig.label}</p>
+                                <p className="text-sm text-on-surface-variant">{cardConfig.description}</p>
                             </div>
                         </div>
                     );
@@ -423,8 +423,8 @@ const DashboardLayoutEditor: React.FC = () => {
             </div>
              <style>{`.dragging { opacity: 0.5; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }`}</style>
             <div className="mt-8 flex justify-end space-x-3">
-                <button onClick={handleReset} className="px-4 py-2 border border-border dark:border-dark-border rounded-md hover:bg-muted dark:hover:bg-dark-muted">Ripristina Ordine Default</button>
-                <button onClick={handleSave} disabled={!hasChanges} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50">Salva Ordine</button>
+                <button onClick={handleReset} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Ripristina Ordine Default</button>
+                <button onClick={handleSave} disabled={!hasChanges} className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50">Salva Ordine</button>
             </div>
         </div>
     );
@@ -443,13 +443,13 @@ const AdminSettingsPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground mb-8">Impostazioni Amministratore</h1>
-            <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 max-w-2xl">
+            <h1 className="text-3xl font-bold text-on-background mb-8">Impostazioni Amministratore</h1>
+            <div className="bg-surface-container rounded-2xl shadow p-6 max-w-2xl">
                 <h2 className="text-xl font-semibold mb-4">Sicurezza</h2>
-                <div className="flex items-center justify-between p-4 border border-border dark:border-dark-border rounded-lg">
+                <div className="flex items-center justify-between p-4 border border-outline-variant rounded-xl">
                     <div>
-                        <h3 className="font-medium text-foreground dark:text-dark-foreground">Protezione con Password</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <h3 className="font-medium text-on-surface">Protezione con Password</h3>
+                        <p className="text-sm text-on-surface-variant">
                             Se attivata, tutti gli utenti dovranno inserire una password per accedere all'applicazione.
                         </p>
                     </div>
@@ -462,8 +462,8 @@ const AdminSettingsPage: React.FC = () => {
                                 checked={isLoginProtectionEnabled}
                                 onChange={handleToggleProtection}
                             />
-                            <div className="block bg-gray-200 dark:bg-gray-600 w-14 h-8 rounded-full"></div>
-                            <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 bg-primary' : 'bg-gray-400'}`}></div>
+                            <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
+                            <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
                         </div>
                     </label>
                 </div>
@@ -473,7 +473,6 @@ const AdminSettingsPage: React.FC = () => {
             <ToastEditor />
             <VisualizationEditor />
             <ThemeEditor />
-            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-border); background-color: var(--color-card); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-foreground); } .dark .form-input, .dark .form-select { border-color: var(--color-dark-border); background-color: var(--color-dark-card); color: var(--color-dark-foreground); }`}</style>
         </div>
     );
 };
