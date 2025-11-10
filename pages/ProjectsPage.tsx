@@ -290,7 +290,6 @@ const ProjectsPage: React.FC = () => {
                 tableClassNames={{
                     base: 'w-full text-sm',
                 }}
-                hasActionsColumn={true}
             />
             
             {editingProject && (

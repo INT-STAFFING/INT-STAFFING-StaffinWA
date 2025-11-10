@@ -4,46 +4,48 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+// Fix: Import useAllocationsContext.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
+import { DashboardDataTable } from '../components/DashboardDataTable';
+import { ColumnDef } from '../components/DataTable';
 import {
   DashboardCardId,
   DASHBOARD_CARDS_CONFIG,
   DEFAULT_DASHBOARD_CARD_ORDER,
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
-import { DataTable, ColumnDef } from '../components/DataTable';
 
 
 declare var d3: any;
 
 // --- Colori Centralizzati per la Dashboard ---
-// Fix: Add 'chart' property for D3 chart colors to resolve property access errors.
 const DASHBOARD_COLORS = {
   attention: {
-    background: 'bg-amber-100 dark:bg-amber-900/50',
-    hoverBackground: 'hover:bg-amber-200 dark:hover:bg-amber-900/80',
-    text: 'text-amber-800 dark:text-amber-200',
-    strongText: 'text-amber-900 dark:text-amber-100',
-    icon: 'text-3xl opacity-50',
+    background: 'bg-yellow-container',
+    hoverBackground: 'hover:bg-yellow-container/80',
+    text: 'text-on-yellow-container',
+    strongText: 'text-on-yellow-container font-semibold',
+    icon: 'text-3xl opacity-50 text-on-yellow-container',
   },
   utilization: {
-    over: 'text-red-600 dark:text-red-400 font-bold',
-    high: 'text-green-600 dark:text-green-400',
-    normal: 'text-yellow-600 dark:text-yellow-400 font-semibold',
-    zero: 'text-gray-500 dark:text-gray-400',
+    over: 'text-error font-bold',
+    high: 'text-tertiary font-semibold',
+    normal: 'text-secondary',
+    zero: 'text-on-surface-variant',
   },
   variance: {
-    positive: 'text-green-600',
-    negative: 'text-red-600',
+    positive: 'text-tertiary',
+    negative: 'text-error',
   },
-  link: 'text-blue-600 hover:underline',
+  link: 'text-primary hover:underline',
+  // Fix: Add chart colors for d3 visualizations.
   chart: {
-    primary: '#3b82f6',
-    secondary: '#9ca3af',
-    threshold: '#ef4444',
+    primary: '#006493',
+    secondary: '#50606e',
+    threshold: '#ba1a1a',
   },
 };
 
@@ -66,30 +68,30 @@ const parseISODate = (s: string): Date => {
 
 const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any }> = ({ overallKPIs, currentMonthKPIs }) => (
     <>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Budget Complessivo</h3>
-            <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(overallKPIs.totalBudget)}</p>
+        <div className="bg-surface-container-low rounded-2xl shadow p-5">
+            <h3 className="text-sm font-medium text-on-surface-variant">Budget Complessivo</h3>
+            <p className="mt-1 text-3xl font-semibold text-on-surface">{formatCurrency(overallKPIs.totalBudget)}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Costo Stimato (Mese Corrente)</h3>
-            <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{formatCurrency(currentMonthKPIs.totalCost)}</p>
+        <div className="bg-surface-container-low rounded-2xl shadow p-5">
+            <h3 className="text-sm font-medium text-on-surface-variant">Costo Stimato (Mese Corrente)</h3>
+            <p className="mt-1 text-3xl font-semibold text-on-surface">{formatCurrency(currentMonthKPIs.totalCost)}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Giorni Allocati (Mese Corrente)</h3>
-            <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
+        <div className="bg-surface-container-low rounded-2xl shadow p-5">
+            <h3 className="text-sm font-medium text-on-surface-variant">Giorni Allocati (Mese Corrente)</h3>
+            <p className="mt-1 text-3xl font-semibold text-on-surface">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
         </div>
     </>
 );
 
 const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ overallKPIs, navigate }) => (
     <>
-        <div className={`${DASHBOARD_COLORS.attention.background} rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/resources?filter=unassigned')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/resources?filter=unassigned')}>
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Risorse Non Allocate</h3>
-                    <p className={`mt-1 text-3xl font-semibold ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unassignedResources.length}</p>
+                    <p className={`mt-1 text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unassignedResources.length}</p>
                 </div>
-                <span className={DASHBOARD_COLORS.attention.icon}>👥</span>
+                <span className={`material-symbols-outlined ${DASHBOARD_COLORS.attention.icon}`}>person_off</span>
             </div>
             {overallKPIs.unassignedResources.length > 0 && (
                 <div className={`mt-2 text-xs ${DASHBOARD_COLORS.attention.text} overflow-y-auto max-h-20 pr-2 w-full`}>
@@ -97,13 +99,13 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
                 </div>
             )}
         </div>
-        <div className={`${DASHBOARD_COLORS.attention.background} rounded-lg shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/projects?filter=unstaffed')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/projects?filter=unstaffed')}>
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Progetti Senza Staff</h3>
-                    <p className={`mt-1 text-3xl font-semibold ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unstaffedProjects.length}</p>
+                    <p className={`mt-1 text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unstaffedProjects.length}</p>
                 </div>
-                <span className={DASHBOARD_COLORS.attention.icon}>💼</span>
+                 <span className={`material-symbols-outlined ${DASHBOARD_COLORS.attention.icon}`}>work_off</span>
             </div>
             {overallKPIs.unstaffedProjects.length > 0 && (
                 <div className={`mt-2 text-xs ${DASHBOARD_COLORS.attention.text} overflow-y-auto max-h-20 pr-2 w-full`}>
@@ -114,6 +116,7 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
     </>
 );
 
+
 const getAvgAllocationColor = (avg: number): string => {
     if (avg > 100) return DASHBOARD_COLORS.utilization.over;
     if (avg > 95) return DASHBOARD_COLORS.utilization.high;
@@ -123,39 +126,38 @@ const getAvgAllocationColor = (avg: number): string => {
 
 // --- Individual Card Components ---
 
+/**
+ * A unified "smart" component for all dashboard cards that contain a table.
+ * It accepts table data and configuration, and renders the DashboardDataTable internally,
+ * ensuring consistent padding, shadow, header layout, and scrolling behavior.
+ */
 const DashboardTableCard: React.FC<{
   headerContent: React.ReactNode;
-  children: React.ReactNode;
-}> = ({ headerContent, children }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 flex flex-col">
+  columns: ColumnDef<any>[];
+  data: any[];
+  isLoading: boolean;
+  initialSortKey?: string;
+  footerNode?: React.ReactNode;
+}> = ({ headerContent, columns, data, isLoading, initialSortKey, footerNode }) => (
+  <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
     <div className="flex-shrink-0 mb-4">{headerContent}</div>
-    <div className="flex-grow overflow-x-auto">
-      <div className="max-h-80 overflow-y-auto relative dashboard-table-container">
-        {children}
-      </div>
+    <div className="flex-grow overflow-auto">
+        <DashboardDataTable
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey={initialSortKey}
+            footerNode={footerNode}
+        />
     </div>
-    <style>{`
-      .dashboard-table-container thead {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background-color: #f9fafb;
-      }
-      .dark .dashboard-table-container thead {
-        background-color: #374151;
-      }
-      .dashboard-table-container th {
-        background-color: inherit;
-      }
-    `}</style>
   </div>
 );
 
-const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals }) => {
+const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals, isLoading }) => {
     const columns: ColumnDef<any>[] = [
-        { header: "Risorsa", sortKey: "resource.name", cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
-        { header: "Mese Corrente", sortKey: "currentMonth", cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
-        { header: "Mese Prossimo", sortKey: "nextMonth", cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</span> }
+        { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
+        { header: 'Mese Corrente', sortKey: 'currentMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
+        { header: 'Mese Prossimo', sortKey: 'nextMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</span> },
     ];
 
     const footer = (
@@ -165,7 +167,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
             <td className={`px-4 py-2 ${getAvgAllocationColor(totals.nextMonth)}`}>{totals.nextMonth.toFixed(0)}%</td>
         </tr>
     );
-
+    
     return (
         <DashboardTableCard
             headerContent={
@@ -174,19 +176,22 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
                     <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                 </div>
             }
-        >
-            <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
-        </DashboardTableCard>
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="resource.name"
+            footerNode={footer}
+        />
     );
 };
 
-const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals }) => {
+const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const columns: ColumnDef<any>[] = [
-        { header: "Progetto", sortKey: "name", cell: d => d.name },
-        { header: "G/U Allocati", sortKey: "totalPersonDays", cell: d => d.totalPersonDays.toFixed(1) },
-        { header: "FTE", sortKey: "fte", cell: d => <span className="font-semibold">{d.fte.toFixed(2)}</span> }
+        { header: "Progetto", sortKey: "name", cell: (d) => d.name },
+        { header: "G/U Allocati", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
+        { header: "FTE", sortKey: "fte", cell: (d) => <span className="font-semibold">{d.fte.toFixed(2)}</span> },
     ];
-
+    
     const footer = (
         <tr>
             <td className="px-4 py-2">Totale</td>
@@ -194,26 +199,29 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
             <td className="px-4 py-2">{totals.totalFte.toFixed(2)}</td>
         </tr>
     );
-    
+
     return (
-      <DashboardTableCard
-        headerContent={
-            <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-        }
-      >
-        <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
-      </DashboardTableCard>
+        <DashboardTableCard
+            headerContent={
+                <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="name"
+            footerNode={footer}
+        />
     );
 };
 
-const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals }) => {
+const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const columns: ColumnDef<any>[] = [
-        { header: "Progetto", sortKey: "name", cell: d => d.name },
-        { header: "Budget", sortKey: "budget", cell: d => formatCurrency(d.budget) },
-        { header: "Costo Stimato", sortKey: "estimatedCost", cell: d => formatCurrency(d.estimatedCost) },
-        { header: "Varianza", sortKey: "variance", cell: d => <span className={`font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</span> }
+        { header: "Progetto", sortKey: "name", cell: (d) => d.name },
+        { header: "Budget", sortKey: "budget", cell: (d) => formatCurrency(d.budget) },
+        { header: "Costo Stimato", sortKey: "estimatedCost", cell: (d) => formatCurrency(d.estimatedCost) },
+        { header: "Varianza", sortKey: "variance", cell: (d) => <span className={`font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</span> },
     ];
-    
+
     const footer = (
         <tr>
             <td className="px-4 py-2">Totale</td>
@@ -224,24 +232,27 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
     );
 
     return (
-      <DashboardTableCard
-        headerContent={
-            <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-        }
-      >
-        <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
-      </DashboardTableCard>
+        <DashboardTableCard
+            headerContent={
+                <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="name"
+            footerNode={footer}
+        />
     );
 };
 
-const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals }) => {
+const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const columns: ColumnDef<any>[] = [
-        { header: "Progetto", sortKey: "name", cell: d => d.name },
-        { header: "Budget Periodo", sortKey: "periodBudget", cell: d => formatCurrency(d.periodBudget) },
-        { header: "Costo Stimato", sortKey: "estimatedCost", cell: d => formatCurrency(d.estimatedCost) },
-        { header: "Varianza", sortKey: "variance", cell: d => <span className={`font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</span> }
+        { header: "Progetto", sortKey: "name", cell: (d) => d.name },
+        { header: "Budget Periodo", sortKey: "periodBudget", cell: (d) => formatCurrency(d.periodBudget) },
+        { header: "Costo Stimato", sortKey: "estimatedCost", cell: (d) => formatCurrency(d.estimatedCost) },
+        { header: "Varianza", sortKey: "variance", cell: (d) => <span className={`font-semibold ${d.variance < 0 ? DASHBOARD_COLORS.variance.negative : DASHBOARD_COLORS.variance.positive}`}>{formatCurrency(d.variance)}</span> },
     ];
-    
+
     const footer = (
         <tr>
             <td className="px-4 py-2">Totale</td>
@@ -263,50 +274,59 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                     </div>
                 </div>
             }
-        >
-            <DataTable data={data} columns={columns} hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
-        </DashboardTableCard>
-      );
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="name"
+            footerNode={footer}
+        />
+    );
 };
 
-const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth }) => {
+const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLoading }) => {
     const columns: ColumnDef<any>[] = [
-        { header: "Risorsa", sortKey: "resource.name", cell: d => d.resource.name },
-        { header: "Alloc. Media", sortKey: "avgAllocation", cell: d => <span className={DASHBOARD_COLORS.utilization.high}>{d.avgAllocation.toFixed(0)}%</span> }
+        { header: "Risorsa", sortKey: "resource.name", cell: (d) => d.resource.name },
+        { header: "Alloc. Media", sortKey: "avgAllocation", cell: (d) => <span className={DASHBOARD_COLORS.utilization.high}>{d.avgAllocation.toFixed(0)}%</span> },
+    ];
+
+    return (
+        <DashboardTableCard
+            headerContent={
+                <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="avgAllocation"
+        />
+    );
+};
+
+const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Cliente", sortKey: "name", cell: (d) => <button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button> },
+        { header: "Costo Stimato", sortKey: "cost", cell: (d) => formatCurrency(d.cost) },
+    ];
+
+    return (
+        <DashboardTableCard
+            headerContent={
+                <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="cost"
+        />
+    );
+};
+
+const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
+    const columns: ColumnDef<any>[] = [
+        { header: "Horizontal", sortKey: "name", cell: (d) => d.name },
+        { header: "G/U Totali", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
     ];
     
-    return (
-      <DashboardTableCard
-        headerContent={
-            <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
-        }
-      >
-          <DataTable data={data} columns={columns} initialSortKey="avgAllocation" hasActionsColumn={false} tableLayout={{ dense: true, striped: true }} />
-      </DashboardTableCard>
-    );
-};
-
-const MonthlyClientCostCard: React.FC<any> = ({ data, navigate }) => {
-    const columns: ColumnDef<any>[] = [
-        { header: "Cliente", sortKey: "name", cell: d => <button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button> },
-        { header: "Costo Stimato", sortKey: "cost", cell: d => formatCurrency(d.cost) }
-    ];
-
-    return (
-      <DashboardTableCard
-        headerContent={<h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>}
-      >
-        <DataTable data={data} columns={columns} initialSortKey="cost" hasActionsColumn={false} tableLayout={{ dense: true, striped: true }} />
-      </DashboardTableCard>
-    );
-};
-
-const EffortByHorizontalCard: React.FC<any> = ({ data, total }) => {
-    const columns: ColumnDef<any>[] = [
-        { header: "Horizontal", sortKey: "name", cell: d => d.name },
-        { header: "G/U Totali", sortKey: "totalPersonDays", cell: d => d.totalPersonDays.toFixed(1) }
-    ];
-
     const footer = (
         <tr>
             <td className="px-4 py-2">Totale</td>
@@ -315,40 +335,52 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total }) => {
     );
 
     return (
-      <DashboardTableCard headerContent={<h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>}>
-          <DataTable data={data} columns={columns} initialSortKey="totalPersonDays" hasActionsColumn={false} footerNode={footer} tableLayout={{ dense: true, striped: true }} />
-      </DashboardTableCard>
+        <DashboardTableCard
+            headerContent={
+                <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="totalPersonDays"
+            footerNode={footer}
+        />
     );
 };
 
-const LocationAnalysisCard: React.FC<any> = ({ data }) => {
+const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     const columns: ColumnDef<any>[] = [
-        { header: "Sede", sortKey: "name", cell: d => d.name },
-        { header: "N. Risorse", sortKey: "resourceCount", cell: d => d.resourceCount },
-        { header: "G/U Allocati", sortKey: "allocatedDays", cell: d => d.allocatedDays.toFixed(1) },
-        { header: "Utilizzo Medio", sortKey: "avgUtilization", cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.avgUtilization)}`}>{d.avgUtilization.toFixed(0)}%</span> }
+        { header: "Sede", sortKey: "name", cell: (d) => d.name },
+        { header: "N. Risorse", sortKey: "resourceCount", cell: (d) => d.resourceCount },
+        { header: "G/U Allocati", sortKey: "allocatedDays", cell: (d) => d.allocatedDays.toFixed(1) },
+        { header: "Utilizzo Medio", sortKey: "avgUtilization", cell: (d) => <span className={`font-semibold ${getAvgAllocationColor(d.avgUtilization)}`}>{d.avgUtilization.toFixed(0)}%</span> },
     ];
 
     return (
-      <DashboardTableCard headerContent={<h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>}>
-        <DataTable data={data} columns={columns} initialSortKey="resourceCount" hasActionsColumn={false} tableLayout={{ dense: true, striped: true }} />
-      </DashboardTableCard>
+        <DashboardTableCard
+            headerContent={
+                <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
+            }
+            columns={columns}
+            data={data}
+            isLoading={isLoading}
+            initialSortKey="resourceCount"
+        />
     );
 };
 
-
 const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, resourceOptions, chartRef }) => (
-  <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-8">
+  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8">
     <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
         <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
     </div>
-    <div className="h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-gray-500">Seleziona una risorsa per visualizzare il trend.</div> }</div>
+    <div className="h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
   </div>
 );
 
 const CostForecastCard: React.FC<any> = ({ chartRef }) => (
-  <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-8">
+  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8">
       <h2 className="text-lg font-semibold mb-4">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
       <div className="h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
   </div>
@@ -360,10 +392,11 @@ const CostForecastCard: React.FC<any> = ({ chartRef }) => (
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar } = useEntitiesContext();
+    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 
+    // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
     const [fteFilter, setFteFilter] = useState({ clientId: '' });
     const [budgetFilter, setBudgetFilter] = useState({ clientId: '' });
@@ -749,7 +782,8 @@ const DashboardPage: React.FC = () => {
         return forecastData;
 
     }, [activeResources, assignments, allocations, roles, projects, companyCalendar]);
-    
+
+    // Totals
     const avgAllocationTotals = useMemo(() => {
         const totalCurrent = averageAllocationData.reduce((sum, d) => sum + d.currentMonth, 0);
         const totalNext = averageAllocationData.reduce((sum, d) => sum + d.nextMonth, 0);
@@ -842,6 +876,8 @@ const DashboardPage: React.FC = () => {
 
     }, [monthlyCostForecastData]);
 
+    // --- Dynamic Card Rendering Logic ---
+
     const cardOrder = useMemo(() => {
         try {
             const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
@@ -872,21 +908,21 @@ const DashboardPage: React.FC = () => {
             case 'attentionCards':
                 return <AttentionCards key={id} overallKPIs={overallKPIs} navigate={navigate} />;
             case 'averageAllocation': 
-                return <AverageAllocationCard key={id} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} totals={avgAllocationTotals} />;
+                return <AverageAllocationCard key={id} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} totals={avgAllocationTotals} isLoading={loading} />;
             case 'ftePerProject':
-                return <FtePerProjectCard key={id} data={fteData} filter={fteFilter} setFilter={setFteFilter} clientOptions={clientOptions} totals={fteTotals} />;
+                return <FtePerProjectCard key={id} data={fteData} filter={fteFilter} setFilter={setFteFilter} clientOptions={clientOptions} totals={fteTotals} isLoading={loading} />;
             case 'budgetAnalysis':
-                return <BudgetAnalysisCard key={id} data={budgetAnalysisData} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} totals={budgetTotals} />;
+                return <BudgetAnalysisCard key={id} data={budgetAnalysisData} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} totals={budgetTotals} isLoading={loading} />;
             case 'temporalBudgetAnalysis':
-                return <TemporalBudgetAnalysisCard key={id} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} totals={temporalBudgetTotals} />;
+                return <TemporalBudgetAnalysisCard key={id} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} totals={temporalBudgetTotals} isLoading={loading} />;
             case 'underutilizedResources':
-                return <UnderutilizedResourcesCard key={id} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} />;
+                return <UnderutilizedResourcesCard key={id} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} isLoading={loading} />;
             case 'monthlyClientCost':
-                return <MonthlyClientCostCard key={id} data={currentMonthKPIs.clientCostArray} navigate={navigate} />;
+                return <MonthlyClientCostCard key={id} data={currentMonthKPIs.clientCostArray} navigate={navigate} isLoading={loading} />;
             case 'effortByHorizontal':
-                return <EffortByHorizontalCard key={id} data={effortByHorizontalData} total={effortByHorizontalTotal} />;
+                return <EffortByHorizontalCard key={id} data={effortByHorizontalData} total={effortByHorizontalTotal} isLoading={loading} />;
             case 'locationAnalysis':
-                return <LocationAnalysisCard key={id} data={analysisByLocationData} />;
+                return <LocationAnalysisCard key={id} data={analysisByLocationData} isLoading={loading} />;
             case 'saturationTrend':
                 return <SaturationTrendCard key={id} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={resourceOptions} chartRef={trendChartRef} />;
             case 'costForecast':
@@ -895,13 +931,14 @@ const DashboardPage: React.FC = () => {
         }
     };
     
+    // Group cards by their layout type based on the loaded order
     const kpiGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'kpi');
     const mainGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'main');
     const fullWidthGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'full-width');
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-8">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-on-background mb-8">Dashboard</h1>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
                 {kpiGroupCards.map(id => renderCardById(id))}
@@ -913,7 +950,7 @@ const DashboardPage: React.FC = () => {
 
             {fullWidthGroupCards.map(id => renderCardById(id))}
             
-            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-outline); background-color: var(--color-surface-container-highest); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); ring: 2px solid var(--color-primary); }`}</style>
         </div>
     );
 };

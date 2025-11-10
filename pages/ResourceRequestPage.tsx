@@ -334,8 +334,12 @@ export const ResourceRequestPage: React.FC = () => {
                         "
                     >
                         <DataTable<EnrichedRequest>
+                            title=""
+                            addNewButtonLabel=""
                             data={dataForTable}
                             columns={columns}
+                            filtersNode={<></>}
+                            onAddNew={() => {}}
                             renderRow={renderRow}
                             renderMobileCard={renderCard}
                             initialSortKey="startDate"
@@ -351,7 +355,6 @@ export const ResourceRequestPage: React.FC = () => {
                             tableClassNames={{
                                 base: 'w-full text-sm',
                             }}
-                            hasActionsColumn={true}
                         />
                     </div>
                 </div>
