@@ -1,6 +1,7 @@
 /**
  * @file GanttPage.tsx
- * @description Pagina con vista Gantt interattiva per i progetti, con legenda e righe di riepilogo.
+ * @description Pagina con vista Gantt interattiva per i progetti, con legenda, righe di riepilogo
+ *              e area di tabella a altezza fissa con barra di scorrimento orizzontale sempre visibile.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -229,9 +230,10 @@ const GanttPage: React.FC = () => {
         }
 
         return Array.from(counts.entries()).map(([clientId, count]) => ({
-            clientName: clientId === 'NO_CLIENT'
-                ? 'Cliente non assegnato'
-                : clientMap.get(clientId) ?? 'Cliente non assegnato',
+            clientName:
+                clientId === 'NO_CLIENT'
+                    ? 'Cliente non assegnato'
+                    : clientMap.get(clientId) ?? 'Cliente non assegnato',
             count,
         }));
     }, [sortedAndFilteredProjects, clientMap]);
@@ -315,7 +317,9 @@ const GanttPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="inline-block w-3 h-3 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40" />
-                        <span>Colonne alternate: segmenti temporali (mese / trimestre / anno)</span>
+                        <span>
+                            Colonne alternate: segmenti temporali (mese / trimestre / anno)
+                        </span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="inline-block w-0.5 h-4 bg-red-500" />
@@ -334,10 +338,11 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Corpo Gantt */}
-            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+            {/* Corpo Gantt con altezza fissa e scroll orizzontale sempre visibile */}
+            <div className="flex-grow bg-white dark:bg-gray-800 rounded-lg shadow">
+                {/* Contenitore scrollabile: altezza fissa (es. 600px), overflow in entrambe le direzioni */}
                 <div
-                    className="relative"
+                    className="relative h-[600px] overflow-x-auto overflow-y-auto"
                     style={{
                         minWidth: `calc(${LEFT_COLUMN_WIDTH}px + ${ganttChartWidth}px)`,
                     }}
@@ -472,7 +477,8 @@ const GanttPage: React.FC = () => {
                                                                 ))}
                                                             {projectResources.length > 3 && (
                                                                 <span className="text-[11px] text-gray-500 dark:text-gray-300">
-                                                                    +{projectResources.length - 3}{' '}
+                                                                    +
+                                                                    {projectResources.length - 3}{' '}
                                                                     altri
                                                                 </span>
                                                             )}
