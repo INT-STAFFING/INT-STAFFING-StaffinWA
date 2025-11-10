@@ -18,6 +18,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
+import { Button } from '../components/ui/Button';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -556,13 +557,18 @@ const StaffingPage: React.FC = () => {
             ))}
           </div>
 
-          <button
-            onClick={() => openNewAssignmentModal()}
-            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
-          >
-            <span className="mr-2 text-xl">➕</span>
-            Assegna Risorsa
-          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => alert('Export action!')}>
+              Export
+            </Button>
+            <button
+              onClick={() => openNewAssignmentModal()}
+              className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
+            >
+              <span className="mr-2 text-xl">➕</span>
+              Assegna Risorsa
+            </button>
+          </div>
         </div>
 
         {/* Filtri */}

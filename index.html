@@ -5,9 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Staffing Allocation Planner</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/4.0.0-alpha.17"></script>
     <script>
+      // Handles dark mode based on system preference or localStorage
+      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+
       tailwind.config = {
+        darkMode: "class",
         theme: {
           extend: {
             colors: {
@@ -33,7 +41,47 @@
                 'dark-border': 'var(--color-dark-border, #1e293b)',
                 'dark-muted': 'var(--color-dark-muted, #1e293b)',
                 'dark-muted-foreground': 'var(--color-dark-muted-foreground, #94a3b8)',
-            }
+
+                // ReUI / ShadCN Palette
+                'reui-border': 'hsl(var(--border))',
+                'reui-input': 'hsl(var(--input))',
+                'reui-ring': 'hsl(var(--ring))',
+                'reui-background': 'hsl(var(--background))',
+                'reui-foreground': 'hsl(var(--foreground))',
+                'reui-primary': {
+                    DEFAULT: 'hsl(var(--primary))',
+                    foreground: 'hsl(var(--primary-foreground))',
+                },
+                'reui-secondary': {
+                    DEFAULT: 'hsl(var(--secondary))',
+                    foreground: 'hsl(var(--secondary-foreground))',
+                },
+                'reui-destructive': {
+                    DEFAULT: 'hsl(var(--destructive))',
+                    foreground: 'hsl(var(--destructive-foreground))',
+                },
+                'reui-muted': {
+                    DEFAULT: 'hsl(var(--muted))',
+                    foreground: 'hsl(var(--muted-foreground))',
+                },
+                'reui-accent': {
+                    DEFAULT: 'hsl(var(--accent))',
+                    foreground: 'hsl(var(--accent-foreground))',
+                },
+                'reui-popover': {
+                    DEFAULT: 'hsl(var(--popover))',
+                    foreground: 'hsl(var(--popover-foreground))',
+                },
+                'reui-card': {
+                    DEFAULT: 'hsl(var(--card))',
+                    foreground: 'hsl(var(--card-foreground))',
+                },
+            },
+            borderRadius: {
+              lg: "var(--radius)",
+              md: "calc(var(--radius) - 2px)",
+              sm: "calc(var(--radius) - 4px)",
+            },
           }
         }
       }
@@ -50,11 +98,63 @@
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@vercel/postgres": "https://aistudiocdn.com/@vercel/postgres@^0.10.0"
+    "@vercel/postgres": "https://aistudiocdn.com/@vercel/postgres@^0.10.0",
+    "@radix-ui/react-slot": "https://aistudiocdn.com/@radix-ui/react-slot@1.1.0",
+    "@mui/base/": "https://aistudiocdn.com/@mui/base@^5.0.0-beta.40/",
+    "framer-motion": "https://aistudiocdn.com/framer-motion@^11.2.10",
+    "class-variance-authority": "https://aistudiocdn.com/class-variance-authority@0.7.0",
+    "clsx": "https://aistudiocdn.com/clsx@2.1.1",
+    "tailwind-merge": "https://aistudiocdn.com/tailwind-merge@2.4.0"
   }
 }
 </script>
 <style>
+  /* ReUI / ShadCN Theme Variables */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 210 40% 98%;
+  }
+
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
