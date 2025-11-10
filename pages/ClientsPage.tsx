@@ -17,7 +17,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
  * @returns {React.ReactElement} La pagina di gestione dei clienti.
  */
 const ClientsPage: React.FC = () => {
-    const { clients, clientSectors, addClient, updateClient, deleteClient, isActionLoading } = useEntitiesContext();
+    const { clients, clientSectors, addClient, updateClient, deleteClient, isActionLoading, loading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', sector: '' });
@@ -83,40 +83,40 @@ const ClientsPage: React.FC = () => {
     const sectorOptions = useMemo(() => clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [clientSectors]);
 
     const columns: ColumnDef<Client>[] = [
-        { header: 'Nome Cliente', sortKey: 'name', cell: (client) => <span className="font-medium text-gray-900 dark:text-white">{client.name}</span> },
-        { header: 'Settore', sortKey: 'sector', cell: (client) => <span className="text-sm text-gray-600 dark:text-gray-300">{client.sector}</span> },
-        { header: 'Email Contatto', sortKey: 'contactEmail', cell: (client) => <span className="text-sm text-gray-600 dark:text-gray-300">{client.contactEmail}</span> },
+        { header: 'Nome Cliente', sortKey: 'name', cell: (client) => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{client.name}</span> },
+        { header: 'Settore', sortKey: 'sector', cell: (client) => <span className="text-sm text-on-surface-variant">{client.sector}</span> },
+        { header: 'Email Contatto', sortKey: 'contactEmail', cell: (client) => <span className="text-sm text-on-surface-variant">{client.contactEmail}</span> },
     ];
     
     const renderRow = (client: Client) => {
         const isEditing = inlineEditingId === client.id;
+        const isSaving = isActionLoading(`updateClient-${client.id}`);
         if (isEditing) {
-            const isSaving = isActionLoading(`updateClient-${client.id}`);
             return (
-                <tr key={client.id}>
-                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                <tr key={client.id} className="h-16">
+                    <td className="px-6 py-4 sticky left-0 bg-inherit"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></td>
                     <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right sticky right-0 bg-inherit">
                         <div className="flex items-center justify-end space-x-2">
                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="material-symbols-outlined">close</span></button>
                         </div>
                     </td>
                 </tr>
             );
         }
         return (
-             <tr key={client.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((client as any)[col.sortKey]) : undefined}>{col.cell(client)}</td>)}
-                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+             <tr key={client.id} className="group h-16 hover:bg-surface-container">
+                {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((client as any)[col.sortKey]) : undefined}>{col.cell(client)}</td>)}
+                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(client)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteClient(client.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => openModalForEdit(client)} className="text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteClient(client.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                           {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </td>
@@ -129,38 +129,38 @@ const ClientsPage: React.FC = () => {
         const isSaving = isActionLoading(`updateClient-${client.id}`);
         if (isEditing) {
             return (
-                <div key={client.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+                <div key={client.id} className="p-4 rounded-lg shadow-md bg-surface-container border border-primary">
                     <div className="space-y-3">
-                        <div><label className="text-xs font-medium text-gray-500">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                        <div><label className="text-xs font-medium text-gray-500">Settore</label><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></div>
-                        <div><label className="text-xs font-medium text-gray-500">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Nome Cliente</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Settore</label><SearchableSelect name="sector" value={inlineEditingData!.sector} onChange={handleInlineSelectChange} options={sectorOptions} placeholder="Seleziona settore" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Email</label><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                         <div className="flex justify-end space-x-2 pt-2">
-                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                             <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-surface-container-high text-on-surface-variant rounded-full"><span className="material-symbols-outlined">close</span></button>
                         </div>
                     </div>
                 </div>
             );
         }
         return (
-            <div key={client.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
+            <div key={client.id} className="p-4 rounded-lg shadow-md bg-surface-container">
                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{client.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{client.contactEmail}</p>
+                        <p className="font-bold text-lg text-on-surface">{client.name}</p>
+                        <p className="text-sm text-on-surface-variant">{client.contactEmail}</p>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(client)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteClient(client.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => openModalForEdit(client)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteClient(client.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
+                             {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm">
-                    <div><p className="text-gray-500 dark:text-gray-400">Settore</p><p className="font-medium text-gray-900 dark:text-white">{client.sector}</p></div>
+                <div className="mt-4 pt-4 border-t border-outline-variant text-sm">
+                    <div><p className="text-on-surface-variant">Settore</p><p className="font-medium text-on-surface">{client.sector}</p></div>
                 </div>
             </div>
         );
@@ -170,7 +170,7 @@ const ClientsPage: React.FC = () => {
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <SearchableSelect name="sector" value={filters.sector} onChange={handleFilterSelectChange} options={sectorOptions} placeholder="Tutti i settori" />
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
         </div>
     );
     
@@ -186,17 +186,29 @@ const ClientsPage: React.FC = () => {
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
                 initialSortKey="name"
+                isLoading={loading}
+                tableLayout={{
+                    dense: true,
+                    striped: true,
+                    headerSticky: true,
+                    headerBackground: true,
+                    headerBorder: true,
+                    width: 'fixed',
+                }}
+                tableClassNames={{
+                    base: 'w-full text-sm',
+                }}
             />
             
             {editingClient && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Cliente *</label>
-                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="w-full form-input"/>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Cliente *</label>
+                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Settore</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Settore</label>
                              <SearchableSelect
                                 name="sector"
                                 value={editingClient.sector}
@@ -206,19 +218,19 @@ const ClientsPage: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Contatto *</label>
-                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="w-full form-input"/>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Email Contatto *</label>
+                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50">
                                 {(isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
-             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.5rem; border: 1px solid var(--color-outline); background-color: var(--color-surface-container-highest); padding: 0.75rem 1rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-on-surface); } .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); ring: 2px solid var(--color-primary); }`}</style>
         </div>
     );
 };

@@ -29,7 +29,8 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import { ResourceRequestPage } from './pages/ResourceRequestPage';
 import InterviewsPage from './pages/InterviewsPage';
 import DbInspectorPage from './pages/DbInspectorPage';
-import ContractsPage from './pages/ContractsPage';
+// Fix: Module '"file:///pages/ContractsPage"' has no default export. Changed to named import.
+import { ContractsPage } from './pages/ContractsPage';
 import StaffingVisualizationPage from './pages/StaffingVisualizationPage';
 import UserManualPage from './pages/UserManualPage';
 

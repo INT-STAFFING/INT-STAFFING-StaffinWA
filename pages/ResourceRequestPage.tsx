@@ -36,7 +36,7 @@ const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
 export const ResourceRequestPage: React.FC = () => {
     const { 
         resourceRequests, projects, roles, resources, 
-        addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading 
+        addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading, loading
     } = useEntitiesContext();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,9 +209,9 @@ export const ResourceRequestPage: React.FC = () => {
     ];
 
     const renderRow = (request: EnrichedRequest) => (
-        <tr key={request.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(request)}</td>)}
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        <tr key={request.id} className="group hover:bg-surface-container">
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 bg-inherit">{col.cell(request)}</td>)}
+            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-3">
                     <button onClick={() => openModalForEdit(request)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
                     <button onClick={() => setRequestToDelete(request)} className="text-gray-500 hover:text-red-600" title="Elimina">
@@ -279,7 +279,7 @@ export const ResourceRequestPage: React.FC = () => {
                 </div>
             </div>
             
-             <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+             <div className="mb-6 p-4 bg-card dark:bg-card rounded-lg shadow">
                 {filtersNode}
             </div>
 
@@ -343,6 +343,18 @@ export const ResourceRequestPage: React.FC = () => {
                             renderRow={renderRow}
                             renderMobileCard={renderCard}
                             initialSortKey="startDate"
+                            isLoading={loading}
+                            tableLayout={{
+                                dense: true,
+                                striped: true,
+                                headerSticky: true,
+                                headerBackground: true,
+                                headerBorder: true,
+                                width: 'fixed',
+                            }}
+                            tableClassNames={{
+                                base: 'w-full text-sm',
+                            }}
                         />
                     </div>
                 </div>

@@ -162,7 +162,7 @@ const GanttPage: React.FC = () => {
             <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
                 <div className="relative" style={{ minWidth: `calc(300px + ${ganttChartWidth}px)` }}>
                     {/* Header */}
-                    <div className="grid grid-cols-[300px_1fr] sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16">
+                    <div className="sticky grid grid-cols-[300px_1fr] top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16">
                         <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center">
                             <button onClick={toggleSortDirection} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
                                 <span>Progetto</span>

@@ -27,7 +27,7 @@ const formatDateForDisplay = (dateStr: string | null): string => {
 };
 
 const ProjectsPage: React.FC = () => {
-    const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments } = useEntitiesContext();
+    const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments, loading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
@@ -152,16 +152,16 @@ const ProjectsPage: React.FC = () => {
 
     const columns: ColumnDef<EnrichedProject>[] = [
         { header: 'Nome Progetto', sortKey: 'name', cell: p => (
-            <div className="flex items-center">
-                <span className="font-medium text-gray-900 dark:text-white">{p.name}</span>
-                {!p.isStaffed && p.status === 'In corso' && <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-amber-800 bg-amber-100 dark:text-amber-100 dark:bg-amber-800 rounded-full">Senza Staff</span>}
+            <div className="flex items-center sticky left-0 bg-inherit pl-6">
+                <span className="font-medium text-on-surface">{p.name}</span>
+                {!p.isStaffed && p.status === 'In corso' && <span className="ml-2 px-2 py-0.5 text-xs font-semibold text-on-yellow-container bg-yellow-container rounded-full">Senza Staff</span>}
             </div>
         )},
-        { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.clientName}</span> },
-        { header: 'Risorse Assegnate', sortKey: 'assignedResources', cell: p => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{p.assignedResources}</span> },
+        { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-on-surface-variant">{p.clientName}</span> },
+        { header: 'Risorse Assegnate', sortKey: 'assignedResources', cell: p => <span className="text-sm text-center font-semibold text-on-surface-variant">{p.assignedResources}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
-        { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{formatDateForDisplay(p.startDate)}</span> },
-        { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-gray-600 dark:text-gray-300">{p.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span> },
+        { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-on-surface-variant">{formatDateForDisplay(p.startDate)}</span> },
+        { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-on-surface-variant">{p.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span> },
     ];
     
      const renderRow = (project: EnrichedProject) => {
@@ -169,31 +169,31 @@ const ProjectsPage: React.FC = () => {
         const isSaving = isActionLoading(`updateProject-${project.id}`);
         if(isEditing){
             return (
-                <tr key={project.id}>
-                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                <tr key={project.id} className="h-16">
+                    <td className="px-6 py-4 sticky left-0 bg-inherit"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
-                    <td className="px-6 py-4 text-center">{project.assignedResources}</td>
+                    <td className="px-6 py-4 text-center text-on-surface-variant">{project.assignedResources}</td>
                     <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
                     <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                    <td className="px-6 py-4 text-right sticky right-0 bg-inherit"><div className="flex items-center justify-end space-x-2">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-primary hover:opacity-80 disabled:opacity-50">
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-on-surface-variant hover:opacity-80"><span className="material-symbols-outlined">close</span></button>
                     </div></td>
                 </tr>
             );
         }
         return (
-            <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((project as any)[col.sortKey]) : undefined}>{col.cell(project)}</td>)}
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <tr key={project.id} className="group h-16 hover:bg-surface-container">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit" title={col.sortKey ? String((project as any)[col.sortKey]) : undefined}>{col.cell(project)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(project)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteProject(project.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => openModalForEdit(project)} className="text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteProject(project.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </td>
@@ -206,46 +206,46 @@ const ProjectsPage: React.FC = () => {
         const isSaving = isActionLoading(`updateProject-${project.id}`);
         if (isEditing) {
             return (
-               <div key={project.id} className="p-4 rounded-lg shadow-md bg-white dark:bg-gray-800 border border-blue-500">
+               <div key={project.id} className="p-4 rounded-lg shadow-md bg-surface-container border border-primary">
                    <div className="space-y-3">
-                       <div><label className="text-xs font-medium text-gray-500">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div><label className="text-xs font-medium text-gray-500">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
-                       <div><label className="text-xs font-medium text-gray-500">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
-                       <div><label className="text-xs font-medium text-gray-500">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div><label className="text-xs font-medium text-gray-500">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div><label className="text-xs font-medium text-on-surface-variant">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div><label className="text-xs font-medium text-on-surface-variant">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
+                       <div><label className="text-xs font-medium text-on-surface-variant">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
+                       <div><label className="text-xs font-medium text-on-surface-variant">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                       <div><label className="text-xs font-medium text-on-surface-variant">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
                        <div className="flex justify-end space-x-2 pt-2">
-                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-green-100 text-green-700 rounded-full disabled:opacity-50">
-                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                            </button>
-                           <button onClick={handleCancelInlineEdit} className="p-2 bg-gray-100 text-gray-700 rounded-full"><span className="text-xl">❌</span></button>
+                           <button onClick={handleCancelInlineEdit} className="p-2 bg-surface-container-high text-on-surface-variant rounded-full"><span className="material-symbols-outlined">close</span></button>
                        </div>
                    </div>
                </div>
            );
         }
         return (
-            <div key={project.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
+            <div key={project.id} className="p-4 rounded-lg shadow-md bg-surface-container">
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="flex items-center gap-2">
-                            <p className="font-bold text-lg text-gray-900 dark:text-white">{project.name}</p>
-                             {!project.isStaffed && project.status === 'In corso' && <span className="px-2 py-0.5 text-xs font-semibold text-amber-800 bg-amber-100 dark:text-amber-100 dark:bg-amber-800 rounded-full">Senza Staff</span>}
+                            <p className="font-bold text-lg text-on-surface">{project.name}</p>
+                             {!project.isStaffed && project.status === 'In corso' && <span className="px-2 py-0.5 text-xs font-semibold text-on-yellow-container bg-yellow-container rounded-full">Senza Staff</span>}
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{project.clientName}</p>
+                        <p className="text-sm text-on-surface-variant">{project.clientName}</p>
                     </div>
                      <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(project)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="p-1 text-gray-500 hover:text-green-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteProject(project.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => openModalForEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteProject(project.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
+                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                    <div><p className="text-gray-500 dark:text-gray-400">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Risorse Assegnate</p><p className="font-medium text-gray-900 dark:text-white">{project.assignedResources}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Data Inizio</p><p className="font-medium text-gray-900 dark:text-white">{formatDateForDisplay(project.startDate)}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Budget</p><p className="font-medium text-gray-900 dark:text-white">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
+                <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
+                    <div><p className="text-on-surface-variant">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
+                    <div><p className="text-on-surface-variant">Risorse Assegnate</p><p className="font-medium text-on-surface">{project.assignedResources}</p></div>
+                    <div><p className="text-on-surface-variant">Data Inizio</p><p className="font-medium text-on-surface">{formatDateForDisplay(project.startDate)}</p></div>
+                    <div><p className="text-on-surface-variant">Budget</p><p className="font-medium text-on-surface">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
                 </div>
             </div>
         );
@@ -278,6 +278,18 @@ const ProjectsPage: React.FC = () => {
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
                 initialSortKey="startDate"
+                isLoading={loading}
+                tableLayout={{
+                    dense: true,
+                    striped: true,
+                    headerSticky: true,
+                    headerBackground: true,
+                    headerBorder: true,
+                    width: 'fixed',
+                }}
+                tableClassNames={{
+                    base: 'w-full text-sm',
+                }}
             />
             
             {editingProject && (

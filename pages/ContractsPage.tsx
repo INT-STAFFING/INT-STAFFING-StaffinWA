@@ -28,8 +28,9 @@ const formatDateForDisplay = (dateStr: string | null) => {
 };
 
 // --- Component ---
-const ContractsPage: React.FC = () => {
-    const { contracts, contractProjects, contractManagers, projects, resources, addContract, updateContract, deleteContract, recalculateContractBacklog, isActionLoading } = useEntitiesContext();
+// FIX: Changed to a named export to align with conventions and resolve import issues.
+export const ContractsPage: React.FC = () => {
+    const { contracts, contractProjects, contractManagers, projects, resources, addContract, updateContract, deleteContract, recalculateContractBacklog, isActionLoading, loading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingContract, setEditingContract] = useState<Contract | Omit<Contract, 'id'> | null>(null);
     const [contractToDelete, setContractToDelete] = useState<EnrichedContract | null>(null);
@@ -133,30 +134,30 @@ const ContractsPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
 
     const columns: ColumnDef<EnrichedContract>[] = [
-        { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium text-gray-900 dark:text-white">{c.name}</span> },
-        { header: 'CIG / Derivato', sortKey: 'cig', cell: c => <div><div>{c.cig}</div><div className="text-xs text-gray-500">{c.cigDerivato}</div></div> },
+        { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{c.name}</span> },
+        { header: 'CIG / Derivato', sortKey: 'cig', cell: c => <div><div>{c.cig}</div><div className="text-xs text-on-surface-variant">{c.cigDerivato}</div></div> },
         { header: 'Periodo Validità', sortKey: 'startDate', cell: c => `${formatDateForDisplay(c.startDate)} - ${formatDateForDisplay(c.endDate)}` },
         { header: 'Responsabili', cell: c => <span className="text-xs">{c.managerNames.join(', ')}</span> },
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
-        { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={`font-semibold ${c.backlog < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(c.backlog)}</span> },
+        { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={`font-semibold ${c.backlog < 0 ? 'text-error' : 'text-tertiary'}`}>{formatCurrency(c.backlog)}</span> },
     ];
 
     const renderRow = (contract: EnrichedContract) => (
-        <tr key={contract.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{col.cell(contract)}</td>)}
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        <tr key={contract.id} className="group h-16 hover:bg-surface-container">
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(contract)}</td>)}
+            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                    <button onClick={() => openModalForEdit(contract)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit_note</span></button>
                     <button 
                         onClick={() => recalculateContractBacklog(contract.id!)} 
-                        className="text-gray-500 hover:text-blue-600" 
+                        className="text-on-surface-variant hover:text-primary" 
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
                     >
-                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">refresh</span>}
                     </button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <button onClick={() => setContractToDelete(contract)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
             </td>
@@ -164,50 +165,50 @@ const ContractsPage: React.FC = () => {
     );
     
     const renderCard = (contract: EnrichedContract) => (
-        <div key={contract.id} className="bg-card dark:bg-dark-card rounded-lg shadow-md border border-border dark:border-dark-border p-5 flex flex-col gap-4">
+        <div key={contract.id} className="bg-surface-container rounded-2xl shadow p-5 flex flex-col gap-4">
             {/* Card Header */}
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{contract.name}</p>
-                    <p className="text-sm text-muted-foreground">CIG: {contract.cig}</p>
+                    <p className="font-bold text-lg text-on-surface">{contract.name}</p>
+                    <p className="text-sm text-on-surface-variant">CIG: {contract.cig}</p>
                 </div>
                 <div className="flex items-center space-x-2 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                    <button onClick={() => openModalForEdit(contract)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high" title="Modifica"><span className="material-symbols-outlined">edit_note</span></button>
                      <button 
                         onClick={() => recalculateContractBacklog(contract.id!)} 
-                        className="text-gray-500 hover:text-blue-600" 
+                        className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"
                         title="Ricalcola Backlog"
                         disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}
                     >
-                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🔄</span>}
+                        {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">refresh</span>}
                     </button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <button onClick={() => setContractToDelete(contract)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high" title="Elimina">
+                        {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
             </div>
 
             {/* Card Body with main stats */}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm border-t border-b border-border dark:border-dark-border py-4">
-                <div><p className="text-muted-foreground">Capienza</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatCurrency(contract.capienza)}</p></div>
-                <div><p className="text-muted-foreground">Backlog</p><p className={`font-semibold ${contract.backlog < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(contract.backlog)}</p></div>
-                <div className="col-span-2"><p className="text-muted-foreground">Responsabili</p><p className="font-medium text-xs text-foreground dark:text-dark-foreground">{contract.managerNames.join(', ') || 'N/A'}</p></div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm border-t border-b border-outline-variant py-4">
+                <div><p className="text-on-surface-variant">Capienza</p><p className="font-medium text-on-surface">{formatCurrency(contract.capienza)}</p></div>
+                <div><p className="text-on-surface-variant">Backlog</p><p className={`font-semibold ${contract.backlog < 0 ? 'text-error' : 'text-tertiary'}`}>{formatCurrency(contract.backlog)}</p></div>
+                <div className="col-span-2"><p className="text-on-surface-variant">Responsabili</p><p className="font-medium text-xs text-on-surface">{contract.managerNames.join(', ') || 'N/A'}</p></div>
             </div>
             
             {/* Associated Projects section */}
             <div>
-                 <h4 className="font-semibold text-foreground dark:text-dark-foreground mb-2 text-sm">Progetti Associati ({contract.associatedProjects.length})</h4>
+                 <h4 className="font-semibold text-on-surface mb-2 text-sm">Progetti Associati ({contract.associatedProjects.length})</h4>
                  {contract.associatedProjects.length > 0 ? (
                     <ul className="space-y-1.5 max-h-32 overflow-y-auto text-xs pr-2">
                         {contract.associatedProjects.map(p => (
-                            <li key={p.id} className="flex justify-between items-center text-muted-foreground hover:text-foreground dark:hover:text-dark-foreground">
+                            <li key={p.id} className="flex justify-between items-center text-on-surface-variant hover:text-on-surface">
                                 <span>{p.name}</span>
                                 <span className="font-mono">{formatCurrency(p.budget)}</span>
                             </li>
                         ))}
                     </ul>
                  ) : (
-                    <p className="text-xs text-muted-foreground italic">Nessun progetto associato.</p>
+                    <p className="text-xs text-on-surface-variant italic">Nessun progetto associato.</p>
                  )}
             </div>
         </div>
@@ -215,26 +216,26 @@ const ContractsPage: React.FC = () => {
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-            <input type="text" name="cig" value={filters.cig} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per CIG..."/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="form-input" placeholder="Cerca per nome..."/>
+            <input type="text" name="cig" value={filters.cig} onChange={handleFilterChange} className="form-input" placeholder="Cerca per CIG..."/>
+            <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
         </div>
     );
 
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Contratti</h1>
+                <h1 className="text-3xl font-bold text-on-surface self-start">Gestione Contratti</h1>
                 <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                        <button onClick={() => setView('table')} className={`px-4 py-2 text-sm font-medium rounded-full ${view === 'table' ? 'bg-secondary-container text-on-secondary-container shadow' : 'text-on-surface-variant'}`}><span className="material-symbols-outlined align-middle">table_rows</span></button>
+                        <button onClick={() => setView('card')} className={`px-4 py-2 text-sm font-medium rounded-full ${view === 'card' ? 'bg-secondary-container text-on-secondary-container shadow' : 'text-on-surface-variant'}`}><span className="material-symbols-outlined align-middle">grid_view</span></button>
                     </div>
-                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Aggiungi Contratto</button>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Aggiungi Contratto</button>
                 </div>
             </div>
 
-            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+            <div className="mb-6 p-4 bg-surface-container rounded-2xl shadow">
                 {filtersNode}
             </div>
 
@@ -249,43 +250,58 @@ const ContractsPage: React.FC = () => {
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
                     initialSortKey="name"
+                    isLoading={loading}
+                    tableLayout={{
+                        dense: true,
+                        striped: true,
+                        headerSticky: true,
+                        headerBackground: true,
+                        headerBorder: true,
+                        width: 'fixed',
+                    }}
+                    tableClassNames={{
+                        base: 'w-full text-sm',
+                    }}
                 />
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                     {dataForTable.length > 0 
                         ? dataForTable.map(renderCard) 
-                        : <p className="col-span-full text-center py-8 text-muted-foreground">Nessun contratto trovato con i filtri correnti.</p>}
+                        : <p className="col-span-full text-center py-8 text-on-surface-variant">Nessun contratto trovato con i filtri correnti.</p>}
                 </div>
             )}
             
             {editingContract && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingContract ? 'Modifica Contratto' : 'Aggiungi Contratto'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input" placeholder="Nome Contratto *"/>
-                        <div className="grid grid-cols-2 gap-4">
-                            <input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input" placeholder="CIG *"/>
-                            <input type="text" name="cigDerivato" value={editingContract.cigDerivato || ''} onChange={handleChange} className="form-input" placeholder="CIG Derivato"/>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Contratto *</label>
+                            <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className="form-input" placeholder="Data Inizio"/>
-                            <input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className="form-input" placeholder="Data Fine"/>
+                            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">CIG *</label><input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input"/></div>
+                            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">CIG Derivato</label><input type="text" name="cigDerivato" value={editingContract.cigDerivato || ''} onChange={handleChange} className="form-input"/></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label><input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className="form-input"/></div>
+                            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label><input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className="form-input"/></div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Capienza (€)</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Capienza (€) *</label>
                             <input type="number" step="0.01" name="capienza" value={editingContract.capienza} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Progetti Associati</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetti Associati</label>
                             <MultiSelectDropdown name="projectIds" selectedValues={relatedProjectIds} onChange={(_, v) => setRelatedProjectIds(v)} options={projectOptions} placeholder="Seleziona progetti"/>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium">Responsabili</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Responsabili</label>
                             <MultiSelectDropdown name="managerIds" selectedValues={relatedManagerIds} onChange={(_, v) => setRelatedManagerIds(v)} options={resourceOptions} placeholder="Seleziona responsabili"/>
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50">
                                {(isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
@@ -299,13 +315,11 @@ const ContractsPage: React.FC = () => {
                     onClose={() => setContractToDelete(null)}
                     onConfirm={handleDelete}
                     title="Conferma Eliminazione"
-                    message={`Sei sicuro di voler eliminare il contratto '${contractToDelete.name}'?`}
+                    message={`Sei sicuro di voler eliminare il contratto "${contractToDelete.name}"? L'associazione con i progetti verrà rimossa, ma i progetti non verranno eliminati.`}
                     isConfirming={isActionLoading(`deleteContract-${contractToDelete.id}`)}
                 />
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.5rem; border: 1px solid var(--color-outline); background-color: var(--color-surface-container-highest); padding: 0.75rem 1rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-on-surface); } .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); ring: 2px solid var(--color-primary); }`}</style>
         </div>
     );
 };
-
-export default ContractsPage;

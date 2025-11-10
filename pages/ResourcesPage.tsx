@@ -30,7 +30,7 @@ const formatCurrency = (value: number | undefined): string => {
 
 // --- Component ---
 const ResourcesPage: React.FC = () => {
-    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading } = useEntitiesContext();
+    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading, loading } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
@@ -75,7 +75,7 @@ const ResourcesPage: React.FC = () => {
 
         let totalPersonDays = 0;
         resourceAssignments.forEach(assignment => {
-            const assignmentAllocations = allocations[assignment.id];
+            const assignmentAllocations = allocations[assignment.id!];
             if (assignmentAllocations) {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = new Date(dateStr);
@@ -132,7 +132,7 @@ const ResourcesPage: React.FC = () => {
     
     const getAllocationColor = (avg: number): string => {
         if (avg > 100) return 'text-red-600 dark:text-red-400 font-bold';
-        if (avg >= 90) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
+        if (avg >= 95) return 'text-yellow-600 dark:text-yellow-400 font-semibold';
         if (avg > 0) return 'text-green-600 dark:text-green-400';
         return 'text-gray-500';
     };
@@ -215,18 +215,18 @@ const ResourcesPage: React.FC = () => {
     const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
 
     const columns: ColumnDef<EnrichedResource>[] = [
-        { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-gray-900 dark:text-white">{r.name}</div> },
-        { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.roleName}</span> },
-        { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.location}</span> },
-        { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
-        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-gray-600 dark:text-gray-300">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
+        { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</div> },
+        { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
+        { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-on-surface-variant">{r.location}</span> },
+        { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
+        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-on-surface-variant">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
             r.isAssigned && !r.resigned
                 ? <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span>
-                : <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</span>
+                : <span className="text-sm font-semibold text-on-yellow-container">Non Assegnata</span>
         )},
-        { header: 'Progetti Attivi', sortKey: 'activeProjects', cell: r => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{r.activeProjects}</span> },
-        { header: 'Anzianità (anni)', sortKey: 'seniority', cell: r => <span className="text-sm text-center font-semibold text-gray-600 dark:text-gray-300">{r.seniority.toFixed(1)}</span> },
+        { header: 'Progetti Attivi', sortKey: 'activeProjects', cell: r => <span className="text-sm text-center font-semibold text-on-surface-variant">{r.activeProjects}</span> },
+        { header: 'Anzianità (anni)', sortKey: 'seniority', cell: r => <span className="text-sm text-center font-semibold text-on-surface-variant">{r.seniority.toFixed(1)}</span> },
     ];
     
     const renderRow = (resource: EnrichedResource) => {
@@ -234,33 +234,33 @@ const ResourcesPage: React.FC = () => {
         const isSaving = isActionLoading(`updateResource-${resource.id}`);
         if (isEditing) {
             return (
-                <tr key={resource.id}>
-                    <td className="px-6 py-4"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                <tr key={resource.id} className="h-16">
+                    <td className="px-6 py-4 sticky left-0 bg-inherit"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede" /></td>
-                    <td className="px-6 py-4">{columns.find(c => c.header === 'Stato')?.cell(resource)}</td>
-                    <td className="px-6 py-4">{columns.find(c => c.header === 'Ultimo Giorno')?.cell(resource)}</td>
-                    <td className={`px-6 py-4 text-sm ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
-                    <td className="px-6 py-4 text-sm text-center">{resource.activeProjects}</td>
-                    <td className="px-6 py-4 text-sm text-center">{resource.seniority.toFixed(1)}</td>
-                    <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                    <td className="px-6 py-4 bg-inherit">{columns.find(c => c.header === 'Stato')?.cell(resource)}</td>
+                    <td className="px-6 py-4 bg-inherit">{columns.find(c => c.header === 'Ultimo Giorno')?.cell(resource)}</td>
+                    <td className={`px-6 py-4 text-sm bg-inherit ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
+                    <td className="px-6 py-4 text-sm text-center bg-inherit">{resource.activeProjects}</td>
+                    <td className="px-6 py-4 text-sm text-center bg-inherit">{resource.seniority.toFixed(1)}</td>
+                    <td className="px-6 py-4 text-right sticky right-0 bg-inherit"><div className="flex items-center justify-end space-x-2">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-primary hover:opacity-80 disabled:opacity-50">
+                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="text-xl">❌</span></button>
+                        <button onClick={handleCancelInlineEdit} className="p-1 text-on-surface-variant hover:opacity-80"><span className="material-symbols-outlined">close</span></button>
                     </div></td>
                 </tr>
             );
         }
         return (
-            <tr key={resource.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis" title={col.sortKey ? String((resource as any)[col.sortKey]) : undefined}>{col.cell(resource)}</td>)}
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <tr key={resource.id} className="group h-16 hover:bg-surface-container">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit" title={col.sortKey ? String((resource as any)[col.sortKey]) : undefined}>{col.cell(resource)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(resource)} className="text-gray-500 hover:text-blue-600" title="Modifica Dettagli"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => handleStartInlineEdit(resource)} className="text-gray-500 hover:text-green-600" title="Modifica Rapida"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteResource(resource.id!)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => openModalForEdit(resource)} className="text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(resource)} className="text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteResource(resource.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </td>
@@ -270,36 +270,36 @@ const ResourcesPage: React.FC = () => {
 
     const renderMobileCard = (resource: EnrichedResource) => {
         return (
-            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card">
-                <div className="flex justify-between items-start">
+            <div key={resource.id} className="p-4 rounded-lg shadow-md bg-surface-container">
+                 <div className="flex justify-between items-start">
                     <div>
-                        <p className="font-bold text-lg text-gray-900 dark:text-white">{resource.name}</p>
-                         <span className={`mt-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${resource.resigned ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                        <p className="font-bold text-lg text-on-surface">{resource.name}</p>
+                         <span className={`mt-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${resource.resigned ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>
                             {resource.resigned ? 'Dimesso' : 'Attivo'}
                         </span>
                     </div>
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
-                        <button onClick={() => openModalForEdit(resource)} className="p-1 text-gray-500 hover:text-blue-600"><span className="text-xl">✏️</span></button>
-                        <button onClick={() => deleteResource(resource.id!)} className="p-1 text-gray-500 hover:text-red-600">
-                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => openModalForEdit(resource)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => deleteResource(resource.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
+                             {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4 text-sm">
-                    <div><p className="text-gray-500 dark:text-gray-400">Ruolo</p><p className="text-gray-900 dark:text-white font-medium">{resource.roleName}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Sede</p><p className="text-gray-900 dark:text-white font-medium">{resource.location}</p></div>
+                <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
+                    <div><p className="text-on-surface-variant">Ruolo</p><p className="text-on-surface font-medium">{resource.roleName}</p></div>
+                    <div><p className="text-on-surface-variant">Sede</p><p className="text-on-surface font-medium">{resource.location}</p></div>
                     <div>
-                        <p className="text-gray-500 dark:text-gray-400">Alloc. Media</p>
+                        <p className="text-on-surface-variant">Alloc. Media</p>
                         {resource.isAssigned && !resource.resigned
                             ? <p className={`font-semibold ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</p>
-                            : <p className="font-semibold text-amber-600 dark:text-amber-400">Non Assegnata</p>
+                            : <p className="font-semibold text-on-yellow-container">Non Assegnata</p>
                         }
                     </div>
                     {resource.resigned && (
-                         <div><p className="text-gray-500 dark:text-gray-400">Ultimo Giorno</p><p className="text-gray-900 dark:text-white font-medium">{resource.lastDayOfWork ? new Date(resource.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</p></div>
+                         <div><p className="text-on-surface-variant">Ultimo Giorno</p><p className="text-on-surface font-medium">{resource.lastDayOfWork ? new Date(resource.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</p></div>
                     )}
-                    <div><p className="text-gray-500 dark:text-gray-400">Progetti</p><p className="font-medium text-gray-900 dark:text-white">{resource.activeProjects}</p></div>
-                    <div><p className="text-gray-500 dark:text-gray-400">Anzianità</p><p className="font-medium text-gray-900 dark:text-white">{resource.seniority.toFixed(1)} anni</p></div>
+                    <div><p className="text-on-surface-variant">Progetti</p><p className="font-medium text-on-surface">{resource.activeProjects}</p></div>
+                    <div><p className="text-on-surface-variant">Anzianità</p><p className="font-medium text-on-surface">{resource.seniority.toFixed(1)} anni</p></div>
                 </div>
             </div>
         );
@@ -331,6 +331,18 @@ const ResourcesPage: React.FC = () => {
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
                 initialSortKey="name"
+                isLoading={loading}
+                tableLayout={{
+                    dense: true,
+                    striped: true,
+                    headerSticky: true,
+                    headerBackground: true,
+                    headerBorder: true,
+                    width: 'fixed',
+                }}
+                tableClassNames={{
+                    base: 'w-full text-sm',
+                }}
             />
             
             {editingResource && (
