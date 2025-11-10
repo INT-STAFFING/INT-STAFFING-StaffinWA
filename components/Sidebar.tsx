@@ -18,6 +18,30 @@ interface SidebarProps {
     setIsOpen: (isOpen: boolean) => void;
 }
 
+const NavItem: React.FC<{ to: string; icon: string; label: string; onClick: () => void }> = ({ to, icon, label, onClick }) => {
+    const baseClasses = "flex items-center text-sm font-medium text-on-surface-variant transition-colors duration-200 h-14";
+    const activeClasses = "text-on-secondary-container";
+
+    return (
+        <NavLink to={to} onClick={onClick}>
+            {({ isActive }) => (
+                 <div className={`${baseClasses} ${isActive ? activeClasses : 'hover:bg-surface-container-low'}`}>
+                    <div className={`w-full mx-4 flex items-center gap-3 py-2 px-3 rounded-full ${isActive ? 'bg-secondary-container' : ''}`}>
+                       <span className="material-symbols-outlined w-6 text-center">{icon}</span>
+                       <span>{label}</span>
+                    </div>
+                </div>
+            )}
+        </NavLink>
+    );
+};
+
+const NavHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <div className="px-7 pt-6 pb-2 text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
+        {children}
+    </div>
+);
+
 /**
  * La barra di navigazione laterale.
  * Contiene i link alle diverse sezioni dell'applicazione.
@@ -27,30 +51,16 @@ interface SidebarProps {
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
-    const navLinkClasses = "flex items-center px-4 py-2 text-gray-400 rounded-md hover:bg-gray-700 hover:text-white transition-colors duration-200";
-    const activeNavLinkClasses = "bg-gray-700 text-white";
-
-    /**
-     * Determina le classi CSS per un NavLink in base al suo stato (attivo o non).
-     * @param {{ isActive: boolean }} props - Oggetto fornito da NavLink che indica se il link è attivo.
-     * @returns {string} La stringa di classi CSS.
-     */
-    const getNavLinkClass = ({ isActive }: { isActive: boolean }): string =>
-        isActive ? `${navLinkClasses} ${activeNavLinkClasses}` : navLinkClasses;
     
-    /**
-     * Gestisce il click su un link di navigazione.
-     * Chiude la sidebar se è aperta (comportamento desiderato su mobile).
-     */
     const handleNavLinkClick = () => {
         if (isOpen) {
             setIsOpen(false);
         }
     }
 
-    // Classi condizionali per mostrare/nascondere la sidebar con una transizione.
     const sidebarClasses = `
-        flex flex-col w-64 bg-gray-800 text-white transition-transform duration-300 ease-in-out
+        flex flex-col w-72 bg-surface text-on-surface transition-transform duration-300 ease-in-out
+        border-r border-outline-variant
         fixed inset-y-0 left-0 z-40
         md:relative md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -58,130 +68,68 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     return (
         <aside className={sidebarClasses}>
-            <div className="flex items-center justify-between h-20 shadow-md px-4">
-                <h1 className="text-2xl font-bold tracking-wider">Staffing App</h1>
-                 <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white">
-                    <span className="text-xl">❌</span>
+            <div className="flex items-center justify-between h-20 px-4">
+                <h1 className="text-2xl font-bold tracking-wider text-primary">Staffing App</h1>
+                 <button onClick={() => setIsOpen(false)} className="md:hidden text-on-surface-variant p-2 rounded-full hover:bg-surface-container-low">
+                    <span className="material-symbols-outlined">close</span>
                 </button>
             </div>
-            <nav className="flex-1 flex flex-col px-2 py-4 space-y-2 overflow-y-auto">
-                <div>
-                    <NavLink to="/staffing" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">🗓️</span>
-                        Staffing
-                    </NavLink>
-                    <NavLink to="/workload" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">👥</span>
-                        Carico Risorse
-                    </NavLink>
-                    <NavLink to="/dashboard" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📊</span>
-                        Dashboard
-                    </NavLink>
-                    <NavLink to="/resource-requests" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📋</span>
-                        Richiesta Risorse
-                    </NavLink>
-                    <NavLink to="/interviews" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">💬</span>
-                        Gestione Colloqui
-                    </NavLink>
-                    <NavLink to="/manuale-utente" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">ℹ️</span>
-                        Manuale Utente
-                    </NavLink>
+            <nav className="flex-1 flex flex-col overflow-y-auto">
+                <div className="flex-grow">
+                    <NavItem to="/staffing" icon="calendar_month" label="Staffing" onClick={handleNavLinkClick} />
+                    <NavItem to="/workload" icon="groups" label="Carico Risorse" onClick={handleNavLinkClick} />
+                    <NavItem to="/dashboard" icon="dashboard" label="Dashboard" onClick={handleNavLinkClick} />
+                    <NavItem to="/resource-requests" icon="assignment_add" label="Richiesta Risorse" onClick={handleNavLinkClick} />
+                    <NavItem to="/interviews" icon="chat" label="Gestione Colloqui" onClick={handleNavLinkClick} />
+                    <NavItem to="/manuale-utente" icon="help_center" label="Manuale Utente" onClick={handleNavLinkClick} />
 
-                    <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Analisi</div>
-                    <NavLink to="/forecasting" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📈</span>
-                        Forecasting
-                    </NavLink>
-                    <NavLink to="/gantt" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📏</span>
-                        Gantt Progetti
-                    </NavLink>
-                    <NavLink to="/reports" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📄</span>
-                        Report
-                    </NavLink>
-                    <NavLink to="/staffing-visualization" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">🎨</span>
-                        Visualizzazione
-                    </NavLink>
+                    <NavHeader>Analisi</NavHeader>
+                    <NavItem to="/forecasting" icon="trending_up" label="Forecasting" onClick={handleNavLinkClick} />
+                    <NavItem to="/gantt" icon="align_horizontal_left" label="Gantt Progetti" onClick={handleNavLinkClick} />
+                    <NavItem to="/reports" icon="summarize" label="Report" onClick={handleNavLinkClick} />
+                    <NavItem to="/staffing-visualization" icon="schema" label="Visualizzazione" onClick={handleNavLinkClick} />
                     
-                    <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Gestione</div>
-                    
-                    <NavLink to="/resources" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">👥</span>
-                        Risorse
-                    </NavLink>
-                    <NavLink to="/projects" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">💼</span>
-                        Progetti
-                    </NavLink>
-                    <NavLink to="/contracts" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📜</span>
-                        Contratti
-                    </NavLink>
-                    <NavLink to="/clients" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">🏢</span>
-                        Clienti
-                    </NavLink>
-                    <NavLink to="/roles" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">🏷️</span>
-                        Ruoli
-                    </NavLink>
-                     <NavLink to="/calendar" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📅</span>
-                        Calendario
-                    </NavLink>
-                     <NavLink to="/config" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">⚙️</span>
-                        Config
-                    </NavLink>
+                    <NavHeader>Gestione</NavHeader>
+                    <NavItem to="/resources" icon="person" label="Risorse" onClick={handleNavLinkClick} />
+                    <NavItem to="/projects" icon="business_center" label="Progetti" onClick={handleNavLinkClick} />
+                    <NavItem to="/contracts" icon="request_quote" label="Contratti" onClick={handleNavLinkClick} />
+                    <NavItem to="/clients" icon="apartment" label="Clienti" onClick={handleNavLinkClick} />
+                    <NavItem to="/roles" icon="badge" label="Ruoli" onClick={handleNavLinkClick} />
+                    <NavItem to="/calendar" icon="event" label="Calendario" onClick={handleNavLinkClick} />
+                    <NavItem to="/config" icon="settings" label="Config" onClick={handleNavLinkClick} />
 
-                     <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dati</div>
-                     <NavLink to="/export" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📥</span>
-                        Esporta Dati
-                    </NavLink>
-                    <NavLink to="/import" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                        <span className="mr-3 text-xl w-6 text-center">📤</span>
-                        Importa Dati
-                    </NavLink>
+                    <NavHeader>Dati</NavHeader>
+                    <NavItem to="/export" icon="download" label="Esporta Dati" onClick={handleNavLinkClick} />
+                    <NavItem to="/import" icon="upload" label="Importa Dati" onClick={handleNavLinkClick} />
                     
                     {isAdmin && (
                         <>
-                            <div className="px-4 pt-4 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amministrazione</div>
-                            <NavLink to="/admin-settings" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                                <span className="mr-3 text-xl w-6 text-center">⚙️</span>
-                                Impostazioni Admin
-                            </NavLink>
-                            <NavLink to="/db-inspector" className={getNavLinkClass} onClick={handleNavLinkClick}>
-                                <span className="mr-3 text-xl w-6 text-center">🔍</span>
-                                Database Inspector
-                            </NavLink>
+                            <NavHeader>Amministrazione</NavHeader>
+                            <NavItem to="/admin-settings" icon="admin_panel_settings" label="Impostazioni Admin" onClick={handleNavLinkClick} />
+                            <NavItem to="/db-inspector" icon="database" label="Database Inspector" onClick={handleNavLinkClick} />
                         </>
                     )}
                 </div>
-                {isAuthenticated && isLoginProtectionEnabled ? (
-                    <div className="mt-auto">
-                        <div className="px-4 py-2 text-center text-xs text-gray-500">
-                            Versione V1005
+                <div className="p-4">
+                    {isAuthenticated && isLoginProtectionEnabled ? (
+                        <div className="space-y-2">
+                             <div className="px-4 py-2 text-center text-xs text-on-surface-variant">
+                                Versione V1006
+                            </div>
+                            <button
+                                onClick={logout}
+                                className="flex items-center w-full px-4 py-2 text-error rounded-full hover:bg-error-container hover:text-on-error-container transition-colors duration-200"
+                            >
+                                <span className="material-symbols-outlined mr-3">logout</span>
+                                Logout
+                            </button>
                         </div>
-                        <button
-                            onClick={logout}
-                            className="flex items-center w-full px-4 py-3 text-red-400 rounded-md hover:bg-red-700/50 hover:text-white transition-colors duration-200"
-                        >
-                            <span className="mr-3 text-xl w-6 text-center">🚪</span>
-                            Logout
-                        </button>
-                    </div>
-                ) : (
-                    <div className="mt-auto px-4 py-4 text-center text-xs text-gray-500">
-                        Versione V1006
-                    </div>
-                )}
+                    ) : (
+                        <div className="px-4 py-4 text-center text-xs text-on-surface-variant">
+                            Versione V1006
+                        </div>
+                    )}
+                </div>
             </nav>
         </aside>
     );

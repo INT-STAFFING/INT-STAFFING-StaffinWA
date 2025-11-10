@@ -70,18 +70,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   };
 
   return (
-    <header className="flex-shrink-0 bg-card dark:bg-dark-card shadow-md">
-      <div className="flex items-center justify-between p-4">
+    <header className="flex-shrink-0 bg-surface border-b border-outline-variant">
+      <div className="flex items-center justify-between p-4 h-20">
         <button
           onClick={onToggleSidebar}
-          className="text-muted-foreground focus:outline-none md:hidden"
+          className="text-on-surface-variant focus:outline-none md:hidden p-2 rounded-full hover:bg-surface-container"
+          aria-label="Apri menu"
         >
-          <span className="text-2xl">☰</span>
+          <span className="material-symbols-outlined">menu</span>
         </button>
-        <h1 className="text-xl font-semibold text-foreground dark:text-dark-foreground md:text-2xl">
+        <h1 className="text-xl font-semibold text-on-surface md:text-2xl">
           {getPageTitle(location.pathname)}
         </h1>
-        <div className="md:hidden w-6" />
+        <div className="md:hidden w-10" />
       </div>
     </header>
   );
@@ -93,16 +94,10 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
-  const location = useLocation();
-
-  // Se ti serve in futuro sapere quali pagine hanno tabelle “pesanti”
-  // puoi tenere questa lista, ma NON la usiamo per l’overflow.
-  const pagesWithInternalScroll = ['/staffing', '/workload'];
-  const needsInternalScrollLayout = pagesWithInternalScroll.includes(location.pathname);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center w-full h-full">
+      <div className="flex items-center justify-center w-full h-full bg-background">
         <svg
           className="animate-spin h-10 w-10 text-primary"
           xmlns="http://www.w3.org/2000/svg"
@@ -131,9 +126,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header onToggleSidebar={onToggleSidebar} />
 
-      {/* QUI: niente più overflow-y-hidden condizionale */}
-      <main className="flex-1 overflow-y-auto bg-muted dark:bg-dark-background">
-        {/* wrapper del contenuto, con padding orizzontale controllato */}
+      <main className="flex-1 overflow-y-auto bg-background">
         <div className="w-full max-w-none px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           <Routes>
             <Route path="/" element={<Navigate to="/staffing" replace />} />
@@ -188,11 +181,11 @@ const MainLayout: React.FC = () => {
     <>
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black opacity-50 z-20 md:hidden"
+          className="fixed inset-0 bg-scrim bg-opacity-50 z-30 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
-      <div className="flex h-screen w-screen overflow-hidden bg-background dark:bg-dark-background">
+      <div className="flex h-screen w-screen overflow-hidden bg-background">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
       </div>
@@ -205,7 +198,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
 
   if (isAuthLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
+      <div className="flex items-center justify-center h-screen bg-background">
         <svg
           className="animate-spin h-10 w-10 text-primary"
           xmlns="http://www.w3.org/2000/svg"
@@ -242,7 +235,7 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
 
   if (isAuthLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background dark:bg-dark-background">
+      <div className="flex items-center justify-center h-screen bg-background">
         <svg
           className="animate-spin h-10 w-10 text-primary"
           xmlns="http://www.w3.org/2000/svg"

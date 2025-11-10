@@ -66,26 +66,24 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
         <div className="relative" ref={wrapperRef}>
             <button
                 type="button"
-                className="w-full form-input text-left flex justify-between items-center"
+                className="w-full text-left flex justify-between items-center px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
-                <span className={selectedValues.length > 0 ? 'text-foreground dark:text-dark-foreground' : 'text-muted-foreground'}>
+                <span className={selectedValues.length > 0 ? 'text-on-surface' : 'text-on-surface-variant'}>
                     {getButtonLabel()}
                 </span>
-                <svg className="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <span className="material-symbols-outlined text-on-surface-variant">unfold_more</span>
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-full bg-card dark:bg-dark-card shadow-lg rounded-md border border-border dark:border-dark-border">
-                    <div className="p-2 border-b border-border dark:border-dark-border">
+                <div className="absolute z-50 mt-1 w-full bg-surface-container-high shadow-lg rounded-md border border-outline-variant">
+                    <div className="p-2 border-b border-outline-variant">
                         <input
                             type="text"
                             placeholder="Cerca..."
-                            className="w-full form-input"
+                            className="w-full px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             autoFocus
@@ -96,7 +94,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                             filteredOptions.map(option => (
                                 <li
                                     key={option.value}
-                                    className="px-4 py-2 text-sm text-foreground dark:text-dark-foreground hover:bg-muted dark:hover:bg-dark-muted cursor-pointer flex items-center"
+                                    className="px-4 py-2 text-sm text-on-surface hover:bg-surface-container cursor-pointer flex items-center"
                                     onClick={() => handleSelect(option.value)}
                                     role="option"
                                     aria-selected={selectedValues.includes(option.value)}
@@ -105,13 +103,13 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                                         type="checkbox"
                                         checked={selectedValues.includes(option.value)}
                                         readOnly
-                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mr-3 pointer-events-none"
+                                        className="h-4 w-4 rounded border-outline text-primary focus:ring-primary mr-3 pointer-events-none"
                                     />
                                     {option.label}
                                 </li>
                             ))
                         ) : (
-                            <li className="px-4 py-2 text-sm text-muted-foreground">Nessun risultato</li>
+                            <li className="px-4 py-2 text-sm text-on-surface-variant">Nessun risultato</li>
                         )}
                     </ul>
                 </div>

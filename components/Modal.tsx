@@ -32,21 +32,21 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
 
     return (
         // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim bg-opacity-50 p-4 animate-fade-in" onClick={onClose}>
             <div 
                 // Contenitore della modale: impedisce la propagazione del click, gestisce il layout verticale e l'overflow.
-                className="bg-card dark:bg-dark-card rounded-lg shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-full animate-scale-in" 
+                className="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-lg mx-auto flex flex-col max-h-[90vh] animate-scale-in" 
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header: non si restringe e rimane sempre visibile in alto. */}
-                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-border dark:border-dark-border">
-                    <h3 className="text-xl font-semibold text-foreground dark:text-dark-foreground">{title}</h3>
+                <div className="flex-shrink-0 flex justify-between items-center p-4 border-b border-outline-variant">
+                    <h3 className="text-xl font-semibold text-on-surface">{title}</h3>
                     <button 
                         onClick={onClose} 
-                        className="text-muted-foreground hover:bg-muted dark:hover:bg-dark-muted hover:text-foreground dark:hover:text-dark-foreground rounded-lg text-sm p-1.5"
+                        className="text-on-surface-variant hover:bg-surface-container hover:text-on-surface rounded-full p-2"
                         aria-label="Chiudi modale"
                     >
-                        <span className="text-xl">❌</span>
+                        <span className="material-symbols-outlined">close</span>
                     </button>
                 </div>
                 {/* Area del contenuto: diventa scorrevole se il contenuto è troppo alto. */}
