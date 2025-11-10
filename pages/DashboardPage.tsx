@@ -89,7 +89,10 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Risorse Non Allocate</h3>
-                    <p className={`mt-1 text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unassignedResources.length}</p>
+                    <div className="mt-1 flex items-baseline gap-2">
+                        <p className={`text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unassignedResources.length}</p>
+                        <p className={`text-sm ${DASHBOARD_COLORS.attention.text}`}>su {overallKPIs.totalActiveResources} totali</p>
+                    </div>
                 </div>
                 <span className={`material-symbols-outlined ${DASHBOARD_COLORS.attention.icon}`}>person_off</span>
             </div>
@@ -103,7 +106,10 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Progetti Senza Staff</h3>
-                    <p className={`mt-1 text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unstaffedProjects.length}</p>
+                    <div className="mt-1 flex items-baseline gap-2">
+                        <p className={`text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{overallKPIs.unstaffedProjects.length}</p>
+                        <p className={`text-sm ${DASHBOARD_COLORS.attention.text}`}>su {overallKPIs.totalActiveProjects} attivi</p>
+                    </div>
                 </div>
                  <span className={`material-symbols-outlined ${DASHBOARD_COLORS.attention.icon}`}>work_off</span>
             </div>
@@ -114,6 +120,24 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
             )}
         </div>
     </>
+);
+
+const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
+    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px]`}>
+        <div className="flex justify-between items-start w-full">
+            <div>
+                <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>FTE Non Allocati (Mese Corrente)</h3>
+                <div className="mt-1 flex items-baseline gap-2">
+                    <p className={`text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{kpis.unallocatedFTE > 0 ? kpis.unallocatedFTE.toFixed(1) : '0.0'}</p>
+                    <p className={`text-sm ${DASHBOARD_COLORS.attention.text}`}>su {kpis.totalAvailableFTE.toFixed(1)} disponibili</p>
+                </div>
+            </div>
+            <span className={`material-symbols-outlined ${DASHBOARD_COLORS.attention.icon}`}>person_search</span>
+        </div>
+        <div className="mt-auto pt-2 text-xs text-on-yellow-container/80">
+            Calcolato su base FTE e allocazioni del mese corrente.
+        </div>
+    </div>
 );
 
 
@@ -469,12 +493,44 @@ const DashboardPage: React.FC = () => {
     const activeResources = useMemo(() => resources.filter(r => !r.resigned), [resources]);
 
     const overallKPIs = useMemo(() => {
-        const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // --- Resources ---
+        const totalActiveResources = activeResources.length;
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
         const unassignedResources = activeResources.filter(r => r.id && !assignedResourceIds.has(r.id));
-        const staffedProjectIds = new Set(assignments.map(a => a.projectId));
-        const unstaffedProjects = projects.filter(p => p.status === 'In corso' && p.id && !staffedProjectIds.has(p.id));
-        return { totalBudget, unassignedResources, unstaffedProjects };
+
+        // --- Projects ---
+        // A project is "active" if its end date hasn't passed.
+        // Projects without an end date are considered indefinitely active.
+        const activeProjects = projects.filter(p => {
+            if (p.endDate) {
+                const endDate = new Date(p.endDate);
+                if (endDate < today) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        const totalActiveProjects = activeProjects.length;
+
+        // Unstaffed projects are from the pool of ACTIVE projects that are also "In corso"
+        const unstaffedProjects = activeProjects.filter(p => {
+            const isStaffed = assignments.some(a => a.projectId === p.id);
+            return p.status === 'In corso' && !isStaffed;
+        });
+
+        // --- Other KPIs ---
+        const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
+
+        return {
+            totalBudget,
+            unassignedResources,
+            totalActiveResources,
+            unstaffedProjects,
+            totalActiveProjects,
+        };
     }, [projects, assignments, activeResources]);
 
     const currentMonthKPIs = useMemo(() => {
@@ -513,8 +569,21 @@ const DashboardPage: React.FC = () => {
                 }
             }
         }
-        return { totalCost, totalPersonDays, clientCostArray: Object.values(costByClient).filter(c => c.cost > 0) };
-    }, [assignments, resources, roles, projects, allocations, companyCalendar, clients]);
+        
+        // --- New Logic for FTE ---
+        const totalAvailableFTE = activeResources.reduce((sum, r) => sum + (r.maxStaffingPercentage / 100), 0);
+        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, null);
+        const totalAllocatedFTE = workingDaysInMonth > 0 ? totalPersonDays / workingDaysInMonth : 0;
+        const unallocatedFTE = totalAvailableFTE - totalAllocatedFTE;
+
+        return { 
+            totalCost, 
+            totalPersonDays, 
+            clientCostArray: Object.values(costByClient).filter(c => c.cost > 0),
+            unallocatedFTE,
+            totalAvailableFTE
+        };
+    }, [assignments, resources, roles, projects, allocations, companyCalendar, clients, activeResources]);
 
     const averageAllocationData = useMemo(() => {
         const filteredResources = avgAllocFilter.resourceId
@@ -1018,6 +1087,8 @@ const DashboardPage: React.FC = () => {
                 return <KpiHeaderCards key={id} overallKPIs={overallKPIs} currentMonthKPIs={currentMonthKPIs} />;
             case 'attentionCards':
                 return <AttentionCards key={id} overallKPIs={overallKPIs} navigate={navigate} />;
+            case 'unallocatedFte':
+                return <UnallocatedFteCard key={id} kpis={currentMonthKPIs} />;
             case 'averageAllocation': 
                 return <AverageAllocationCard key={id} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} totals={avgAllocationTotals} isLoading={loading} />;
             case 'ftePerProject':
@@ -1053,7 +1124,7 @@ const DashboardPage: React.FC = () => {
         <div>
             <h1 className="text-3xl font-bold text-on-background mb-8">Dashboard</h1>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {kpiGroupCards.map(id => renderCardById(id))}
             </div>
 
