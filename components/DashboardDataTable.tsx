@@ -17,6 +17,7 @@ interface DashboardDataTableProps<T extends { id?: string }> {
     initialSortKey?: string;
     isLoading?: boolean;
     footerNode?: React.ReactNode;
+    maxVisibleRows?: number;
 }
 
 /**
@@ -69,71 +70,77 @@ export function DashboardDataTable<T extends { id?: string }>({
     initialSortKey,
     isLoading,
     footerNode,
+    maxVisibleRows,
 }: DashboardDataTableProps<T>) {
 
     const { items: sortedData, requestSort, sortConfig } = useSortableData(data, initialSortKey);
+    
+    // Stima di ~2.75rem (44px) per riga per calcolare l'altezza massima
+    const maxHeightStyle = maxVisibleRows ? { maxHeight: `${maxVisibleRows * 2.75}rem` } : {};
 
     return (
-        <table className="min-w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-surface-container dark:bg-dark-card">
-                <tr>
-                    {columns.map(col => (
-                        <th
-                            key={col.header}
-                            className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
-                        >
-                            {col.sortKey ? (
-                                <button
-                                    type="button"
-                                    onClick={() => requestSort(col.sortKey!)}
-                                    className="flex items-center space-x-1 hover:text-foreground"
-                                >
-                                    <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground' : ''}>
-                                        {col.header}
-                                    </span>
-                                    <span className="text-gray-400">↕️</span>
-                                </button>
-                            ) : (
-                                <span>{col.header}</span>
-                            )}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-                {isLoading ? (
-                    Array.from({ length: 5 }).map((_, rowIndex) => (
-                        <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
-                            {columns.map((_, colIndex) => (
-                                <td key={`skeleton-cell-${colIndex}`} className="px-4 py-2">
-                                    <div className="h-4 rounded bg-muted" />
-                                </td>
-                            ))}
-                        </tr>
-                    ))
-                ) : sortedData.length > 0 ? (
-                    sortedData.map((item, index) => (
-                        <tr key={item.id || index} className="hover:bg-muted/50">
-                            {columns.map(col => (
-                                <td key={`${item.id}-${col.header}`} className="px-4 py-2 text-muted-foreground">
-                                    {col.cell(item)}
-                                </td>
-                            ))}
-                        </tr>
-                    ))
-                ) : (
+        <div className="overflow-y-auto" style={maxHeightStyle}>
+            <table className="min-w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-surface-container dark:bg-dark-card">
                     <tr>
-                        <td colSpan={columns.length} className="px-4 py-6 text-center text-muted-foreground">
-                            Nessun dato trovato.
-                        </td>
+                        {columns.map(col => (
+                            <th
+                                key={col.header}
+                                className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                            >
+                                {col.sortKey ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => requestSort(col.sortKey!)}
+                                        className="flex items-center space-x-1 hover:text-foreground"
+                                    >
+                                        <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground' : ''}>
+                                            {col.header}
+                                        </span>
+                                        <span className="text-gray-400">↕️</span>
+                                    </button>
+                                ) : (
+                                    <span>{col.header}</span>
+                                )}
+                            </th>
+                        ))}
                     </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                    {isLoading ? (
+                        Array.from({ length: 5 }).map((_, rowIndex) => (
+                            <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
+                                {columns.map((_, colIndex) => (
+                                    <td key={`skeleton-cell-${colIndex}`} className="px-4 py-2">
+                                        <div className="h-4 rounded bg-muted" />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))
+                    ) : sortedData.length > 0 ? (
+                        sortedData.map((item, index) => (
+                            <tr key={item.id || index} className="hover:bg-muted/50">
+                                {columns.map(col => (
+                                    <td key={`${item.id}-${col.header}`} className="px-4 py-2 text-muted-foreground">
+                                        {col.cell(item)}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan={columns.length} className="px-4 py-6 text-center text-muted-foreground">
+                                Nessun dato trovato.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+                {footerNode && (
+                    <tfoot className="sticky bottom-0 border-t-2 border-outline font-bold bg-surface-container">
+                        {footerNode}
+                    </tfoot>
                 )}
-            </tbody>
-            {footerNode && (
-                <tfoot className="border-t-2 border-outline font-bold">
-                    {footerNode}
-                </tfoot>
-            )}
-        </table>
+            </table>
+        </div>
     );
 }

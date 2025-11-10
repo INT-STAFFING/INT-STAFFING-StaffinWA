@@ -138,16 +138,18 @@ const DashboardTableCard: React.FC<{
   isLoading: boolean;
   initialSortKey?: string;
   footerNode?: React.ReactNode;
-}> = ({ headerContent, columns, data, isLoading, initialSortKey, footerNode }) => (
+  maxVisibleRows?: number;
+}> = ({ headerContent, columns, data, isLoading, initialSortKey, footerNode, maxVisibleRows }) => (
   <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
     <div className="flex-shrink-0 mb-4">{headerContent}</div>
-    <div className="flex-grow overflow-auto">
+    <div className="flex-grow">
         <DashboardDataTable
             columns={columns}
             data={data}
             isLoading={isLoading}
             initialSortKey={initialSortKey}
             footerNode={footerNode}
+            maxVisibleRows={maxVisibleRows}
         />
     </div>
   </div>
@@ -181,6 +183,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
             isLoading={isLoading}
             initialSortKey="resource.name"
             footerNode={footer}
+            maxVisibleRows={10}
         />
     );
 };
@@ -210,6 +213,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
             isLoading={isLoading}
             initialSortKey="name"
             footerNode={footer}
+            maxVisibleRows={10}
         />
     );
 };
@@ -241,6 +245,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
             isLoading={isLoading}
             initialSortKey="name"
             footerNode={footer}
+            maxVisibleRows={10}
         />
     );
 };
@@ -279,6 +284,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
             isLoading={isLoading}
             initialSortKey="name"
             footerNode={footer}
+            maxVisibleRows={10}
         />
     );
 };
@@ -298,6 +304,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
             data={data}
             isLoading={isLoading}
             initialSortKey="avgAllocation"
+            maxVisibleRows={10}
         />
     );
 };
@@ -317,6 +324,7 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
             data={data}
             isLoading={isLoading}
             initialSortKey="cost"
+            maxVisibleRows={10}
         />
     );
 };
@@ -344,6 +352,7 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
             isLoading={isLoading}
             initialSortKey="totalPersonDays"
             footerNode={footer}
+            maxVisibleRows={10}
         />
     );
 };
@@ -365,6 +374,7 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
             data={data}
             isLoading={isLoading}
             initialSortKey="resourceCount"
+            maxVisibleRows={10}
         />
     );
 };
