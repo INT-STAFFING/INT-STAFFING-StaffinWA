@@ -79,7 +79,9 @@ const ForecastingPage: React.FC = () => {
 
                 if (effectiveStartDate > effectiveEndDate) return;
                 
-                availablePersonDays += getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+                const workingDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+                const staffingFactor = (resource.maxStaffingPercentage || 100) / 100;
+                availablePersonDays += workingDays * staffingFactor;
             });
 
             let allocatedPersonDays = 0;
@@ -222,7 +224,7 @@ const ForecastingPage: React.FC = () => {
                                         {data.monthName}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">
-                                        {data.availablePersonDays.toFixed(0)}
+                                        {data.availablePersonDays.toFixed(1)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">
                                         {data.allocatedPersonDays.toFixed(1)}

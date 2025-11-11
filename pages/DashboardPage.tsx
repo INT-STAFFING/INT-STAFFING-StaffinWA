@@ -972,7 +972,10 @@ const DashboardPage: React.FC = () => {
             let availableDays = 0;
 
             resourcesInLocation.forEach(resource => {
-                availableDays += getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+                const staffingFactor = (resource.maxStaffingPercentage || 100) / 100;
+                availableDays += workingDays * staffingFactor;
+
                 const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
                 resourceAssignments.forEach(assignment => {
                     const assignmentAllocations = allocations[assignment.id!];

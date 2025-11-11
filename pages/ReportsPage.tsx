@@ -249,7 +249,9 @@ const ResourceUtilizationReport: React.FC = () => {
 
                 if (effectiveStartDate > effectiveEndDate) return null;
 
-                const availableDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+                const workingDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+                const staffingFactor = (resource.maxStaffingPercentage || 100) / 100;
+                const availableDays = workingDays * staffingFactor;
                 
                 let allocatedDays = 0;
                 let allocatedCost = 0;
