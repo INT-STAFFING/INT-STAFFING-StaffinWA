@@ -3,7 +3,7 @@
  * @description Pagina con vista Gantt interattiva per i progetti, con legenda e righe di riepilogo.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
@@ -118,11 +118,13 @@ const GanttPage: React.FC = () => {
             return { scale, days };
         };
 
+        const today = new Date();
+
         if (validProjects.length === 0) {
-            const now = new Date();
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const endOfYear = new Date(now.getFullYear(), 11, 31);
-            const { scale, days } = buildScale(startOfYear, endOfYear, 'month'); // default scala mensile
+            // Nessun progetto: scala di default sull'anno corrente, comunque comprensiva di "oggi"
+            const startOfYear = new Date(today.getFullYear(), 0, 1);
+            const endOfYear = new Date(today.getFullYear(), 11, 31);
+            const { scale, days } = buildScale(startOfYear, endOfYear, 'month');
             return {
                 timeScale: scale,
                 ganttStartDate: startOfYear,
@@ -137,8 +139,25 @@ const GanttPage: React.FC = () => {
         let minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
         let maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
 
+        // Allineo all'inizio mese / margine come prima
         minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
         maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0); // margine
+
+        // Ispirato ai Gantt "seri": la scala deve SEMPRE includere la data odierna
+        if (today < minDate) {
+            // Estendo verso sinistra: un mese prima di oggi
+            const extendedMin = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            if (extendedMin < minDate) {
+                minDate = extendedMin;
+            }
+        }
+        if (today > maxDate) {
+            // Estendo verso destra: un paio di mesi oltre oggi
+            const extendedMax = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+            if (extendedMax > maxDate) {
+                maxDate = extendedMax;
+            }
+        }
 
         const { scale, days } = buildScale(minDate, maxDate, zoom);
 
@@ -252,6 +271,33 @@ const GanttPage: React.FC = () => {
         [timeScale.length]
     );
 
+    // Contenitore scrollabile (orizzontale + verticale) per centrare "oggi"
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        if (todayPosition < 0 || todayPosition > ganttChartWidth) return;
+
+        const containerWidth = container.clientWidth;
+        const contentWidth = LEFT_COLUMN_WIDTH + ganttChartWidth;
+
+        if (containerWidth <= 0 || contentWidth <= containerWidth) {
+            // Contenuto che già sta interamente nella viewport: niente scroll
+            return;
+        }
+
+        // Posizione assoluta della linea di oggi rispetto all'inizio del contenuto
+        const targetX = LEFT_COLUMN_WIDTH + todayPosition;
+
+        // ScrollLeft per portare la linea rossa circa al centro (tipico comportamento Gantt)
+        const desiredScrollLeft = targetX - containerWidth / 2;
+        const maxScrollLeft = contentWidth - containerWidth;
+        const clampedScrollLeft = Math.max(0, Math.min(desiredScrollLeft, maxScrollLeft));
+
+        container.scrollLeft = clampedScrollLeft;
+    }, [todayPosition, ganttChartWidth]);
+
     return (
         <div className="flex flex-col h-full">
             {/* Header e controlli */}
@@ -334,8 +380,11 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Corpo Gantt */}
-            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+            {/* Corpo Gantt: scroll orizzontale + verticale */}
+            <div
+                ref={scrollContainerRef}
+                className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow"
+            >
                 <div
                     className="relative"
                     style={{
