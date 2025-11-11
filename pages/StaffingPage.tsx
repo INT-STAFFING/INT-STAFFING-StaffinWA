@@ -728,7 +728,7 @@ const StaffingPage: React.FC = () => {
                                 resource={resource}
                                 date={formatDate(day, 'iso')}
                                 isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday}
-                                resourceAssignments={resourceAssignments} {/* Punto 3 */}
+                                resourceAssignments={resourceAssignments}
                               />
                             );
                           }
