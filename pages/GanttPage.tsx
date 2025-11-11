@@ -95,7 +95,7 @@ const GanttPage: React.FC = () => {
                         {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
                             <button
                                 key={level}
-                                onClick={() => setZoom(level)}
+                                onClick={() => setZoom(level as 'month' | 'quarter' | 'year')}
                                 className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
                                     zoom === level
                                         ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow'
