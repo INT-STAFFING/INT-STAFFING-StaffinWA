@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+// @ts-ignore
 import { Gantt, Task, ViewMode as GanttViewMode } from '@svar-widgets/react-gantt';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
@@ -104,7 +105,9 @@ const GanttPage: React.FC = () => {
             {/* Header e controlli */}
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h1 className="text-3xl font-bold text-on-background">Gantt Progetti</h1>
+                    <div className="flex-grow">
+                         {/* Il titolo è già nell'header principale dell'app */}
+                    </div>
                     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
                         {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button
