@@ -3,16 +3,10 @@
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
  */
 
-// Fix: Add module declaration for react-window to resolve type errors.
+// Fix: Augment react-window module to add missing instance methods without redeclaring existing types.
+// The import within the 'declare module' block was removed as it's not allowed.
+// The 'ListOnScrollProps' type was also removed as it is imported from the library, preventing a duplicate identifier error.
 declare module 'react-window' {
-    import * as React from 'react';
-
-    export type ListOnScrollProps = {
-        scrollDirection: 'forward' | 'backward';
-        scrollOffset: number;
-        scrollUpdateWasRequested: boolean;
-    };
-
     export class VariableSizeList extends React.Component<any> {
         resetAfterIndex(index: number, shouldForceUpdate?: boolean): void;
         scrollTo(scrollOffset: number): void;

@@ -3,16 +3,10 @@
  * @description Pagina di visualizzazione del carico totale per risorsa (sola lettura).
  */
 
-// Fix: Add module declaration for react-window to resolve type errors.
+// Fix: Augment react-window module to add missing instance methods without redeclaring existing types.
+// The import within the 'declare module' block was removed as it's not allowed.
+// The 'ListOnScrollProps' type was also removed as it is imported from the library, preventing a duplicate identifier error.
 declare module 'react-window' {
-    import * as React from 'react';
-
-    export type ListOnScrollProps = {
-        scrollDirection: 'forward' | 'backward';
-        scrollOffset: number;
-        scrollUpdateWasRequested: boolean;
-    };
-
     export class FixedSizeList extends React.Component<any> {
         scrollTo(scrollOffset: number): void;
         scrollToItem(index: number, align?: 'auto' | 'start' | 'center' | 'end'): void;
