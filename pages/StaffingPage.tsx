@@ -22,6 +22,12 @@ import { Link } from 'react-router-dom';
 type ViewMode = 'day' | 'week' | 'month';
 
 /**
+ * Opzioni percentuali per le celle di allocazione (0–100% step 5).
+ * Hoist per evitare ricreazioni inutili in ogni cella.
+ */
+const PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5);
+
+/**
  * Celle di allocazione giornaliera modificabile (per singola assegnazione).
  */
 interface AllocationCellProps {
@@ -47,8 +53,6 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
       updateAllocation(assignment.id!, date, parseInt(e.target.value, 10));
     };
 
-    const percentageOptions = Array.from({ length: 21 }, (_, i) => i * 5);
-
     return (
       <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
         <select
@@ -56,7 +60,7 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
           onChange={handleChange}
           className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
         >
-          {percentageOptions.map((p) => (
+          {PERCENTAGE_OPTIONS.map((p) => (
             <option key={p} value={p}>
               {p > 0 ? `${p}%` : '-'}
             </option>
@@ -139,17 +143,23 @@ interface DailyTotalCellProps {
   resource: Resource;
   date: string;
   isNonWorkingDay: boolean;
+  resourceAssignments: Assignment[];
 }
 
 const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
-  ({ resource, date, isNonWorkingDay }) => {
-    const { assignments } = useEntitiesContext();
+  ({ resource, date, isNonWorkingDay, resourceAssignments }) => {
     const { allocations } = useAllocationsContext();
 
     let effectiveNonWorking = isNonWorkingDay;
     if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
       effectiveNonWorking = true;
     }
+
+    const total = useMemo(() => {
+      return resourceAssignments.reduce((sum, a) => {
+        return sum + (allocations[a.id!]?.[date] || 0);
+      }, 0);
+    }, [resourceAssignments, allocations, date]);
 
     if (effectiveNonWorking) {
       return (
@@ -158,13 +168,6 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
         </td>
       );
     }
-
-    const total = useMemo(() => {
-      const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
-      return resourceAssignments.reduce((sum, a) => {
-        return sum + (allocations[a.id!]?.[date] || 0);
-      }, 0);
-    }, [assignments, allocations, resource.id, date]);
 
     const cellColor = useMemo(() => {
       const maxPercentage = resource.maxStaffingPercentage ?? 100;
@@ -308,7 +311,8 @@ const StaffingPage: React.FC = () => {
     let d = new Date(currentDate);
 
     if (viewMode === 'day') {
-      return getCalendarDays(d, 35).map((day) => {
+      // Punto 1: riduzione da 35 a 14 giorni
+      return getCalendarDays(d, 14).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const holiday = companyCalendar.find(
@@ -724,6 +728,7 @@ const StaffingPage: React.FC = () => {
                                 resource={resource}
                                 date={formatDate(day, 'iso')}
                                 isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday}
+                                resourceAssignments={resourceAssignments} {/* Punto 3 */}
                               />
                             );
                           }

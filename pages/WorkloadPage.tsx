@@ -191,7 +191,7 @@ const WorkloadPage: React.FC = () => {
     let d = new Date(currentDate);
 
     if (viewMode === 'day') {
-      return getCalendarDays(d, 35).map((day) => {
+      return getCalendarDays(d, 28).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const holiday = companyCalendar.find(
