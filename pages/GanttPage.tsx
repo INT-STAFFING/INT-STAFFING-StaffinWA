@@ -1,40 +1,28 @@
 /**
  * @file GanttPage.tsx
- * @description Pagina con vista Gantt interattiva per i progetti, con legenda e righe di riepilogo.
+ * @description Pagina con vista Gantt interattiva per i progetti, implementata con la libreria @svar-widgets/react-gantt.
  */
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { Gantt, Task, ViewMode as GanttViewMode } from '@svar-widgets/react-gantt';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
-import { DashboardDataTable } from '../components/DashboardDataTable';
-import type { ColumnDef } from '../components/DataTable';
 
-type ZoomLevel = 'month' | 'quarter' | 'year';
-type SortDirection = 'ascending' | 'descending';
-
-const GANTT_COLUMN_WIDTH = 80; // Larghezza in pixel per ogni colonna della timeline
-const LEFT_COLUMN_WIDTH = 320; // Larghezza della colonna dei progetti
-
-interface TimeScaleSegment {
-    label: string;
-    start: Date;
-    end: Date;
-}
-
-interface ClientSummaryRow {
-    id: string;
-    clientName: string;
-    projectCount: number;
-}
+// Mappa la nostra modalità di visualizzazione locale a quella della libreria Gantt
+type ViewMode = 'day' | 'week' | 'month';
+const viewModeMap: Record<ViewMode, GanttViewMode> = {
+    day: 'Day',
+    week: 'Week',
+    month: 'Month',
+};
 
 const GanttPage: React.FC = () => {
     const { projects, assignments, resources, clients } = useEntitiesContext();
-    const [zoom, setZoom] = useState<ZoomLevel>('month');
+    const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState({ name: '', clientId: '' });
-    const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
-
+    
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
@@ -47,277 +35,68 @@ const GanttPage: React.FC = () => {
         setFilters({ name: '', clientId: '' });
     };
 
-    const toggleSortDirection = () => {
-        setSortDirection(prev => (prev === 'ascending' ? 'descending' : 'ascending'));
-    };
-
-    const toggleProjectExpansion = (projectId: string) => {
-        setExpandedProjects(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(projectId)) {
-                newSet.delete(projectId);
-            } else {
-                newSet.add(projectId);
-            }
-            return newSet;
-        });
-    };
-
-    const getProjectResources = (projectId: string): Resource[] => {
-        const projectAssignments = assignments.filter(a => a.projectId === projectId);
-        return projectAssignments
-            .map(a => resources.find(r => r.id === a.resourceId))
-            .filter(Boolean) as Resource[];
-    };
-
-    const clientMap = useMemo(
-        () => new Map(clients.map(c => [c.id!, c.name])),
-        [clients]
-    );
-
-    // Scala temporale (segmenti) calcolata su TUTTI i progetti
-    const { timeScale, ganttStartDate, totalDays } = useMemo(() => {
-        const validProjects = projects.filter(p => p.startDate && p.endDate);
-
-        const buildScale = (
-            minDate: Date,
-            maxDate: Date,
-            zoomLevel: ZoomLevel
-        ): { scale: TimeScaleSegment[]; days: number } => {
-            const scale: TimeScaleSegment[] = [];
-
-            const getHeader = (date: Date) => {
-                if (zoomLevel === 'month') {
-                    return date.toLocaleString('it-IT', {
-                        month: 'short',
-                        year: '2-digit',
-                    });
+    const handleExpanderClick = (task: Task) => {
+        if (task.type === 'project') {
+            const projectId = task.id.replace('p_', '');
+            setExpandedProjects(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(projectId)) {
+                    newSet.delete(projectId);
+                } else {
+                    newSet.add(projectId);
                 }
-                if (zoomLevel === 'quarter') {
-                    return `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
-                }
-                return date.getFullYear().toString();
-            };
-
-            const incrementDate = (date: Date) => {
-                if (zoomLevel === 'month') date.setMonth(date.getMonth() + 1);
-                else if (zoomLevel === 'quarter') date.setMonth(date.getMonth() + 3);
-                else date.setFullYear(date.getFullYear() + 1);
-            };
-
-            let currentStart = new Date(minDate);
-            while (currentStart <= maxDate) {
-                const currentEnd = new Date(currentStart);
-                incrementDate(currentEnd);
-
-                scale.push({
-                    label: getHeader(currentStart),
-                    start: new Date(currentStart),
-                    end: new Date(currentEnd),
-                });
-
-                currentStart = currentEnd;
-            }
-
-            const lastEnd = scale.length > 0 ? scale[scale.length - 1].end : minDate;
-            const days =
-                (lastEnd.getTime() - minDate.getTime()) / (1000 * 3600 * 24) + 1;
-
-            return { scale, days };
-        };
-
-        if (validProjects.length === 0) {
-            const now = new Date();
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const endOfYear = new Date(now.getFullYear(), 11, 31);
-            const { scale, days } = buildScale(startOfYear, endOfYear, 'month'); // default scala mensile
-            return {
-                timeScale: scale,
-                ganttStartDate: startOfYear,
-                totalDays: days,
-            };
+                return newSet;
+            });
         }
+    };
 
-        const allDates = validProjects.flatMap(p => [
-            new Date(p.startDate!),
-            new Date(p.endDate!),
-        ]);
-        let minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-        let maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-
-        minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-        maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0); // margine
-
-        const { scale, days } = buildScale(minDate, maxDate, zoom);
-
-        return { timeScale: scale, ganttStartDate: minDate, totalDays: days };
-    }, [projects, zoom]);
-
-    const ganttChartWidth = timeScale.length * GANTT_COLUMN_WIDTH;
-    const pixelsPerDay = totalDays > 0 ? ganttChartWidth / totalDays : 0;
-
-    const getBarPosition = (startDateStr: string | null, endDateStr: string | null) => {
-        if (!startDateStr || !endDateStr || totalDays <= 0) {
-            return { left: '0px', width: '0px' };
-        }
-
-        const startDate = new Date(startDateStr);
-        const endDate = new Date(endDateStr);
-
-        const startOffset =
-            (startDate.getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
-        const duration = Math.max(
-            1,
-            (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)
+    const tasks: Task[] = useMemo(() => {
+        const filtered = projects.filter(project =>
+            project.name.toLowerCase().includes(filters.name.toLowerCase()) &&
+            (!filters.clientId || project.clientId === filters.clientId) &&
+            project.startDate && project.endDate
         );
 
-        const left = startOffset * pixelsPerDay;
-        const width = duration * pixelsPerDay;
+        const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
 
-        return { left: `${left}px`, width: `${width}px` };
-    };
+        const ganttTasks: Task[] = [];
+        sorted.forEach(project => {
+            ganttTasks.push({
+                id: `p_${project.id}`,
+                name: project.name,
+                type: 'project',
+                start: new Date(project.startDate!),
+                end: new Date(project.endDate!),
+                progress: 0, // Nessun dato sulla progressione disponibile
+                isDisabled: true, // La barra del progetto non è interattiva
+                hideChildren: !expandedProjects.has(project.id!),
+            });
 
-    const todayPosition = useMemo(() => {
-        if (totalDays <= 0) return -1;
-        const startOffset =
-            (new Date().getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
-        return startOffset * pixelsPerDay;
-    }, [ganttStartDate, totalDays, pixelsPerDay]);
-
-    const sortedAndFilteredProjects = useMemo(() => {
-        const filtered = projects.filter(project => {
-            const nameMatch = project.name
-                .toLowerCase()
-                .includes(filters.name.toLowerCase());
-            const clientMatch = filters.clientId
-                ? project.clientId === filters.clientId
-                : true;
-            return nameMatch && clientMatch;
+            const projectResources = assignments
+                .filter(a => a.projectId === project.id)
+                .map(a => resources.find(r => r.id === a.resourceId))
+                .filter(Boolean) as Resource[];
+            
+            projectResources.forEach(resource => {
+                ganttTasks.push({
+                    id: `r_${project.id}_${resource.id}`,
+                    name: resource.name,
+                    type: 'task',
+                    start: new Date(project.startDate!),
+                    end: new Date(project.endDate!),
+                    progress: 0,
+                    project: `p_${project.id}`,
+                    isDisabled: true,
+                });
+            });
         });
 
-        return [...filtered].sort((a, b) => {
-            const nameA = a.name.toLowerCase();
-            const nameB = b.name.toLowerCase();
-            if (nameA < nameB)
-                return sortDirection === 'ascending' ? -1 : 1;
-            if (nameA > nameB)
-                return sortDirection === 'ascending' ? 1 : -1;
-            return 0;
-        });
-    }, [projects, filters, sortDirection]);
-
-    // Totale progetti attivi per ciascun segmento (usato per la riga di riepilogo per anno)
-    const segmentProjectCounts = useMemo(() => {
-        if (sortedAndFilteredProjects.length === 0) {
-            return timeScale.map(() => 0);
-        }
-
-        return timeScale.map(seg => {
-            let count = 0;
-            for (const project of sortedAndFilteredProjects) {
-                if (!project.startDate || !project.endDate) continue;
-                const s = new Date(project.startDate);
-                const e = new Date(project.endDate);
-                if (e >= seg.start && s < seg.end) {
-                    count++;
-                }
-            }
-            return count;
-        });
-    }, [timeScale, sortedAndFilteredProjects]);
-
-    // Totale progetti per cliente (usato come riepilogo quando non si è in vista "Anno")
-    const totalByClient = useMemo(() => {
-        const counts = new Map<string, number>();
-
-        for (const project of sortedAndFilteredProjects) {
-            const key = project.clientId || 'NO_CLIENT';
-            counts.set(key, (counts.get(key) ?? 0) + 1);
-        }
-
-        return Array.from(counts.entries()).map(([clientId, count]) => ({
-            clientName: clientId === 'NO_CLIENT'
-                ? 'Cliente non assegnato'
-                : clientMap.get(clientId) ?? 'Cliente non assegnato',
-            count,
-        }));
-    }, [sortedAndFilteredProjects, clientMap]);
+        return ganttTasks;
+    }, [projects, assignments, resources, filters, expandedProjects]);
 
     const clientOptions = useMemo(
-        () =>
-            clients
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(c => ({ value: c.id!, label: c.name })),
+        () => clients.sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })),
         [clients]
-    );
-
-    const timeGridStyle = useMemo(
-        () => ({
-            gridTemplateColumns: `repeat(${timeScale.length}, ${GANTT_COLUMN_WIDTH}px)`,
-        }),
-        [timeScale.length]
-    );
-
-    // --- Scroll orizzontale per centrare la linea di "oggi" ---
-    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        const container = scrollContainerRef.current;
-        if (!container) return;
-        if (todayPosition < 0) return;
-        if (todayPosition > ganttChartWidth) return;
-
-        const containerWidth = container.clientWidth;
-        const contentWidth = LEFT_COLUMN_WIDTH + ganttChartWidth;
-
-        if (containerWidth <= 0 || contentWidth <= containerWidth) return;
-
-        // Posizione assoluta della linea di oggi rispetto all'inizio del contenuto
-        const targetX = LEFT_COLUMN_WIDTH + todayPosition;
-
-        // ScrollLeft per avere la linea al centro della viewport
-        const desiredScrollLeft = targetX - containerWidth / 2;
-        const maxScrollLeft = contentWidth - containerWidth;
-        const nextScrollLeft = Math.max(0, Math.min(desiredScrollLeft, maxScrollLeft));
-
-        container.scrollLeft = nextScrollLeft;
-    }, [todayPosition, ganttChartWidth, zoom]);
-
-    // --- Dati e colonne per riepilogo per cliente in DashboardDataTable ---
-    const clientSummaryData: ClientSummaryRow[] = useMemo(
-        () =>
-            totalByClient.map((item, index) => ({
-                id: String(index),
-                clientName: item.clientName,
-                projectCount: item.count,
-            })),
-        [totalByClient]
-    );
-
-    const clientSummaryColumns: ColumnDef<ClientSummaryRow>[] = useMemo(
-        () => [
-            {
-                header: 'Cliente',
-                sortKey: 'clientName',
-                cell: row => (
-                    <span className="font-medium text-gray-800 dark:text-gray-100">
-                        {row.clientName}
-                    </span>
-                ),
-            },
-            {
-                header: 'Progetti',
-                sortKey: 'projectCount',
-                className: 'text-right',
-                cell: row => (
-                    <span className="font-semibold text-gray-900 dark:text-gray-50">
-                        {row.projectCount}
-                    </span>
-                ),
-            },
-        ],
-        []
     );
 
     return (
@@ -325,31 +104,25 @@ const GanttPage: React.FC = () => {
             {/* Header e controlli */}
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-                        Gantt Progetti
-                    </h1>
-                    <div className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
+                    <h1 className="text-3xl font-bold text-on-background">Gantt Progetti</h1>
+                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                        {(['day', 'week', 'month'] as ViewMode[]).map(level => (
                             <button
                                 key={level}
-                                onClick={() => setZoom(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
-                                    zoom === level
-                                        ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow'
-                                        : 'text-gray-600 dark:text-gray-300'
+                                onClick={() => setViewMode(level)}
+                                className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                                    viewMode === level
+                                        ? 'bg-secondary-container text-on-secondary-container shadow'
+                                        : 'text-on-surface-variant'
                                 }`}
                             >
-                                {level === 'month'
-                                    ? 'Mese'
-                                    : level === 'quarter'
-                                    ? 'Trim.'
-                                    : 'Anno'}
+                                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
+                <div className="mb-4 p-4 bg-surface-container rounded-2xl shadow relative z-20">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <input
                             type="text"
@@ -368,339 +141,50 @@ const GanttPage: React.FC = () => {
                         />
                         <button
                             onClick={resetFilters}
-                            className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+                            className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full"
                         >
                             Reset
                         </button>
                     </div>
                 </div>
-
-                {/* Mini legenda colori / zoom */}
-                <div className="mb-4 px-1 text-xs text-gray-700 dark:text-gray-200 flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="inline-block w-6 h-2 rounded-full bg-blue-500" />
-                        <span>Barra blu: periodo di attività del progetto</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40" />
-                        <span>Colonne alternate: segmenti temporali (mese / trimestre / anno)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="inline-block w-0.5 h-4 bg-red-500" />
-                        <span>Linea rossa: data odierna</span>
-                    </div>
-                    <div className="flex items-center gap-2 ml-auto">
-                        <span className="font-semibold">Zoom corrente:</span>
-                        <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-[11px]">
-                            {zoom === 'month'
-                                ? 'Mese'
-                                : zoom === 'quarter'
-                                ? 'Trimestre'
-                                : 'Anno'}
-                        </span>
-                    </div>
-                </div>
             </div>
 
             {/* Corpo Gantt */}
-            <div
-                ref={scrollContainerRef}
-                className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow"
-            >
-                <div
-                    className="relative"
-                    style={{
-                        minWidth: `calc(${LEFT_COLUMN_WIDTH}px + ${ganttChartWidth}px)`,
-                    }}
-                >
-                    {/* Header tabellare */}
-                    <div
-                        className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16 grid"
-                        style={{ gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr` }}
-                    >
-                        {/* Header colonna progetti */}
-                        <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center justify-between">
-                            <button
-                                onClick={toggleSortDirection}
-                                className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white"
-                            >
-                                <span>Progetto</span>
-                                <span className="text-gray-400">↕️</span>
-                            </button>
-                            <span className="text-xs font-normal text-gray-500 dark:text-gray-300">
-                                Cliente · Periodo · Risorse
-                            </span>
-                        </div>
-
-                        {/* Header timeline */}
-                        <div className="relative border-b border-gray-200 dark:border-gray-700">
-                            <div
-                                className="grid h-full"
-                                style={timeGridStyle}
-                            >
-                                {timeScale.map((ts, i) => (
-                                    <div
-                                        key={i}
-                                        className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 ${
-                                            i % 2 === 0
-                                                ? 'bg-gray-50 dark:bg-gray-800/60'
-                                                : 'bg-white dark:bg-gray-900/40'
-                                        }`}
-                                    >
-                                        <span className="uppercase tracking-wide">
-                                            {ts.label}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Body righe + barre */}
-                    <div>
-                        {sortedAndFilteredProjects.map(project => {
-                            const projectResources = getProjectResources(project.id!);
-                            const isExpanded = expandedProjects.has(project.id!);
-                            const barStyle = getBarPosition(
-                                project.startDate,
-                                project.endDate
-                            );
-                            const clientName =
-                                (project.clientId &&
-                                    clientMap.get(project.clientId)) ||
-                                'Cliente non assegnato';
-
-                            const periodLabel =
-                                project.startDate && project.endDate
-                                    ? `${new Date(
-                                          project.startDate
-                                      ).toLocaleDateString('it-IT')} – ${new Date(
-                                          project.endDate
-                                      ).toLocaleDateString('it-IT')}`
-                                    : 'Periodo non definito';
-
-                            return (
-                                <div
-                                    key={project.id}
-                                    className="grid border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-900 group hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors"
-                                    style={{
-                                        gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
-                                    }}
-                                >
-                                    {/* Colonna info progetto */}
-                                    <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/70">
-                                        <button
-                                            onClick={() =>
-                                                toggleProjectExpansion(project.id!)
-                                            }
-                                            className="flex items-start w-full text-left"
-                                        >
-                                            <svg
-                                                className={`w-4 h-4 mr-2 mt-0.5 flex-shrink-0 transform transition-transform ${
-                                                    isExpanded ? 'rotate-90' : ''
-                                                }`}
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M9 5l7 7-7 7"
-                                                />
-                                            </svg>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-sm text-gray-800 dark:text:white truncate">
-                                                        {project.name}
-                                                    </span>
-                                                </div>
-                                                <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-300 space-y-0.5">
-                                                    <div className="truncate">
-                                                        <span className="font-semibold">
-                                                            Cliente:{' '}
-                                                        </span>
-                                                        <span>{clientName}</span>
-                                                    </div>
-                                                    <div className="truncate">
-                                                        <span className="font-semibold">
-                                                            Periodo:{' '}
-                                                        </span>
-                                                        <span>{periodLabel}</span>
-                                                    </div>
-                                                    {projectResources.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                            {projectResources
-                                                                .slice(0, 3)
-                                                                .map(r => (
-                                                                    <span
-                                                                        key={r.id}
-                                                                        className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[11px] text-gray-700 dark:text-gray-200"
-                                                                    >
-                                                                        {r.name}
-                                                                    </span>
-                                                                ))}
-                                                            {projectResources.length > 3 && (
-                                                                <span className="text-[11px] text-gray-500 dark:text-gray-300">
-                                                                    +{projectResources.length - 3}{' '}
-                                                                    altri
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </button>
-
-                                        {isExpanded && (
-                                            <ul className="mt-2 pl-6 text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                                                {projectResources.length > 0 ? (
-                                                    projectResources.map(r => (
-                                                        <li key={r.id}>{r.name}</li>
-                                                    ))
-                                                ) : (
-                                                    <li>Nessuna risorsa assegnata</li>
-                                                )}
-                                            </ul>
-                                        )}
-                                    </div>
-
-                                    {/* Timeline per riga */}
-                                    <div className="relative overflow-hidden">
-                                        {/* Griglia di sfondo */}
-                                        <div
-                                            className="grid h-full"
-                                            style={timeGridStyle}
-                                        >
-                                            {timeScale.map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`h-full border-r border-gray-200 dark:border-gray-700 ${
-                                                        isExpanded
-                                                            ? 'min-h-[72px]'
-                                                            : 'min-h-[56px]'
-                                                    } ${
-                                                        i % 2 === 0
-                                                            ? 'bg-gray-50/40 dark:bg-gray-900/40'
-                                                            : 'bg-white dark:bg-gray-900/20'
-                                                    }`}
-                                                />
-                                            ))}
-                                        </div>
-
-                                        {/* Barra Gantt */}
-                                        {project.startDate && project.endDate && (
-                                            <div
-                                                className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-blue-500 hover:bg-blue-600 shadow-sm group/bar flex items-center px-2 text-[11px] text-white truncate"
-                                                style={barStyle}
-                                            >
-                                                <span className="truncate">
-                                                    {project.name}
-                                                </span>
-                                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
-                                                    {periodLabel}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {/* Riga riepilogo: totale progetti per anno (solo vista "Anno") */}
-                        {zoom === 'year' && (
-                            <div
-                                className="grid border-t border-gray-300 dark:border-gray-600 bg-blue-50/70 dark:bg-blue-950/40"
-                                style={{
-                                    gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
-                                }}
-                            >
-                                <div className="p-3 border-r border-gray-300 dark:border-gray-600 sticky left-0 bg-blue-50/80 dark:bg-blue-950/60 z-10 text-xs font-semibold text-blue-900 dark:text-blue-100 flex items-center">
-                                    Totale progetti per anno (filtrati)
-                                </div>
-                                <div className="relative">
-                                    <div
-                                        className="grid"
-                                        style={timeGridStyle}
-                                    >
-                                        {timeScale.map((seg, i) => (
-                                            <div
-                                                key={i}
-                                                className="flex flex-col items-center justify-center min-h-[40px] border-r border-gray-300 dark:border-gray-600 text-[11px] font-semibold text-blue-800 dark:text-blue-100 bg-blue-100/60 dark:bg-blue-900/40"
-                                            >
-                                                <span className="mb-0.5">{seg.label}</span>
-                                                <span>{segmentProjectCounts[i] ?? 0}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Today Marker (banda + linea) */}
-                    {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
-                        <>
-                            <div
-                                className="absolute top-0 bottom-0 w-6 bg-red-500/5 z-10 pointer-events-none"
-                                style={{
-                                    left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition - 3}px)`,
-                                }}
-                            />
-                            <div
-                                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-                                style={{
-                                    left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition}px)`,
-                                }}
-                                title="Oggi"
-                            />
-                        </>
-                    )}
-                </div>
-
-                {/* Riepilogo per cliente (quando non si è in vista Anno) con DashboardDataTable */}
-                {zoom !== 'year' && clientSummaryData.length > 0 && (
-                    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
-                        <div className="font-semibold mb-2">
-                            Totale progetti per cliente (filtrati)
-                        </div>
-                        <DashboardDataTable<ClientSummaryRow>
-                            data={clientSummaryData}
-                            columns={clientSummaryColumns}
-                            initialSortKey="clientName"
-                            maxVisibleRows={6}
-                        />
+            <div className="flex-grow mt-4 rounded-2xl shadow overflow-hidden">
+                {tasks.length > 0 ? (
+                    <Gantt
+                        data={tasks}
+                        viewMode={viewModeMap[viewMode]}
+                        onExpanderClick={handleExpanderClick}
+                        columns={[{ name: 'name', title: 'Progetto / Risorsa', width: 320 }]}
+                    />
+                ) : (
+                    <div className="flex items-center justify-center h-full bg-surface-container text-on-surface-variant">
+                        Nessun progetto trovato con i filtri correnti o nessun progetto con date valide.
                     </div>
                 )}
             </div>
 
+            {/* Override stili per il theming */}
             <style>{`
-                .form-input, .form-select {
-                    display: block;
-                    width: 100%;
-                    border-radius: 0.375rem;
-                    border: 1px solid #D1D5DB;
-                    background-color: #FFFFFF;
-                    padding: 0.5rem 0.75rem;
-                    font-size: 0.875rem;
-                    line-height: 1.25rem;
+                :root {
+                    --gantt-background-color: var(--color-surface);
+                    --gantt-header-background-color: var(--color-surface-container);
+                    --gantt-column-background-color: var(--color-surface-container-low);
+                    --gantt-border-color: var(--color-outline-variant);
+                    --gantt-text-color: var(--color-on-surface);
+                    --gantt-text-secondary-color: var(--color-on-surface-variant);
+                    --gantt-bar-background-color: var(--color-secondary);
+                    --gantt-bar-background-progress-color: var(--color-secondary-container);
+                    --gantt-bar-project-background-color: var(--color-primary);
+                    --gantt-bar-project-background-progress-color: var(--color-primary-container);
+                    --gantt-bar-milestone-background-color: var(--color-tertiary);
+                    --gantt-today-color: var(--color-error);
+                    --gantt-expander-color: var(--color-primary);
                 }
-                .dark .form-input, .dark .form-select {
-                    border-color: #4B5563;
-                    background-color: #374151;
-                    color: #F9FAFB;
-                }
-                .resize-handle {
-                    position: absolute;
-                    top: 0;
-                    right: 0;
-                    width: 4px;
-                    cursor: col-resize;
-                    height: 100%;
-                }
-                .resize-handle.resizing {
-                    background-color: rgba(148, 163, 184, 0.5);
+                .form-input {
+                    display: block; width: 100%; border-radius: 0.5rem; border: 1px solid var(--color-outline);
+                    background-color: var(--color-surface-container-highest); padding: 0.5rem 0.75rem; font-size: 0.875rem;
                 }
             `}</style>
         </div>
