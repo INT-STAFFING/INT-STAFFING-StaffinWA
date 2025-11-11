@@ -499,7 +499,7 @@ const DashboardPage: React.FC = () => {
         // --- Resources ---
         const totalActiveResources = activeResources.length;
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
-        const unassignedResources = activeResources.filter(r => r.id && !assignedResourceIds.has(r.id));
+        const unassignedResources = activeResources.filter(r => r.id && !assignedResourceIds.has(r.id) && r.maxStaffingPercentage > 0);
 
         // --- Projects ---
         // A project is "active" if its end date hasn't passed.

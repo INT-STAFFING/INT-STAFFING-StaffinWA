@@ -11,7 +11,8 @@ import SearchableSelect from '../components/SearchableSelect';
 type ZoomLevel = 'month' | 'quarter' | 'year';
 type SortDirection = 'ascending' | 'descending';
 
-const GANTT_COLUMN_WIDTH = 80; // Larghezza in pixel per ogni colonna della timeline
+// Colonne temporali più strette ma leggibili
+const GANTT_COLUMN_WIDTH = 64; // ~64px per mese/trimestre/anno
 const LEFT_COLUMN_WIDTH = 320; // Larghezza della colonna dei progetti
 
 interface TimeScaleSegment {
@@ -67,7 +68,7 @@ const GanttPage: React.FC = () => {
         [clients]
     );
 
-    // Scala temporale (segmenti) calcolata su TUTTI i progetti
+    // Scala temporale (segmenti) calcolata su TUTTI i progetti, estesa per includere sempre "oggi"
     const { timeScale, ganttStartDate, totalDays } = useMemo(() => {
         const validProjects = projects.filter(p => p.startDate && p.endDate);
 
@@ -121,7 +122,6 @@ const GanttPage: React.FC = () => {
         const today = new Date();
 
         if (validProjects.length === 0) {
-            // Nessun progetto: scala di default sull'anno corrente, comunque comprensiva di "oggi"
             const startOfYear = new Date(today.getFullYear(), 0, 1);
             const endOfYear = new Date(today.getFullYear(), 11, 31);
             const { scale, days } = buildScale(startOfYear, endOfYear, 'month');
@@ -139,20 +139,18 @@ const GanttPage: React.FC = () => {
         let minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
         let maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
 
-        // Allineo all'inizio mese / margine come prima
+        // allineo a inizio mese / margine
         minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
         maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0); // margine
 
-        // Ispirato ai Gantt "seri": la scala deve SEMPRE includere la data odierna
+        // estendo per includere sempre "oggi"
         if (today < minDate) {
-            // Estendo verso sinistra: un mese prima di oggi
             const extendedMin = new Date(today.getFullYear(), today.getMonth() - 1, 1);
             if (extendedMin < minDate) {
                 minDate = extendedMin;
             }
         }
         if (today > maxDate) {
-            // Estendo verso destra: un paio di mesi oltre oggi
             const extendedMax = new Date(today.getFullYear(), today.getMonth() + 2, 0);
             if (extendedMax > maxDate) {
                 maxDate = extendedMax;
@@ -229,7 +227,6 @@ const GanttPage: React.FC = () => {
                 if (!project.startDate || !project.endDate) continue;
                 const s = new Date(project.startDate);
                 const e = new Date(project.endDate);
-                // Un progetto è considerato "attivo" in un segmento se le date si sovrappongono
                 if (e >= seg.start && s < seg.end) {
                     count++;
                 }
@@ -271,32 +268,43 @@ const GanttPage: React.FC = () => {
         [timeScale.length]
     );
 
-    // Contenitore scrollabile (orizzontale + verticale) per centrare "oggi"
+    // Contenitore scrollabile solo per la "tabella" Gantt (orizzontale + verticale)
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
+    // All'avvio (e al cambio scala) il primo mese visibile è il mese corrente
     useEffect(() => {
         const container = scrollContainerRef.current;
         if (!container) return;
-        if (todayPosition < 0 || todayPosition > ganttChartWidth) return;
+        if (timeScale.length === 0) return;
 
-        const containerWidth = container.clientWidth;
-        const contentWidth = LEFT_COLUMN_WIDTH + ganttChartWidth;
+        const today = new Date();
 
-        if (containerWidth <= 0 || contentWidth <= containerWidth) {
-            // Contenuto che già sta interamente nella viewport: niente scroll
-            return;
+        // Trovo il segmento che contiene "oggi"
+        let todaySegmentIndex = timeScale.findIndex(
+            seg => today >= seg.start && today < seg.end
+        );
+
+        if (todaySegmentIndex < 0) {
+            // fallback: uso la posizione continua in pixel
+            if (todayPosition >= 0 && GANTT_COLUMN_WIDTH > 0) {
+                todaySegmentIndex = Math.floor(todayPosition / GANTT_COLUMN_WIDTH);
+            } else {
+                todaySegmentIndex = 0;
+            }
         }
 
-        // Posizione assoluta della linea di oggi rispetto all'inizio del contenuto
-        const targetX = LEFT_COLUMN_WIDTH + todayPosition;
+        // Scroll in modo che la colonna del mese corrente sia la prima visibile a destra del nome progetto
+        const desiredScrollLeft = Math.max(0, todaySegmentIndex * GANTT_COLUMN_WIDTH);
 
-        // ScrollLeft per portare la linea rossa circa al centro (tipico comportamento Gantt)
-        const desiredScrollLeft = targetX - containerWidth / 2;
-        const maxScrollLeft = contentWidth - containerWidth;
-        const clampedScrollLeft = Math.max(0, Math.min(desiredScrollLeft, maxScrollLeft));
+        // Limite massimo di scroll (timeline)
+        const containerWidth = container.clientWidth;
+        const maxScrollLeft = Math.max(
+            0,
+            ganttChartWidth - Math.max(0, containerWidth - LEFT_COLUMN_WIDTH)
+        );
 
-        container.scrollLeft = clampedScrollLeft;
-    }, [todayPosition, ganttChartWidth]);
+        container.scrollLeft = Math.min(desiredScrollLeft, maxScrollLeft);
+    }, [timeScale, todayPosition, ganttChartWidth]);
 
     return (
         <div className="flex flex-col h-full">
@@ -380,7 +388,7 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Corpo Gantt: scroll orizzontale + verticale */}
+            {/* Corpo Gantt: scroll orizzontale e verticale SOLO su questa "tabella" */}
             <div
                 ref={scrollContainerRef}
                 className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow"
@@ -419,7 +427,7 @@ const GanttPage: React.FC = () => {
                                 {timeScale.map((ts, i) => (
                                     <div
                                         key={i}
-                                        className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 ${
+                                        className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap ${
                                             i % 2 === 0
                                                 ? 'bg-gray-50 dark:bg-gray-800/60'
                                                 : 'bg-white dark:bg-gray-900/40'
