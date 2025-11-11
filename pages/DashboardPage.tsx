@@ -17,6 +17,7 @@ import {
   DEFAULT_DASHBOARD_CARD_ORDER,
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
+import GraphDataView from '../components/GraphDataView';
 
 
 declare var d3: any;
@@ -150,36 +151,20 @@ const getAvgAllocationColor = (avg: number): string => {
 
 // --- Individual Card Components ---
 
-/**
- * A unified "smart" component for all dashboard cards that contain a table.
- * It accepts table data and configuration, and renders the DashboardDataTable internally,
- * ensuring consistent padding, shadow, header layout, and scrolling behavior.
- */
-const DashboardTableCard: React.FC<{
-  headerContent: React.ReactNode;
-  columns: ColumnDef<any>[];
-  data: any[];
-  isLoading: boolean;
-  initialSortKey?: string;
-  footerNode?: React.ReactNode;
-  maxVisibleRows?: number;
-}> = ({ headerContent, columns, data, isLoading, initialSortKey, footerNode, maxVisibleRows }) => (
-  <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
-    <div className="flex-shrink-0 mb-4">{headerContent}</div>
-    <div className="flex-grow">
-        <DashboardDataTable
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey={initialSortKey}
-            footerNode={footerNode}
-            maxVisibleRows={maxVisibleRows}
-        />
+const ViewToggleButton: React.FC<{ view: 'table' | 'graph', setView: (v: 'table' | 'graph') => void }> = ({ view, setView }) => (
+    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+        <button onClick={() => setView('table')} className={`p-1 rounded-full ${view === 'table' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'}`} title="Vista Tabella">
+            <span className="material-symbols-outlined text-base">table_rows</span>
+        </button>
+        <button onClick={() => setView('graph')} className={`p-1 rounded-full ${view === 'graph' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'}`} title="Vista Grafico">
+            <span className="material-symbols-outlined text-base">bar_chart</span>
+        </button>
     </div>
-  </div>
 );
 
+
 const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
         { header: 'Mese Corrente', sortKey: 'currentMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
@@ -195,24 +180,38 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
     );
     
     return (
-        <DashboardTableCard
-            headerContent={
-                <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold">Allocazione Media</h2>
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Allocazione Media</h2>
+                <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
+                    <ViewToggleButton view={view} setView={setView} />
                 </div>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="resource.name"
-            footerNode={footer}
-            maxVisibleRows={10}
-        />
+            </div>
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="resource.name"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                    <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'resource.name', yKey: 'currentMonth' }}
+                    />
+                )}
+            </div>
+        </div>
     );
 };
 
 const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "G/U Allocati", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
@@ -228,17 +227,33 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
     );
 
     return (
-        <DashboardTableCard
-            headerContent={
-                <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">FTE per Progetto</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="name"
-            footerNode={footer}
-            maxVisibleRows={10}
-        />
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold">FTE per Progetto</h2>
+                <div className="flex items-center gap-4">
+                    <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <ViewToggleButton view={view} setView={setView} />
+                </div>
+            </div>
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                     <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="name"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'fte' }}
+                    />
+                )}
+            </div>
+        </div>
     );
 };
 
@@ -260,17 +275,21 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
     );
 
     return (
-        <DashboardTableCard
-            headerContent={
-                <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="name"
-            footerNode={footer}
-            maxVisibleRows={10}
-        />
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
+                 <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="name"
+                    footerNode={footer}
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -292,9 +311,9 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
     );
 
     return (
-        <DashboardTableCard
-            headerContent={
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
+                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
                     <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                     <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
@@ -302,14 +321,18 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                     <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     </div>
                 </div>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="name"
-            footerNode={footer}
-            maxVisibleRows={10}
-        />
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="name"
+                    footerNode={footer}
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -332,8 +355,8 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
     );
 
     return (
-        <DashboardTableCard
-            headerContent={
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
                      <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
@@ -342,14 +365,18 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
                         <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     </div>
                 </div>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="name"
-            footerNode={footer}
-            maxVisibleRows={10}
-        />
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="name"
+                    footerNode={footer}
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -361,16 +388,20 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
     ];
 
     return (
-        <DashboardTableCard
-            headerContent={
-                <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="avgAllocation"
-            maxVisibleRows={10}
-        />
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
+                 <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="avgAllocation"
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -381,16 +412,20 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
     ];
 
     return (
-        <DashboardTableCard
-            headerContent={
-                <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="cost"
-            maxVisibleRows={10}
-        />
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
+                 <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="cost"
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -408,17 +443,21 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
     );
 
     return (
-        <DashboardTableCard
-            headerContent={
-                <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="totalPersonDays"
-            footerNode={footer}
-            maxVisibleRows={10}
-        />
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
+                 <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="totalPersonDays"
+                    footerNode={footer}
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
@@ -431,16 +470,20 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     ];
 
     return (
-        <DashboardTableCard
-            headerContent={
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+            <div className="flex-shrink-0 mb-4">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
-            }
-            columns={columns}
-            data={data}
-            isLoading={isLoading}
-            initialSortKey="resourceCount"
-            maxVisibleRows={10}
-        />
+            </div>
+            <div className="flex-grow">
+                <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="resourceCount"
+                    maxVisibleRows={10}
+                />
+            </div>
+        </div>
     );
 };
 
