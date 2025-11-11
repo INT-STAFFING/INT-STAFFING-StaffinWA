@@ -6,9 +6,13 @@ export default defineConfig({
   plugins: [react()],
   build: {
     rollupOptions: {
-      // This tells Vite not to bundle this package,
-      // because it's provided by the importmap in index.html at runtime.
-      external: ['@svar-widgets/react-gantt']
+      // This tells Vite not to bundle these packages,
+      // because they're provided by the importmap in index.html at runtime.
+      external: [
+        '@svar-widgets/react-gantt',
+        'd3-scale',
+        'd3-time-format'
+      ]
     }
   }
 });

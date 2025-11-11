@@ -149,7 +149,6 @@ const GanttPage: React.FC = () => {
                             listCellWidth="320px"
                             ganttHeight={600}
                             columnWidth={zoom === 'month' ? 100 : zoom === 'quarter' ? 150 : 200}
-                            locale="it-IT"
                             todayColor="rgba(239, 68, 68, 0.5)"
                         />
                     </div>
@@ -176,16 +175,15 @@ const GanttPage: React.FC = () => {
                     background-color: #374151;
                     color: #F9FAFB;
                 }
-                /* Stili per sovrascrivere il tema di default di react-gantt se necessario */
+                /* Stili per sovrascrivere il tema di default di react-gantt */
                 .gantt-container {
                     font-family: 'Manrope', sans-serif;
                 }
-                .gantt-container .bar-wrapper {
-                    background-color: var(--color-primary-container);
-                    border: 1px solid var(--color-primary);
+                .gantt-container .bar-group {
+                    fill: var(--color-primary-container);
                 }
                  .gantt-container .bar-progress {
-                    background-color: var(--color-primary);
+                    fill: var(--color-primary);
                  }
                 .grid-header, .calendar-header {
                     background: var(--color-surface-container-low) !important;
