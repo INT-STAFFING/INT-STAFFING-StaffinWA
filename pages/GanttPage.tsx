@@ -1,13 +1,14 @@
 /**
  * @file GanttPage.tsx
- * @description Pagina con vista Gantt interattiva per i progetti, con legenda, righe di riepilogo
- *              e area di tabella a altezza fissa con barra di scorrimento orizzontale sempre visibile.
+ * @description Pagina con vista Gantt interattiva per i progetti, con legenda e righe di riepilogo.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
+import { DashboardDataTable } from '../components/DashboardDataTable';
+import type { ColumnDef } from '../components/DataTable';
 
 type ZoomLevel = 'month' | 'quarter' | 'year';
 type SortDirection = 'ascending' | 'descending';
@@ -19,6 +20,12 @@ interface TimeScaleSegment {
     label: string;
     start: Date;
     end: Date;
+}
+
+interface ClientSummaryRow {
+    id: string;
+    clientName: string;
+    projectCount: number;
 }
 
 const GanttPage: React.FC = () => {
@@ -211,7 +218,6 @@ const GanttPage: React.FC = () => {
                 if (!project.startDate || !project.endDate) continue;
                 const s = new Date(project.startDate);
                 const e = new Date(project.endDate);
-                // Un progetto è considerato "attivo" in un segmento se le date si sovrappongono
                 if (e >= seg.start && s < seg.end) {
                     count++;
                 }
@@ -230,10 +236,9 @@ const GanttPage: React.FC = () => {
         }
 
         return Array.from(counts.entries()).map(([clientId, count]) => ({
-            clientName:
-                clientId === 'NO_CLIENT'
-                    ? 'Cliente non assegnato'
-                    : clientMap.get(clientId) ?? 'Cliente non assegnato',
+            clientName: clientId === 'NO_CLIENT'
+                ? 'Cliente non assegnato'
+                : clientMap.get(clientId) ?? 'Cliente non assegnato',
             count,
         }));
     }, [sortedAndFilteredProjects, clientMap]);
@@ -252,6 +257,67 @@ const GanttPage: React.FC = () => {
             gridTemplateColumns: `repeat(${timeScale.length}, ${GANTT_COLUMN_WIDTH}px)`,
         }),
         [timeScale.length]
+    );
+
+    // --- Scroll orizzontale per centrare la linea di "oggi" ---
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        if (todayPosition < 0) return;
+        if (todayPosition > ganttChartWidth) return;
+
+        const containerWidth = container.clientWidth;
+        const contentWidth = LEFT_COLUMN_WIDTH + ganttChartWidth;
+
+        if (containerWidth <= 0 || contentWidth <= containerWidth) return;
+
+        // Posizione assoluta della linea di oggi rispetto all'inizio del contenuto
+        const targetX = LEFT_COLUMN_WIDTH + todayPosition;
+
+        // ScrollLeft per avere la linea al centro della viewport
+        const desiredScrollLeft = targetX - containerWidth / 2;
+        const maxScrollLeft = contentWidth - containerWidth;
+        const nextScrollLeft = Math.max(0, Math.min(desiredScrollLeft, maxScrollLeft));
+
+        container.scrollLeft = nextScrollLeft;
+    }, [todayPosition, ganttChartWidth, zoom]);
+
+    // --- Dati e colonne per riepilogo per cliente in DashboardDataTable ---
+    const clientSummaryData: ClientSummaryRow[] = useMemo(
+        () =>
+            totalByClient.map((item, index) => ({
+                id: String(index),
+                clientName: item.clientName,
+                projectCount: item.count,
+            })),
+        [totalByClient]
+    );
+
+    const clientSummaryColumns: ColumnDef<ClientSummaryRow>[] = useMemo(
+        () => [
+            {
+                header: 'Cliente',
+                sortKey: 'clientName',
+                cell: row => (
+                    <span className="font-medium text-gray-800 dark:text-gray-100">
+                        {row.clientName}
+                    </span>
+                ),
+            },
+            {
+                header: 'Progetti',
+                sortKey: 'projectCount',
+                className: 'text-right',
+                cell: row => (
+                    <span className="font-semibold text-gray-900 dark:text-gray-50">
+                        {row.projectCount}
+                    </span>
+                ),
+            },
+        ],
+        []
     );
 
     return (
@@ -317,9 +383,7 @@ const GanttPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="inline-block w-3 h-3 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40" />
-                        <span>
-                            Colonne alternate: segmenti temporali (mese / trimestre / anno)
-                        </span>
+                        <span>Colonne alternate: segmenti temporali (mese / trimestre / anno)</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="inline-block w-0.5 h-4 bg-red-500" />
@@ -338,11 +402,13 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Corpo Gantt con altezza fissa e scroll orizzontale sempre visibile */}
-            <div className="flex-grow bg-white dark:bg-gray-800 rounded-lg shadow">
-                {/* Contenitore scrollabile: altezza fissa (es. 600px), overflow in entrambe le direzioni */}
+            {/* Corpo Gantt */}
+            <div
+                ref={scrollContainerRef}
+                className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow"
+            >
                 <div
-                    className="relative h-[600px] overflow-x-auto overflow-y-auto"
+                    className="relative"
                     style={{
                         minWidth: `calc(${LEFT_COLUMN_WIDTH}px + ${ganttChartWidth}px)`,
                     }}
@@ -446,7 +512,7 @@ const GanttPage: React.FC = () => {
                                             </svg>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-sm text-gray-800 dark:text-white truncate">
+                                                    <span className="font-medium text-sm text-gray-800 dark:text:white truncate">
                                                         {project.name}
                                                     </span>
                                                 </div>
@@ -477,8 +543,7 @@ const GanttPage: React.FC = () => {
                                                                 ))}
                                                             {projectResources.length > 3 && (
                                                                 <span className="text-[11px] text-gray-500 dark:text-gray-300">
-                                                                    +
-                                                                    {projectResources.length - 3}{' '}
+                                                                    +{projectResources.length - 3}{' '}
                                                                     altri
                                                                 </span>
                                                             )}
@@ -577,14 +642,12 @@ const GanttPage: React.FC = () => {
                     {/* Today Marker (banda + linea) */}
                     {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
                         <>
-                            {/* banda leggera */}
                             <div
                                 className="absolute top-0 bottom-0 w-6 bg-red-500/5 z-10 pointer-events-none"
                                 style={{
                                     left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition - 3}px)`,
                                 }}
                             />
-                            {/* linea */}
                             <div
                                 className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
                                 style={{
@@ -596,25 +659,18 @@ const GanttPage: React.FC = () => {
                     )}
                 </div>
 
-                {/* Riepilogo per cliente (quando non si è in vista Anno) */}
-                {zoom !== 'year' && totalByClient.length > 0 && (
+                {/* Riepilogo per cliente (quando non si è in vista Anno) con DashboardDataTable */}
+                {zoom !== 'year' && clientSummaryData.length > 0 && (
                     <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
-                        <div className="font-semibold mb-1">
+                        <div className="font-semibold mb-2">
                             Totale progetti per cliente (filtrati)
                         </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {totalByClient.map(item => (
-                                <span
-                                    key={item.clientName}
-                                    className="inline-flex items-center gap-1"
-                                >
-                                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
-                                    <span>
-                                        {item.clientName}: {item.count}
-                                    </span>
-                                </span>
-                            ))}
-                        </div>
+                        <DashboardDataTable<ClientSummaryRow>
+                            data={clientSummaryData}
+                            columns={clientSummaryColumns}
+                            initialSortKey="clientName"
+                            maxVisibleRows={6}
+                        />
                     </div>
                 )}
             </div>
@@ -634,6 +690,17 @@ const GanttPage: React.FC = () => {
                     border-color: #4B5563;
                     background-color: #374151;
                     color: #F9FAFB;
+                }
+                .resize-handle {
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    width: 4px;
+                    cursor: col-resize;
+                    height: 100%;
+                }
+                .resize-handle.resizing {
+                    background-color: rgba(148, 163, 184, 0.5);
                 }
             `}</style>
         </div>
