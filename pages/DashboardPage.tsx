@@ -188,7 +188,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
                     <ViewToggleButton view={view} setView={setView} />
                 </div>
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -235,7 +235,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                     <ViewToggleButton view={view} setView={setView} />
                 </div>
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                      <DashboardDataTable
                         columns={columns}
@@ -284,7 +284,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                     <ViewToggleButton view={view} setView={setView} />
                 </div>
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -337,7 +337,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                     </div>
                 </div>
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -391,7 +391,7 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
                     </div>
                 </div>
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                  {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -430,7 +430,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
                     <ViewToggleButton view={view} setView={setView} />
                 </div>
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -464,7 +464,7 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
                  <ViewToggleButton view={view} setView={setView} />
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -505,7 +505,7 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
                  <ViewToggleButton view={view} setView={setView} />
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -542,7 +542,7 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
                 <ViewToggleButton view={view} setView={setView} />
             </div>
-            <div className="flex-grow h-96">
+            <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
