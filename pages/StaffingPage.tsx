@@ -328,13 +328,43 @@ const StaffingPage: React.FC = () => {
     projectManager: '',
   });
 
+  /**
+   * Mappa progetti / clienti / ruoli per id (riduce .find in fase di render).
+   */
+  const projectsById = useMemo(() => {
+    const map = new Map<string, any>();
+    projects.forEach((p: any) => {
+      if (p.id) map.set(p.id, p);
+    });
+    return map;
+  }, [projects]);
+
+  const clientsById = useMemo(() => {
+    const map = new Map<string, any>();
+    clients.forEach((c: any) => {
+      if (c.id) map.set(c.id, c);
+    });
+    return map;
+  }, [clients]);
+
+  const rolesById = useMemo(() => {
+    const map = new Map<string, any>();
+    roles.forEach((r: any) => {
+      if (r.id) map.set(r.id, r);
+    });
+    return map;
+  }, [roles]);
+
+  /**
+   * Colonne temporali in base alla view (day/week/month).
+   */
   const timeColumns: TimeColumn[] = useMemo(() => {
     const cols: TimeColumn[] = [];
     let d = new Date(currentDate);
 
     if (viewMode === 'day') {
       // orizzonte 14 giorni
-      return getCalendarDays(d, 14).map((day) => {
+      return getCalendarDays(d, 21).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const dateIso = formatDate(day, 'iso');
@@ -353,7 +383,8 @@ const StaffingPage: React.FC = () => {
     }
 
     if (viewMode === 'week') {
-      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1)); // Monday
+      // porta d al lunedì della settimana corrente
+      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
       for (let i = 0; i < 12; i++) {
         const startOfWeek = new Date(d);
         const endOfWeek = addDays(new Date(d), 6);
@@ -385,16 +416,26 @@ const StaffingPage: React.FC = () => {
   }, [currentDate, viewMode, companyCalendar]);
 
   const assignableProjects = useMemo(
-    () => projects.filter((p) => p.status !== 'Completato'),
+    () => projects.filter((p: any) => p.status !== 'Completato'),
     [projects]
   );
 
+  /**
+   * Navigazione temporale ottimizzata:
+   * - week: ±1 settimana
+   * - month: ±1 mese
+   * - day: ±7 giorni (orizzonte 14)
+   */
   const handlePrev = useCallback(() => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7 * 12);
-      else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 12);
-      else newDate.setDate(newDate.getDate() - 7);
+      if (viewMode === 'week') {
+        newDate.setDate(newDate.getDate() - 7);
+      } else if (viewMode === 'month') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setDate(newDate.getDate() - 7);
+      }
       return newDate;
     });
   }, [viewMode]);
@@ -402,25 +443,29 @@ const StaffingPage: React.FC = () => {
   const handleNext = useCallback(() => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7 * 12);
-      else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 12);
-      else newDate.setDate(newDate.getDate() + 7);
+      if (viewMode === 'week') {
+        newDate.setDate(newDate.getDate() + 7);
+      } else if (viewMode === 'month') {
+        newDate.setMonth(newDate.getMonth() + 1);
+      } else {
+        newDate.setDate(newDate.getDate() + 7);
+      }
       return newDate;
     });
   }, [viewMode]);
 
-  const handleToday = () => setCurrentDate(new Date());
+  const handleToday = useCallback(() => setCurrentDate(new Date()), []);
 
-  const openBulkModal = (assignment: Assignment) => {
+  const openBulkModal = useCallback((assignment: Assignment) => {
     setSelectedAssignment(assignment);
     setBulkFormData({ startDate: '', endDate: '', percentage: 50 });
     setBulkModalOpen(true);
-  };
+  }, []);
 
-  const openNewAssignmentModal = (resourceId: string = '') => {
+  const openNewAssignmentModal = useCallback((resourceId: string = '') => {
     setNewAssignmentData({ resourceId, projectIds: [] });
     setAssignmentModalOpen(true);
-  };
+  }, []);
 
   const handleBulkSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -449,99 +494,134 @@ const StaffingPage: React.FC = () => {
     }
   };
 
-  const handleNewAssignmentChange = (name: string, value: string) => {
+  const handleNewAssignmentChange = useCallback((name: string, value: string) => {
     setNewAssignmentData((d) => ({ ...d, [name]: value }));
-  };
+  }, []);
 
-  const handleNewAssignmentMultiSelectChange = (name: string, values: string[]) => {
-    setNewAssignmentData((d) => ({ ...d, [name]: values }));
-  };
+  const handleNewAssignmentMultiSelectChange = useCallback(
+    (name: string, values: string[]) => {
+      setNewAssignmentData((d) => ({ ...d, [name]: values }));
+    },
+    []
+  );
 
-  const handleFilterChange = (name: string, value: string) => {
+  const handleFilterChange = useCallback((name: string, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
-  };
+  }, []);
 
   const getResourceById = useCallback(
     (id: string) => resources.find((r) => r.id === id),
     [resources]
   );
   const getProjectById = useCallback(
-    (id: string) => projects.find((p) => p.id === id),
-    [projects]
+    (id: string) => projectsById.get(id),
+    [projectsById]
   );
   const getClientById = useCallback(
-    (id: string) => clients.find((c) => c.id === id),
-    [clients]
+    (id: string) => clientsById.get(id),
+    [clientsById]
+  );
+
+  /**
+   * Assegnazioni filtrate (project, client, PM).
+   */
+  const filteredAssignments: Assignment[] = useMemo(() => {
+    let relevant: Assignment[] = assignments;
+
+    if (filters.projectId) {
+      relevant = relevant.filter((a) => a.projectId === filters.projectId);
+    }
+
+    if (filters.clientId) {
+      const clientProjectIds = new Set(
+        projects
+          .filter((p: any) => p.clientId === filters.clientId)
+          .map((p: any) => p.id as string)
+      );
+      relevant = relevant.filter((a) => clientProjectIds.has(a.projectId));
+    }
+
+    if (filters.projectManager) {
+      const projectIdsForPm = new Set(
+        projects
+          .filter((p: any) => p.projectManager === filters.projectManager)
+          .map((p: any) => p.id as string)
+      );
+      relevant = relevant.filter((a) => projectIdsForPm.has(a.projectId));
+    }
+
+    return relevant;
+  }, [assignments, projects, filters.projectId, filters.clientId, filters.projectManager]);
+
+  /**
+   * Assegnazioni per risorsa (solo su insieme filtrato).
+   */
+  const assignmentsByResource = useMemo(() => {
+    const map = new Map<string, Assignment[]>();
+    filteredAssignments.forEach((a) => {
+      if (!map.has(a.resourceId)) {
+        map.set(a.resourceId, []);
+      }
+      map.get(a.resourceId)!.push(a);
+    });
+    return map;
+  }, [filteredAssignments]);
+
+  const resourceIdsFromAssignments = useMemo(() => {
+    const set = new Set<string>();
+    filteredAssignments.forEach((a) => set.add(a.resourceId));
+    return set;
+  }, [filteredAssignments]);
+
+  const activeResources = useMemo(
+    () => resources.filter((r) => !r.resigned),
+    [resources]
   );
 
   // Costruzione dati visualizzati
   const displayData = useMemo(() => {
-    const activeResources = resources.filter((r) => !r.resigned);
-
     let visibleResources = [...activeResources];
+
     if (filters.resourceId) {
       visibleResources = visibleResources.filter((r) => r.id === filters.resourceId);
     }
 
-    let relevantAssignments = [...assignments];
-
-    if (filters.projectId) {
-      relevantAssignments = relevantAssignments.filter((a) => a.projectId === filters.projectId);
-    }
-    if (filters.clientId) {
-      const clientProjectIds = new Set(
-        projects.filter((p) => p.clientId === filters.clientId).map((p) => p.id)
-      );
-      relevantAssignments = relevantAssignments.filter((a) =>
-        clientProjectIds.has(a.projectId)
-      );
-    }
-    if (filters.projectManager) {
-      const projectIdsForPm = new Set(
-        projects
-          .filter((p) => p.projectManager === filters.projectManager)
-          .map((p) => p.id)
-      );
-      relevantAssignments = relevantAssignments.filter((a) =>
-        projectIdsForPm.has(a.projectId)
-      );
-    }
-
-    const resourceIdsFromAssignments = new Set(relevantAssignments.map((a) => a.resourceId));
     if (filters.projectId || filters.clientId || filters.projectManager) {
-      visibleResources = visibleResources.filter((r) => resourceIdsFromAssignments.has(r.id!));
+      visibleResources = visibleResources.filter((r) =>
+        resourceIdsFromAssignments.has(r.id!)
+      );
     }
 
     return visibleResources
       .map((resource) => ({
         resource,
-        assignments: relevantAssignments.filter((a) => a.resourceId === resource.id),
+        assignments: assignmentsByResource.get(resource.id!) || [],
       }))
       .filter((item) => {
         if (filters.resourceId) return true;
         return item.assignments.length > 0;
       })
       .sort((a, b) => a.resource.name.localeCompare(b.resource.name));
-  }, [resources, assignments, projects, filters]);
+  }, [activeResources, filters, assignmentsByResource, resourceIdsFromAssignments]);
 
   const resourceOptions = useMemo(
     () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
     [resources]
   );
   const projectOptions = useMemo(
-    () => projects.map((p) => ({ value: p.id!, label: p.name })),
+    () => projects.map((p: any) => ({ value: p.id!, label: p.name })),
     [projects]
   );
   const clientOptions = useMemo(
-    () => clients.map((c) => ({ value: c.id!, label: c.name })),
+    () => clients.map((c: any) => ({ value: c.id!, label: c.name })),
     [clients]
   );
   const projectManagerOptions = useMemo(() => {
-    const managers = [...new Set(projects.map((p) => p.projectManager).filter(Boolean) as string[])];
+    const managers = [...new Set(projects.map((p: any) => p.projectManager).filter(Boolean) as string[])];
     return managers.sort().map((pm) => ({ value: pm, label: pm }));
   }, [projects]);
 
@@ -708,7 +788,8 @@ const StaffingPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {displayData.map(({ resource, assignments: resourceAssignments }) => {
-                  const role = roles.find((r) => r.id === resource.roleId);
+                  const role = rolesById.get(resource.roleId);
+
                   return (
                     <React.Fragment key={resource.id}>
                       {/* Riga master risorsa */}
@@ -774,11 +855,12 @@ const StaffingPage: React.FC = () => {
                       {/* Righe assegnazioni */}
                       {resourceAssignments.length > 0 ? (
                         resourceAssignments.map((assignment) => {
-                          const project = getProjectById(assignment.projectId)!;
-                          const client = getClientById(project.clientId);
+                          const project = projectsById.get(assignment.projectId);
+                          const client = project ? clientsById.get(project.clientId) : undefined;
                           const isDeleting = isActionLoading(
                             `deleteAssignment-${assignment.id}`
                           );
+
                           return (
                             <tr
                               key={assignment.id}
@@ -788,19 +870,23 @@ const StaffingPage: React.FC = () => {
                                 className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm font-medium pl-8 z-10"
                                 style={{ minWidth: '260px' }}
                               >
-                                <Link
-                                  to={`/projects?projectId=${project.id}`}
-                                  className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate"
-                                  title={project.name}
-                                >
-                                  {project.name}
-                                </Link>
+                                {project ? (
+                                  <Link
+                                    to={`/projects?projectId=${project.id}`}
+                                    className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate"
+                                    title={project.name}
+                                  >
+                                    {project.name}
+                                  </Link>
+                                ) : (
+                                  <span className="text-gray-400 italic">Progetto N/D</span>
+                                )}
                               </td>
                               <td className="hidden md:table-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">
                                 {client?.name || 'N/A'}
                               </td>
                               <td className="hidden md:table-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">
-                                {project.projectManager || 'N/A'}
+                                {project?.projectManager || 'N/A'}
                               </td>
                               <td
                                 className={`px-2 py-3 text-center ${
@@ -1005,7 +1091,7 @@ const StaffingPage: React.FC = () => {
                 name="projectIds"
                 selectedValues={newAssignmentData.projectIds}
                 onChange={handleNewAssignmentMultiSelectChange}
-                options={assignableProjects.map((p) => ({
+                options={assignableProjects.map((p: any) => ({
                   value: p.id!,
                   label: p.name,
                 }))}
