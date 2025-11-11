@@ -3,16 +3,9 @@
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
  */
 
-import React, {
-  useState,
-  useMemo,
-  useCallback,
-  useRef,
-  useEffect,
-} from 'react';
-import { VariableSizeList } from 'react-window';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment, Project, Role, Client } from '../types';
+import { Resource, Assignment } from '../types';
 import {
   getCalendarDays,
   formatDate,
@@ -28,54 +21,58 @@ import { Link } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 
+/**
+ * Opzioni percentuali per le celle di allocazione (0–100% step 5).
+ */
 const PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5);
-const MASTER_ROW_HEIGHT = 68;
-const ASSIGNMENT_ROW_HEIGHT = 68;
 
-// ------------------------------------
-// Celle (versione a <div>, non <td>)
-// ------------------------------------
-
-const AllocationCell: React.FC<{
+/**
+ * Celle di allocazione giornaliera modificabile (per singola assegnazione).
+ */
+interface AllocationCellProps {
   assignment: Assignment;
-  date: string;
+  date: string; // YYYY-MM-DD
   isNonWorkingDay: boolean;
-}> = React.memo(({ assignment, date, isNonWorkingDay }) => {
-  const { allocations, updateAllocation } = useAllocationsContext();
-  const percentage = allocations[assignment.id!]?.[date] || 0;
+}
 
-  const baseClasses =
-    'flex items-center justify-center h-full w-[112px] text-center text-sm';
+const AllocationCell: React.FC<AllocationCellProps> = React.memo(
+  ({ assignment, date, isNonWorkingDay }) => {
+    const { allocations, updateAllocation } = useAllocationsContext();
+    const percentage = allocations[assignment.id!]?.[date] || 0;
 
-  if (isNonWorkingDay) {
+    if (isNonWorkingDay) {
+      return (
+        <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
+          <span className="text-sm text-gray-400">-</span>
+        </td>
+      );
+    }
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      updateAllocation(assignment.id!, date, parseInt(e.target.value, 10));
+    };
+
     return (
-      <div className={`${baseClasses} bg-gray-50 dark:bg-gray-800/50`}>
-        <span className="text-gray-400">-</span>
-      </div>
+      <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
+        <select
+          value={percentage}
+          onChange={handleChange}
+          className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
+        >
+          {PERCENTAGE_OPTIONS.map((p) => (
+            <option key={p} value={p}>
+              {p > 0 ? `${p}%` : '-'}
+            </option>
+          ))}
+        </select>
+      </td>
     );
   }
+);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateAllocation(assignment.id!, date, parseInt(e.target.value, 10));
-  };
-
-  return (
-    <div className={baseClasses}>
-      <select
-        value={percentage}
-        onChange={handleChange}
-        className="w-full h-full bg-transparent border-0 text-center appearance-none focus:ring-0 focus:outline-none dark:text-gray-300"
-      >
-        {PERCENTAGE_OPTIONS.map((p) => (
-          <option key={p} value={p}>
-            {p > 0 ? `${p}%` : '-'}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-});
-
+/**
+ * Cella di allocazione media aggregata (settimana/mese) per una singola assegnazione.
+ */
 const ReadonlyAggregatedAllocationCell: React.FC<{
   assignment: Assignment;
   startDate: Date;
@@ -88,9 +85,15 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
   const averageAllocation = useMemo(() => {
     if (!resource) return 0;
 
+    const effectiveEndDate =
+      resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
+        ? new Date(resource.lastDayOfWork)
+        : endDate;
+    if (startDate > effectiveEndDate) return 0;
+
     const workingDays = getWorkingDaysBetween(
       startDate,
-      endDate,
+      effectiveEndDate,
       companyCalendar,
       resource.location
     );
@@ -101,7 +104,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
 
     if (assignmentAllocations) {
       let currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
+      while (currentDate <= effectiveEndDate) {
         const dateStr = formatDate(currentDate, 'iso');
         if (assignmentAllocations[dateStr]) {
           if (
@@ -122,77 +125,79 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
   const cellColor = useMemo(() => {
     if (averageAllocation > 100)
       return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-    if (averageAllocation >= 95)
+    if (averageAllocation >= 95 && averageAllocation <= 100)
       return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-    if (averageAllocation > 0)
+    if (averageAllocation > 0 && averageAllocation < 95)
       return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
     return 'bg-transparent';
   }, [averageAllocation]);
 
   return (
-    <div
-      className={`flex items-center justify-center h-full w-[112px] text-center text-sm font-semibold ${cellColor}`}
+    <td
+      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
       {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
-    </div>
+    </td>
   );
 });
 
-const DailyTotalCell: React.FC<{
+/**
+ * Cella totale giornaliera per risorsa (somma di tutte le assegnazioni).
+ */
+interface DailyTotalCellProps {
   resource: Resource;
   date: string;
   isNonWorkingDay: boolean;
   resourceAssignments: Assignment[];
-}> = React.memo(
+}
+
+const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
   ({ resource, date, isNonWorkingDay, resourceAssignments }) => {
     const { allocations } = useAllocationsContext();
 
-    const total = useMemo(
-      () =>
-        resourceAssignments.reduce(
-          (sum, a) => sum + (allocations[a.id!]?.[date] || 0),
-          0
-        ),
-      [resourceAssignments, allocations, date]
-    );
+    const total = useMemo(() => {
+      return resourceAssignments.reduce((sum, a) => {
+        return sum + (allocations[a.id!]?.[date] || 0);
+      }, 0);
+    }, [resourceAssignments, allocations, date]);
 
     let effectiveNonWorking = isNonWorkingDay;
     if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
       effectiveNonWorking = true;
     }
 
-    const baseClasses =
-      'flex items-center justify-center h-full w-[112px] text-center text-sm font-semibold';
-
     if (effectiveNonWorking) {
       return (
-        <div
-          className={`${baseClasses} bg-gray-100 dark:bg-gray-900/50 text-gray-400`}
-        >
+        <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
           -
-        </div>
+        </td>
       );
     }
 
     const cellColor = useMemo(() => {
-      const max = resource.maxStaffingPercentage ?? 100;
-      if (total > max)
+      const maxPercentage = resource.maxStaffingPercentage ?? 100;
+      if (total > maxPercentage)
         return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-      if (total === max)
+      if (total === maxPercentage)
         return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-      if (total > 0)
+      if (total > 0 && total < maxPercentage)
         return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
       return 'bg-gray-100 dark:bg-gray-800';
     }, [total, resource.maxStaffingPercentage]);
 
     return (
-      <div className={`${baseClasses} ${cellColor}`}>
+      <td
+        className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      >
         {total > 0 ? `${total}%` : '-'}
-      </div>
+      </td>
     );
   }
 );
 
+/**
+ * Cella totale aggregata (settimana/mese) per risorsa.
+ */
 const ReadonlyAggregatedTotalCell: React.FC<{
   resource: Resource;
   startDate: Date;
@@ -202,24 +207,28 @@ const ReadonlyAggregatedTotalCell: React.FC<{
   const { allocations } = useAllocationsContext();
 
   const averageAllocation = useMemo(() => {
+    const effectiveEndDate =
+      resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
+        ? new Date(resource.lastDayOfWork)
+        : endDate;
+    if (startDate > effectiveEndDate) return 0;
+
     const workingDays = getWorkingDaysBetween(
       startDate,
-      endDate,
+      effectiveEndDate,
       companyCalendar,
       resource.location
     );
     if (workingDays === 0) return 0;
 
-    const resourceAssignments = assignments.filter(
-      (a) => a.resourceId === resource.id
-    );
+    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     let totalPersonDays = 0;
 
     resourceAssignments.forEach((assignment) => {
       const assignmentAllocations = allocations[assignment.id!];
       if (assignmentAllocations) {
         let currentDate = new Date(startDate);
-        while (currentDate <= endDate) {
+        while (currentDate <= effectiveEndDate) {
           const dateStr = formatDate(currentDate, 'iso');
           if (assignmentAllocations[dateStr]) {
             if (
@@ -239,278 +248,41 @@ const ReadonlyAggregatedTotalCell: React.FC<{
   }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
   const cellColor = useMemo(() => {
-    const max = resource.maxStaffingPercentage ?? 100;
-    const roundedAvg = Math.round(averageAllocation);
-    if (roundedAvg > max)
+    const maxPercentage = resource.maxStaffingPercentage ?? 100;
+    const roundedAverage = Math.round(averageAllocation);
+    if (roundedAverage > maxPercentage)
       return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-    if (roundedAvg === max)
+    if (roundedAverage === maxPercentage)
       return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-    if (roundedAvg > 0)
+    if (roundedAverage > 0 && roundedAverage < maxPercentage)
       return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
     return 'bg-gray-100 dark:bg-gray-800';
   }, [averageAllocation, resource.maxStaffingPercentage]);
 
   return (
-    <div
-      className={`flex items-center justify-center h-full w-[112px] text-center text-sm font-semibold ${cellColor}`}
+    <td
+      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
       {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
-    </div>
+    </td>
   );
 });
 
-// ------------------------------------
-// Virtualizzazione
-// ------------------------------------
-
+/**
+ * Tipo colonna calendario (con dateIso per day-view).
+ */
 interface TimeColumn {
   label: string;
   subLabel: string;
   startDate: Date;
   endDate: Date;
   isNonWorkingDay?: boolean;
-  dateIso?: string;
+  dateIso?: string; // valorizzato solo in viewMode 'day'
 }
 
-interface ResourceBlockData {
-  displayData: { resource: Resource; assignments: Assignment[] }[];
-  timeColumns: TimeColumn[];
-  viewMode: ViewMode;
-  roles: Role[];
-  companyCalendar: any[];
-  getClientById: (id: string | null) => Client | undefined;
-  getProjectById: (id: string) => Project | undefined;
-  openBulkModal: (assignment: Assignment) => void;
-  openNewAssignmentModal: (resourceId: string) => void;
-  setAssignmentToDelete: (assignment: Assignment | null) => void;
-  isActionLoading: (key: string) => boolean;
-}
-
-const ResourceBlock = React.memo(
-  ({
-    index,
-    style,
-    data,
-  }: {
-    index: number;
-    style: React.CSSProperties;
-    data: ResourceBlockData;
-  }) => {
-    const {
-      displayData,
-      timeColumns,
-      viewMode,
-      roles,
-      companyCalendar,
-      getClientById,
-      getProjectById,
-      openBulkModal,
-      openNewAssignmentModal,
-      setAssignmentToDelete,
-      isActionLoading,
-    } = data;
-
-    const { resource, assignments: resourceAssignments } = displayData[index];
-    const role = roles.find((r) => r.id === resource.roleId);
-
-    return (
-      <div style={style}>
-        {/* Master row risorsa */}
-        <div className="flex h-[68px] bg-gray-100 dark:bg-gray-900 font-bold border-b border-gray-200 dark:border-gray-700">
-          <div className="sticky left-0 z-10 flex items-center justify-between gap-2 px-3 py-3 text-left text-sm w-[260px] bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col min-w-0">
-              <Link
-                to={`/workload?resourceId=${resource.id}`}
-                className="text-primary hover:underline truncate dark:text-blue-400 dark:hover:text-blue-300"
-                title={resource.name}
-              >
-                {resource.name}
-              </Link>
-              <span
-                className="text-xs font-normal text-gray-500 truncate"
-                title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}
-              >
-                {role?.name} (Max: {resource.maxStaffingPercentage}%)
-              </span>
-            </div>
-            <button
-              onClick={() => openNewAssignmentModal(resource.id!)}
-              title="Aggiungi assegnazione"
-              className="flex-shrink-0 text-primary dark:text-blue-400"
-            >
-              ➕
-            </button>
-          </div>
-          <div className="hidden md:flex w-[150px] border-r border-gray-200 dark:border-gray-700" />
-          <div className="hidden md:flex w-[150px] border-r border-gray-200 dark:border-gray-700" />
-          <div className="flex w-[100px] border-r border-gray-200 dark:border-gray-700" />
-          {timeColumns.map((col, i) => (
-            <div
-              key={i}
-              className="border-r border-gray-200 dark:border-gray-700"
-            >
-              {viewMode === 'day' ? (
-                <DailyTotalCell
-                  resource={resource}
-                  date={col.dateIso!}
-                  isNonWorkingDay={
-                    !!col.isNonWorkingDay ||
-                    isHoliday(col.startDate, resource.location, companyCalendar)
-                  }
-                  resourceAssignments={resourceAssignments}
-                />
-              ) : (
-                <ReadonlyAggregatedTotalCell
-                  resource={resource}
-                  startDate={col.startDate}
-                  endDate={col.endDate}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Righe assegnazioni */}
-        {resourceAssignments.map((assignment) => {
-          const project = getProjectById(assignment.projectId)!;
-          const client = getClientById(project.clientId);
-          const deleting = isActionLoading(
-            `deleteAssignment-${assignment.id}`
-          );
-
-          return (
-            <div
-              key={assignment.id}
-              className="group flex h-[68px] border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              <div className="sticky left-0 z-10 flex items-center px-3 py-4 text-sm font-medium pl-8 w-[260px] bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 border-r border-gray-200 dark:border-gray-700">
-                <Link
-                  to={`/projects?projectId=${project.id}`}
-                  className="text-primary hover:underline block truncate dark:text-blue-400 dark:hover:text-blue-300"
-                  title={project.name}
-                >
-                  {project.name}
-                </Link>
-              </div>
-              <div className="hidden md:flex items-center px-3 py-4 text-sm w-[150px] text-gray-500 dark:text-gray-400 truncate border-r border-gray-200 dark:border-gray-700">
-                {client?.name || 'N/A'}
-              </div>
-              <div className="hidden md:flex items-center px-3 py-4 text-sm w-[150px] text-gray-500 dark:text-gray-400 truncate border-r border-gray-200 dark:border-gray-700">
-                {project.projectManager || 'N/A'}
-              </div>
-              <div
-                className={`flex items-center justify-center px-2 py-3 w-[100px] border-r border-gray-200 dark:border-gray-700 ${
-                  deleting ? 'opacity-50 pointer-events-none' : ''
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <button
-                    onClick={() => openBulkModal(assignment)}
-                    title="Assegnazione Massiva"
-                    className="text-primary dark:text-blue-400"
-                  >
-                    🗓️
-                  </button>
-                  <button
-                    onClick={() => setAssignmentToDelete(assignment)}
-                    title="Rimuovi"
-                    className="text-red-500 dark:text-red-400"
-                  >
-                    ❌
-                  </button>
-                </div>
-              </div>
-              {timeColumns.map((col, i) => (
-                <div
-                  key={i}
-                  className="border-r border-gray-200 dark:border-gray-700"
-                >
-                  {viewMode === 'day' ? (
-                    <AllocationCell
-                      assignment={assignment}
-                      date={col.dateIso!}
-                      isNonWorkingDay={
-                        !!col.isNonWorkingDay ||
-                        isHoliday(
-                          col.startDate,
-                          resource.location,
-                          companyCalendar
-                        )
-                      }
-                    />
-                  ) : (
-                    <ReadonlyAggregatedAllocationCell
-                      assignment={assignment}
-                      startDate={col.startDate}
-                      endDate={col.endDate}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-);
-
-// ------------------------------------
-// Header virtualizzato (a div)
-// ------------------------------------
-
-const StaffingPageHeader: React.FC<{ timeColumns: TimeColumn[] }> = ({
-  timeColumns,
-}) => (
-  <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-700 font-semibold text-sm border-b border-gray-200 dark:border-gray-700">
-    <div className="flex">
-      <div className="sticky left-0 z-20 flex bg-gray-50 dark:bg-gray-700">
-        <div className="flex items-center px-3 py-3.5 w-[260px] border-r border-gray-200 dark:border-gray-700">
-          Risorsa / Progetto
-        </div>
-        <div className="hidden md:flex items-center px-3 py-3.5 w-[150px] border-r border-gray-200 dark:border-gray-700">
-          Cliente
-        </div>
-        <div className="hidden md:flex items-center px-3 py-3.5 w-[150px] border-r border-gray-200 dark:border-gray-700">
-          Project Manager
-        </div>
-        <div className="flex items-center justify-center px-2 py-3.5 w-[100px] border-r border-gray-200 dark:border-gray-700">
-          Azioni
-        </div>
-      </div>
-      <div className="flex-grow overflow-x-hidden">
-        <div className="flex">
-          {timeColumns.map((col, index) => (
-            <div
-              key={index}
-              className={`flex flex-col items-center justify-center p-2 w-[112px] border-r border-gray-200 dark:border-gray-700 ${
-                col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''
-              }`}
-            >
-              <span
-                className={
-                  col.isNonWorkingDay
-                    ? 'text-gray-500'
-                    : 'text-gray-900 dark:text-white'
-                }
-              >
-                {col.label}
-              </span>
-              {col.subLabel && (
-                <span className="text-xs text-gray-500">{col.subLabel}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// ------------------------------------
-// Pagina principale
-// ------------------------------------
-
+/**
+ * Pagina principale Staffing.
+ */
 const StaffingPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -528,19 +300,18 @@ const StaffingPage: React.FC = () => {
   } = useEntitiesContext();
   const { bulkUpdateAllocations } = useAllocationsContext();
 
+  // Modali
   const [isBulkModalOpen, setBulkModalOpen] = useState(false);
   const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(
-    null
-  );
-  const [assignmentToDelete, setAssignmentToDelete] =
-    useState<Assignment | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
 
   const [bulkFormData, setBulkFormData] = useState({
     startDate: '',
     endDate: '',
     percentage: 50,
   });
+
   const [newAssignmentData, setNewAssignmentData] = useState<{
     resourceId: string;
     projectIds: string[];
@@ -549,6 +320,7 @@ const StaffingPage: React.FC = () => {
     projectIds: [],
   });
 
+  // Filtri
   const [filters, setFilters] = useState({
     resourceId: '',
     projectId: '',
@@ -556,13 +328,12 @@ const StaffingPage: React.FC = () => {
     projectManager: '',
   });
 
-  const listRef = useRef<any>(null);
-
   const timeColumns: TimeColumn[] = useMemo(() => {
+    const cols: TimeColumn[] = [];
     let d = new Date(currentDate);
 
     if (viewMode === 'day') {
-      // 14 giorni per ridurre il carico orizzontale
+      // orizzonte 14 giorni
       return getCalendarDays(d, 14).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -581,17 +352,16 @@ const StaffingPage: React.FC = () => {
       });
     }
 
-    const cols: TimeColumn[] = [];
     if (viewMode === 'week') {
       d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1)); // Monday
       for (let i = 0; i < 12; i++) {
-        const start = new Date(d);
-        const end = addDays(new Date(d), 6);
+        const startOfWeek = new Date(d);
+        const endOfWeek = addDays(new Date(d), 6);
         cols.push({
-          label: `${formatDate(start, 'short')} - ${formatDate(end, 'short')}`,
+          label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
           subLabel: '',
-          startDate: start,
-          endDate: end,
+          startDate: startOfWeek,
+          endDate: endOfWeek,
         });
         d.setDate(d.getDate() + 7);
       }
@@ -599,17 +369,18 @@ const StaffingPage: React.FC = () => {
       // month
       d.setDate(1);
       for (let i = 0; i < 12; i++) {
-        const start = new Date(d);
-        const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        const startOfMonth = new Date(d);
+        const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         cols.push({
           label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }),
           subLabel: '',
-          startDate: start,
-          endDate: end,
+          startDate: startOfMonth,
+          endDate: endOfMonth,
         });
         d.setMonth(d.getMonth() + 1);
       }
     }
+
     return cols;
   }, [currentDate, viewMode, companyCalendar]);
 
@@ -640,70 +411,59 @@ const StaffingPage: React.FC = () => {
 
   const handleToday = () => setCurrentDate(new Date());
 
-  const openBulkModal = useCallback((assignment: Assignment) => {
+  const openBulkModal = (assignment: Assignment) => {
     setSelectedAssignment(assignment);
     setBulkFormData({ startDate: '', endDate: '', percentage: 50 });
     setBulkModalOpen(true);
-  }, []);
+  };
 
-  const openNewAssignmentModal = useCallback((resourceId: string = '') => {
+  const openNewAssignmentModal = (resourceId: string = '') => {
     setNewAssignmentData({ resourceId, projectIds: [] });
     setAssignmentModalOpen(true);
-  }, []);
+  };
 
-  const handleBulkSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (selectedAssignment && bulkFormData.startDate && bulkFormData.endDate) {
-        bulkUpdateAllocations(
-          selectedAssignment.id!,
-          bulkFormData.startDate,
-          bulkFormData.endDate,
-          bulkFormData.percentage
-        );
-        setBulkModalOpen(false);
-        setSelectedAssignment(null);
-      }
-    },
-    [selectedAssignment, bulkFormData, bulkUpdateAllocations]
-  );
+  const handleBulkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedAssignment && bulkFormData.startDate && bulkFormData.endDate) {
+      bulkUpdateAllocations(
+        selectedAssignment.id!,
+        bulkFormData.startDate,
+        bulkFormData.endDate,
+        bulkFormData.percentage
+      );
+      setBulkModalOpen(false);
+      setSelectedAssignment(null);
+    }
+  };
 
-  const handleNewAssignmentSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (
-        newAssignmentData.resourceId &&
-        newAssignmentData.projectIds.length > 0
-      ) {
-        addMultipleAssignments(
-          newAssignmentData.projectIds.map((projectId) => ({
-            resourceId: newAssignmentData.resourceId,
-            projectId,
-          }))
-        );
-        setAssignmentModalOpen(false);
-        setNewAssignmentData({ resourceId: '', projectIds: [] });
-      }
-    },
-    [newAssignmentData, addMultipleAssignments]
-  );
+  const handleNewAssignmentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newAssignmentData.resourceId && newAssignmentData.projectIds.length > 0) {
+      const assignmentsToCreate = newAssignmentData.projectIds.map((projectId) => ({
+        resourceId: newAssignmentData.resourceId,
+        projectId,
+      }));
+      addMultipleAssignments(assignmentsToCreate);
+      setAssignmentModalOpen(false);
+      setNewAssignmentData({ resourceId: '', projectIds: [] });
+    }
+  };
 
-  const setAssignmentToDeleteCallback = useCallback(
-    (assignment: Assignment | null) => {
-      setAssignmentToDelete(assignment);
-    },
-    []
-  );
+  const handleNewAssignmentChange = (name: string, value: string) => {
+    setNewAssignmentData((d) => ({ ...d, [name]: value }));
+  };
 
-  const handleFilterChange = (name: string, value: string) =>
+  const handleNewAssignmentMultiSelectChange = (name: string, values: string[]) => {
+    setNewAssignmentData((d) => ({ ...d, [name]: values }));
+  };
+
+  const handleFilterChange = (name: string, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
-  const clearFilters = () =>
-    setFilters({
-      resourceId: '',
-      projectId: '',
-      clientId: '',
-      projectManager: '',
-    });
+  };
+
+  const clearFilters = () => {
+    setFilters({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
+  };
 
   const getResourceById = useCallback(
     (id: string) => resources.find((r) => r.id === id),
@@ -714,62 +474,52 @@ const StaffingPage: React.FC = () => {
     [projects]
   );
   const getClientById = useCallback(
-    (id: string | null) =>
-      id ? clients.find((c) => c.id === id) : undefined,
+    (id: string) => clients.find((c) => c.id === id),
     [clients]
   );
 
+  // Costruzione dati visualizzati
   const displayData = useMemo(() => {
-    let visibleResources = resources.filter((r) => !r.resigned);
+    const activeResources = resources.filter((r) => !r.resigned);
+
+    let visibleResources = [...activeResources];
     if (filters.resourceId) {
-      visibleResources = visibleResources.filter(
-        (r) => r.id === filters.resourceId
-      );
+      visibleResources = visibleResources.filter((r) => r.id === filters.resourceId);
     }
 
     let relevantAssignments = [...assignments];
 
     if (filters.projectId) {
-      relevantAssignments = relevantAssignments.filter(
-        (a) => a.projectId === filters.projectId
-      );
+      relevantAssignments = relevantAssignments.filter((a) => a.projectId === filters.projectId);
     }
     if (filters.clientId) {
       const clientProjectIds = new Set(
-        projects
-          .filter((p) => p.clientId === filters.clientId)
-          .map((p) => p.id)
+        projects.filter((p) => p.clientId === filters.clientId).map((p) => p.id)
       );
       relevantAssignments = relevantAssignments.filter((a) =>
         clientProjectIds.has(a.projectId)
       );
     }
     if (filters.projectManager) {
-      const pmProjectIds = new Set(
+      const projectIdsForPm = new Set(
         projects
           .filter((p) => p.projectManager === filters.projectManager)
           .map((p) => p.id)
       );
       relevantAssignments = relevantAssignments.filter((a) =>
-        pmProjectIds.has(a.projectId)
+        projectIdsForPm.has(a.projectId)
       );
     }
 
+    const resourceIdsFromAssignments = new Set(relevantAssignments.map((a) => a.resourceId));
     if (filters.projectId || filters.clientId || filters.projectManager) {
-      const resourceIdsFromAssignments = new Set(
-        relevantAssignments.map((a) => a.resourceId)
-      );
-      visibleResources = visibleResources.filter((r) =>
-        resourceIdsFromAssignments.has(r.id!)
-      );
+      visibleResources = visibleResources.filter((r) => resourceIdsFromAssignments.has(r.id!));
     }
 
     return visibleResources
       .map((resource) => ({
         resource,
-        assignments: relevantAssignments.filter(
-          (a) => a.resourceId === resource.id
-        ),
+        assignments: relevantAssignments.filter((a) => a.resourceId === resource.id),
       }))
       .filter((item) => {
         if (filters.resourceId) return true;
@@ -778,58 +528,8 @@ const StaffingPage: React.FC = () => {
       .sort((a, b) => a.resource.name.localeCompare(b.resource.name));
   }, [resources, assignments, projects, filters]);
 
-  // altezze item virtualizzati
-  const itemHeights = useMemo(
-    () =>
-      displayData.map(
-        (item) =>
-          MASTER_ROW_HEIGHT + item.assignments.length * ASSIGNMENT_ROW_HEIGHT
-      ),
-    [displayData]
-  );
-  const getItemSize = (index: number) =>
-    itemHeights[index] ?? MASTER_ROW_HEIGHT;
-
-  useEffect(() => {
-    if (listRef.current && typeof listRef.current.resetAfterIndex === 'function') {
-      listRef.current.resetAfterIndex(0);
-    }
-  }, [displayData]);
-
-  const itemData: ResourceBlockData = useMemo(
-    () => ({
-      displayData,
-      timeColumns,
-      viewMode,
-      roles,
-      companyCalendar,
-      getClientById,
-      getProjectById,
-      openBulkModal,
-      openNewAssignmentModal,
-      setAssignmentToDelete: setAssignmentToDeleteCallback,
-      isActionLoading,
-    }),
-    [
-      displayData,
-      timeColumns,
-      viewMode,
-      roles,
-      companyCalendar,
-      getClientById,
-      getProjectById,
-      openBulkModal,
-      openNewAssignmentModal,
-      setAssignmentToDeleteCallback,
-      isActionLoading,
-    ]
-  );
-
   const resourceOptions = useMemo(
-    () =>
-      resources
-        .filter((r) => !r.resigned)
-        .map((r) => ({ value: r.id!, label: r.name })),
+    () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
     [resources]
   );
   const projectOptions = useMemo(
@@ -840,18 +540,16 @@ const StaffingPage: React.FC = () => {
     () => clients.map((c) => ({ value: c.id!, label: c.name })),
     [clients]
   );
-  const projectManagerOptions = useMemo(
-    () =>
-      [...new Set(projects.map((p) => p.projectManager).filter(Boolean) as string[])]
-        .sort()
-        .map((pm) => ({ value: pm, label: pm })),
-    [projects]
-  );
+  const projectManagerOptions = useMemo(() => {
+    const managers = [...new Set(projects.map((p) => p.projectManager).filter(Boolean) as string[])];
+    return managers.sort().map((pm) => ({ value: pm, label: pm }));
+  }, [projects]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Controlli + Filtri */}
       <div className="flex-shrink-0 space-y-4">
+        {/* Barra controlli tempo */}
         <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div className="flex items-center justify-center md:justify-start space-x-2">
             <button
@@ -873,6 +571,7 @@ const StaffingPage: React.FC = () => {
               Succ. →
             </button>
           </div>
+
           <div className="flex items-center justify-center md:justify-start space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
               <button
@@ -884,14 +583,11 @@ const StaffingPage: React.FC = () => {
                     : 'text-gray-600 dark:text-gray-300'
                 }`}
               >
-                {level === 'day'
-                  ? 'Giorno'
-                  : level === 'week'
-                  ? 'Settimana'
-                  : 'Mese'}
+                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
               </button>
             ))}
           </div>
+
           <button
             onClick={() => openNewAssignmentModal()}
             className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
@@ -901,6 +597,7 @@ const StaffingPage: React.FC = () => {
           </button>
         </div>
 
+        {/* Filtri */}
         <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div>
@@ -961,21 +658,218 @@ const StaffingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabella virtualizzata */}
+      {/* TABELLA */}
       <div className="flex-grow mt-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden h-[720px] flex flex-col">
-          <StaffingPageHeader timeColumns={timeColumns} />
-          <div className="flex-1 w-full">
-            <VariableSizeList
-              ref={listRef}
-              height={660}
-              width="100%"
-              itemCount={displayData.length}
-              itemSize={getItemSize}
-              itemData={itemData}
-            >
-              {ResourceBlock}
-            </VariableSizeList>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+          {/* Altezza massima ~20 righe + header */}
+          <div className="max-h-[660px] overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+                <tr>
+                  <th
+                    className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-20"
+                    style={{ minWidth: '260px' }}
+                  >
+                    Risorsa / Progetto
+                  </th>
+                  <th className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                    Cliente
+                  </th>
+                  <th className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                    Project Manager
+                  </th>
+                  <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                    Azioni
+                  </th>
+                  {timeColumns.map((col, index) => (
+                    <th
+                      key={index}
+                      className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${
+                        col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''
+                      }`}
+                    >
+                      <div className="flex flex-col items-center">
+                        <span
+                          className={
+                            col.isNonWorkingDay
+                              ? 'text-gray-500'
+                              : 'text-gray-900 dark:text-white'
+                          }
+                        >
+                          {col.label}
+                        </span>
+                        {col.subLabel && (
+                          <span className="text-xs text-gray-500">{col.subLabel}</span>
+                        )}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {displayData.map(({ resource, assignments: resourceAssignments }) => {
+                  const role = roles.find((r) => r.id === resource.roleId);
+                  return (
+                    <React.Fragment key={resource.id}>
+                      {/* Riga master risorsa */}
+                      <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
+                        <td
+                          className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-9"
+                          colSpan={4}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex flex-col min-w-0">
+                              <Link
+                                to={`/workload?resourceId=${resource.id}`}
+                                className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 truncate"
+                                title={resource.name}
+                              >
+                                {resource.name}
+                              </Link>
+                              <span
+                                className="text-xs font-normal text-gray-500 truncate"
+                                title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}
+                              >
+                                {role?.name} (Max: {resource.maxStaffingPercentage}%)
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => openNewAssignmentModal(resource.id!)}
+                              title={`Aggiungi assegnazione per ${resource.name}`}
+                              className="flex-shrink-0 text-primary hover:text-primary-darker dark:hover:text-blue-300"
+                            >
+                              <span className="text-xl">➕</span>
+                            </button>
+                          </div>
+                        </td>
+                        {timeColumns.map((col, index) => {
+                          if (viewMode === 'day') {
+                            const day = col.startDate;
+                            const isDayHoliday = isHoliday(
+                              day,
+                              resource.location,
+                              companyCalendar
+                            );
+                            return (
+                              <DailyTotalCell
+                                key={index}
+                                resource={resource}
+                                date={col.dateIso!}
+                                isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday}
+                                resourceAssignments={resourceAssignments}
+                              />
+                            );
+                          }
+                          return (
+                            <ReadonlyAggregatedTotalCell
+                              key={index}
+                              resource={resource}
+                              startDate={col.startDate}
+                              endDate={col.endDate}
+                            />
+                          );
+                        })}
+                      </tr>
+
+                      {/* Righe assegnazioni */}
+                      {resourceAssignments.length > 0 ? (
+                        resourceAssignments.map((assignment) => {
+                          const project = getProjectById(assignment.projectId)!;
+                          const client = getClientById(project.clientId);
+                          const isDeleting = isActionLoading(
+                            `deleteAssignment-${assignment.id}`
+                          );
+                          return (
+                            <tr
+                              key={assignment.id}
+                              className="group hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                            >
+                              <td
+                                className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm font-medium pl-8 z-10"
+                                style={{ minWidth: '260px' }}
+                              >
+                                <Link
+                                  to={`/projects?projectId=${project.id}`}
+                                  className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate"
+                                  title={project.name}
+                                >
+                                  {project.name}
+                                </Link>
+                              </td>
+                              <td className="hidden md:table-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">
+                                {client?.name || 'N/A'}
+                              </td>
+                              <td className="hidden md:table-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">
+                                {project.projectManager || 'N/A'}
+                              </td>
+                              <td
+                                className={`px-2 py-3 text-center ${
+                                  isDeleting ? 'opacity-50 pointer-events-none' : ''
+                                }`}
+                              >
+                                <div className="flex items-center justify-center space-x-2">
+                                  <button
+                                    onClick={() => openBulkModal(assignment)}
+                                    title="Assegnazione Massiva"
+                                    className="text-primary hover:text-primary-darker dark:hover:text-blue-300"
+                                  >
+                                    <span className="text-xl">🗓️</span>
+                                  </button>
+                                  <button
+                                    onClick={() => setAssignmentToDelete(assignment)}
+                                    title="Rimuovi Assegnazione"
+                                    className="text-red-500 hover:text-red-700 dark:hover:text-red-300"
+                                  >
+                                    <span className="text-xl">❌</span>
+                                  </button>
+                                </div>
+                              </td>
+                              {timeColumns.map((col, index) => {
+                                if (viewMode === 'day') {
+                                  const day = col.startDate;
+                                  const isDayHoliday = isHoliday(
+                                    day,
+                                    resource.location,
+                                    companyCalendar
+                                  );
+                                  return (
+                                    <AllocationCell
+                                      key={index}
+                                      assignment={assignment}
+                                      date={col.dateIso!}
+                                      isNonWorkingDay={
+                                        !!col.isNonWorkingDay || isDayHoliday
+                                      }
+                                    />
+                                  );
+                                }
+                                return (
+                                  <ReadonlyAggregatedAllocationCell
+                                    key={index}
+                                    assignment={assignment}
+                                    startDate={col.startDate}
+                                    endDate={col.endDate}
+                                  />
+                                );
+                              })}
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4 + timeColumns.length}
+                            className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 italic pl-8"
+                          >
+                            Nessuna assegnazione trovata per i filtri correnti.
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -991,25 +885,18 @@ const StaffingPage: React.FC = () => {
               setAssignmentToDelete(null);
             }
           }}
-          title="Conferma Rimozione"
+          title="Conferma Rimozione Assegnazione"
           message={
             <>
               Sei sicuro di voler rimuovere l&apos;assegnazione di{' '}
-              <strong>
-                {getResourceById(assignmentToDelete.resourceId)?.name}
-              </strong>{' '}
+              <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong>{' '}
               dal progetto{' '}
-              <strong>
-                {getProjectById(assignmentToDelete.projectId)?.name}
-              </strong>
-              ?
+              <strong>{getProjectById(assignmentToDelete.projectId)?.name}</strong>?
               <br />
               Tutte le allocazioni associate verranno eliminate.
             </>
           }
-          isConfirming={isActionLoading(
-            `deleteAssignment-${assignmentToDelete.id}`
-          )}
+          isConfirming={isActionLoading(`deleteAssignment-${assignmentToDelete.id}`)}
         />
       )}
 
@@ -1102,10 +989,10 @@ const StaffingPage: React.FC = () => {
               <SearchableSelect
                 name="resourceId"
                 value={newAssignmentData.resourceId}
-                onChange={(name, value) =>
-                  setNewAssignmentData((d) => ({ ...d, [name]: value }))
-                }
-                options={resourceOptions}
+                onChange={handleNewAssignmentChange}
+                options={resources
+                  .filter((r) => !r.resigned)
+                  .map((r) => ({ value: r.id!, label: r.name }))}
                 placeholder="Seleziona una risorsa"
                 required
               />
@@ -1117,9 +1004,7 @@ const StaffingPage: React.FC = () => {
               <MultiSelectDropdown
                 name="projectIds"
                 selectedValues={newAssignmentData.projectIds}
-                onChange={(name, values) =>
-                  setNewAssignmentData((d) => ({ ...d, [name]: values }))
-                }
+                onChange={handleNewAssignmentMultiSelectChange}
                 options={assignableProjects.map((p) => ({
                   value: p.id!,
                   label: p.name,
@@ -1147,6 +1032,21 @@ const StaffingPage: React.FC = () => {
       </Modal>
 
       <style>{`
+        .form-select {
+          display: block;
+          width: 100%;
+          border-radius: 0.375rem;
+          border: 1px solid #D1D5DB;
+          background-color: #FFFFFF;
+          padding: 0.5rem 0.75rem;
+          font-size: 0.875rem;
+          line-height: 1.25rem;
+        }
+        .dark .form-select {
+          border-color: #4B5563;
+          background-color: #374151;
+          color: #F9FAFB;
+        }
         .form-input {
           display: block;
           width: 100%;
