@@ -166,24 +166,30 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
       effectiveNonWorking = true;
     }
 
+    const maxPercentage = resource.maxStaffingPercentage ?? 100;
+    let cellColor: string;
+
+    if (effectiveNonWorking) {
+      cellColor = 'bg-gray-100 dark:bg-gray-900/50 text-gray-400';
+    } else if (total > maxPercentage) {
+      cellColor = 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+    } else if (total === maxPercentage) {
+      cellColor = 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+    } else if (total > 0 && total < maxPercentage) {
+      cellColor = 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+    } else {
+      cellColor = 'bg-gray-100 dark:bg-gray-800';
+    }
+
     if (effectiveNonWorking) {
       return (
-        <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+        <td
+          className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+        >
           -
         </td>
       );
     }
-
-    const cellColor = useMemo(() => {
-      const maxPercentage = resource.maxStaffingPercentage ?? 100;
-      if (total > maxPercentage)
-        return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-      if (total === maxPercentage)
-        return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-      if (total > 0 && total < maxPercentage)
-        return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-      return 'bg-gray-100 dark:bg-gray-800';
-    }, [total, resource.maxStaffingPercentage]);
 
     return (
       <td
@@ -364,7 +370,7 @@ const StaffingPage: React.FC = () => {
 
     if (viewMode === 'day') {
       // orizzonte 14 giorni
-      return getCalendarDays(d, 21).map((day) => {
+      return getCalendarDays(d, 14).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const dateIso = formatDate(day, 'iso');
@@ -421,7 +427,7 @@ const StaffingPage: React.FC = () => {
   );
 
   /**
-   * Navigazione temporale ottimizzata:
+   * Navigazione temporale:
    * - week: ±1 settimana
    * - month: ±1 mese
    * - day: ±7 giorni (orizzonte 14)
