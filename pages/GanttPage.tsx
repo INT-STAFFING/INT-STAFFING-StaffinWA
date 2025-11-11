@@ -1,19 +1,29 @@
 /**
  * @file GanttPage.tsx
- * @description Pagina con vista Gantt interattiva per i progetti, implementata con la libreria @svar-widgets/react-gantt.
+ * @description Pagina con vista Gantt interattiva per i progetti, con legenda e righe di riepilogo.
  */
 
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
+import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
-import Gantt from '@svar-widgets/react-gantt';
 
 type ZoomLevel = 'month' | 'quarter' | 'year';
 type SortDirection = 'ascending' | 'descending';
 
+const GANTT_COLUMN_WIDTH = 80; // Larghezza in pixel per ogni colonna della timeline
+const LEFT_COLUMN_WIDTH = 320; // Larghezza della colonna dei progetti
+
+interface TimeScaleSegment {
+    label: string;
+    start: Date;
+    end: Date;
+}
+
 const GanttPage: React.FC = () => {
-    const { projects, clients } = useEntitiesContext();
+    const { projects, assignments, resources, clients } = useEntitiesContext();
     const [zoom, setZoom] = useState<ZoomLevel>('month');
+    const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState({ name: '', clientId: '' });
     const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
 
@@ -33,10 +43,138 @@ const GanttPage: React.FC = () => {
         setSortDirection(prev => (prev === 'ascending' ? 'descending' : 'ascending'));
     };
 
+    const toggleProjectExpansion = (projectId: string) => {
+        setExpandedProjects(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(projectId)) {
+                newSet.delete(projectId);
+            } else {
+                newSet.add(projectId);
+            }
+            return newSet;
+        });
+    };
+
+    const getProjectResources = (projectId: string): Resource[] => {
+        const projectAssignments = assignments.filter(a => a.projectId === projectId);
+        return projectAssignments
+            .map(a => resources.find(r => r.id === a.resourceId))
+            .filter(Boolean) as Resource[];
+    };
+
     const clientMap = useMemo(
         () => new Map(clients.map(c => [c.id!, c.name])),
         [clients]
     );
+
+    // Scala temporale (segmenti) calcolata su TUTTI i progetti
+    const { timeScale, ganttStartDate, totalDays } = useMemo(() => {
+        const validProjects = projects.filter(p => p.startDate && p.endDate);
+
+        const buildScale = (
+            minDate: Date,
+            maxDate: Date,
+            zoomLevel: ZoomLevel
+        ): { scale: TimeScaleSegment[]; days: number } => {
+            const scale: TimeScaleSegment[] = [];
+
+            const getHeader = (date: Date) => {
+                if (zoomLevel === 'month') {
+                    return date.toLocaleString('it-IT', {
+                        month: 'short',
+                        year: '2-digit',
+                    });
+                }
+                if (zoomLevel === 'quarter') {
+                    return `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
+                }
+                return date.getFullYear().toString();
+            };
+
+            const incrementDate = (date: Date) => {
+                if (zoomLevel === 'month') date.setMonth(date.getMonth() + 1);
+                else if (zoomLevel === 'quarter') date.setMonth(date.getMonth() + 3);
+                else date.setFullYear(date.getFullYear() + 1);
+            };
+
+            let currentStart = new Date(minDate);
+            while (currentStart <= maxDate) {
+                const currentEnd = new Date(currentStart);
+                incrementDate(currentEnd);
+
+                scale.push({
+                    label: getHeader(currentStart),
+                    start: new Date(currentStart),
+                    end: new Date(currentEnd),
+                });
+
+                currentStart = currentEnd;
+            }
+
+            const lastEnd = scale.length > 0 ? scale[scale.length - 1].end : minDate;
+            const days =
+                (lastEnd.getTime() - minDate.getTime()) / (1000 * 3600 * 24) + 1;
+
+            return { scale, days };
+        };
+
+        if (validProjects.length === 0) {
+            const now = new Date();
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            const endOfYear = new Date(now.getFullYear(), 11, 31);
+            const { scale, days } = buildScale(startOfYear, endOfYear, 'month'); // default scala mensile
+            return {
+                timeScale: scale,
+                ganttStartDate: startOfYear,
+                totalDays: days,
+            };
+        }
+
+        const allDates = validProjects.flatMap(p => [
+            new Date(p.startDate!),
+            new Date(p.endDate!),
+        ]);
+        let minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+        let maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+
+        minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+        maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0); // margine
+
+        const { scale, days } = buildScale(minDate, maxDate, zoom);
+
+        return { timeScale: scale, ganttStartDate: minDate, totalDays: days };
+    }, [projects, zoom]);
+
+    const ganttChartWidth = timeScale.length * GANTT_COLUMN_WIDTH;
+    const pixelsPerDay = totalDays > 0 ? ganttChartWidth / totalDays : 0;
+
+    const getBarPosition = (startDateStr: string | null, endDateStr: string | null) => {
+        if (!startDateStr || !endDateStr || totalDays <= 0) {
+            return { left: '0px', width: '0px' };
+        }
+
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
+
+        const startOffset =
+            (startDate.getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
+        const duration = Math.max(
+            1,
+            (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)
+        );
+
+        const left = startOffset * pixelsPerDay;
+        const width = duration * pixelsPerDay;
+
+        return { left: `${left}px`, width: `${width}px` };
+    };
+
+    const todayPosition = useMemo(() => {
+        if (totalDays <= 0) return -1;
+        const startOffset =
+            (new Date().getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
+        return startOffset * pixelsPerDay;
+    }, [ganttStartDate, totalDays, pixelsPerDay]);
 
     const sortedAndFilteredProjects = useMemo(() => {
         const filtered = projects.filter(project => {
@@ -60,18 +198,42 @@ const GanttPage: React.FC = () => {
         });
     }, [projects, filters, sortDirection]);
 
-    const tasksForGantt = useMemo(() => {
-        return sortedAndFilteredProjects
-            .filter(p => p.startDate && p.endDate)
-            .map(project => ({
-                id: project.id!,
-                name: project.name,
-                start: new Date(project.startDate!),
-                end: new Date(project.endDate!),
-                type: 'project' as const,
-                // Aggiungiamo una descrizione per il tooltip
-                description: `${clientMap.get(project.clientId!)}`,
-            }));
+    // Totale progetti attivi per ciascun segmento (usato per la riga di riepilogo per anno)
+    const segmentProjectCounts = useMemo(() => {
+        if (sortedAndFilteredProjects.length === 0) {
+            return timeScale.map(() => 0);
+        }
+
+        return timeScale.map(seg => {
+            let count = 0;
+            for (const project of sortedAndFilteredProjects) {
+                if (!project.startDate || !project.endDate) continue;
+                const s = new Date(project.startDate);
+                const e = new Date(project.endDate);
+                // Un progetto è considerato "attivo" in un segmento se le date si sovrappongono
+                if (e >= seg.start && s < seg.end) {
+                    count++;
+                }
+            }
+            return count;
+        });
+    }, [timeScale, sortedAndFilteredProjects]);
+
+    // Totale progetti per cliente (usato come riepilogo quando non si è in vista "Anno")
+    const totalByClient = useMemo(() => {
+        const counts = new Map<string, number>();
+
+        for (const project of sortedAndFilteredProjects) {
+            const key = project.clientId || 'NO_CLIENT';
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+        }
+
+        return Array.from(counts.entries()).map(([clientId, count]) => ({
+            clientName: clientId === 'NO_CLIENT'
+                ? 'Cliente non assegnato'
+                : clientMap.get(clientId) ?? 'Cliente non assegnato',
+            count,
+        }));
     }, [sortedAndFilteredProjects, clientMap]);
 
     const clientOptions = useMemo(
@@ -81,6 +243,13 @@ const GanttPage: React.FC = () => {
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(c => ({ value: c.id!, label: c.name })),
         [clients]
+    );
+
+    const timeGridStyle = useMemo(
+        () => ({
+            gridTemplateColumns: `repeat(${timeScale.length}, ${GANTT_COLUMN_WIDTH}px)`,
+        }),
+        [timeScale.length]
     );
 
     return (
@@ -95,7 +264,7 @@ const GanttPage: React.FC = () => {
                         {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
                             <button
                                 key={level}
-                                onClick={() => setZoom(level as 'month' | 'quarter' | 'year')}
+                                onClick={() => setZoom(level)}
                                 className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
                                     zoom === level
                                         ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow'
@@ -137,24 +306,309 @@ const GanttPage: React.FC = () => {
                         </button>
                     </div>
                 </div>
+
+                {/* Mini legenda colori / zoom */}
+                <div className="mb-4 px-1 text-xs text-gray-700 dark:text-gray-200 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-block w-6 h-2 rounded-full bg-blue-500" />
+                        <span>Barra blu: periodo di attività del progetto</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40" />
+                        <span>Colonne alternate: segmenti temporali (mese / trimestre / anno)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="inline-block w-0.5 h-4 bg-red-500" />
+                        <span>Linea rossa: data odierna</span>
+                    </div>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <span className="font-semibold">Zoom corrente:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-[11px]">
+                            {zoom === 'month'
+                                ? 'Mese'
+                                : zoom === 'quarter'
+                                ? 'Trimestre'
+                                : 'Anno'}
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {/* Corpo Gantt */}
-            <div className="flex-grow mt-4 overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
-                 {tasksForGantt.length > 0 ? (
-                    <div className="p-4">
-                        <Gantt
-                            tasks={tasksForGantt}
-                            viewMode={zoom}
-                            listCellWidth="320px"
-                            ganttHeight={600}
-                            columnWidth={zoom === 'month' ? 100 : zoom === 'quarter' ? 150 : 200}
-                            todayColor="rgba(239, 68, 68, 0.5)"
-                        />
+            <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div
+                    className="relative"
+                    style={{
+                        minWidth: `calc(${LEFT_COLUMN_WIDTH}px + ${ganttChartWidth}px)`,
+                    }}
+                >
+                    {/* Header tabellare */}
+                    <div
+                        className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16 grid"
+                        style={{ gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr` }}
+                    >
+                        {/* Header colonna progetti */}
+                        <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center justify-between">
+                            <button
+                                onClick={toggleSortDirection}
+                                className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white"
+                            >
+                                <span>Progetto</span>
+                                <span className="text-gray-400">↕️</span>
+                            </button>
+                            <span className="text-xs font-normal text-gray-500 dark:text-gray-300">
+                                Cliente · Periodo · Risorse
+                            </span>
+                        </div>
+
+                        {/* Header timeline */}
+                        <div className="relative border-b border-gray-200 dark:border-gray-700">
+                            <div
+                                className="grid h-full"
+                                style={timeGridStyle}
+                            >
+                                {timeScale.map((ts, i) => (
+                                    <div
+                                        key={i}
+                                        className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 ${
+                                            i % 2 === 0
+                                                ? 'bg-gray-50 dark:bg-gray-800/60'
+                                                : 'bg-white dark:bg-gray-900/40'
+                                        }`}
+                                    >
+                                        <span className="uppercase tracking-wide">
+                                            {ts.label}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                        Nessun progetto trovato per i filtri correnti o nessun progetto con date valide.
+
+                    {/* Body righe + barre */}
+                    <div>
+                        {sortedAndFilteredProjects.map(project => {
+                            const projectResources = getProjectResources(project.id!);
+                            const isExpanded = expandedProjects.has(project.id!);
+                            const barStyle = getBarPosition(
+                                project.startDate,
+                                project.endDate
+                            );
+                            const clientName =
+                                (project.clientId &&
+                                    clientMap.get(project.clientId)) ||
+                                'Cliente non assegnato';
+
+                            const periodLabel =
+                                project.startDate && project.endDate
+                                    ? `${new Date(
+                                          project.startDate
+                                      ).toLocaleDateString('it-IT')} – ${new Date(
+                                          project.endDate
+                                      ).toLocaleDateString('it-IT')}`
+                                    : 'Periodo non definito';
+
+                            return (
+                                <div
+                                    key={project.id}
+                                    className="grid border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-900 group hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors"
+                                    style={{
+                                        gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
+                                    }}
+                                >
+                                    {/* Colonna info progetto */}
+                                    <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/70">
+                                        <button
+                                            onClick={() =>
+                                                toggleProjectExpansion(project.id!)
+                                            }
+                                            className="flex items-start w-full text-left"
+                                        >
+                                            <svg
+                                                className={`w-4 h-4 mr-2 mt-0.5 flex-shrink-0 transform transition-transform ${
+                                                    isExpanded ? 'rotate-90' : ''
+                                                }`}
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="2"
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-sm text-gray-800 dark:text-white truncate">
+                                                        {project.name}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-300 space-y-0.5">
+                                                    <div className="truncate">
+                                                        <span className="font-semibold">
+                                                            Cliente:{' '}
+                                                        </span>
+                                                        <span>{clientName}</span>
+                                                    </div>
+                                                    <div className="truncate">
+                                                        <span className="font-semibold">
+                                                            Periodo:{' '}
+                                                        </span>
+                                                        <span>{periodLabel}</span>
+                                                    </div>
+                                                    {projectResources.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mt-1">
+                                                            {projectResources
+                                                                .slice(0, 3)
+                                                                .map(r => (
+                                                                    <span
+                                                                        key={r.id}
+                                                                        className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[11px] text-gray-700 dark:text-gray-200"
+                                                                    >
+                                                                        {r.name}
+                                                                    </span>
+                                                                ))}
+                                                            {projectResources.length > 3 && (
+                                                                <span className="text-[11px] text-gray-500 dark:text-gray-300">
+                                                                    +{projectResources.length - 3}{' '}
+                                                                    altri
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </button>
+
+                                        {isExpanded && (
+                                            <ul className="mt-2 pl-6 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                                                {projectResources.length > 0 ? (
+                                                    projectResources.map(r => (
+                                                        <li key={r.id}>{r.name}</li>
+                                                    ))
+                                                ) : (
+                                                    <li>Nessuna risorsa assegnata</li>
+                                                )}
+                                            </ul>
+                                        )}
+                                    </div>
+
+                                    {/* Timeline per riga */}
+                                    <div className="relative overflow-hidden">
+                                        {/* Griglia di sfondo */}
+                                        <div
+                                            className="grid h-full"
+                                            style={timeGridStyle}
+                                        >
+                                            {timeScale.map((_, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`h-full border-r border-gray-200 dark:border-gray-700 ${
+                                                        isExpanded
+                                                            ? 'min-h-[72px]'
+                                                            : 'min-h-[56px]'
+                                                    } ${
+                                                        i % 2 === 0
+                                                            ? 'bg-gray-50/40 dark:bg-gray-900/40'
+                                                            : 'bg-white dark:bg-gray-900/20'
+                                                    }`}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* Barra Gantt */}
+                                        {project.startDate && project.endDate && (
+                                            <div
+                                                className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-blue-500 hover:bg-blue-600 shadow-sm group/bar flex items-center px-2 text-[11px] text-white truncate"
+                                                style={barStyle}
+                                            >
+                                                <span className="truncate">
+                                                    {project.name}
+                                                </span>
+                                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
+                                                    {periodLabel}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Riga riepilogo: totale progetti per anno (solo vista "Anno") */}
+                        {zoom === 'year' && (
+                            <div
+                                className="grid border-t border-gray-300 dark:border-gray-600 bg-blue-50/70 dark:bg-blue-950/40"
+                                style={{
+                                    gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
+                                }}
+                            >
+                                <div className="p-3 border-r border-gray-300 dark:border-gray-600 sticky left-0 bg-blue-50/80 dark:bg-blue-950/60 z-10 text-xs font-semibold text-blue-900 dark:text-blue-100 flex items-center">
+                                    Totale progetti per anno (filtrati)
+                                </div>
+                                <div className="relative">
+                                    <div
+                                        className="grid"
+                                        style={timeGridStyle}
+                                    >
+                                        {timeScale.map((seg, i) => (
+                                            <div
+                                                key={i}
+                                                className="flex flex-col items-center justify-center min-h-[40px] border-r border-gray-300 dark:border-gray-600 text-[11px] font-semibold text-blue-800 dark:text-blue-100 bg-blue-100/60 dark:bg-blue-900/40"
+                                            >
+                                                <span className="mb-0.5">{seg.label}</span>
+                                                <span>{segmentProjectCounts[i] ?? 0}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Today Marker (banda + linea) */}
+                    {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
+                        <>
+                            {/* banda leggera */}
+                            <div
+                                className="absolute top-0 bottom-0 w-6 bg-red-500/5 z-10 pointer-events-none"
+                                style={{
+                                    left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition - 3}px)`,
+                                }}
+                            />
+                            {/* linea */}
+                            <div
+                                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                                style={{
+                                    left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition}px)`,
+                                }}
+                                title="Oggi"
+                            />
+                        </>
+                    )}
+                </div>
+
+                {/* Riepilogo per cliente (quando non si è in vista Anno) */}
+                {zoom !== 'year' && totalByClient.length > 0 && (
+                    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
+                        <div className="font-semibold mb-1">
+                            Totale progetti per cliente (filtrati)
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {totalByClient.map(item => (
+                                <span
+                                    key={item.clientName}
+                                    className="inline-flex items-center gap-1"
+                                >
+                                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                                    <span>
+                                        {item.clientName}: {item.count}
+                                    </span>
+                                </span>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
@@ -175,25 +629,6 @@ const GanttPage: React.FC = () => {
                     background-color: #374151;
                     color: #F9FAFB;
                 }
-                /* Stili per sovrascrivere il tema di default di react-gantt */
-                .gantt-container {
-                    font-family: 'Manrope', sans-serif;
-                }
-                .gantt-container .bar-group {
-                    fill: var(--color-primary-container);
-                }
-                 .gantt-container .bar-progress {
-                    fill: var(--color-primary);
-                 }
-                .grid-header, .calendar-header {
-                    background: var(--color-surface-container-low) !important;
-                }
-                 .grid-row, .calendar-row {
-                     background: var(--color-surface) !important;
-                 }
-                 .grid-row:nth-child(even), .calendar-row:nth-child(even) {
-                      background: var(--color-surface-container-low) !important;
-                 }
             `}</style>
         </div>
     );
