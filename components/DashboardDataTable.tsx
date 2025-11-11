@@ -1,11 +1,16 @@
-// DashboardDataTable.tsx
+/**
+ * @file DashboardDataTable.tsx
+ * @description Componente tabella specializzato e "headless" per la dashboard.
+ */
 
 import React, { useState, useMemo } from 'react';
-import { ColumnDef } from './DataTable';
+import { ColumnDef } from './DataTable'; // Riusiamo la definizione delle colonne
 
+// --- Tipi ---
 type SortDirection = 'ascending' | 'descending';
 type SortConfig<T> = { key: keyof T | string; direction: SortDirection } | null;
 
+// --- Props ---
 interface DashboardDataTableProps<T extends { id?: string }> {
     data: T[];
     columns: ColumnDef<T>[];
@@ -15,6 +20,9 @@ interface DashboardDataTableProps<T extends { id?: string }> {
     maxVisibleRows?: number;
 }
 
+/**
+ * Hook per la gestione dell'ordinamento dei dati.
+ */
 const useSortableData = <T extends object>(
     items: T[],
     initialKey?: string
@@ -53,6 +61,9 @@ const useSortableData = <T extends object>(
     return { items: sortedItems, requestSort, sortConfig };
 };
 
+/**
+ * Componente DashboardDataTable.
+ */
 export function DashboardDataTable<T extends { id?: string }>({
     data,
     columns,
@@ -63,7 +74,8 @@ export function DashboardDataTable<T extends { id?: string }>({
 }: DashboardDataTableProps<T>) {
 
     const { items: sortedData, requestSort, sortConfig } = useSortableData(data, initialSortKey);
-
+    
+    // Stima di ~2.75rem (44px) per riga per calcolare l'altezza massima
     const maxHeightStyle = maxVisibleRows ? { maxHeight: `${maxVisibleRows * 2.75}rem` } : {};
 
     return (
@@ -109,10 +121,7 @@ export function DashboardDataTable<T extends { id?: string }>({
                         sortedData.map((item, index) => (
                             <tr key={item.id || index} className="hover:bg-muted/50">
                                 {columns.map(col => (
-                                    <td
-                                        key={`${item.id}-${col.header}`}
-                                        className={`px-4 py-2 text-muted-foreground ${col.className ?? ''}`}
-                                    >
+                                    <td key={`${item.id}-${col.header}`} className="px-4 py-2 text-muted-foreground">
                                         {col.cell(item)}
                                     </td>
                                 ))}
