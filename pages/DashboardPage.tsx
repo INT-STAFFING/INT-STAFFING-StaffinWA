@@ -258,6 +258,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
 };
 
 const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "Budget", sortKey: "budget", cell: (d) => formatCurrency(d.budget) },
@@ -276,24 +277,37 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
 
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
-            <div className="flex-shrink-0 mb-4">
-                 <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Analisi Budget</h2><div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div></div>
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Analisi Budget</h2>
+                <div className="flex items-center gap-4">
+                    <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <ViewToggleButton view={view} setView={setView} />
+                </div>
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="name"
-                    footerNode={footer}
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="name"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'variance' }}
+                    />
+                )}
             </div>
         </div>
     );
 };
 
 const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "Budget Periodo", sortKey: "periodBudget", cell: (d) => formatCurrency(d.periodBudget) },
@@ -316,27 +330,37 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
                     <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                    <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                    <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                    <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
+                        <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                        <ViewToggleButton view={view} setView={setView} />
                     </div>
                 </div>
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="name"
-                    footerNode={footer}
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="name"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'variance' }}
+                    />
+                )}
             </div>
         </div>
     );
 };
 
 const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "Cliente", sortKey: "clientName", cell: (d) => d.clientName },
@@ -363,18 +387,27 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
                         <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
                         <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                        <ViewToggleButton view={view} setView={setView} />
                     </div>
                 </div>
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="name"
-                    footerNode={footer}
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                 {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="name"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'avgDailyRate' }}
+                    />
+                )}
             </div>
         </div>
     );
@@ -382,6 +415,7 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
 
 
 const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Risorsa", sortKey: "resource.name", cell: (d) => d.resource.name },
         { header: "Alloc. Media", sortKey: "avgAllocation", cell: (d) => <span className={DASHBOARD_COLORS.utilization.high}>{d.avgAllocation.toFixed(0)}%</span> },
@@ -389,23 +423,36 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
 
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
-            <div className="flex-shrink-0 mb-4">
-                 <div className="flex justify-between items-center"><h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2><input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/></div>
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2>
+                <div className="flex items-center gap-4">
+                    <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/>
+                    <ViewToggleButton view={view} setView={setView} />
+                </div>
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="avgAllocation"
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="avgAllocation"
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'resource.name', yKey: 'avgAllocation' }}
+                    />
+                )}
             </div>
         </div>
     );
 };
 
 const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Cliente", sortKey: "name", cell: (d) => <button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button> },
         { header: "Costo Stimato", sortKey: "cost", cell: (d) => formatCurrency(d.cost) },
@@ -413,23 +460,33 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
 
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
-            <div className="flex-shrink-0 mb-4">
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
+                 <ViewToggleButton view={view} setView={setView} />
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="cost"
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="cost"
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'cost' }}
+                    />
+                )}
             </div>
         </div>
     );
 };
 
 const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Horizontal", sortKey: "name", cell: (d) => d.name },
         { header: "G/U Totali", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
@@ -444,24 +501,34 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
 
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
-            <div className="flex-shrink-0 mb-4">
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
+                 <ViewToggleButton view={view} setView={setView} />
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="totalPersonDays"
-                    footerNode={footer}
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="totalPersonDays"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'totalPersonDays' }}
+                    />
+                )}
             </div>
         </div>
     );
 };
 
 const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
         { header: "Sede", sortKey: "name", cell: (d) => d.name },
         { header: "N. Risorse", sortKey: "resourceCount", cell: (d) => d.resourceCount },
@@ -471,17 +538,26 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
 
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
-            <div className="flex-shrink-0 mb-4">
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
+                <ViewToggleButton view={view} setView={setView} />
             </div>
-            <div className="flex-grow">
-                <DashboardDataTable
-                    columns={columns}
-                    data={data}
-                    isLoading={isLoading}
-                    initialSortKey="resourceCount"
-                    maxVisibleRows={10}
-                />
+            <div className="flex-grow h-96">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="resourceCount"
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'avgUtilization' }}
+                    />
+                )}
             </div>
         </div>
     );

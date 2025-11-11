@@ -335,7 +335,7 @@ const GanttPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-20">
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-21">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <input
                             type="text"
@@ -393,7 +393,7 @@ const GanttPage: React.FC = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
                     <div
                         ref={scrollContainerRef}
-                        className="h-[26rem] overflow-x-auto overflow-y-auto"
+                        className="h-[28rem] overflow-x-auto overflow-y-auto"
                     >
                         <div
                             className="relative"
