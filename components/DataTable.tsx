@@ -5,57 +5,26 @@
 
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 
-/**
- * @interface ColumnDef
- * @description Definisce la struttura di una colonna per il DataTable.
- * @template T - Il tipo di dato di una riga.
- */
 export interface ColumnDef<T> {
-    /** @property {string} header - Il testo da visualizzare nell'intestazione della colonna. */
     header: string;
-    /** @property {(item: T) => React.ReactNode} cell - Funzione che renderizza il contenuto della cella per una data riga. */
     cell: (item: T) => React.ReactNode;
-    /** @property {string} [sortKey] - La chiave dell'oggetto da usare per l'ordinamento. */
     sortKey?: string;
-    /** @property {string} [className] - Classi CSS opzionali per la cella (es. 'text-right'). */
     className?: string;
 }
 
-/** @type SortDirection - Le direzioni possibili per l'ordinamento. */
 type SortDirection = 'ascending' | 'descending';
-
-/**
- * @type SortConfig
- * @description Configurazione dell'ordinamento.
- * @template T - Il tipo di dato della riga.
- */
 type SortConfig<T> = { key: keyof T | string; direction: SortDirection } | null;
 
-/**
- * @interface TableLayoutProps
- * @description Configurazione layout "in stile ReUI" per la tabella.
- */
 interface TableLayoutProps {
-    /** Riduce il padding verticale delle celle (stile "dense"). */
     dense?: boolean;
-    /** Mostra i bordi tra le righe. */
     rowBorder?: boolean;
-    /** Applica uno stile a righe alternate (striped). */
     striped?: boolean;
-    /** Rende l'header sticky rispetto al contenitore scrollabile. */
     headerSticky?: boolean;
-    /** Applica background all'header. */
     headerBackground?: boolean;
-    /** Applica un bordo inferiore all'header. */
     headerBorder?: boolean;
-    /** Larghezza tabella: layout fixed o auto. */
     width?: 'auto' | 'fixed';
 }
 
-/**
- * @interface TableClassNames
- * @description Classi personalizzabili per le principali parti della tabella.
- */
 interface TableClassNames {
     base?: string;
     header?: string;
@@ -65,68 +34,27 @@ interface TableClassNames {
     bodyRow?: string;
 }
 
-/**
- * @interface DataTableProps
- * @description Prop per il componente DataTable.
- * @template T - Il tipo di dato di una riga, deve avere una proprietà 'id'.
- */
 interface DataTableProps<T extends { id?: string }> {
-    /** @property {string} title - Il titolo principale della pagina (es. "Gestione Clienti"). */
     title: string;
-    /** @property {string} addNewButtonLabel - Il testo per il pulsante di aggiunta (es. "Aggiungi Cliente"). */
     addNewButtonLabel: string;
-    /** @property {T[]} data - L'array di dati da visualizzare, già filtrato. */
     data: T[];
-    /** @property {ColumnDef<T>[]} columns - La definizione delle colonne per la tabella desktop. */
     columns: ColumnDef<T>[];
-    /** @property {React.ReactNode} filtersNode - Il componente React che contiene i controlli di filtro. */
     filtersNode: React.ReactNode;
-    /** @property {() => void} onAddNew - Callback per il click sul pulsante di aggiunta. */
     onAddNew: () => void;
-    /** @property {(item: T) => React.ReactNode} renderRow - Funzione che renderizza una riga completa della tabella (`<tr>`). */
     renderRow: (item: T) => React.ReactNode;
-    /** @property {(item: T) => React.ReactNode} renderMobileCard - Funzione che renderizza la card per la visualizzazione mobile. */
     renderMobileCard: (item: T) => React.ReactNode;
-    /** @property {string} [initialSortKey] - La chiave per l'ordinamento iniziale. */
     initialSortKey?: string;
-
-    // --- Nuove prop “in stile ReUI”, tutte opzionali ---
-
-    /**
-     * Indica se i dati sono in fase di caricamento.
-     * Se true, vengono mostrati skeleton rows al posto dei dati.
-     */
     isLoading?: boolean;
-
-    /** Messaggio personalizzato da mostrare in fase di caricamento (fallback: "Caricamento..."). */
     loadingMessage?: React.ReactNode;
-
-    /** Messaggio da mostrare quando non ci sono dati (fallback: "Nessun dato trovato."). */
     emptyMessage?: React.ReactNode;
-
-    /**
-     * Configurazione layout tabella (dense, striped, sticky header, ecc.),
-     * ispirata alla prop `tableLayout` di ReUI.
-     */
     tableLayout?: TableLayoutProps;
-
-    /**
-     * Classi CSS personalizzabili per le parti principali della tabella,
-     * ispirata alla prop `tableClassNames` di ReUI.
-     */
     tableClassNames?: TableClassNames;
 }
 
-/** Utility per combinare classNames senza dipendenze esterne. */
+/** Utility per combinare classNames */
 const combineClassNames = (...classes: Array<string | undefined | false>) =>
     classes.filter(Boolean).join(' ');
 
-/**
- * Componente DataTable generico.
- * @template T
- * @param {DataTableProps<T>} props - Le prop del componente.
- * @returns {React.ReactElement}
- */
 export function DataTable<T extends { id?: string }>({
     title,
     addNewButtonLabel,
@@ -147,10 +75,10 @@ export function DataTable<T extends { id?: string }>({
         initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null
     );
 
+    const [filters, setFilters] = useState<Record<string, string>>({});
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
 
-    // Default layout in stile ReUI
     const layout: Required<TableLayoutProps> = {
         dense: tableLayout?.dense ?? false,
         rowBorder: tableLayout?.rowBorder ?? true,
@@ -161,7 +89,6 @@ export function DataTable<T extends { id?: string }>({
         width: tableLayout?.width ?? 'fixed',
     };
 
-    // Classi base ispirate a ReUI, ma compatibili con il tuo tema esistente
     const classes: Required<TableClassNames> = {
         base: tableClassNames?.base ?? 'w-full',
         header: tableClassNames?.header ?? '',
@@ -187,7 +114,7 @@ export function DataTable<T extends { id?: string }>({
 
         const handleMouseMove = (event: MouseEvent) => {
             const deltaX = event.clientX - startX;
-            const newWidth = Math.max(startWidth + deltaX, 80); // Min width 80px
+            const newWidth = Math.max(startWidth + deltaX, 80);
             setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
         };
 
@@ -209,27 +136,39 @@ export function DataTable<T extends { id?: string }>({
         setSortConfig({ key, direction });
     };
 
-    const sortedData = useMemo(() => {
-        if (!sortConfig) return data;
+    /** 🔍 Filtro client-side su tutte le colonne */
+    const filteredData = useMemo(() => {
+        if (!data) return [];
+        return data.filter((item) => {
+            return columns.every((col) => {
+                const key = col.sortKey || col.header;
+                const filterValue = filters[key];
+                if (!filterValue) return true;
+                const cellValue = (item as any)[key];
+                if (cellValue == null) return false;
+                return String(cellValue).toLowerCase().includes(filterValue.toLowerCase());
+            });
+        });
+    }, [data, filters, columns]);
 
-        return [...data].sort((a, b) => {
+    /** 🔽 Ordinamento */
+    const sortedData = useMemo(() => {
+        const base = filteredData;
+        if (!sortConfig) return base;
+        return [...base].sort((a, b) => {
             const aValue = (a as any)[sortConfig.key];
             const bValue = (b as any)[sortConfig.key];
-
             if (aValue == null) return 1;
             if (bValue == null) return -1;
-
-            if (typeof aValue === 'number' && typeof bValue === 'number') {
+            if (typeof aValue === 'number' && typeof bValue === 'number')
                 return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-            }
-            if (typeof aValue === 'string' && typeof bValue === 'string') {
+            if (typeof aValue === 'string' && typeof bValue === 'string')
                 return sortConfig.direction === 'ascending'
                     ? aValue.localeCompare(bValue)
                     : bValue.localeCompare(aValue);
-            }
             return 0;
         });
-    }, [data, sortConfig]);
+    }, [filteredData, sortConfig]);
 
     const getSortableHeader = (label: string, colKey?: string) => {
         const key = colKey || label;
@@ -329,14 +268,13 @@ export function DataTable<T extends { id?: string }>({
                                         />
                                     );
                                 })}
-                                <col style={{ width: '120px' }} /> {/* colonna Azioni */}
+                                <col style={{ width: '120px' }} />
                             </colgroup>
 
                             <thead className={combineClassNames('bg-card dark:bg-dark-card', classes.header)}>
+                                {/* 🔹 Intestazione principale */}
                                 <tr className={classes.headerRow}>
-                                    {columns.map(col =>
-                                        getSortableHeader(col.header, col.sortKey)
-                                    )}
+                                    {columns.map(col => getSortableHeader(col.header, col.sortKey))}
                                     <th
                                         className={combineClassNames(
                                             layout.headerSticky && 'sticky top-0 z-20',
@@ -353,11 +291,41 @@ export function DataTable<T extends { id?: string }>({
                                         Azioni
                                     </th>
                                 </tr>
+
+                                {/* 🔍 Riga di filtri sempre visibile */}
+                                <tr className="bg-muted/30 dark:bg-dark-muted/30 text-xs">
+                                    {columns.map((col) => {
+                                        const key = col.sortKey || col.header;
+                                        return (
+                                            <th key={key} className="px-6 py-2">
+                                                <input
+                                                    type="text"
+                                                    value={filters[key] || ''}
+                                                    onChange={(e) =>
+                                                        setFilters((prev) => ({
+                                                            ...prev,
+                                                            [key]: e.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="Filtra..."
+                                                    className="w-full border border-border dark:border-dark-border rounded px-2 py-1 text-sm bg-background dark:bg-dark-card focus:outline-none focus:ring-1 focus:ring-primary"
+                                                />
+                                            </th>
+                                        );
+                                    })}
+                                    <th className="px-6 py-2 text-right">
+                                        <button
+                                            onClick={() => setFilters({})}
+                                            className="text-xs text-muted-foreground hover:text-foreground"
+                                        >
+                                            ✕ Reset
+                                        </button>
+                                    </th>
+                                </tr>
                             </thead>
 
                             <tbody className={classes.body}>
                                 {isLoading ? (
-                                    // Skeleton rows stile ReUI loading skeleton
                                     Array.from({ length: 5 }).map((_, rowIndex) => (
                                         <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
                                             {columns.map((col, colIndex) => (

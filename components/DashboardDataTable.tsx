@@ -1,10 +1,10 @@
 /**
  * @file DashboardDataTable.tsx
- * @description Componente tabella specializzato e "headless" per la dashboard.
+ * @description Componente tabella specializzato e "headless" per la dashboard, ora con filtri sempre attivi.
  */
 
 import React, { useState, useMemo } from 'react';
-import { ColumnDef } from './DataTable'; // Riusiamo la definizione delle colonne
+import { ColumnDef } from './DataTable';
 
 // --- Tipi ---
 type SortDirection = 'ascending' | 'descending';
@@ -23,10 +23,7 @@ interface DashboardDataTableProps<T extends { id?: string }> {
 /**
  * Hook per la gestione dell'ordinamento dei dati.
  */
-const useSortableData = <T extends object>(
-    items: T[],
-    initialKey?: string
-) => {
+const useSortableData = <T extends object>(items: T[], initialKey?: string) => {
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(
         initialKey ? { key: initialKey, direction: 'ascending' } : null
     );
@@ -62,7 +59,7 @@ const useSortableData = <T extends object>(
 };
 
 /**
- * Componente DashboardDataTable.
+ * Componente DashboardDataTable con filtri sempre attivi.
  */
 export function DashboardDataTable<T extends { id?: string }>({
     data,
@@ -72,18 +69,37 @@ export function DashboardDataTable<T extends { id?: string }>({
     footerNode,
     maxVisibleRows,
 }: DashboardDataTableProps<T>) {
+    const { items: sortedDataRaw, requestSort, sortConfig } = useSortableData(data, initialSortKey);
 
-    const { items: sortedData, requestSort, sortConfig } = useSortableData(data, initialSortKey);
-    
-    // Stima di ~2.75rem (44px) per riga per calcolare l'altezza massima
+    /** 🔍 Stato filtri per colonna */
+    const [filters, setFilters] = useState<Record<string, string>>({});
+
+    /** Applica i filtri client-side */
+    const filteredData = useMemo(() => {
+        return sortedDataRaw.filter((item) =>
+            columns.every((col) => {
+                const key = col.sortKey || col.header;
+                const filterValue = filters[key];
+                if (!filterValue) return true;
+                const cellValue = (item as any)[key];
+                if (cellValue == null) return false;
+                return String(cellValue).toLowerCase().includes(filterValue.toLowerCase());
+            })
+        );
+    }, [sortedDataRaw, columns, filters]);
+
+    const sortedData = filteredData;
+
+    // Altezza max (circa 2.75rem = 44px per riga)
     const maxHeightStyle = maxVisibleRows ? { maxHeight: `${maxVisibleRows * 2.75}rem` } : {};
 
     return (
         <div className="overflow-y-auto" style={maxHeightStyle}>
             <table className="min-w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-surface-container dark:bg-dark-card">
+                    {/* Header principale */}
                     <tr>
-                        {columns.map(col => (
+                        {columns.map((col) => (
                             <th
                                 key={col.header}
                                 className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
@@ -94,10 +110,22 @@ export function DashboardDataTable<T extends { id?: string }>({
                                         onClick={() => requestSort(col.sortKey!)}
                                         className="flex items-center space-x-1 hover:text-foreground"
                                     >
-                                        <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground' : ''}>
+                                        <span
+                                            className={
+                                                sortConfig?.key === col.sortKey
+                                                    ? 'font-bold text-foreground'
+                                                    : ''
+                                            }
+                                        >
                                             {col.header}
                                         </span>
-                                        <span className="text-gray-400">↕️</span>
+                                        <span className="text-gray-400">
+                                            {sortConfig?.key === col.sortKey
+                                                ? sortConfig.direction === 'ascending'
+                                                    ? '▲'
+                                                    : '▼'
+                                                : '↕️'}
+                                        </span>
                                     </button>
                                 ) : (
                                     <span>{col.header}</span>
@@ -105,7 +133,31 @@ export function DashboardDataTable<T extends { id?: string }>({
                             </th>
                         ))}
                     </tr>
+
+                    {/* 🔹 Riga filtri sempre attiva */}
+                    <tr className="bg-muted/30 dark:bg-dark-muted/30 text-xs">
+                        {columns.map((col) => {
+                            const key = col.sortKey || col.header;
+                            return (
+                                <th key={key} className="px-4 py-2">
+                                    <input
+                                        type="text"
+                                        value={filters[key] || ''}
+                                        onChange={(e) =>
+                                            setFilters((prev) => ({
+                                                ...prev,
+                                                [key]: e.target.value,
+                                            }))
+                                        }
+                                        placeholder="Filtra..."
+                                        className="w-full border border-border dark:border-dark-border rounded px-2 py-1 text-sm bg-background dark:bg-dark-card focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                </th>
+                            );
+                        })}
+                    </tr>
                 </thead>
+
                 <tbody className="divide-y divide-border">
                     {isLoading ? (
                         Array.from({ length: 5 }).map((_, rowIndex) => (
@@ -120,8 +172,11 @@ export function DashboardDataTable<T extends { id?: string }>({
                     ) : sortedData.length > 0 ? (
                         sortedData.map((item, index) => (
                             <tr key={item.id || index} className="hover:bg-muted/50">
-                                {columns.map(col => (
-                                    <td key={`${item.id}-${col.header}`} className="px-4 py-2 text-muted-foreground">
+                                {columns.map((col) => (
+                                    <td
+                                        key={`${item.id}-${col.header}`}
+                                        className="px-4 py-2 text-muted-foreground"
+                                    >
                                         {col.cell(item)}
                                     </td>
                                 ))}
@@ -129,12 +184,16 @@ export function DashboardDataTable<T extends { id?: string }>({
                         ))
                     ) : (
                         <tr>
-                            <td colSpan={columns.length} className="px-4 py-6 text-center text-muted-foreground">
+                            <td
+                                colSpan={columns.length}
+                                className="px-4 py-6 text-center text-muted-foreground"
+                            >
                                 Nessun dato trovato.
                             </td>
                         </tr>
                     )}
                 </tbody>
+
                 {footerNode && (
                     <tfoot className="sticky bottom-0 border-t-2 border-outline font-bold bg-surface-container">
                         {footerNode}

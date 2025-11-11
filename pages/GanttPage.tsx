@@ -388,286 +388,290 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Corpo Gantt: scroll orizzontale e verticale SOLO su questa "tabella" */}
-            <div
-                ref={scrollContainerRef}
-                className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow"
-            >
-                <div
-                    className="relative"
-                    style={{
-                        minWidth: `calc(${LEFT_COLUMN_WIDTH}px + ${ganttChartWidth}px)`,
-                    }}
-                >
-                    {/* Header tabellare */}
+            {/* Corpo Gantt: card con altezza fissa, scroll orizzontale+verticale SOLO sulla tabella */}
+            <div className="flex-grow">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
                     <div
-                        className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16 grid"
-                        style={{ gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr` }}
+                        ref={scrollContainerRef}
+                        className="h-[26rem] overflow-x-auto overflow-y-auto"
                     >
-                        {/* Header colonna progetti */}
-                        <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center justify-between">
-                            <button
-                                onClick={toggleSortDirection}
-                                className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white"
-                            >
-                                <span>Progetto</span>
-                                <span className="text-gray-400">↕️</span>
-                            </button>
-                            <span className="text-xs font-normal text-gray-500 dark:text-gray-300">
-                                Cliente · Periodo · Risorse
-                            </span>
-                        </div>
-
-                        {/* Header timeline */}
-                        <div className="relative border-b border-gray-200 dark:border-gray-700">
+                        <div
+                            className="relative"
+                            style={{
+                                minWidth: `calc(${LEFT_COLUMN_WIDTH}px + ${ganttChartWidth}px)`,
+                            }}
+                        >
+                            {/* Header tabellare (sticky rispetto al contenitore scrollabile) */}
                             <div
-                                className="grid h-full"
-                                style={timeGridStyle}
+                                className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16 grid"
+                                style={{ gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr` }}
                             >
-                                {timeScale.map((ts, i) => (
-                                    <div
-                                        key={i}
-                                        className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap ${
-                                            i % 2 === 0
-                                                ? 'bg-gray-50 dark:bg-gray-800/60'
-                                                : 'bg-white dark:bg-gray-900/40'
-                                        }`}
+                                {/* Header colonna progetti */}
+                                <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center justify-between">
+                                    <button
+                                        onClick={toggleSortDirection}
+                                        className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white"
                                     >
-                                        <span className="uppercase tracking-wide">
-                                            {ts.label}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Body righe + barre */}
-                    <div>
-                        {sortedAndFilteredProjects.map(project => {
-                            const projectResources = getProjectResources(project.id!);
-                            const isExpanded = expandedProjects.has(project.id!);
-                            const barStyle = getBarPosition(
-                                project.startDate,
-                                project.endDate
-                            );
-                            const clientName =
-                                (project.clientId &&
-                                    clientMap.get(project.clientId)) ||
-                                'Cliente non assegnato';
-
-                            const periodLabel =
-                                project.startDate && project.endDate
-                                    ? `${new Date(
-                                          project.startDate
-                                      ).toLocaleDateString('it-IT')} – ${new Date(
-                                          project.endDate
-                                      ).toLocaleDateString('it-IT')}`
-                                    : 'Periodo non definito';
-
-                            return (
-                                <div
-                                    key={project.id}
-                                    className="grid border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-900 group hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors"
-                                    style={{
-                                        gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
-                                    }}
-                                >
-                                    {/* Colonna info progetto */}
-                                    <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/70">
-                                        <button
-                                            onClick={() =>
-                                                toggleProjectExpansion(project.id!)
-                                            }
-                                            className="flex items-start w-full text-left"
-                                        >
-                                            <svg
-                                                className={`w-4 h-4 mr-2 mt-0.5 flex-shrink-0 transform transition-transform ${
-                                                    isExpanded ? 'rotate-90' : ''
-                                                }`}
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth="2"
-                                                    d="M9 5l7 7-7 7"
-                                                />
-                                            </svg>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-sm text-gray-800 dark:text-white truncate">
-                                                        {project.name}
-                                                    </span>
-                                                </div>
-                                                <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-300 space-y-0.5">
-                                                    <div className="truncate">
-                                                        <span className="font-semibold">
-                                                            Cliente:{' '}
-                                                        </span>
-                                                        <span>{clientName}</span>
-                                                    </div>
-                                                    <div className="truncate">
-                                                        <span className="font-semibold">
-                                                            Periodo:{' '}
-                                                        </span>
-                                                        <span>{periodLabel}</span>
-                                                    </div>
-                                                    {projectResources.length > 0 && (
-                                                        <div className="flex flex-wrap gap-1 mt-1">
-                                                            {projectResources
-                                                                .slice(0, 3)
-                                                                .map(r => (
-                                                                    <span
-                                                                        key={r.id}
-                                                                        className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[11px] text-gray-700 dark:text-gray-200"
-                                                                    >
-                                                                        {r.name}
-                                                                    </span>
-                                                                ))}
-                                                            {projectResources.length > 3 && (
-                                                                <span className="text-[11px] text-gray-500 dark:text-gray-300">
-                                                                    +{projectResources.length - 3}{' '}
-                                                                    altri
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </button>
-
-                                        {isExpanded && (
-                                            <ul className="mt-2 pl-6 text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                                                {projectResources.length > 0 ? (
-                                                    projectResources.map(r => (
-                                                        <li key={r.id}>{r.name}</li>
-                                                    ))
-                                                ) : (
-                                                    <li>Nessuna risorsa assegnata</li>
-                                                )}
-                                            </ul>
-                                        )}
-                                    </div>
-
-                                    {/* Timeline per riga */}
-                                    <div className="relative overflow-hidden">
-                                        {/* Griglia di sfondo */}
-                                        <div
-                                            className="grid h-full"
-                                            style={timeGridStyle}
-                                        >
-                                            {timeScale.map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`h-full border-r border-gray-200 dark:border-gray-700 ${
-                                                        isExpanded
-                                                            ? 'min-h-[72px]'
-                                                            : 'min-h-[56px]'
-                                                    } ${
-                                                        i % 2 === 0
-                                                            ? 'bg-gray-50/40 dark:bg-gray-900/40'
-                                                            : 'bg-white dark:bg-gray-900/20'
-                                                    }`}
-                                                />
-                                            ))}
-                                        </div>
-
-                                        {/* Barra Gantt */}
-                                        {project.startDate && project.endDate && (
-                                            <div
-                                                className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-blue-500 hover:bg-blue-600 shadow-sm group/bar flex items-center px-2 text-[11px] text-white truncate"
-                                                style={barStyle}
-                                            >
-                                                <span className="truncate">
-                                                    {project.name}
-                                                </span>
-                                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
-                                                    {periodLabel}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                        <span>Progetto</span>
+                                        <span className="text-gray-400">↕️</span>
+                                    </button>
+                                    <span className="text-xs font-normal text-gray-500 dark:text-gray-300">
+                                        Cliente · Periodo · Risorse
+                                    </span>
                                 </div>
-                            );
-                        })}
 
-                        {/* Riga riepilogo: totale progetti per anno (solo vista "Anno") */}
-                        {zoom === 'year' && (
-                            <div
-                                className="grid border-t border-gray-300 dark:border-gray-600 bg-blue-50/70 dark:bg-blue-950/40"
-                                style={{
-                                    gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
-                                }}
-                            >
-                                <div className="p-3 border-r border-gray-300 dark:border-gray-600 sticky left-0 bg-blue-50/80 dark:bg-blue-950/60 z-10 text-xs font-semibold text-blue-900 dark:text-blue-100 flex items-center">
-                                    Totale progetti per anno (filtrati)
-                                </div>
-                                <div className="relative">
+                                {/* Header timeline */}
+                                <div className="relative border-b border-gray-200 dark:border-gray-700">
                                     <div
-                                        className="grid"
+                                        className="grid h-full"
                                         style={timeGridStyle}
                                     >
-                                        {timeScale.map((seg, i) => (
+                                        {timeScale.map((ts, i) => (
                                             <div
                                                 key={i}
-                                                className="flex flex-col items-center justify-center min-h-[40px] border-r border-gray-300 dark:border-gray-600 text-[11px] font-semibold text-blue-800 dark:text-blue-100 bg-blue-100/60 dark:bg-blue-900/40"
+                                                className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap ${
+                                                    i % 2 === 0
+                                                        ? 'bg-gray-50 dark:bg-gray-800/60'
+                                                        : 'bg-white dark:bg-gray-900/40'
+                                                }`}
                                             >
-                                                <span className="mb-0.5">{seg.label}</span>
-                                                <span>{segmentProjectCounts[i] ?? 0}</span>
+                                                <span className="uppercase tracking-wide">
+                                                    {ts.label}
+                                                </span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
-                        )}
+
+                            {/* Body righe + barre */}
+                            <div>
+                                {sortedAndFilteredProjects.map(project => {
+                                    const projectResources = getProjectResources(project.id!);
+                                    const isExpanded = expandedProjects.has(project.id!);
+                                    const barStyle = getBarPosition(
+                                        project.startDate,
+                                        project.endDate
+                                    );
+                                    const clientName =
+                                        (project.clientId &&
+                                            clientMap.get(project.clientId)) ||
+                                        'Cliente non assegnato';
+
+                                    const periodLabel =
+                                        project.startDate && project.endDate
+                                            ? `${new Date(
+                                                  project.startDate
+                                              ).toLocaleDateString('it-IT')} – ${new Date(
+                                                  project.endDate
+                                              ).toLocaleDateString('it-IT')}`
+                                            : 'Periodo non definito';
+
+                                    return (
+                                        <div
+                                            key={project.id}
+                                            className="grid border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-900 group hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors"
+                                            style={{
+                                                gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
+                                            }}
+                                        >
+                                            {/* Colonna info progetto */}
+                                            <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/70">
+                                                <button
+                                                    onClick={() =>
+                                                        toggleProjectExpansion(project.id!)
+                                                    }
+                                                    className="flex items-start w-full text-left"
+                                                >
+                                                    <svg
+                                                        className={`w-4 h-4 mr-2 mt-0.5 flex-shrink-0 transform transition-transform ${
+                                                            isExpanded ? 'rotate-90' : ''
+                                                        }`}
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth="2"
+                                                            d="M9 5l7 7-7 7"
+                                                        />
+                                                    </svg>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium text-sm text-gray-800 dark:text-white truncate">
+                                                                {project.name}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-300 space-y-0.5">
+                                                            <div className="truncate">
+                                                                <span className="font-semibold">
+                                                                    Cliente:{' '}
+                                                                </span>
+                                                                <span>{clientName}</span>
+                                                            </div>
+                                                            <div className="truncate">
+                                                                <span className="font-semibold">
+                                                                    Periodo:{' '}
+                                                                </span>
+                                                                <span>{periodLabel}</span>
+                                                            </div>
+                                                            {projectResources.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-1">
+                                                                    {projectResources
+                                                                        .slice(0, 3)
+                                                                        .map(r => (
+                                                                            <span
+                                                                                key={r.id}
+                                                                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[11px] text-gray-700 dark:text-gray-200"
+                                                                            >
+                                                                                {r.name}
+                                                                            </span>
+                                                                        ))}
+                                                                    {projectResources.length > 3 && (
+                                                                        <span className="text-[11px] text-gray-500 dark:text-gray-300">
+                                                                            +{projectResources.length - 3}{' '}
+                                                                            altri
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </button>
+
+                                                {isExpanded && (
+                                                    <ul className="mt-2 pl-6 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                                                        {projectResources.length > 0 ? (
+                                                            projectResources.map(r => (
+                                                                <li key={r.id}>{r.name}</li>
+                                                            ))
+                                                        ) : (
+                                                            <li>Nessuna risorsa assegnata</li>
+                                                        )}
+                                                    </ul>
+                                                )}
+                                            </div>
+
+                                            {/* Timeline per riga */}
+                                            <div className="relative overflow-hidden">
+                                                {/* Griglia di sfondo */}
+                                                <div
+                                                    className="grid h-full"
+                                                    style={timeGridStyle}
+                                                >
+                                                    {timeScale.map((_, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className={`h-full border-r border-gray-200 dark:border-gray-700 ${
+                                                                isExpanded
+                                                                    ? 'min-h-[72px]'
+                                                                    : 'min-h-[56px]'
+                                                            } ${
+                                                                i % 2 === 0
+                                                                    ? 'bg-gray-50/40 dark:bg-gray-900/40'
+                                                                    : 'bg-white dark:bg-gray-900/20'
+                                                            }`}
+                                                        />
+                                                    ))}
+                                                </div>
+
+                                                {/* Barra Gantt */}
+                                                {project.startDate && project.endDate && (
+                                                    <div
+                                                        className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-blue-500 hover:bg-blue-600 shadow-sm group/bar flex items-center px-2 text-[11px] text-white truncate"
+                                                        style={barStyle}
+                                                    >
+                                                        <span className="truncate">
+                                                            {project.name}
+                                                        </span>
+                                                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
+                                                            {periodLabel}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* Riga riepilogo: totale progetti per anno (solo vista "Anno") */}
+                                {zoom === 'year' && (
+                                    <div
+                                        className="grid border-t border-gray-300 dark:border-gray-600 bg-blue-50/70 dark:bg-blue-950/40"
+                                        style={{
+                                            gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
+                                        }}
+                                    >
+                                        <div className="p-3 border-r border-gray-300 dark:border-gray-600 sticky left-0 bg-blue-50/80 dark:bg-blue-950/60 z-10 text-xs font-semibold text-blue-900 dark:text-blue-100 flex items-center">
+                                            Totale progetti per anno (filtrati)
+                                        </div>
+                                        <div className="relative">
+                                            <div
+                                                className="grid"
+                                                style={timeGridStyle}
+                                            >
+                                                {timeScale.map((seg, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="flex flex-col items=center justify-center min-h-[40px] border-r border-gray-300 dark:border-gray-600 text-[11px] font-semibold text-blue-800 dark:text-blue-100 bg-blue-100/60 dark:bg-blue-900/40"
+                                                    >
+                                                        <span className="mb-0.5">{seg.label}</span>
+                                                        <span>{segmentProjectCounts[i] ?? 0}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Today Marker (banda + linea) */}
+                            {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
+                                <>
+                                    {/* banda leggera */}
+                                    <div
+                                        className="absolute top-0 bottom-0 w-6 bg-red-500/5 z-10 pointer-events-none"
+                                        style={{
+                                            left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition - 3}px)`,
+                                        }}
+                                    />
+                                    {/* linea */}
+                                    <div
+                                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                                        style={{
+                                            left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition}px)`,
+                                        }}
+                                        title="Oggi"
+                                    />
+                                </>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Today Marker (banda + linea) */}
-                    {todayPosition >= 0 && todayPosition <= ganttChartWidth && (
-                        <>
-                            {/* banda leggera */}
-                            <div
-                                className="absolute top-0 bottom-0 w-6 bg-red-500/5 z-10 pointer-events-none"
-                                style={{
-                                    left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition - 3}px)`,
-                                }}
-                            />
-                            {/* linea */}
-                            <div
-                                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-                                style={{
-                                    left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition}px)`,
-                                }}
-                                title="Oggi"
-                            />
-                        </>
+                    {/* Riepilogo per cliente (quando non si è in vista Anno) */}
+                    {zoom !== 'year' && totalByClient.length > 0 && (
+                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
+                            <div className="font-semibold mb-1">
+                                Totale progetti per cliente (filtrati)
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                {totalByClient.map(item => (
+                                    <span
+                                        key={item.clientName}
+                                        className="inline-flex items-center gap-1"
+                                    >
+                                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                                        <span>
+                                            {item.clientName}: {item.count}
+                                        </span>
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
-
-                {/* Riepilogo per cliente (quando non si è in vista Anno) */}
-                {zoom !== 'year' && totalByClient.length > 0 && (
-                    <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
-                        <div className="font-semibold mb-1">
-                            Totale progetti per cliente (filtrati)
-                        </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {totalByClient.map(item => (
-                                <span
-                                    key={item.clientName}
-                                    className="inline-flex items-center gap-1"
-                                >
-                                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
-                                    <span>
-                                        {item.clientName}: {item.count}
-                                    </span>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
 
             <style>{`
