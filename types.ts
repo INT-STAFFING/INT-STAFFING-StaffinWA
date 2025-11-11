@@ -2,6 +2,27 @@
  * @file types.ts
  * @description Definizioni dei tipi e delle interfacce TypeScript utilizzate in tutta l'applicazione.
  */
+// --- Local declaration to silence TypeScript errors in AI Studio ---
+declare module 'react-window' {
+  import * as React from 'react';
+
+  export interface ListChildComponentProps {
+    index: number;
+    style: React.CSSProperties;
+    data: any;
+  }
+
+  export class FixedSizeList extends React.Component<any> {
+    scrollTo(scrollOffset: number): void;
+    scrollToItem(index: number, align?: 'auto' | 'start' | 'center' | 'end'): void;
+  }
+
+  export class VariableSizeList extends React.Component<any> {
+    resetAfterIndex(index: number, shouldForceUpdate?: boolean): void;
+    scrollTo(scrollOffset: number): void;
+    scrollToItem(index: number, align?: 'auto' | 'start' | 'center' | 'end'): void;
+  }
+}
 
 /**
  * @interface ConfigOption
