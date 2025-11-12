@@ -46,21 +46,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Controlla lo stato di autenticazione e la configurazione globale all'avvio
     useEffect(() => {
         const checkAuthState = async () => {
+            setIsAuthLoading(true);
             try {
-                // Controlla se la protezione è attiva a livello globale
+                // Controlla solo se la protezione è attiva a livello globale all'avvio.
+                // Lo stato di autenticazione dell'utente non viene più letto da sessionStorage qui
+                // per forzare sempre il login a ogni nuova sessione.
                 const config = await apiFetch('/api/auth-config');
                 setIsLoginProtectionEnabled(config.isEnabled);
 
-                // Controlla se l'utente ha una sessione attiva nel browser
-                const sessionAuth = sessionStorage.getItem('isAuthenticated');
-                const sessionAdmin = sessionStorage.getItem('isAdmin');
-
-                if (sessionAuth === 'true') {
-                    setIsAuthenticated(true);
-                    if (sessionAdmin === 'true') {
-                        setIsAdmin(true);
-                    }
-                }
             } catch (error) {
                 console.error("Failed to check auth state:", error);
                 // Default a uno stato sicuro in caso di errore
