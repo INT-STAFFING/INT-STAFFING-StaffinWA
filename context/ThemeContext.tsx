@@ -1,4 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo } from 'react';
+import { useToast } from './ToastContext';
+import { useAppConfig } from '../utils/useAppConfig';
 
 // --- Types ---
 
@@ -178,6 +180,9 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = 'staffing-app-theme';
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { addToast } = useToast();
+    const { getKey, setKey } = useAppConfig();
+
     const [theme, _setTheme] = useState<Theme>(() => {
         try {
             const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -190,6 +195,19 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         return defaultTheme;
     });
+
+    useEffect(() => {
+        const fetchThemeFromDb = async () => {
+            const dbTheme = await getKey<Theme>('theme');
+            if (dbTheme && dbTheme.light && dbTheme.dark) {
+                const mergedTheme = { ...defaultTheme, ...dbTheme };
+                _setTheme(mergedTheme);
+                localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(mergedTheme));
+            }
+        };
+
+        fetchThemeFromDb();
+    }, [getKey]);
     
      useEffect(() => {
         const styleElement = document.getElementById('dynamic-theme-styles') || document.createElement('style');
@@ -215,21 +233,40 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, [theme]);
     
     const setTheme = (newTheme: Theme) => {
+        // Optimistic UI update
+        _setTheme(newTheme);
         try {
             localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
-            _setTheme(newTheme);
         } catch (error) {
             console.error("Failed to save theme to localStorage", error);
         }
+
+        // Sync to DB using the hook
+        setKey('theme', newTheme)
+            .then(() => {
+                addToast('Impostazioni del tema salvate sul server.', 'success');
+            })
+            .catch(() => {
+                // Error toast is handled by useAppConfig hook
+            });
     };
 
     const resetTheme = () => {
+        _setTheme(defaultTheme);
         try {
             localStorage.removeItem(THEME_STORAGE_KEY);
-            _setTheme(defaultTheme);
         } catch (error) {
             console.error("Failed to remove theme from localStorage", error);
         }
+        
+        // Sync reset to DB using the hook
+        setKey('theme', defaultTheme)
+            .then(() => {
+                addToast('Tema ripristinato e salvato sul server.', 'success');
+            })
+            .catch(() => {
+                 // Error toast is handled by useAppConfig hook
+            });
     };
     
     const contextValue = useMemo(() => ({

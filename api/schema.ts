@@ -231,6 +231,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
             value VARCHAR(255) NOT NULL
         );
     `;
+    // Safely migrate the 'value' column to TEXT and add an 'updated_at' timestamp.
+    await db.sql`ALTER TABLE app_config ALTER COLUMN value TYPE TEXT;`;
+    await db.sql`ALTER TABLE app_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();`;
 
     // Backfill request_code for existing resource_requests
     const backfillClient = await db.connect();

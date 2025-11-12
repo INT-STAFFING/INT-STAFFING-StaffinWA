@@ -10,8 +10,9 @@ import {
   DashboardCardId,
   DASHBOARD_CARDS_CONFIG,
   DEFAULT_DASHBOARD_CARD_ORDER,
-  DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
+import { useAppConfig, migrateLocalToServerIfNeeded } from '../utils/useAppConfig';
+import { SpinnerIcon } from '../components/icons';
 
 const ColorInput: React.FC<{
     label: string;
@@ -318,37 +319,38 @@ const VisualizationEditor: React.FC = () => {
 
 const DashboardLayoutEditor: React.FC = () => {
     const { addToast } = useToast();
+    const { getKey, setKey } = useAppConfig();
     const [cardOrder, setCardOrder] = useState<DashboardCardId[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
+    const [isLoadingLayout, setIsLoadingLayout] = useState(true);
 
     // For Drag & Drop
     const dragItem = React.useRef<number | null>(null);
     const dragOverItem = React.useRef<number | null>(null);
 
     useEffect(() => {
-        try {
-            const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
-            const savedOrder: DashboardCardId[] = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
-
-            const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
-            const savedIds = new Set(savedOrder);
-
-            // Filter out any stale IDs from the saved order that are no longer in the config
-            const validOrder = savedOrder.filter(id => allKnownIds.has(id));
+        const loadLayout = async () => {
+            setIsLoadingLayout(true);
+            const dbOrder = await getKey<DashboardCardId[]>('dashboardLayout');
             
-            // Add any new cards from the config that aren't in the saved order yet
+            let finalOrder = dbOrder || DEFAULT_DASHBOARD_CARD_ORDER;
+            
+            // Validate and merge with default config to handle new/deleted cards
+            const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
+            const loadedIds = new Set(finalOrder);
+            const validOrder = finalOrder.filter(id => allKnownIds.has(id));
             allKnownIds.forEach(id => {
-                if (!savedIds.has(id)) {
+                if (!loadedIds.has(id)) {
                     validOrder.push(id);
                 }
             });
-
+            
             setCardOrder(validOrder);
-        } catch (error) {
-            console.error("Failed to load or parse dashboard card order from localStorage:", error);
-            setCardOrder(DEFAULT_DASHBOARD_CARD_ORDER);
-        }
-    }, []);
+            setIsLoadingLayout(false);
+        };
+
+        loadLayout();
+    }, [getKey]);
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, position: number) => {
         dragItem.current = position;
@@ -378,10 +380,14 @@ const DashboardLayoutEditor: React.FC = () => {
         e.currentTarget.classList.remove('dragging');
     };
 
-    const handleSave = () => {
-        localStorage.setItem(DASHBOARD_CARD_ORDER_STORAGE_KEY, JSON.stringify(cardOrder));
-        setHasChanges(false);
-        addToast('Ordine della dashboard salvato.', 'success');
+    const handleSave = async () => {
+        try {
+            await setKey('dashboardLayout', cardOrder);
+            setHasChanges(false);
+            addToast('Ordine della dashboard salvato.', 'success');
+        } catch (error) {
+            // Error is handled by the hook (toast and state reversion)
+        }
     };
 
     const handleReset = () => {
@@ -396,7 +402,11 @@ const DashboardLayoutEditor: React.FC = () => {
             <h2 className="text-xl font-semibold mb-2">Ordinamento Card Dashboard</h2>
             <p className="text-sm text-on-surface-variant mb-6 max-w-2xl mx-auto">Trascina le card per riordinarle come verranno visualizzate nella Dashboard.</p>
             <div className="space-y-3 max-w-2xl mx-auto">
-                {cardOrder.map((cardId, index) => {
+                {isLoadingLayout ? (
+                    <div className="flex justify-center items-center h-48">
+                        <SpinnerIcon className="w-8 h-8 text-primary animate-spin" />
+                    </div>
+                ) : cardOrder.map((cardId, index) => {
                     const cardConfig = cardConfigMap.get(cardId);
                     if (!cardConfig) return null;
 
@@ -432,6 +442,12 @@ const DashboardLayoutEditor: React.FC = () => {
 
 const AdminSettingsPage: React.FC = () => {
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
+    
+    useEffect(() => {
+        // This effect runs once on mount to check for and migrate old localStorage settings.
+        migrateLocalToServerIfNeeded(['theme', 'dashboardLayout']);
+    }, []); // Empty dependency array ensures it runs only once.
+
 
     const handleToggleProtection = async (e: React.ChangeEvent<HTMLInputElement>) => {
         try {
