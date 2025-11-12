@@ -3,7 +3,6 @@
  * @description Pagina per la gestione delle impostazioni riservate agli amministratori.
  */
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useTheme, Theme, defaultTheme, M3Palette } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -441,19 +440,38 @@ const DashboardLayoutEditor: React.FC = () => {
 };
 
 const AdminSettingsPage: React.FC = () => {
-    const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
+    const { getKey, setKey } = useAppConfig();
+    const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(true);
+    const [isLoadingProtection, setIsLoadingProtection] = useState(true);
     
     useEffect(() => {
         // This effect runs once on mount to check for and migrate old localStorage settings.
         migrateLocalToServerIfNeeded(['theme', 'dashboardLayout']);
-    }, []); // Empty dependency array ensures it runs only once.
+    }, []);
+
+    useEffect(() => {
+        const fetchProtectionStatus = async () => {
+            setIsLoadingProtection(true);
+            const enabled = await getKey<boolean>('login_protection_enabled');
+            // Default to true if the setting is not found in the DB or cache
+            setIsLoginProtectionEnabled(enabled === undefined ? true : enabled);
+            setIsLoadingProtection(false);
+        };
+        fetchProtectionStatus();
+    }, [getKey]);
 
 
     const handleToggleProtection = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const isChecked = e.target.checked;
+        // Optimistic UI update
+        setIsLoginProtectionEnabled(isChecked);
         try {
-            await toggleLoginProtection(e.target.checked);
+            await setKey('login_protection_enabled', isChecked);
+            // Success toast is handled by the hook, but we can add a specific one
+            useToast().addToast(`Protezione tramite login ${isChecked ? 'attivata' : 'disattivata'}. Ricarica la pagina per vedere l'effetto.`, 'success');
         } catch {
-            // L'errore è già gestito nel contesto e mostrato tramite toast.
+            // Revert UI on failure
+            setIsLoginProtectionEnabled(!isChecked);
         }
     };
 
@@ -469,19 +487,24 @@ const AdminSettingsPage: React.FC = () => {
                             Se attivata, tutti gli utenti dovranno inserire una password per accedere all'applicazione.
                         </p>
                     </div>
-                    <label htmlFor="protection-toggle" className="flex items-center cursor-pointer">
-                        <div className="relative">
-                            <input
-                                type="checkbox"
-                                id="protection-toggle"
-                                className="sr-only"
-                                checked={isLoginProtectionEnabled}
-                                onChange={handleToggleProtection}
-                            />
-                            <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
-                            <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
-                        </div>
-                    </label>
+                    {isLoadingProtection ? (
+                        <SpinnerIcon className="w-6 h-6 text-primary" />
+                    ) : (
+                        <label htmlFor="protection-toggle" className="flex items-center cursor-pointer">
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    id="protection-toggle"
+                                    className="sr-only"
+                                    checked={isLoginProtectionEnabled}
+                                    onChange={handleToggleProtection}
+                                    disabled={isLoadingProtection}
+                                />
+                                <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
+                                <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
+                            </div>
+                        </label>
+                    )}
                 </div>
             </div>
             
