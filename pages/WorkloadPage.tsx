@@ -330,41 +330,41 @@ const WorkloadPage: React.FC = () => {
           <div className="flex items-center justify-start space-x-2">
             <button
               onClick={handlePrev}
-              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+              className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm"
             >
               ← Prec.
             </button>
             <button
               onClick={handleToday}
-              className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600"
+              className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full shadow-sm font-semibold hover:opacity-90"
             >
               Oggi
             </button>
             <button
               onClick={handleNext}
-              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+              className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm"
             >
               Succ. →
             </button>
           </div>
-          <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+          <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
               <button
                 key={level}
                 onClick={() => setViewMode(level)}
-                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
+                className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
                   viewMode === level
-                    ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow'
-                    : 'text-gray-600 dark:text-gray-300'
+                    ? 'bg-surface text-primary shadow'
+                    : 'text-on-surface-variant'
                 }`}
               >
                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
               </button>
             ))}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400 text-right">
+          <div className="text-sm text-on-surface-variant text-right">
             Vista di sola lettura.{' '}
-            <a href="/staffing" className="text-blue-500 hover:underline">
+            <a href="/staffing" className="text-primary hover:underline">
               Vai a Staffing per modifiche
             </a>
             .
@@ -372,10 +372,10 @@ const WorkloadPage: React.FC = () => {
         </div>
 
         {/* Sezione Filtri */}
-        <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-30">
+        <div className="mb-4 p-4 bg-surface rounded-2xl shadow relative z-30">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Risorsa
               </label>
               <SearchableSelect
@@ -387,7 +387,7 @@ const WorkloadPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Ruolo
               </label>
               <MultiSelectDropdown
@@ -399,7 +399,7 @@ const WorkloadPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Progetto
               </label>
               <SearchableSelect
@@ -411,7 +411,7 @@ const WorkloadPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Cliente
               </label>
               <SearchableSelect
@@ -424,7 +424,7 @@ const WorkloadPage: React.FC = () => {
             </div>
             <button
               onClick={clearFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+              className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto"
             >
               Reset Filtri
             </button>
@@ -433,12 +433,12 @@ const WorkloadPage: React.FC = () => {
       </div>
 
       {/* Griglia Carico - con max height come Staffing */}
-      <div className="flex-grow overflow-auto bg-white dark:bg-gray-800 rounded-lg shadow max-h-[660px]">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-20">
+      <div className="flex-grow overflow-auto bg-surface rounded-2xl shadow max-h-[660px]">
+        <table className="min-w-full divide-y divide-outline-variant">
+          <thead className="bg-surface-container-low sticky top-0 z-20">
             <tr>
               <th
-                className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-30"
+                className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-30"
                 style={{ minWidth: '200px' }}
               >
                 Carico Totale Risorsa
@@ -447,30 +447,30 @@ const WorkloadPage: React.FC = () => {
                 <th
                   key={index}
                   className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${
-                    col.isNonWorkingHeader ? 'bg-gray-100 dark:bg-gray-700/50' : ''
+                    col.isNonWorkingHeader ? 'bg-surface-container' : ''
                   }`}
                 >
                   <div className="flex flex-col items-center">
                     <span
                       className={
-                        col.isNonWorkingHeader ? 'text-gray-500' : 'text-gray-900 dark:text-white'
+                        col.isNonWorkingHeader ? 'text-on-surface-variant' : 'text-on-surface'
                       }
                     >
                       {col.label}
                     </span>
-                    {col.subLabel && <span className="text-xs text-gray-500">{col.subLabel}</span>}
+                    {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-outline-variant">
             {displayResources.map((resource) => (
               <tr
                 key={resource.id}
-                className="bg-gray-100/50 dark:bg-gray-900/50 font-bold"
+                className="bg-surface-container/50 font-bold"
               >
-                <td className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm text-gray-600 dark:text-gray-300 z-10">
+                <td className="sticky left-0 bg-surface-container px-3 py-3 text-left text-sm text-on-surface-variant z-10">
                   {resource.name} (Max: {resource.maxStaffingPercentage}%)
                 </td>
                 {timeColumns.map((col, index) => {
@@ -502,30 +502,14 @@ const WorkloadPage: React.FC = () => {
           </tbody>
         </table>
         {displayResources.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-on-surface-variant">
             Nessuna risorsa trovata con i filtri correnti.
           </div>
         )}
       </div>
 
       {/* Stili input/select usati da alcuni componenti */}
-      <style>{`
-        .form-input, .form-select {
-          display: block;
-          width: 100%;
-          border-radius: 0.375rem;
-          border: 1px solid #D1D5DB;
-          background-color: #FFFFFF;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          line-height: 1.25rem;
-        }
-        .dark .form-input, .dark .form-select {
-          border-color: #4B5563;
-          background-color: #374151;
-          color: #F9FAFB;
-        }
-      `}</style>
+      <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
     </div>
   );
 };

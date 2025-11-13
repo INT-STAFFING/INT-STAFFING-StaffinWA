@@ -257,11 +257,21 @@ const ProjectsPage: React.FC = () => {
             <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati"/>
             <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                    <input id="unstaffed-filter" type="checkbox" checked={showOnlyUnstaffed} onChange={(e) => setShowOnlyUnstaffed(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <label htmlFor="unstaffed-filter" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Solo senza staff</label>
-                </div>
-                <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+                <label htmlFor="unstaffed-filter" className="flex items-center cursor-pointer">
+                    <div className="relative">
+                        <input
+                            type="checkbox"
+                            id="unstaffed-filter"
+                            className="sr-only"
+                            checked={showOnlyUnstaffed}
+                            onChange={(e) => setShowOnlyUnstaffed(e.target.checked)}
+                        />
+                        <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
+                        <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${showOnlyUnstaffed ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
+                    </div>
+                    <span className="ml-3 text-sm text-on-surface">Solo senza staff</span>
+                </label>
+                <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
             </div>
         </div>
     );
@@ -343,8 +353,8 @@ const ProjectsPage: React.FC = () => {
                             <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea"></textarea>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50 font-semibold">
                                {(isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

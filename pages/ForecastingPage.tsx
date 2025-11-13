@@ -125,9 +125,9 @@ const ForecastingPage: React.FC = () => {
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 
     const getUtilizationColor = (utilization: number) => {
-        if (utilization > 100) return 'bg-red-500';
-        if (utilization > 90) return 'bg-yellow-500';
-        return 'bg-green-500';
+        if (utilization > 100) return 'bg-error';
+        if (utilization > 90) return 'bg-yellow-container';
+        return 'bg-tertiary';
     };
 
     const horizontalOptions = useMemo(() => horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
@@ -137,30 +137,30 @@ const ForecastingPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Forecasting & Capacity</h1>
+            <h1 className="text-3xl font-bold text-on-background mb-6">Forecasting & Capacity</h1>
 
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Horizontal</label>
+                        <label className="block text-sm font-medium text-on-surface-variant">Horizontal</label>
                         <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterChange} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Cliente</label>
+                        <label className="block text-sm font-medium text-on-surface-variant">Cliente</label>
                         <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/>
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <label className="block text-sm font-medium text-on-surface-variant">Progetto</label>
                         <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
                     </div>
-                    <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset Filtri</button>
+                    <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>
                 </div>
             </div>
 
 
             {/* Grafico Utilizzo */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
-                <h2 className="text-xl font-semibold mb-4">Utilizzo Mensile Previsto (%)</h2>
+            <div className="bg-surface rounded-2xl shadow p-6 mb-8">
+                <h2 className="text-xl font-semibold mb-4 text-on-surface">Utilizzo Mensile Previsto (%)</h2>
                 <div className="flex space-x-2 md:space-x-4 h-64 overflow-x-auto pb-4">
                     {forecastData.map((data, index) => (
                         <div key={index} className="flex-1 min-w-[50px] text-center flex flex-col">
@@ -170,13 +170,13 @@ const ForecastingPage: React.FC = () => {
                                     style={{ height: `${(data.utilization / maxUtilization) * 100}%` }}
                                 >
                                     <div className="absolute bottom-full mb-2 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 mx-auto w-max">
+                                        <div className="bg-inverse-surface text-inverse-on-surface text-xs rounded py-1 px-2 mx-auto w-max">
                                             {data.utilization.toFixed(1)}%
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            <p className="text-xs text-on-surface-variant mt-2">
                                 {data.monthName.split(' ')[0]}
                             </p>
                         </div>
@@ -185,58 +185,58 @@ const ForecastingPage: React.FC = () => {
             </div>
 
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="bg-surface rounded-2xl shadow">
               
                 <div
                     className="
-                        max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8) */
-                        overflow-y-auto  // scroll verticale SOLO sulle righe */
-                        overflow-x-auto  // scroll orizzontale quando necessario */
+                        max-h-[640px]
+                        overflow-y-auto
+                        overflow-x-auto
                     "
                 >
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
-                        <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
+                    <table className="min-w-full divide-y divide-outline-variant table-fixed">
+                        <thead className="sticky top-0 z-10 bg-surface-container-low">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                     Mese
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                     G/U Disponibili
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                     G/U Allocati
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                     Utilizzo
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                     Surplus/Deficit (G/U)
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <tbody className="bg-surface divide-y divide-outline-variant">
                             {forecastData.map((data, index) => (
                                 <tr
                                     key={index}
-                                    className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                    className="h-8 hover:bg-surface-container-low"
                                 >
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
                                         {data.monthName}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
                                         {data.availablePersonDays.toFixed(1)}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-300">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
                                         {data.allocatedPersonDays.toFixed(1)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
                                         <span
                                             className={
                                                 data.utilization > 100
-                                                    ? 'text-red-600 dark:text-red-400'
+                                                    ? 'text-error'
                                                     : data.utilization > 90
                                                     ? 'text-yellow-600 dark:text-yellow-400'
-                                                    : 'text-green-600 dark:text-green-400'
+                                                    : 'text-tertiary'
                                             }
                                         >
                                             {data.utilization.toFixed(1)}%
@@ -246,8 +246,8 @@ const ForecastingPage: React.FC = () => {
                                         <span
                                             className={
                                                 data.surplusDeficit >= 0
-                                                    ? 'text-green-600 dark:text-green-400'
-                                                    : 'text-red-600 dark:text-red-400'
+                                                    ? 'text-tertiary'
+                                                    : 'text-error'
                                             }
                                         >
                                             {data.surplusDeficit.toFixed(1)}
@@ -260,7 +260,7 @@ const ForecastingPage: React.FC = () => {
                 </div>
             </div>
 
-             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
         </div>
     );
 };

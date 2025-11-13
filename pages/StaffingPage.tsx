@@ -640,33 +640,33 @@ const StaffingPage: React.FC = () => {
           <div className="flex items-center justify-center md:justify-start space-x-2">
             <button
               onClick={handlePrev}
-              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+              className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm"
             >
               ← Prec.
             </button>
             <button
               onClick={handleToday}
-              className="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm font-semibold text-primary dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600"
+              className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full shadow-sm font-semibold hover:opacity-90"
             >
               Oggi
             </button>
             <button
               onClick={handleNext}
-              className="px-3 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 text-sm"
+              className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm"
             >
               Succ. →
             </button>
           </div>
 
-          <div className="flex items-center justify-center md:justify-start space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+          <div className="flex items-center justify-center md:justify-start space-x-1 bg-surface-container p-1 rounded-full">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
               <button
                 key={level}
                 onClick={() => setViewMode(level)}
-                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
+                className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
                   viewMode === level
-                    ? 'bg-white dark:bg-gray-900 text-primary dark:text-blue-400 shadow'
-                    : 'text-gray-600 dark:text-gray-300'
+                    ? 'bg-surface text-primary shadow'
+                    : 'text-on-surface-variant'
                 }`}
               >
                 {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
@@ -676,18 +676,18 @@ const StaffingPage: React.FC = () => {
 
           <button
             onClick={() => openNewAssignmentModal()}
-            className="flex items-center justify-center w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-primary-darker"
+            className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
           >
-            <span className="mr-2 text-xl">➕</span>
+            <span className="material-symbols-outlined mr-2 text-xl">add</span>
             Assegna Risorsa
           </button>
         </div>
 
         {/* Filtri */}
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="p-4 bg-surface rounded-2xl shadow">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Risorsa
               </label>
               <SearchableSelect
@@ -699,7 +699,7 @@ const StaffingPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Cliente
               </label>
               <SearchableSelect
@@ -711,7 +711,7 @@ const StaffingPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Project Manager
               </label>
               <SearchableSelect
@@ -723,7 +723,7 @@ const StaffingPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Progetto
               </label>
               <SearchableSelect
@@ -736,7 +736,7 @@ const StaffingPage: React.FC = () => {
             </div>
             <button
               onClick={clearFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+              className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto"
             >
               Reset Filtri
             </button>
@@ -746,75 +746,75 @@ const StaffingPage: React.FC = () => {
 
       {/* TABELLA */}
       <div className="flex-grow mt-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto">
+        <div className="bg-surface rounded-2xl shadow overflow-x-auto">
           {/* Altezza massima ~20 righe + header */}
           <div className="max-h-[660px] overflow-y-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">
+            <table className="min-w-full divide-y divide-outline-variant">
+              <thead className="bg-surface-container-low sticky top-0 z-10">
                 <tr>
                   <th
-                    className="sticky left-0 bg-gray-50 dark:bg-gray-700 px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white z-20"
+                    className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-20"
                     style={{ minWidth: '260px' }}
                   >
                     Risorsa / Progetto
                   </th>
-                  <th className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-on-surface">
                     Cliente
                   </th>
-                  <th className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="hidden md:table-cell px-3 py-3.5 text-left text-sm font-semibold text-on-surface">
                     Project Manager
                   </th>
-                  <th className="px-2 py-3.5 text-center text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="px-2 py-3.5 text-center text-sm font-semibold text-on-surface">
                     Azioni
                   </th>
                   {timeColumns.map((col, index) => (
                     <th
                       key={index}
                       className={`px-2 py-3.5 text-center text-sm font-semibold w-24 md:w-28 ${
-                        col.isNonWorkingDay ? 'bg-gray-100 dark:bg-gray-700/50' : ''
+                        col.isNonWorkingDay ? 'bg-surface-container' : ''
                       }`}
                     >
                       <div className="flex flex-col items-center">
                         <span
                           className={
                             col.isNonWorkingDay
-                              ? 'text-gray-500'
-                              : 'text-gray-900 dark:text-white'
+                              ? 'text-on-surface-variant'
+                              : 'text-on-surface'
                           }
                         >
                           {col.label}
                         </span>
                         {col.subLabel && (
-                          <span className="text-xs text-gray-500">{col.subLabel}</span>
+                          <span className="text-xs text-on-surface-variant">{col.subLabel}</span>
                         )}
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-outline-variant">
                 {displayData.map(({ resource, assignments: resourceAssignments }) => {
                   const role = rolesById.get(resource.roleId);
 
                   return (
                     <React.Fragment key={resource.id}>
                       {/* Riga master risorsa */}
-                      <tr className="bg-gray-100 dark:bg-gray-900 font-bold">
+                      <tr className="bg-surface-container font-bold">
                         <td
-                          className="sticky left-0 bg-gray-100 dark:bg-gray-900 px-3 py-3 text-left text-sm z-9"
+                          className="sticky left-0 bg-surface-container px-3 py-3 text-left text-sm z-9"
                           colSpan={4}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex flex-col min-w-0">
                               <Link
                                 to={`/workload?resourceId=${resource.id}`}
-                                className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 truncate"
+                                className="text-primary hover:underline truncate"
                                 title={resource.name}
                               >
                                 {resource.name}
                               </Link>
                               <span
-                                className="text-xs font-normal text-gray-500 truncate"
+                                className="text-xs font-normal text-on-surface-variant truncate"
                                 title={`${role?.name} (Max: ${resource.maxStaffingPercentage}%)`}
                               >
                                 {role?.name} (Max: {resource.maxStaffingPercentage}%)
@@ -823,9 +823,9 @@ const StaffingPage: React.FC = () => {
                             <button
                               onClick={() => openNewAssignmentModal(resource.id!)}
                               title={`Aggiungi assegnazione per ${resource.name}`}
-                              className="flex-shrink-0 text-primary hover:text-primary-darker dark:hover:text-blue-300"
+                              className="flex-shrink-0 text-primary hover:opacity-80"
                             >
-                              <span className="text-xl">➕</span>
+                              <span className="material-symbols-outlined">add_circle</span>
                             </button>
                           </div>
                         </td>
@@ -870,28 +870,28 @@ const StaffingPage: React.FC = () => {
                           return (
                             <tr
                               key={assignment.id}
-                              className="group hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                              className="group hover:bg-surface-container-low"
                             >
                               <td
-                                className="sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 px-3 py-4 text-sm font-medium pl-8 z-10"
+                                className="sticky left-0 bg-surface group-hover:bg-surface-container-low px-3 py-4 text-sm font-medium pl-8 z-10"
                                 style={{ minWidth: '260px' }}
                               >
                                 {project ? (
                                   <Link
                                     to={`/projects?projectId=${project.id}`}
-                                    className="text-primary hover:text-primary-darker hover:underline dark:text-blue-400 dark:hover:text-blue-300 block truncate"
+                                    className="text-primary hover:underline block truncate"
                                     title={project.name}
                                   >
                                     {project.name}
                                   </Link>
                                 ) : (
-                                  <span className="text-gray-400 italic">Progetto N/D</span>
+                                  <span className="text-on-surface-variant italic">Progetto N/D</span>
                                 )}
                               </td>
-                              <td className="hidden md:table-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">
+                              <td className="hidden md:table-cell px-3 py-4 text-sm text-on-surface-variant truncate">
                                 {client?.name || 'N/A'}
                               </td>
-                              <td className="hidden md:table-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">
+                              <td className="hidden md:table-cell px-3 py-4 text-sm text-on-surface-variant truncate">
                                 {project?.projectManager || 'N/A'}
                               </td>
                               <td
@@ -903,16 +903,16 @@ const StaffingPage: React.FC = () => {
                                   <button
                                     onClick={() => openBulkModal(assignment)}
                                     title="Assegnazione Massiva"
-                                    className="text-primary hover:text-primary-darker dark:hover:text-blue-300"
+                                    className="text-primary hover:opacity-80"
                                   >
-                                    <span className="text-xl">🗓️</span>
+                                    <span className="material-symbols-outlined">calendar_add_on</span>
                                   </button>
                                   <button
                                     onClick={() => setAssignmentToDelete(assignment)}
                                     title="Rimuovi Assegnazione"
-                                    className="text-red-500 hover:text-red-700 dark:hover:text-red-300"
+                                    className="text-error hover:opacity-80"
                                   >
-                                    <span className="text-xl">❌</span>
+                                    <span className="material-symbols-outlined">delete</span>
                                   </button>
                                 </div>
                               </td>
@@ -951,7 +951,7 @@ const StaffingPage: React.FC = () => {
                         <tr>
                           <td
                             colSpan={4 + timeColumns.length}
-                            className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400 italic pl-8"
+                            className="px-3 py-4 text-sm text-on-surface-variant italic pl-8"
                           >
                             Nessuna assegnazione trovata per i filtri correnti.
                           </td>
@@ -1001,7 +1001,7 @@ const StaffingPage: React.FC = () => {
         <form onSubmit={handleBulkSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Data Inizio
               </label>
               <input
@@ -1011,11 +1011,11 @@ const StaffingPage: React.FC = () => {
                 onChange={(e) =>
                   setBulkFormData((f) => ({ ...f, startDate: e.target.value }))
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm form-input"
+                className="mt-1 block w-full form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Data Fine
               </label>
               <input
@@ -1025,11 +1025,11 @@ const StaffingPage: React.FC = () => {
                 onChange={(e) =>
                   setBulkFormData((f) => ({ ...f, endDate: e.target.value }))
                 }
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-700 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm form-input"
+                className="mt-1 block w-full form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Percentuale ({bulkFormData.percentage}%)
               </label>
               <input
@@ -1044,7 +1044,7 @@ const StaffingPage: React.FC = () => {
                     percentage: parseInt(e.target.value, 10),
                   }))
                 }
-                className="mt-1 block w-full"
+                className="mt-1 block w-full accent-primary"
               />
             </div>
           </div>
@@ -1052,13 +1052,13 @@ const StaffingPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setBulkModalOpen(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+              className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker"
+              className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 font-semibold"
             >
               Salva
             </button>
@@ -1075,7 +1075,7 @@ const StaffingPage: React.FC = () => {
         <form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96">
           <div className="space-y-4 flex-grow">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Risorsa
               </label>
               <SearchableSelect
@@ -1090,7 +1090,7 @@ const StaffingPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-on-surface-variant">
                 Progetto/i
               </label>
               <MultiSelectDropdown
@@ -1109,50 +1109,31 @@ const StaffingPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setAssignmentModalOpen(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+              className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold"
             >
               Annulla
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker"
+              className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 font-semibold"
             >
-              Aggiungi Assegnazioni
+              Aggiungi
             </button>
           </div>
         </form>
       </Modal>
 
       <style>{`
-        .form-select {
-          display: block;
-          width: 100%;
-          border-radius: 0.375rem;
-          border: 1px solid #D1D5DB;
-          background-color: #FFFFFF;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          line-height: 1.25rem;
+        .form-select, .form-input { 
+            background-color: var(--color-surface-container-highest);
+            border: 1px solid var(--color-outline);
+            color: var(--color-on-surface);
         }
-        .dark .form-select {
-          border-color: #4B5563;
-          background-color: #374151;
-          color: #F9FAFB;
-        }
-        .form-input {
-          display: block;
-          width: 100%;
-          border-radius: 0.375rem;
-          border: 1px solid #D1D5DB;
-          background-color: #FFFFFF;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          line-height: 1.25rem;
-        }
-        .dark .form-input {
-          border-color: #4B5563;
-          background-color: #374151;
-          color: #F9FAFB;
+        .form-select:focus, .form-input:focus {
+             border-color: var(--color-primary);
+             outline: 2px solid transparent;
+             outline-offset: 2px;
+             --tw-ring-color: var(--color-primary);
         }
       `}</style>
     </div>

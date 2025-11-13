@@ -312,10 +312,22 @@ const ResourcesPage: React.FC = () => {
             <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
             <div className="flex items-center">
-                <input id="unassigned-filter" type="checkbox" checked={showOnlyUnassigned} onChange={(e) => setShowOnlyUnassigned(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                <label htmlFor="unassigned-filter" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Solo non allocate</label>
+                <label htmlFor="unassigned-filter" className="flex items-center cursor-pointer">
+                    <div className="relative">
+                        <input
+                            type="checkbox"
+                            id="unassigned-filter"
+                            className="sr-only"
+                            checked={showOnlyUnassigned}
+                            onChange={(e) => setShowOnlyUnassigned(e.target.checked)}
+                        />
+                        <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
+                        <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${showOnlyUnassigned ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
+                    </div>
+                    <span className="ml-3 text-sm text-on-surface">Solo non allocate</span>
+                </label>
             </div>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">Reset</button>
+            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
 
@@ -398,8 +410,8 @@ const ResourcesPage: React.FC = () => {
                             )}
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50 font-semibold">
                                {(isActionLoading('addResource') || isActionLoading(`updateResource-${'id' in editingResource ? editingResource.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

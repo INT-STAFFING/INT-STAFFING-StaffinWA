@@ -311,18 +311,18 @@ const GanttPage: React.FC = () => {
             {/* Header e controlli */}
             <div className="flex-shrink-0">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+                    <h1 className="text-3xl font-bold text-on-background">
                         Gantt Progetti
                     </h1>
-                    <div className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
                         {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
                             <button
                                 key={level}
                                 onClick={() => setZoom(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
+                                className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
                                     zoom === level
-                                        ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow'
-                                        : 'text-gray-600 dark:text-gray-300'
+                                        ? 'bg-surface text-primary shadow'
+                                        : 'text-on-surface-variant'
                                 }`}
                             >
                                 {level === 'month'
@@ -335,7 +335,7 @@ const GanttPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow relative z-21">
+                <div className="mb-4 p-4 bg-surface rounded-2xl shadow relative z-21">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <input
                             type="text"
@@ -354,7 +354,7 @@ const GanttPage: React.FC = () => {
                         />
                         <button
                             onClick={resetFilters}
-                            className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto"
+                            className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto"
                         >
                             Reset
                         </button>
@@ -362,22 +362,22 @@ const GanttPage: React.FC = () => {
                 </div>
 
                 {/* Mini legenda colori / zoom */}
-                <div className="mb-4 px-1 text-xs text-gray-700 dark:text-gray-200 flex flex-wrap items-center gap-4">
+                <div className="mb-4 px-1 text-xs text-on-surface-variant flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <span className="inline-block w-6 h-2 rounded-full bg-blue-500" />
-                        <span>Barra blu: periodo di attività del progetto</span>
+                        <span className="inline-block w-6 h-2 rounded-full bg-primary" />
+                        <span>Periodo di attività del progetto</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="inline-block w-3 h-3 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40" />
-                        <span>Colonne alternate: segmenti temporali (mese / trimestre / anno)</span>
+                        <span className="inline-block w-3 h-3 border border-outline bg-surface-container" />
+                        <span>Segmenti temporali (mese / trimestre / anno)</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="inline-block w-0.5 h-4 bg-red-500" />
-                        <span>Linea rossa: data odierna</span>
+                        <span className="inline-block w-0.5 h-4 bg-error" />
+                        <span>Data odierna</span>
                     </div>
                     <div className="flex items-center gap-2 ml-auto">
-                        <span className="font-semibold">Zoom corrente:</span>
-                        <span className="px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-[11px]">
+                        <span className="font-semibold">Zoom:</span>
+                        <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px]">
                             {zoom === 'month'
                                 ? 'Mese'
                                 : zoom === 'quarter'
@@ -390,7 +390,7 @@ const GanttPage: React.FC = () => {
 
             {/* Corpo Gantt: card con altezza fissa, scroll orizzontale+verticale SOLO sulla tabella */}
             <div className="flex-grow">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                <div className="bg-surface rounded-2xl shadow">
                     <div
                         ref={scrollContainerRef}
                         className="h-[28rem] overflow-x-auto overflow-y-auto"
@@ -403,25 +403,25 @@ const GanttPage: React.FC = () => {
                         >
                             {/* Header tabellare (sticky rispetto al contenitore scrollabile) */}
                             <div
-                                className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-700 h-16 grid"
+                                className="sticky top-0 z-20 bg-surface-container-low h-16 grid"
                                 style={{ gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr` }}
                             >
                                 {/* Header colonna progetti */}
-                                <div className="p-3 font-semibold border-r border-b border-gray-200 dark:border-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30 flex items-center justify-between">
+                                <div className="p-3 font-semibold border-r border-b border-outline-variant sticky left-0 bg-surface-container-low z-30 flex items-center justify-between">
                                     <button
                                         onClick={toggleSortDirection}
-                                        className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white"
+                                        className="flex items-center space-x-1 hover:text-on-surface"
                                     >
                                         <span>Progetto</span>
                                         <span className="text-gray-400">↕️</span>
                                     </button>
-                                    <span className="text-xs font-normal text-gray-500 dark:text-gray-300">
+                                    <span className="text-xs font-normal text-on-surface-variant">
                                         Cliente · Periodo · Risorse
                                     </span>
                                 </div>
 
                                 {/* Header timeline */}
-                                <div className="relative border-b border-gray-200 dark:border-gray-700">
+                                <div className="relative border-b border-outline-variant">
                                     <div
                                         className="grid h-full"
                                         style={timeGridStyle}
@@ -429,10 +429,10 @@ const GanttPage: React.FC = () => {
                                         {timeScale.map((ts, i) => (
                                             <div
                                                 key={i}
-                                                className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-gray-500 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap ${
+                                                className={`flex flex-col items-center justify-center px-1 text-center text-[10px] font-semibold text-on-surface-variant border-r border-outline-variant whitespace-nowrap ${
                                                     i % 2 === 0
-                                                        ? 'bg-gray-50 dark:bg-gray-800/60'
-                                                        : 'bg-white dark:bg-gray-900/40'
+                                                        ? 'bg-surface-container/50'
+                                                        : ''
                                                 }`}
                                             >
                                                 <span className="uppercase tracking-wide">
@@ -470,41 +470,28 @@ const GanttPage: React.FC = () => {
                                     return (
                                         <div
                                             key={project.id}
-                                            className="grid border-b border-gray-200 dark:border-gray-700 odd:bg-gray-50 dark:odd:bg-gray-900 group hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-colors"
+                                            className="grid border-b border-outline-variant odd:bg-surface-container/30 group hover:bg-surface-container-low transition-colors"
                                             style={{
                                                 gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
                                             }}
                                         >
                                             {/* Colonna info progetto */}
-                                            <div className="p-3 border-r border-gray-200 dark:border-gray-700 sticky left-0 bg-white dark:bg-gray-800 z-10 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/70">
+                                            <div className="p-3 border-r border-outline-variant sticky left-0 bg-surface group-odd:bg-surface-container/30 group-hover:bg-surface-container-low z-10">
                                                 <button
                                                     onClick={() =>
                                                         toggleProjectExpansion(project.id!)
                                                     }
                                                     className="flex items-start w-full text-left"
                                                 >
-                                                    <svg
-                                                        className={`w-4 h-4 mr-2 mt-0.5 flex-shrink-0 transform transition-transform ${
-                                                            isExpanded ? 'rotate-90' : ''
-                                                        }`}
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M9 5l7 7-7 7"
-                                                        />
-                                                    </svg>
+                                                    <span className={`material-symbols-outlined text-on-surface-variant mr-2 mt-0.5 flex-shrink-0 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}>chevron_right</span>
+
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="font-medium text-sm text-gray-800 dark:text-white truncate">
+                                                            <span className="font-medium text-sm text-on-surface truncate">
                                                                 {project.name}
                                                             </span>
                                                         </div>
-                                                        <div className="mt-1 text-[11px] text-gray-500 dark:text-gray-300 space-y-0.5">
+                                                        <div className="mt-1 text-[11px] text-on-surface-variant space-y-0.5">
                                                             <div className="truncate">
                                                                 <span className="font-semibold">
                                                                     Cliente:{' '}
@@ -524,13 +511,13 @@ const GanttPage: React.FC = () => {
                                                                         .map(r => (
                                                                             <span
                                                                                 key={r.id}
-                                                                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-[11px] text-gray-700 dark:text-gray-200"
+                                                                                className="inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[11px]"
                                                                             >
                                                                                 {r.name}
                                                                             </span>
                                                                         ))}
                                                                     {projectResources.length > 3 && (
-                                                                        <span className="text-[11px] text-gray-500 dark:text-gray-300">
+                                                                        <span className="text-[11px] text-on-surface-variant">
                                                                             +{projectResources.length - 3}{' '}
                                                                             altri
                                                                         </span>
@@ -542,7 +529,7 @@ const GanttPage: React.FC = () => {
                                                 </button>
 
                                                 {isExpanded && (
-                                                    <ul className="mt-2 pl-6 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                                                    <ul className="mt-2 pl-6 text-xs text-on-surface-variant space-y-1">
                                                         {projectResources.length > 0 ? (
                                                             projectResources.map(r => (
                                                                 <li key={r.id}>{r.name}</li>
@@ -564,14 +551,14 @@ const GanttPage: React.FC = () => {
                                                     {timeScale.map((_, i) => (
                                                         <div
                                                             key={i}
-                                                            className={`h-full border-r border-gray-200 dark:border-gray-700 ${
+                                                            className={`h-full border-r border-outline-variant ${
                                                                 isExpanded
                                                                     ? 'min-h-[72px]'
                                                                     : 'min-h-[56px]'
                                                             } ${
                                                                 i % 2 === 0
-                                                                    ? 'bg-gray-50/40 dark:bg-gray-900/40'
-                                                                    : 'bg-white dark:bg-gray-900/20'
+                                                                    ? 'bg-surface-container/20'
+                                                                    : ''
                                                             }`}
                                                         />
                                                     ))}
@@ -580,13 +567,13 @@ const GanttPage: React.FC = () => {
                                                 {/* Barra Gantt */}
                                                 {project.startDate && project.endDate && (
                                                     <div
-                                                        className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-blue-500 hover:bg-blue-600 shadow-sm group/bar flex items-center px-2 text-[11px] text-white truncate"
+                                                        className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-primary hover:opacity-80 shadow-sm group/bar flex items-center px-2 text-[11px] text-on-primary truncate"
                                                         style={barStyle}
                                                     >
                                                         <span className="truncate">
                                                             {project.name}
                                                         </span>
-                                                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
+                                                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-inverse-surface text-inverse-on-surface text-[10px] rounded py-1 px-2 opacity-0 group-hover/bar:opacity-100 transition-opacity z-10 whitespace-nowrap">
                                                             {periodLabel}
                                                         </div>
                                                     </div>
@@ -599,12 +586,12 @@ const GanttPage: React.FC = () => {
                                 {/* Riga riepilogo: totale progetti per anno (solo vista "Anno") */}
                                 {zoom === 'year' && (
                                     <div
-                                        className="grid border-t border-gray-300 dark:border-gray-600 bg-blue-50/70 dark:bg-blue-950/40"
+                                        className="grid border-t-2 border-outline bg-primary-container/30"
                                         style={{
                                             gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px 1fr`,
                                         }}
                                     >
-                                        <div className="p-3 border-r border-gray-300 dark:border-gray-600 sticky left-0 bg-blue-50/80 dark:bg-blue-950/60 z-10 text-xs font-semibold text-blue-900 dark:text-blue-100 flex items-center">
+                                        <div className="p-3 border-r border-outline sticky left-0 bg-primary-container/40 z-10 text-xs font-semibold text-on-primary-container flex items-center">
                                             Totale progetti per anno (filtrati)
                                         </div>
                                         <div className="relative">
@@ -615,7 +602,7 @@ const GanttPage: React.FC = () => {
                                                 {timeScale.map((seg, i) => (
                                                     <div
                                                         key={i}
-                                                        className="flex flex-col items=center justify-center min-h-[40px] border-r border-gray-300 dark:border-gray-600 text-[11px] font-semibold text-blue-800 dark:text-blue-100 bg-blue-100/60 dark:bg-blue-900/40"
+                                                        className="flex flex-col items-center justify-center min-h-[40px] border-r border-outline text-[11px] font-semibold text-on-primary-container"
                                                     >
                                                         <span className="mb-0.5">{seg.label}</span>
                                                         <span>{segmentProjectCounts[i] ?? 0}</span>
@@ -632,14 +619,14 @@ const GanttPage: React.FC = () => {
                                 <>
                                     {/* banda leggera */}
                                     <div
-                                        className="absolute top-0 bottom-0 w-6 bg-red-500/5 z-10 pointer-events-none"
+                                        className="absolute top-0 bottom-0 w-6 bg-error/5 z-10 pointer-events-none"
                                         style={{
                                             left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition - 3}px)`,
                                         }}
                                     />
                                     {/* linea */}
                                     <div
-                                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                                        className="absolute top-0 bottom-0 w-0.5 bg-error z-20 pointer-events-none"
                                         style={{
                                             left: `calc(${LEFT_COLUMN_WIDTH}px + ${todayPosition}px)`,
                                         }}
@@ -652,7 +639,7 @@ const GanttPage: React.FC = () => {
 
                     {/* Riepilogo per cliente (quando non si è in vista Anno) */}
                     {zoom !== 'year' && totalByClient.length > 0 && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-700 dark:text-gray-200">
+                        <div className="border-t border-outline bg-surface-container px-4 py-3 text-xs text-on-surface-variant">
                             <div className="font-semibold mb-1">
                                 Totale progetti per cliente (filtrati)
                             </div>
@@ -662,7 +649,7 @@ const GanttPage: React.FC = () => {
                                         key={item.clientName}
                                         className="inline-flex items-center gap-1"
                                     >
-                                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+                                        <span className="inline-block w-2 h-2 rounded-full bg-primary" />
                                         <span>
                                             {item.clientName}: {item.count}
                                         </span>
@@ -674,23 +661,7 @@ const GanttPage: React.FC = () => {
                 </div>
             </div>
 
-            <style>{`
-                .form-input, .form-select {
-                    display: block;
-                    width: 100%;
-                    border-radius: 0.375rem;
-                    border: 1px solid #D1D5DB;
-                    background-color: #FFFFFF;
-                    padding: 0.5rem 0.75rem;
-                    font-size: 0.875rem;
-                    line-height: 1.25rem;
-                }
-                .dark .form-input, .dark .form-select {
-                    border-color: #4B5563;
-                    background-color: #374151;
-                    color: #F9FAFB;
-                }
-            `}</style>
+            <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
         </div>
     );
 };

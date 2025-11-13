@@ -147,12 +147,12 @@ const ProjectCostsReport: React.FC = () => {
 
     return (
         <div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg mb-6">
+            <div className="p-4 bg-surface-container rounded-2xl mb-6">
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
                     <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700">
-                        <span className="mr-2 text-xl">📥</span> Esporta CSV
+                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full shadow-sm hover:opacity-90">
+                        <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                     </button>
                  </div>
             </div>
@@ -163,8 +163,8 @@ const ProjectCostsReport: React.FC = () => {
                     overflow-x-auto  // scroll orizzontale quando serve */
                 "
             >
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
-                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-outline-variant table-fixed">
+                    <thead className="sticky top-0 z-10 bg-surface-container-low">
                         <tr>
                             <SortableHeader label="Progetto" sortKey="projectName" />
                             <SortableHeader label="Cliente" sortKey="clientName" />
@@ -175,17 +175,17 @@ const ProjectCostsReport: React.FC = () => {
                             <SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" />
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-surface divide-y divide-outline-variant">
                         {sortedData.length > 0 ? (
                             sortedData.map(d => (
                                 <tr
                                     key={d.id}
-                                    className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                    className="h-8 hover:bg-surface-container-low"
                                 >
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">
                                         {d.projectName}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {d.clientName}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -197,7 +197,7 @@ const ProjectCostsReport: React.FC = () => {
                                     <td
                                         className={`
                                             px-4 py-3 whitespace-nowrap text-sm font-semibold
-                                            ${d.variance >= 0 ? 'text-green-600' : 'text-red-600'}
+                                            ${d.variance >= 0 ? 'text-tertiary' : 'text-error'}
                                         `}
                                     >
                                         {formatCurrency(d.variance)}
@@ -212,7 +212,7 @@ const ProjectCostsReport: React.FC = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                                <td colSpan={7} className="px-6 py-8 text-center text-sm text-on-surface-variant">
                                     Nessun dato trovato per i filtri correnti.
                                 </td>
                             </tr>
@@ -320,13 +320,13 @@ const ResourceUtilizationReport: React.FC = () => {
 
     return (
         <div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg mb-6">
+            <div className="p-4 bg-surface-container rounded-2xl mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
                     <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
                     <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-sm hover:bg-green-700">
-                        <span className="mr-2 text-xl">📥</span> Esporta CSV
+                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full shadow-sm hover:opacity-90">
+                        <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                     </button>
                 </div>
             </div>
@@ -337,8 +337,8 @@ const ResourceUtilizationReport: React.FC = () => {
                     overflow-x-auto  // scroll orizzontale quando serve */
                 "
             >
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
-                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700">
+                <table className="min-w-full divide-y divide-outline-variant table-fixed">
+                    <thead className="sticky top-0 z-10 bg-surface-container-low">
                         <tr>
                             <SortableHeader label="Risorsa" sortKey="resourceName" />
                             <SortableHeader label="Ruolo" sortKey="roleName" />
@@ -348,17 +348,17 @@ const ResourceUtilizationReport: React.FC = () => {
                             <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
                         </tr>
                     </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tbody className="bg-surface divide-y divide-outline-variant">
                        {sortedData.length > 0 ? (
                             sortedData.map(d => (
                                 <tr
                                     key={d.id}
-                                    className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                    className="h-8 hover:bg-surface-container-low"
                                 >
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">
                                         {d.resourceName}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {d.roleName}
                                     </td>
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
@@ -372,10 +372,10 @@ const ResourceUtilizationReport: React.FC = () => {
                                             px-4 py-3 whitespace-nowrap text-sm font-semibold
                                             ${
                                                 d.utilization > 100
-                                                    ? 'text-red-600'
+                                                    ? 'text-error'
                                                     : d.utilization >= 90
-                                                    ? 'text-yellow-600'
-                                                    : 'text-green-600'
+                                                    ? 'text-yellow-600 dark:text-yellow-400'
+                                                    : 'text-tertiary'
                                             }
                                         `}
                                     >
@@ -388,7 +388,7 @@ const ResourceUtilizationReport: React.FC = () => {
                             ))
                         ) : (
                              <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
+                                <td colSpan={6} className="px-6 py-8 text-center text-sm text-on-surface-variant">
                                     Nessun dato trovato per i filtri correnti.
                                 </td>
                             </tr>
@@ -406,24 +406,24 @@ const ReportsPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Report</h1>
+            <h1 className="text-3xl font-bold text-on-background mb-6">Report</h1>
 
-            <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="mb-6 border-b border-outline-variant">
                 <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                    <button onClick={() => setActiveTab('projectCosts')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                    <button onClick={() => setActiveTab('projectCosts')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'}`}>
                         Report Costi Progetto
                     </button>
-                    <button onClick={() => setActiveTab('resourceUtilization')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+                    <button onClick={() => setActiveTab('resourceUtilization')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'}`}>
                         Report Utilizzo Risorse
                     </button>
                 </nav>
             </div>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="bg-surface rounded-2xl shadow p-6">
                 {activeTab === 'projectCosts' && <ProjectCostsReport />}
                 {activeTab === 'resourceUtilization' && <ResourceUtilizationReport />}
             </div>
-             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
+             <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
         </div>
     );
 };

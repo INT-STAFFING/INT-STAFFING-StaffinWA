@@ -236,7 +236,7 @@ export function DataTable<T extends { id?: string }>({
                 </h1>
                 <button
                     onClick={onAddNew}
-                    className="w-full md:w-auto px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker"
+                    className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
                 >
                     {addNewButtonLabel}
                 </button>
