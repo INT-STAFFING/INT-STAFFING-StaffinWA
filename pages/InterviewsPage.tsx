@@ -6,6 +6,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import { useToast } from '../context/ToastContext';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -17,8 +18,6 @@ type EnrichedInterview = Interview & {
 
 type SortDirection = 'ascending' | 'descending';
 type SortConfig = { key: keyof EnrichedInterview | string; direction: SortDirection } | null;
-
-type ToastType = 'success' | 'error';
 
 // --- Helper Functions ---
 const calculateAge = (birthDate: string | null): number | null => {
@@ -44,30 +43,30 @@ const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).to
 const getStatusBadgeClass = (status: InterviewStatus) => {
   switch (status) {
     case 'Aperto':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-primary-container text-on-primary-container';
     case 'Chiuso':
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-surface-variant text-on-surface-variant';
     case 'StandBy':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-yellow-container text-on-yellow-container';
     case 'Non Contattabile':
-      return 'bg-red-100 text-red-800';
+      return 'bg-error-container text-on-error-container';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-surface-variant text-on-surface-variant';
   }
 };
 
 const getHiringStatusBadgeClass = (status: InterviewHiringStatus | null) => {
   switch (status) {
     case 'SI':
-      return 'bg-green-100 text-green-800';
+      return 'bg-tertiary-container text-on-tertiary-container';
     case 'NO':
-      return 'bg-red-100 text-red-800';
+      return 'bg-error-container text-on-error-container';
     case 'No Rifiutato':
-      return 'bg-orange-100 text-orange-800';
+      return 'bg-yellow-container text-on-yellow-container';
     case 'In Fase di Offerta':
-      return 'bg-purple-100 text-purple-800';
+      return 'bg-secondary-container text-on-secondary-container';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-surface-variant text-on-surface-variant';
   }
 };
 
@@ -83,9 +82,10 @@ const InterviewsPage: React.FC = () => {
     updateInterview,
     deleteInterview,
     isActionLoading,
-    addResource, // NEW
-    locations // NEW
+    addResource,
+    locations
   } = useEntitiesContext();
+  const { addToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingInterview, setEditingInterview] = useState<Interview | Omit<Interview, 'id'> | null>(null);
@@ -94,17 +94,6 @@ const InterviewsPage: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'interviewDate', direction: 'descending' });
   const [view, setView] = useState<'table' | 'card'>('table');
 
-  // Toast state
-  const [toasts, setToasts] = useState<{ id: number; type: ToastType; message: string }[]>([]);
-  const showToast = (message: string, type: ToastType = 'success') => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3500);
-  };
-
-  // Modal Risorsa (cautelativo)
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [resourceDraft, setResourceDraft] = useState<Omit<Resource, 'id'> | null>(null);
 
@@ -306,10 +295,10 @@ const InterviewsPage: React.FC = () => {
     try {
       if ('id' in editingInterview) await updateInterview(editingInterview as Interview);
       else await addInterview(editingInterview as Omit<Interview, 'id'>);
-      showToast('Colloquio salvato correttamente.', 'success');
+      addToast('Colloquio salvato correttamente.', 'success');
       handleCloseModal();
     } catch (err) {
-      showToast('Errore nel salvataggio del colloquio.', 'error');
+      addToast('Errore nel salvataggio del colloquio.', 'error');
     }
   };
 
@@ -328,9 +317,9 @@ const InterviewsPage: React.FC = () => {
       try {
         await deleteInterview(interviewToDelete.id!);
         setInterviewToDelete(null);
-        showToast('Colloquio eliminato.', 'success');
+        addToast('Colloquio eliminato.', 'success');
       } catch {
-        showToast('Errore durante l\'eliminazione.', 'error');
+        addToast('Errore durante l\'eliminazione.', 'error');
       }
     }
   };
@@ -348,21 +337,21 @@ const InterviewsPage: React.FC = () => {
   ];
 
   const renderCard = (interview: EnrichedInterview) => (
-    <div key={interview.id} className="bg-card dark:bg-dark-card rounded-lg shadow-md border border-border dark:border-dark-border p-5 flex flex-col gap-4">
+    <div key={interview.id} className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col gap-4">
       <div className="flex justify-between items-start">
         <div>
-          <p className="font-bold text-lg text-foreground dark:text-dark-foreground">
+          <p className="font-bold text-lg text-on-surface">
             {interview.candidateName} {interview.candidateSurname}{' '}
-            <span className="text-muted-foreground font-normal text-base">({interview.age ?? 'N/A'})</span>
+            <span className="text-on-surface-variant font-normal text-base">({interview.age ?? 'N/A'})</span>
           </p>
           <p className="text-sm text-primary font-medium">{interview.roleName || 'N/A'}</p>
         </div>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica">
-            <span className="text-xl">✏️</span>
+          <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica">
+            <span className="material-symbols-outlined">edit</span>
           </button>
-          <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-            {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="text-xl">🗑️</span>}
+          <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
+            {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
           </button>
         </div>
       </div>
@@ -370,45 +359,45 @@ const InterviewsPage: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span>
         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>{interview.hiringStatus || 'Da definire'}</span>
-        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100/70 text-blue-800">{interview.feedback || 'N/A'}</span>
+        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-secondary-container/70 text-on-secondary-container">{interview.feedback || 'N/A'}</span>
       </div>
 
-      <div className="text-sm space-y-3 pt-3 border-t border-border dark:border-dark-border">
+      <div className="text-sm space-y-3 pt-3 border-t border-outline-variant">
         {interview.cvSummary || interview.notes ? (
           <>
             {interview.cvSummary && (
               <div>
-                <h4 className="font-semibold text-foreground dark:text-dark-foreground mb-1">Riassunto CV</h4>
-                <p className="text-muted-foreground text-xs whitespace-pre-wrap max-h-24 overflow-y-auto">{interview.cvSummary}</p>
+                <h4 className="font-semibold text-on-surface mb-1">Riassunto CV</h4>
+                <p className="text-on-surface-variant text-xs whitespace-pre-wrap max-h-24 overflow-y-auto">{interview.cvSummary}</p>
               </div>
             )}
             {interview.notes && (
               <div>
-                <h4 className="font-semibold text-foreground dark:text-dark-foreground mb-1">Note Colloquio</h4>
-                <p className="text-muted-foreground text-xs whitespace-pre-wrap max-h-24 overflow-y-auto">{interview.notes}</p>
+                <h4 className="font-semibold text-on-surface mb-1">Note Colloquio</h4>
+                <p className="text-on-surface-variant text-xs whitespace-pre-wrap max-h-24 overflow-y-auto">{interview.notes}</p>
               </div>
             )}
           </>
         ) : (
-          <p className="text-xs text-muted-foreground italic">Nessun riassunto CV o note disponibili.</p>
+          <p className="text-xs text-on-surface-variant italic">Nessun riassunto CV o note disponibili.</p>
         )}
       </div>
 
-      <div className="text-xs text-muted-foreground mt-auto pt-3 border-t border-border dark:border-dark-border space-y-1">
+      <div className="text-xs text-on-surface-variant mt-auto pt-3 border-t border-outline-variant space-y-1">
         {interview.resourceRequestLabel && (
           <p>
-            Richiesta: <span className="font-medium text-foreground dark:text-dark-foreground">{interview.resourceRequestLabel}</span>
+            Richiesta: <span className="font-medium text-on-surface">{interview.resourceRequestLabel}</span>
           </p>
         )}
         <p>
-          Colloquio del: <span className="font-medium text-foreground dark:text-dark-foreground">{formatDate(interview.interviewDate)}</span>
+          Colloquio del: <span className="font-medium text-on-surface">{formatDate(interview.interviewDate)}</span>
         </p>
         <p>
-          Intervistatori: <span className="font-medium text-foreground dark:text-dark-foreground">{interview.interviewersNames.join(', ') || 'N/A'}</span>
+          Intervistatori: <span className="font-medium text-on-surface">{interview.interviewersNames.join(', ') || 'N/A'}</span>
         </p>
         {interview.hiringStatus === 'SI' && (
           <p>
-            Ingresso previsto: <span className="font-medium text-foreground dark:text-dark-foreground">{formatDate(interview.entryDate)}</span>
+            Ingresso previsto: <span className="font-medium text-on-surface">{formatDate(interview.entryDate)}</span>
           </p>
         )}
       </div>
@@ -417,96 +406,84 @@ const InterviewsPage: React.FC = () => {
 
   return (
     <div>
-      {/* Toasts */}
-      <div className="fixed top-4 right-4 z-[100] space-y-2">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`px-4 py-3 rounded-md shadow text-white ${t.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}
-          >
-            {t.message}
-          </div>
-        ))}
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div
           onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: 'Aperto', hiringStatus: '' })}
-          className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
         >
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Candidati Attivi</h3>
-              <p className="text-3xl font-semibold">{summaryCards.activeCandidates}</p>
+              <h3 className="text-sm font-medium text-on-surface-variant">Candidati Attivi</h3>
+              <p className="text-3xl font-semibold text-on-surface">{summaryCards.activeCandidates}</p>
             </div>
-            <span className="text-3xl text-gray-300">👥</span>
+            <span className="material-symbols-outlined text-3xl text-on-surface-variant/50">groups</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">{summaryCards.standByCandidates} in Stand-by</p>
+          <p className="text-xs text-on-surface-variant mt-2">{summaryCards.standByCandidates} in Stand-by</p>
         </div>
         <div
           onClick={() => setFilters({ name: '', roleId: '', feedback: 'Positivo', status: '', hiringStatus: '' })}
-          className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
         >
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Feedback Positivi</h3>
-              <p className="text-3xl font-semibold">{summaryCards.positiveFeedback}</p>
+              <h3 className="text-sm font-medium text-on-surface-variant">Feedback Positivi</h3>
+              <p className="text-3xl font-semibold text-on-surface">{summaryCards.positiveFeedback}</p>
             </div>
-            <span className="text-3xl text-gray-300">✅</span>
+            <span className="material-symbols-outlined text-3xl text-on-surface-variant/50">thumb_up</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
+          <p className="text-xs text-on-surface-variant mt-2">{summaryCards.positiveOnHoldFeedback} Positivi On Hold</p>
         </div>
         <div
           onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: '', hiringStatus: 'SI' })}
-          className="bg-card dark:bg-dark-card p-5 rounded-lg shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
         >
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Prossimi Ingressi</h3>
-              <p className="text-3xl font-semibold">{summaryCards.upcomingHires.length}</p>
+              <h3 className="text-sm font-medium text-on-surface-variant">Prossimi Ingressi</h3>
+              <p className="text-3xl font-semibold text-on-surface">{summaryCards.upcomingHires.length}</p>
             </div>
-            <span className="text-3xl text-gray-300">📅</span>
+            <span className="material-symbols-outlined text-3xl text-on-surface-variant/50">calendar_month</span>
           </div>
           {summaryCards.upcomingHires.length > 0 ? (
-            <div className="mt-2 text-xs text-muted-foreground space-y-1 overflow-y-auto max-h-20 pr-2">
+            <div className="mt-2 text-xs text-on-surface-variant space-y-1 overflow-y-auto max-h-20 pr-2">
               {summaryCards.upcomingHires.slice(0, 3).map((hire) => (
                 <div key={hire.id} className="flex justify-between items-center">
                   <span className="truncate pr-2">
                     {hire.candidateName} {hire.candidateSurname}
                   </span>
-                  <span className="font-medium text-foreground dark:text-dark-foreground flex-shrink-0">{formatDate(hire.entryDate)}</span>
+                  <span className="font-medium text-on-surface flex-shrink-0">{formatDate(hire.entryDate)}</span>
                 </div>
               ))}
               {summaryCards.upcomingHires.length > 3 && <p className="text-center mt-1">... e altri {summaryCards.upcomingHires.length - 3}</p>}
             </div>
           ) : (
-            <div className="mt-2 text-xs text-muted-foreground">Nessun ingresso pianificato.</div>
+            <div className="mt-2 text-xs text-on-surface-variant">Nessun ingresso pianificato.</div>
           )}
         </div>
       </div>
 
-      <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-4">Pipeline per Richiesta Attiva</h2>
+      <div className="bg-surface-container rounded-2xl shadow p-6 mb-6">
+        <h2 className="text-xl font-semibold text-on-surface mb-4">Pipeline per Richiesta Attiva</h2>
         <div className="overflow-x-auto max-h-60">
           <table className="min-w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
+            <thead className="sticky top-0 bg-surface-container-high">
               <tr>
-                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Richiesta</th>
-                <th className="px-4 py-2 text-center font-medium text-muted-foreground">N. Colloqui</th>
-                <th className="px-4 py-2 text-left font-medium text-muted-foreground">Candidati in Pipeline</th>
+                <th className="px-4 py-2 text-left font-medium text-on-surface-variant">Richiesta</th>
+                <th className="px-4 py-2 text-center font-medium text-on-surface-variant">N. Colloqui</th>
+                <th className="px-4 py-2 text-left font-medium text-on-surface-variant">Candidati in Pipeline</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border dark:divide-dark-border">
+            <tbody className="divide-y divide-outline-variant">
               {pipelineData.map(({ request, projectName, roleName, interviewCount, candidates }) => (
-                <tr key={request.id} className={interviewCount === 0 ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                <tr key={request.id} className={interviewCount === 0 ? 'bg-error-container/30' : ''}>
                   <td className="px-4 py-2">
-                    <div className="font-semibold">
+                    <div className="font-semibold text-on-surface">
                       {projectName} - {roleName}
                     </div>
-                    <div className="text-xs text-muted-foreground font-mono">{request.requestCode}</div>
+                    <div className="text-xs text-on-surface-variant font-mono">{request.requestCode}</div>
                   </td>
-                  <td className="px-4 py-2 text-center font-semibold">{interviewCount}</td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">{candidates.join(', ') || <span className="italic">Nessun candidato</span>}</td>
+                  <td className="px-4 py-2 text-center font-semibold text-on-surface">{interviewCount}</td>
+                  <td className="px-4 py-2 text-xs text-on-surface-variant">{candidates.join(', ') || <span className="italic">Nessun candidato</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -515,104 +492,104 @@ const InterviewsPage: React.FC = () => {
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Gestione Colloqui</h1>
+        <h1 className="text-3xl font-bold text-on-surface self-start">Gestione Colloqui</h1>
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
+          <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
             <button
               onClick={() => setView('table')}
-              className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
-                view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'
+              className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'
               }`}
             >
               Tabella
             </button>
             <button
               onClick={() => setView('card')}
-              className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
-                view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'
+              className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'
               }`}
             >
               Card
             </button>
           </div>
-          <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">
+          <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">
             Aggiungi Colloquio
           </button>
         </div>
       </div>
 
-      <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow relative z-20">
+      <div className="mb-6 p-4 bg-surface-container rounded-2xl shadow relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..." />
           <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
           <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback" />
           <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione" />
-          <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full">
+          <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">
             Reset
           </button>
         </div>
       </div>
 
       {view === 'table' ? (
-        <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+        <div className="bg-surface-container rounded-2xl shadow">
           <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
             <table className="min-w-full table-fixed">
-              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700 border-b border-border dark:border-dark-border">
+              <thead className="sticky top-0 z-10 bg-surface-container-high border-b border-outline-variant">
                 <tr>
                   {columns.map((col) => (
-                    <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">
+                    <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                       {col.sortKey ? (
                         <button
                           type="button"
                           onClick={() => requestSort(col.sortKey!)}
-                          className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground"
+                          className="flex items-center space-x-1 hover:text-on-surface"
                         >
-                          <span className={sortConfig?.key === col.sortKey ? 'font-bold text-foreground dark:text-dark-foreground' : ''}>{col.header}</span>
-                          <span className="text-gray-400">↕️</span>
+                          <span className={sortConfig?.key === col.sortKey ? 'font-bold text-on-surface' : ''}>{col.header}</span>
+                          <span className="material-symbols-outlined text-sm">{sortConfig?.key === col.sortKey ? (sortConfig.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
                         </button>
                       ) : (
                         <span>{col.header}</span>
                       )}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider">Azioni</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-border dark:divide-dark-border">
+              <tbody className="divide-y divide-outline-variant">
                 {sortedAndFilteredData.map((interview) => (
-                  <tr key={interview.id} className="h-8 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr key={interview.id} className="h-8 hover:bg-surface-container-low">
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <div className="font-medium">
+                      <div className="font-medium text-on-surface">
                         {interview.candidateName} {interview.candidateSurname}{' '}
-                        <span className="text-gray-500">({interview.age ?? 'N/A'})</span>
+                        <span className="text-on-surface-variant">({interview.age ?? 'N/A'})</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.roleName || 'N/A'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{interview.roleName || 'N/A'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                       <span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                       <span className="text-xs">{interview.interviewersNames.join(', ')}</span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.interviewDate)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{interview.feedback || 'N/A'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatDate(interview.interviewDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{interview.feedback || 'N/A'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>
                         {interview.hiringStatus || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{formatDate(interview.entryDate)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatDate(interview.entryDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(interview)} className="text-gray-500 hover:text-blue-600" title="Modifica">
-                          <span className="text-xl">✏️</span>
+                        <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica">
+                          <span className="material-symbols-outlined">edit</span>
                         </button>
-                        <button onClick={() => setInterviewToDelete(interview)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                          {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="text-xl">🗑️</span>}
+                        <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                          {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                       </div>
                     </td>
@@ -622,14 +599,14 @@ const InterviewsPage: React.FC = () => {
             </table>
           </div>
 
-          {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessun dato trovato.</p>}
+          {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-on-surface-variant">Nessun dato trovato.</p>}
         </div>
       ) : (
         <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
           {sortedAndFilteredData.length > 0 ? (
             sortedAndFilteredData.map(renderCard)
           ) : (
-            <div className="col-span-full text-center py-8 text-muted-foreground bg-card dark:bg-dark-card rounded-lg shadow">
+            <div className="col-span-full text-center py-8 text-on-surface-variant bg-surface-container rounded-2xl shadow">
               Nessun colloquio trovato con i filtri correnti.
             </div>
           )}
@@ -642,71 +619,70 @@ const InterviewsPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Nome Candidato *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome Candidato *</label>
                 <input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Cognome Candidato *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Cognome Candidato *</label>
                 <input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Data di Nascita</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data di Nascita</label>
               <input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Collega a Richiesta Risorsa</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Collega a Richiesta Risorsa</label>
               <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Nessuna (Opzionale)" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Horizontal</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Horizontal</label>
                 <SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona..." />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Ruolo Proposto</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ruolo Proposto</label>
                 <SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona..." />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Riassunto CV</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Riassunto CV</label>
               <textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Data Colloquio</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Colloquio</label>
                 <input type="date" name="interviewDate" value={editingInterview.interviewDate || ''} onChange={handleChange} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Feedback</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Feedback</label>
                 <SearchableSelect name="feedback" value={editingInterview.feedback || ''} onChange={handleSelectChange} options={feedbackOptions} placeholder="Seleziona..." />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Colloquiato Da</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Colloquiato Da</label>
               <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona una o più persone" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Note Colloquio</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Note Colloquio</label>
               <textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Stato Assunzione</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Stato Assunzione</label>
                 <SearchableSelect name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleSelectChange} options={hiringStatusOptions} placeholder="Seleziona..." />
               </div>
               {editingInterview.hiringStatus === 'SI' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Data Ingresso *</label>
+                  <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Ingresso *</label>
                   <input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={handleChange} required className="form-input" />
                 </div>
               )}
             </div>
 
-            {/* Pulsante cautelativo per aprire la modale Risorsa */}
             {editingInterview.hiringStatus === 'SI' && editingInterview.entryDate && (
               <div className="flex justify-end">
                 <button
@@ -716,7 +692,7 @@ const InterviewsPage: React.FC = () => {
                     setResourceDraft(draft);
                     setIsResourceModalOpen(true);
                   }}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700"
+                  className="px-4 py-2 bg-tertiary-container text-on-tertiary-container font-semibold rounded-full hover:opacity-90"
                 >
                   Crea nuova Risorsa
                 </button>
@@ -724,13 +700,13 @@ const InterviewsPage: React.FC = () => {
             )}
 
             <div className="flex justify-end space-x-3 pt-4">
-              <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">
+              <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
                 Annulla
               </button>
               <button
                 type="submit"
                 disabled={isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)}
-                className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+                className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
               >
                 {isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`) ? (
                   <SpinnerIcon className="w-5 h-5" />
@@ -743,7 +719,6 @@ const InterviewsPage: React.FC = () => {
         </Modal>
       )}
 
-      {/* Modale RISORSA (precompilata) */}
       {isResourceModalOpen && resourceDraft && (
         <Modal isOpen={isResourceModalOpen} onClose={() => setIsResourceModalOpen(false)} title="Aggiungi Risorsa (da Interview)">
           <form
@@ -752,20 +727,19 @@ const InterviewsPage: React.FC = () => {
               if (!resourceDraft) return;
               try {
                 await addResource(resourceDraft);
-                showToast('Risorsa creata con successo.', 'success');
+                addToast('Risorsa creata con successo.', 'success');
                 setIsResourceModalOpen(false);
-                // chiudi anche la modale interview
                 setIsModalOpen(false);
                 setEditingInterview(null);
               } catch (err) {
-                showToast('Errore nella creazione della risorsa.', 'error');
+                addToast('Errore nella creazione della risorsa.', 'error');
               }
             }}
             className="space-y-4"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Nome e Cognome *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome e Cognome *</label>
                 <input
                   type="text"
                   required
@@ -775,7 +749,7 @@ const InterviewsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Email *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Email *</label>
                 <input
                   type="email"
                   required
@@ -788,7 +762,7 @@ const InterviewsPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Ruolo *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ruolo *</label>
                 <SearchableSelect
                   name="roleId"
                   value={resourceDraft.roleId}
@@ -798,7 +772,7 @@ const InterviewsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Horizontal *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Horizontal *</label>
                 <SearchableSelect
                   name="horizontal"
                   value={resourceDraft.horizontal}
@@ -811,7 +785,7 @@ const InterviewsPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Sede *</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Sede *</label>
                 <SearchableSelect
                   name="location"
                   value={resourceDraft.location}
@@ -821,7 +795,7 @@ const InterviewsPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Data Assunzione</label>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Assunzione</label>
                 <input
                   type="date"
                   className="form-input"
@@ -832,7 +806,7 @@ const InterviewsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Max Staffing ({resourceDraft.maxStaffingPercentage}%)</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Max Staffing ({resourceDraft.maxStaffingPercentage}%)</label>
               <input
                 type="range"
                 min={0}
@@ -840,12 +814,12 @@ const InterviewsPage: React.FC = () => {
                 step={5}
                 value={resourceDraft.maxStaffingPercentage}
                 onChange={(e) => setResourceDraft({ ...resourceDraft, maxStaffingPercentage: parseInt(e.target.value, 10) })}
-                className="w-full"
+                className="w-full accent-primary"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Note</label>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Note</label>
               <textarea
                 className="form-textarea"
                 rows={3}
@@ -855,13 +829,13 @@ const InterviewsPage: React.FC = () => {
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <button type="button" onClick={() => setIsResourceModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-md">
+              <button type="button" onClick={() => setIsResourceModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
                 Annulla
               </button>
               <button
                 type="submit"
                 disabled={isActionLoading('addResource')}
-                className="flex items-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-darker disabled:opacity-50"
+                className="flex items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
               >
                 {isActionLoading('addResource') ? <SpinnerIcon className="w-5 h-5" /> : 'Crea Risorsa'}
               </button>
@@ -880,8 +854,6 @@ const InterviewsPage: React.FC = () => {
           isConfirming={isActionLoading(`deleteInterview-${interviewToDelete.id}`)}
         />
       )}
-
-      <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
     </div>
   );
 };

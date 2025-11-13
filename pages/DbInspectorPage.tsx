@@ -233,7 +233,7 @@ const DbInspectorPage: React.FC = () => {
             return (Number(value) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
         }
         
-        if (value === null || value === undefined) return <i className="text-gray-400">NULL</i>;
+        if (value === null || value === undefined) return <i className="text-on-surface-variant/70">NULL</i>;
         if (typeof value === 'boolean') return value ? 'true' : 'false';
         if (typeof value === 'object' && value !== null) return JSON.stringify(value);
         return String(value);
@@ -241,12 +241,12 @@ const DbInspectorPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Database Inspector</h1>
+            <h1 className="text-3xl font-bold text-on-surface mb-6">Database Inspector</h1>
             
-            <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="table-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Seleziona una Tabella</label>
+                        <label htmlFor="table-select" className="block text-sm font-medium text-on-surface-variant mb-2">Seleziona una Tabella</label>
                         <select
                             id="table-select"
                             value={selectedTable}
@@ -258,26 +258,26 @@ const DbInspectorPage: React.FC = () => {
                         </select>
                     </div>
                      <div className="space-y-2">
-                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Azioni Globali</label>
+                         <label className="block text-sm font-medium text-on-surface-variant mb-2">Azioni Globali</label>
                          <div className="flex items-center gap-2">
                              <button
                                 onClick={() => handleExport('postgres')}
                                 disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
                             >
                                 {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
                             </button>
                             <button
                                 onClick={() => handleExport('mysql')}
                                 disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
                             >
                                 {isExportingMysql ? <SpinnerIcon className="w-5 h-5"/> : 'Export MySQL'}
                             </button>
                             <button
                                 onClick={() => setIsDeleteAllModalOpen(true)}
                                 disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
-                                className="px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+                                className="px-4 py-2 bg-error text-on-error font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
                                 title="Elimina Tutte le Righe dalla Tabella Selezionata"
                             >
                                 Svuota
@@ -289,34 +289,34 @@ const DbInspectorPage: React.FC = () => {
 
             {isLoading && !tableData && (
                 <div className="flex justify-center items-center py-12">
-                    <SpinnerIcon className="w-8 h-8 text-blue-500" />
+                    <SpinnerIcon className="w-8 h-8 text-primary" />
                 </div>
             )}
             
             {tableData && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-x-auto relative">
+                <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
                     {(isLoading || isSaving) && (
-                        <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 flex justify-center items-center z-10">
-                            <SpinnerIcon className="w-8 h-8 text-blue-500" />
+                        <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
+                            <SpinnerIcon className="w-8 h-8 text-primary" />
                         </div>
                     )}
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700">
+                    <table className="min-w-full divide-y divide-outline-variant">
+                        <thead className="bg-surface-container-low">
                             <tr>
                                 {tableData.columns.map(col => (
-                                    <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                    <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
                                         {col.column_name}
-                                        <span className="block text-gray-400 font-normal normal-case">{col.data_type}</span>
+                                        <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
                                     </th>
                                 ))}
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Azioni</th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-dark-border">
+                        <tbody className="divide-y divide-outline-variant">
                             {tableData.rows.map(row => (
-                                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <tr key={row.id} className="hover:bg-surface-container">
                                     {tableData.columns.map(col => (
-                                        <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 align-top">
+                                        <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
                                             {editingRowId === row.id && col.column_name !== 'id' ? (
                                                 renderInputField(col, editingRowData[col.column_name])
                                             ) : (
@@ -327,13 +327,13 @@ const DbInspectorPage: React.FC = () => {
                                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                         {editingRowId === row.id ? (
                                             <div className="flex items-center justify-end space-x-2">
-                                                <button onClick={handleSave} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
-                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">✔️</span>}
+                                                <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
+                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                                                 </button>
-                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-gray-500 hover:text-gray-400 disabled:opacity-50"><span className="text-xl">❌</span></button>
+                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
                                             </div>
                                         ) : (
-                                            <button onClick={() => handleEdit(row)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
+                                            <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
                                         )}
                                     </td>
                                 </tr>
@@ -341,7 +341,7 @@ const DbInspectorPage: React.FC = () => {
                         </tbody>
                     </table>
                      {tableData.rows.length === 0 && (
-                        <p className="text-center text-gray-500 py-8">La tabella è vuota.</p>
+                        <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
                     )}
                 </div>
             )}
@@ -355,13 +355,11 @@ const DbInspectorPage: React.FC = () => {
                     <>
                         Sei assolutamente sicuro di voler eliminare <strong>tutte le righe</strong> dalla tabella <strong>{selectedTable}</strong>?
                         <br />
-                        <strong className="text-destructive">Questa azione è irreversibile.</strong>
+                        <strong className="text-error">Questa azione è irreversibile.</strong>
                     </>
                 }
                 isConfirming={isSaving}
             />
-
-            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };

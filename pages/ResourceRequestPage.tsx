@@ -25,10 +25,10 @@ const formatDate = (dateStr: string) => {
 
 const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     switch (status) {
-        case 'ATTIVA': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-        case 'STANDBY': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-        case 'CHIUSA': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        case 'ATTIVA': return 'bg-tertiary-container text-on-tertiary-container';
+        case 'STANDBY': return 'bg-yellow-container text-on-yellow-container';
+        case 'CHIUSA': return 'bg-surface-variant text-on-surface-variant';
+        default: return 'bg-surface-variant text-on-surface-variant';
     }
 };
 
@@ -199,23 +199,23 @@ export const ResourceRequestPage: React.FC = () => {
 
     const columns: ColumnDef<EnrichedRequest>[] = [
         { header: 'ID Richiesta', sortKey: 'requestCode', cell: r => <span className="font-mono text-xs font-semibold">{r.requestCode}</span> },
-        { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-gray-900 dark:text-white">{r.projectName}</span> },
+        { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-on-surface">{r.projectName}</span> },
         { header: 'Ruolo Richiesto', sortKey: 'roleName', cell: r => r.roleName },
         { header: 'Richiedente', sortKey: 'requestorName', cell: r => r.requestorName || 'N/A' },
         { header: 'Periodo', sortKey: 'startDate', cell: r => `${formatDate(r.startDate)} - ${formatDate(r.endDate)}` },
         { header: 'Impegno', sortKey: 'commitmentPercentage', cell: r => `${r.commitmentPercentage}%` },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
-        { header: 'Urgenza', sortKey: 'isUrgent', cell: r => r.isUrgent ? <span className="text-red-500 font-bold">Sì</span> : 'No' },
+        { header: 'Urgenza', sortKey: 'isUrgent', cell: r => r.isUrgent ? <span className="text-error font-bold">Sì</span> : 'No' },
     ];
 
     const renderRow = (request: EnrichedRequest) => (
         <tr key={request.id} className="group hover:bg-surface-container">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 bg-inherit">{col.cell(request)}</td>)}
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(request)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="text-gray-500 hover:text-red-600" title="Elimina">
-                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <button onClick={() => openModalForEdit(request)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => setRequestToDelete(request)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
             </td>
@@ -224,31 +224,31 @@ export const ResourceRequestPage: React.FC = () => {
     
     // Vista Card per mobile e per la nuova visualizzazione a card
     const renderCard = (request: EnrichedRequest) => (
-        <div key={request.id} className="p-4 rounded-lg shadow-md bg-card dark:bg-dark-card flex flex-col md:flex-row gap-4 justify-between">
+        <div key={request.id} className="p-4 rounded-2xl shadow-md bg-surface-container-low flex flex-col md:flex-row gap-4 justify-between">
             <div className="flex-grow">
                 <div className="flex items-baseline gap-3">
-                    <p className="font-bold text-lg text-foreground dark:text-dark-foreground">{request.projectName}</p>
-                    <span className="font-mono text-sm text-muted-foreground">{request.requestCode}</span>
+                    <p className="font-bold text-lg text-on-surface">{request.projectName}</p>
+                    <span className="font-mono text-sm text-on-surface-variant">{request.requestCode}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">{request.roleName}</p>
-                <div className="mt-4 pt-4 border-t border-border dark:border-dark-border grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div><p className="text-muted-foreground">Periodo</p><p className="font-medium text-foreground dark:text-dark-foreground">{formatDate(request.startDate)} - {formatDate(request.endDate)}</p></div>
-                    <div><p className="text-muted-foreground">Impegno</p><p className="font-medium text-foreground dark:text-dark-foreground">{request.commitmentPercentage}%</p></div>
-                    <div className="col-span-2"><p className="text-muted-foreground">Richiedente</p><p className="font-medium text-foreground dark:text-dark-foreground">{request.requestorName || 'N/A'}</p></div>
+                <p className="text-sm text-on-surface-variant">{request.roleName}</p>
+                <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDate(request.startDate)} - {formatDate(request.endDate)}</p></div>
+                    <div><p className="text-on-surface-variant">Impegno</p><p className="font-medium text-on-surface">{request.commitmentPercentage}%</p></div>
+                    <div className="col-span-2"><p className="text-on-surface-variant">Richiedente</p><p className="font-medium text-on-surface">{request.requestorName || 'N/A'}</p></div>
                 </div>
             </div>
-            <div className="flex flex-col items-start md:items-end justify-between flex-shrink-0 md:pl-4 md:border-l border-border dark:border-dark-border md:w-48">
+            <div className="flex flex-col items-start md:items-end justify-between flex-shrink-0 md:pl-4 md:border-l border-outline-variant md:w-48">
                 <div className="flex flex-col md:items-end gap-2 w-full">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
                     <div className="flex gap-2 mt-1">
-                        {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-red-800 bg-red-100 dark:text-red-100 dark:bg-red-800 rounded-full">URGENTE</span>}
-                        {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-purple-800 bg-purple-100 dark:text-purple-100 dark:bg-purple-800 rounded-full">TECH</span>}
+                        {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-on-error-container bg-error-container rounded-full">URGENTE</span>}
+                        {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-on-secondary-container bg-secondary-container rounded-full">TECH</span>}
                     </div>
                 </div>
                 <div className="flex items-center space-x-2 mt-4 md:mt-0 self-end">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 text-muted-foreground hover:text-primary rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Modifica"><span className="text-xl">✏️</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-muted-foreground hover:text-destructive rounded-full hover:bg-muted dark:hover:bg-dark-muted" title="Elimina">
-                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="text-xl">🗑️</span>}
+                    <button onClick={() => openModalForEdit(request)} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container" title="Elimina">
+                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
             </div>
@@ -262,55 +262,55 @@ export const ResourceRequestPage: React.FC = () => {
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
             <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions.map(s => ({ value: s.value, label: s.label }))} placeholder="Tutti gli Stati"/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
         </div>
     );
     
     return (
         <div>
              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">Richieste Risorse</h1>
+                <h1 className="text-3xl font-bold text-on-surface self-start">Richieste Risorse</h1>
                  <div className="flex items-center gap-4 w-full md:w-auto">
-                     <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'table' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'card' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Card</button>
+                     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
                     </div>
-                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-white font-semibold rounded-md shadow-sm hover:bg-primary-darker">Nuova Richiesta</button>
+                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Richiesta</button>
                 </div>
             </div>
             
-             <div className="mb-6 p-4 bg-card dark:bg-card rounded-lg shadow">
+             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 {filtersNode}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">Riepilogo Risorse Richieste (FTE)</h2>
+                <div className="bg-surface-container-low rounded-2xl shadow p-6">
+                    <h2 className="text-lg font-semibold text-on-surface mb-4">Riepilogo Risorse Richieste (FTE)</h2>
                     {summaryData.fteArray.length > 0 ? (
                         <ul className="space-y-2 max-h-48 overflow-y-auto">
                             {summaryData.fteArray.map(({ roleName, fte }) => (
                                 <li key={roleName} className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">{roleName}</span>
+                                    <span className="text-on-surface-variant">{roleName}</span>
                                     <span className="font-bold text-primary">{fte.toFixed(2)}</span>
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-muted-foreground">Nessun dato da aggregare in base ai filtri correnti.</p>
+                        <p className="text-sm text-on-surface-variant">Nessun dato da aggregare in base ai filtri correnti.</p>
                     )}
                 </div>
 
-                <div className="bg-card dark:bg-dark-card rounded-lg shadow p-6">
-                    <h2 className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">Dettaglio Richieste per Progetto</h2>
+                <div className="bg-surface-container-low rounded-2xl shadow p-6">
+                    <h2 className="text-lg font-semibold text-on-surface mb-4">Dettaglio Richieste per Progetto</h2>
                      {summaryData.projectArray.length > 0 ? (
                         <div className="space-y-4 max-h-48 overflow-y-auto">
                             {summaryData.projectArray.map(({ projectName, requests }) => (
                                 <div key={projectName}>
-                                    <h3 className="font-semibold text-foreground dark:text-dark-foreground text-sm">{projectName}</h3>
+                                    <h3 className="font-semibold text-on-surface text-sm">{projectName}</h3>
                                     <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
                                         {requests.map((req, index) => (
-                                            <li key={index} className="text-sm text-muted-foreground">
-                                                {req.roleName} <span className="font-medium text-foreground dark:text-dark-foreground">({req.commitmentPercentage}%)</span>
+                                            <li key={index} className="text-sm text-on-surface-variant">
+                                                {req.roleName} <span className="font-medium text-on-surface">({req.commitmentPercentage}%)</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -318,13 +318,13 @@ export const ResourceRequestPage: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                         <p className="text-sm text-muted-foreground">Nessun dato da aggregare in base ai filtri correnti.</p>
+                         <p className="text-sm text-on-surface-variant">Nessun dato da aggregare in base ai filtri correnti.</p>
                     )}
                 </div>
             </div>
 
             {view === 'table' ? (
-                <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+                <div className="bg-surface rounded-2xl shadow">
                    
                     <div
                         className="
@@ -363,7 +363,7 @@ export const ResourceRequestPage: React.FC = () => {
                     {dataForTable.length > 0 ? (
                         dataForTable.map(renderCard)
                     ) : (
-                        <p className="col-span-full text-center py-8 text-muted-foreground">
+                        <p className="col-span-full text-center py-8 text-on-surface-variant">
                             Nessuna richiesta trovata.
                         </p>
                     )}
@@ -377,61 +377,61 @@ export const ResourceRequestPage: React.FC = () => {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {'id' in editingRequest && editingRequest.id && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ID Richiesta</label>
-                                <input type="text" value={(editingRequest as ResourceRequest).requestCode || ''} readOnly disabled className="form-input bg-gray-100 dark:bg-gray-700"/>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">ID Richiesta</label>
+                                <input type="text" value={(editingRequest as ResourceRequest).requestCode || ''} readOnly disabled className="form-input bg-surface-container"/>
                             </div>
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Progetto *</label>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto *</label>
                                 <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} required />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo Richiesto *</label>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Richiesto *</label>
                                 <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} required />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Richiedente</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Richiedente</label>
                             <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Nessun richiedente (opzionale)" />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio *</label>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
                                 <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fine *</label>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
                                 <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/>
                             </div>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Percentuale Impegno ({editingRequest.commitmentPercentage}%)</label>
-                            <input type="range" min="0" max="100" step="5" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Percentuale Impegno ({editingRequest.commitmentPercentage}%)</label>
+                            <input type="range" min="0" max="100" step="5" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full accent-primary"/>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex items-center">
-                                <input id="isUrgent" name="isUrgent" type="checkbox" checked={editingRequest.isUrgent} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                <label htmlFor="isUrgent" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Richiesta Urgente</label>
+                                <input id="isUrgent" name="isUrgent" type="checkbox" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox"/>
+                                <label htmlFor="isUrgent" className="ml-2 block text-sm text-on-surface">Richiesta Urgente</label>
                             </div>
                             <div className="flex items-center">
-                                <input id="isTechRequest" name="isTechRequest" type="checkbox" checked={editingRequest.isTechRequest} onChange={handleChange} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                <label htmlFor="isTechRequest" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">Richiesta TECH</label>
+                                <input id="isTechRequest" name="isTechRequest" type="checkbox" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox"/>
+                                <label htmlFor="isTechRequest" className="ml-2 block text-sm text-on-surface">Richiesta TECH</label>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato *</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
                             <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
                                 {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </select>
                         </div>
                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
                             <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
                         </div>
                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-md">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50">
                                {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
@@ -449,7 +449,6 @@ export const ResourceRequestPage: React.FC = () => {
                     isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
                 />
             )}
-             <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };

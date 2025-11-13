@@ -48,10 +48,10 @@ const useSort = <T extends string>() => {
     };
 
     const SortableHeader: React.FC<{ label: string; sortKey: T }> = ({ label, sortKey }) => (
-        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-gray-900 dark:hover:text-white">
-                <span className={sortConfig?.key === sortKey ? 'font-bold text-gray-800 dark:text-white' : ''}>{label}</span>
-                <span className="text-gray-400">↕️</span>
+        <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-on-surface">
+                <span className={sortConfig?.key === sortKey ? 'font-bold text-on-surface' : ''}>{label}</span>
+                <span className="material-symbols-outlined text-sm">{sortConfig?.key === sortKey ? (sortConfig.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
             </button>
         </th>
     );
@@ -151,16 +151,16 @@ const ProjectCostsReport: React.FC = () => {
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                     <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
                     <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full shadow-sm hover:opacity-90">
+                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                         <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                     </button>
                  </div>
             </div>
              <div
                 className="
-                    max-h-[640px]    // ~20 righe se h-8 ≈ 32px */
-                    overflow-y-auto  // scroll verticale interno */
-                    overflow-x-auto  // scroll orizzontale quando serve */
+                    max-h-[640px]
+                    overflow-y-auto
+                    overflow-x-auto
                 "
             >
                 <table className="min-w-full divide-y divide-outline-variant table-fixed">
@@ -188,10 +188,10 @@ const ProjectCostsReport: React.FC = () => {
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {d.clientName}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {formatCurrency(d.budget)}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {formatCurrency(d.allocatedCost)}
                                     </td>
                                     <td
@@ -202,10 +202,10 @@ const ProjectCostsReport: React.FC = () => {
                                     >
                                         {formatCurrency(d.variance)}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {(d.personDays || 0).toFixed(2)}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {formatCurrency(d.avgCostPerDay)}
                                     </td>
                                 </tr>
@@ -325,7 +325,7 @@ const ResourceUtilizationReport: React.FC = () => {
                     <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
                     <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
                     <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full shadow-sm hover:opacity-90">
+                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                         <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                     </button>
                 </div>
@@ -361,10 +361,10 @@ const ResourceUtilizationReport: React.FC = () => {
                                     <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {d.roleName}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {(d.availableDays || 0).toFixed(1)}
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {(d.allocatedDays || 0).toFixed(2)}
                                     </td>
                                     <td
@@ -374,14 +374,14 @@ const ResourceUtilizationReport: React.FC = () => {
                                                 d.utilization > 100
                                                     ? 'text-error'
                                                     : d.utilization >= 90
-                                                    ? 'text-yellow-600 dark:text-yellow-400'
+                                                    ? 'text-on-yellow-container'
                                                     : 'text-tertiary'
                                             }
                                         `}
                                     >
                                         {(d.utilization || 0).toFixed(1)}%
                                     </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
                                         {formatCurrency(d.allocatedCost)}
                                     </td>
                                 </tr>
@@ -423,7 +423,6 @@ const ReportsPage: React.FC = () => {
                 {activeTab === 'projectCosts' && <ProjectCostsReport />}
                 {activeTab === 'resourceUtilization' && <ResourceUtilizationReport />}
             </div>
-             <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
         </div>
     );
 };

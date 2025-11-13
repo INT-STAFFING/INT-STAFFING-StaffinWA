@@ -150,6 +150,9 @@ const StaffingVisualizationPage: React.FC = () => {
             setIsLoading(false);
             return;
         }
+        
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        const currentPalette = isDarkMode ? theme.dark : theme.light;
 
         const data = JSON.parse(chartDataString);
 
@@ -170,20 +173,17 @@ const StaffingVisualizationPage: React.FC = () => {
             .style("position", "absolute")
             .style("z-index", "10")
             .style("visibility", "hidden")
-            .style("background", "#333")
-            .style("color", "#fff")
+            .style("background", currentPalette.inverseSurface)
+            .style("color", currentPalette.inverseOnSurface)
             .style("padding", "8px")
             .style("border-radius", "4px")
             .style("font-size", "12px");
 
         if (view === 'sankey') {
-            // PARAMETRI SANKEY: Recupera le impostazioni dal tema.
             const { nodeWidth, nodePadding, linkOpacity } = theme.visualizationSettings.sankey;
 
             const sankey = d3.sankey()
-                // nodeWidth: Controlla la larghezza (spessore orizzontale) dei rettangoli verticali (nodi).
                 .nodeWidth(nodeWidth)
-                // nodePadding: Controlla lo spazio verticale tra i nodi all'interno della stessa colonna.
                 .nodePadding(nodePadding)
                 .extent([[1, 5], [width - 1, height - 5]]);
             
@@ -201,7 +201,7 @@ const StaffingVisualizationPage: React.FC = () => {
             
             const color = d3.scaleOrdinal()
                 .domain(['resource', 'project', 'client', 'contract'])
-                .range(['#3b82f6', '#10b981', '#8b5cf6', '#f97316']);
+                .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
             svg.append("g")
                 .selectAll("rect")
@@ -224,7 +224,6 @@ const StaffingVisualizationPage: React.FC = () => {
 
             const link = svg.append("g")
                 .attr("fill", "none")
-                // linkOpacity: Controlla la trasparenza dei flussi. Utile per visualizzare meglio gli incroci.
                 .attr("stroke-opacity", linkOpacity)
                 .selectAll("g")
                 .data(links)
@@ -257,11 +256,10 @@ const StaffingVisualizationPage: React.FC = () => {
                 .attr("dy", "0.35em")
                 .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
                 .attr("font-size", "10px")
-                .attr("fill", "currentColor")
+                .attr("fill", currentPalette.onSurface)
                 .text((d: any) => d.name);
         
         } else { // network
-            // PARAMETRI NETWORK: Recupera le impostazioni dal tema.
             const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
 
             const zoom = d3.zoom()
@@ -275,22 +273,17 @@ const StaffingVisualizationPage: React.FC = () => {
 
              const color = d3.scaleOrdinal()
                 .domain(['resource', 'project', 'client', 'contract'])
-                .range(['#3b82f6', '#10b981', '#8b5cf6', '#f97316']);
+                .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
             const simulation = d3.forceSimulation(data.nodes)
-                // linkDistance: Imposta la distanza "ideale" che i collegamenti (le "molle") cercano di raggiungere.
                 .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
-                // chargeStrength: È la forza principale di repulsione tra tutti i nodi. Un valore più negativo aumenta la distanza tra loro.
                 .force("charge", d3.forceManyBody().strength(chargeStrength))
-                // center: Forza che attira l'intero grafico verso il centro dell'area di disegno.
                 .force("center", d3.forceCenter(width / 2, height / 2))
-                // x e y: Forze "gentili" che attirano i nodi verso il centro orizzontale e verticale.
-                // centerStrength: Controlla l'intensità di queste forze centripete.
                 .force("x", d3.forceX(width / 2).strength(centerStrength))
                 .force("y", d3.forceY(height / 2).strength(centerStrength));
                 
             const link = g.append("g")
-                .attr("stroke", "#999")
+                .attr("stroke", currentPalette.outline)
                 .attr("stroke-opacity", 0.6)
                 .selectAll("line")
                 .data(data.links)
@@ -309,10 +302,9 @@ const StaffingVisualizationPage: React.FC = () => {
                 );
 
             nodeGroup.append("circle")
-                // nodeRadius: Controlla la dimensione (raggio) dei cerchi che rappresentano i nodi.
                 .attr("r", nodeRadius)
                 .attr("fill", (d: any) => color(d.type))
-                .attr("stroke", "#fff")
+                .attr("stroke", currentPalette.surface)
                 .attr("stroke-width", 1.5);
 
             nodeGroup.append("text")
@@ -320,7 +312,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 .attr("x", 12)
                 .attr("y", 3)
                 .attr("font-size", "10px")
-                .attr("fill", "currentColor");
+                .attr("fill", currentPalette.onSurface);
             
             nodeGroup.on("mouseover", (event: any, d: any) => {
                     tooltip.style("visibility", "visible").text(`${d.name}`);
@@ -350,7 +342,7 @@ const StaffingVisualizationPage: React.FC = () => {
             d3.select(".d3-tooltip").remove();
         };
 
-    }, [chartDataString, view, theme.visualizationSettings]);
+    }, [chartDataString, view, theme.visualizationSettings, theme.dark, theme.light]);
 
     const handleExportSVG = () => {
         if (!svgRef.current) return;
@@ -379,7 +371,8 @@ const StaffingVisualizationPage: React.FC = () => {
         const svgData = new XMLSerializer().serializeToString(svg);
         const img = new Image();
         img.onload = () => {
-            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('color-scheme') === 'dark' ? '#0f172a' : '#ffffff';
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            ctx.fillStyle = isDarkMode ? theme.dark.background : theme.light.background;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
             const pngUrl = canvas.toDataURL('image/png');
@@ -396,39 +389,39 @@ const StaffingVisualizationPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">Visualizzazione Staffing</h1>
+            <h1 className="text-3xl font-bold text-on-surface mb-6">Visualizzazione Staffing</h1>
             
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 p-4 bg-surface rounded-2xl shadow">
                 <div>
-                    <label className="text-sm font-medium mr-2">Mese:</label>
+                    <label className="text-sm font-medium mr-2 text-on-surface-variant">Mese:</label>
                     <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} className="form-select text-sm py-1">
                         {monthOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
                 </div>
-                <div className="flex items-center space-x-1 bg-gray-200 dark:bg-gray-700 p-1 rounded-md">
-                    <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'sankey' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Diagramma di Flusso</button>
-                    <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${view === 'network' ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300'}`}>Mappa delle Connessioni</button>
+                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                    <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Diagramma di Flusso</button>
+                    <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Mappa delle Connessioni</button>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
-                        <span className="mr-2">📥</span>
+                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
+                        <span className="material-symbols-outlined mr-2 text-base">download</span>
                         SVG
                     </button>
-                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
-                        <span className="mr-2">📥</span>
+                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
+                         <span className="material-symbols-outlined mr-2 text-base">download</span>
                         PNG
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 overflow-auto">
+            <div className="bg-surface rounded-2xl shadow p-4 overflow-auto">
                 {isLoading && (
                     <div className="flex justify-center items-center h-96">
-                        <SpinnerIcon className="w-12 h-12 text-blue-500" />
+                        <SpinnerIcon className="w-12 h-12 text-primary" />
                     </div>
                 )}
                 {!isLoading && chartData.nodes.length === 0 && (
-                    <div className="flex justify-center items-center h-96 text-gray-500">
+                    <div className="flex justify-center items-center h-96 text-on-surface-variant">
                         Nessun dato di allocazione trovato per il mese selezionato.
                     </div>
                 )}
@@ -436,7 +429,6 @@ const StaffingVisualizationPage: React.FC = () => {
                     <svg ref={svgRef}></svg>
                 )}
             </div>
-            <style>{`.form-select { display: inline-block; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 2rem 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-select { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };
