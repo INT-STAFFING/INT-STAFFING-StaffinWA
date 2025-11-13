@@ -114,6 +114,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { id, entity, action, table } = req.query;
 
     switch (entity) {
+        // --- GESTORE ENTITÀ: THEME ---
+        case 'theme':
+            switch (method) {
+                case 'GET':
+                    try {
+                        const { rows } = await db.sql`SELECT key, value FROM app_config WHERE key LIKE 'theme.%'`;
+                        return res.status(200).json(rows);
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'POST':
+                    const client = await db.connect();
+                    try {
+                        await client.query('BEGIN');
+                        const { updates } = req.body; // updates is an object { 'theme.light.primary': '#...'}
+                        if (typeof updates !== 'object' || updates === null) {
+                            throw new Error('Invalid updates payload');
+                        }
+                        
+                        for (const [key, value] of Object.entries(updates)) {
+                            // Basic validation to prevent SQL injection or bad data
+                            if (key.startsWith('theme.') && typeof value === 'string' && value.length < 255) {
+                                await client.query(
+                                    `INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
+                                    [key, value]
+                                );
+                            }
+                        }
+                        
+                        // Increment theme version
+                        await client.query(
+                            `INSERT INTO app_config (key, value) VALUES ('theme.version', '1')
+                             ON CONFLICT (key) DO UPDATE SET value = ((SELECT value::INT FROM app_config WHERE key = 'theme.version') + 1)::TEXT;`
+                        );
+                        
+                        await client.query('COMMIT');
+                        
+                        const versionRes = await db.sql`SELECT value FROM app_config WHERE key = 'theme.version'`;
+                        return res.status(200).json({ success: true, newVersion: versionRes.rows[0]?.value });
+                    } catch (error) {
+                        await client.query('ROLLBACK');
+                        console.error("Theme update error:", error);
+                        return res.status(500).json({ error: (error as Error).message });
+                    } finally {
+                        client.release();
+                    }
+                default:
+                    res.setHeader('Allow', ['GET', 'POST']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+
         // --- GESTORE ENTITÀ: RISORSE ---
         case 'resources':
             switch (method) {
