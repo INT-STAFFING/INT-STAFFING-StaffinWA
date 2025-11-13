@@ -146,20 +146,6 @@ const ConfigPage: React.FC = () => {
                 <ConfigSection title="Settori (Clienti)" configType="clientSectors" options={clientSectors} />
                 <ConfigSection title="Sedi di Lavoro (Risorse)" configType="locations" options={locations} />
             </div>
-             <style>{`
-                .form-input { 
-                    background-color: var(--color-surface-container-highest);
-                    border: 1px solid var(--color-outline);
-                    color: var(--color-on-surface);
-                    border-radius: 0.5rem;
-                }
-                .form-input:focus {
-                    border-color: var(--color-primary);
-                    outline: 2px solid transparent;
-                    outline-offset: 2px;
-                    --tw-ring-color: var(--color-primary);
-                }
-            `}</style>
         </div>
     );
 };

@@ -259,8 +259,6 @@ const ForecastingPage: React.FC = () => {
                     </table>
                 </div>
             </div>
-
-             <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
         </div>
     );
 };

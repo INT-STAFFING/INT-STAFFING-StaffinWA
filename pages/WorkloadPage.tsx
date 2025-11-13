@@ -42,7 +42,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
 
   if (isNonWorkingDay) {
     return (
-      <td className="border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold bg-gray-100 dark:bg-gray-900/50 text-gray-400">
+      <td className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold bg-surface-container text-on-surface-variant">
         -
       </td>
     );
@@ -58,15 +58,15 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
   // Logica colori unificata
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
-    if (total > maxPercentage) return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
-    if (total === maxPercentage) return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
-    if (total > 0 && total < maxPercentage) return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+    if (total > maxPercentage) return 'bg-error-container text-on-error-container';
+    if (total === maxPercentage) return 'bg-tertiary-container text-on-tertiary-container';
+    if (total > 0 && total < maxPercentage) return 'bg-yellow-container text-on-yellow-container';
     return 'bg-transparent';
   }, [total, resource.maxStaffingPercentage]);
 
   return (
     <td
-      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
       {total > 0 ? `${total}%` : '-'}
     </td>
@@ -137,17 +137,17 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
     const roundedAverage = Math.round(averageAllocation);
     if (roundedAverage > maxPercentage)
-      return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+      return 'bg-error-container text-on-error-container';
     if (roundedAverage === maxPercentage)
-      return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+      return 'bg-tertiary-container text-on-tertiary-container';
     if (roundedAverage > 0 && roundedAverage < maxPercentage)
-      return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+      return 'bg-yellow-container text-on-yellow-container';
     return 'bg-transparent';
   }, [averageAllocation, resource.maxStaffingPercentage]);
 
   return (
     <td
-      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
       {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
     </td>
@@ -507,9 +507,6 @@ const WorkloadPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Stili input/select usati da alcuni componenti */}
-      <style>{`.form-input, .form-select { background-color: var(--color-surface-container-highest); border-color: var(--color-outline); color: var(--color-on-surface); }`}</style>
     </div>
   );
 };

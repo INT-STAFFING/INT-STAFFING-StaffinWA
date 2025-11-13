@@ -137,10 +137,10 @@ const ProjectsPage: React.FC = () => {
 
     const getStatusBadgeClass = (status: string | null): string => {
         switch (status) {
-            case 'Completato': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-            case 'In pausa': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-            case 'In corso': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-            default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+            case 'Completato': return 'bg-tertiary-container text-on-tertiary-container';
+            case 'In pausa': return 'bg-yellow-container text-on-yellow-container';
+            case 'In corso': return 'bg-primary-container text-on-primary-container';
+            default: return 'bg-surface-variant text-on-surface-variant';
         }
     };
     
@@ -361,7 +361,6 @@ const ProjectsPage: React.FC = () => {
                     </form>
                 </Modal>
             )}
-            <style>{`.form-input, .form-select, .form-textarea { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid #D1D5DB; background-color: #FFFFFF; padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .dark .form-input, .dark .form-select, .dark .form-textarea { border-color: #4B5563; background-color: #374151; color: #F9FAFB; }`}</style>
         </div>
     );
 };

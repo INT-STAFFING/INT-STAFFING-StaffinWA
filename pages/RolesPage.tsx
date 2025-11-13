@@ -237,7 +237,6 @@ const RolesPage: React.FC = () => {
                     </form>
                 </Modal>
             )}
-             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.5rem; border: 1px solid var(--color-outline); background-color: var(--color-surface-container-highest); padding: 0.75rem 1rem; font-size: 0.875rem; line-height: 1.25rem; color: var(--color-on-surface); } .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); ring: 2px solid var(--color-primary); }`}</style>
         </div>
     );
 };

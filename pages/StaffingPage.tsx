@@ -42,8 +42,8 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
 
     if (isNonWorkingDay) {
       return (
-        <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center bg-gray-50 dark:bg-gray-800/50">
-          <span className="text-sm text-gray-400">-</span>
+        <td className="border-t border-outline-variant p-0 text-center bg-surface-container">
+          <span className="text-sm text-on-surface-variant">-</span>
         </td>
       );
     }
@@ -53,11 +53,11 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
     };
 
     return (
-      <td className="border-t border-gray-200 dark:border-gray-700 p-0 text-center">
+      <td className="border-t border-outline-variant p-0 text-center">
         <select
           value={percentage}
           onChange={handleChange}
-          className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none dark:text-gray-300"
+          className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none text-on-surface"
         >
           {PERCENTAGE_OPTIONS.map((p) => (
             <option key={p} value={p}>
@@ -124,17 +124,17 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
 
   const cellColor = useMemo(() => {
     if (averageAllocation > 100)
-      return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+      return 'bg-error-container text-on-error-container';
     if (averageAllocation >= 95 && averageAllocation <= 100)
-      return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+      return 'bg-tertiary-container text-on-tertiary-container';
     if (averageAllocation > 0 && averageAllocation < 95)
-      return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+      return 'bg-yellow-container text-on-yellow-container';
     return 'bg-transparent';
   }, [averageAllocation]);
 
   return (
     <td
-      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
       {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
     </td>
@@ -170,21 +170,21 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
     let cellColor: string;
 
     if (effectiveNonWorking) {
-      cellColor = 'bg-gray-100 dark:bg-gray-900/50 text-gray-400';
+      cellColor = 'bg-surface-container text-on-surface-variant';
     } else if (total > maxPercentage) {
-      cellColor = 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+      cellColor = 'bg-error-container text-on-error-container';
     } else if (total === maxPercentage) {
-      cellColor = 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+      cellColor = 'bg-tertiary-container text-on-tertiary-container';
     } else if (total > 0 && total < maxPercentage) {
-      cellColor = 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
+      cellColor = 'bg-yellow-container text-on-yellow-container';
     } else {
-      cellColor = 'bg-gray-100 dark:bg-gray-800';
+      cellColor = 'bg-surface-container-low';
     }
 
     if (effectiveNonWorking) {
       return (
         <td
-          className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+          className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
         >
           -
         </td>
@@ -193,7 +193,7 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
 
     return (
       <td
-        className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+        className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
       >
         {total > 0 ? `${total}%` : '-'}
       </td>
@@ -257,17 +257,17 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
     const roundedAverage = Math.round(averageAllocation);
     if (roundedAverage > maxPercentage)
-      return 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200';
+      return 'bg-error-container text-on-error-container';
     if (roundedAverage === maxPercentage)
-      return 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200';
+      return 'bg-tertiary-container text-on-tertiary-container';
     if (roundedAverage > 0 && roundedAverage < maxPercentage)
-      return 'bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200';
-    return 'bg-gray-100 dark:bg-gray-800';
+      return 'bg-yellow-container text-on-yellow-container';
+    return 'bg-surface-container-low';
   }, [averageAllocation, resource.maxStaffingPercentage]);
 
   return (
     <td
-      className={`border-t border-gray-200 dark:border-gray-700 px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
+      className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
       {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
     </td>
@@ -1122,20 +1122,6 @@ const StaffingPage: React.FC = () => {
           </div>
         </form>
       </Modal>
-
-      <style>{`
-        .form-select, .form-input { 
-            background-color: var(--color-surface-container-highest);
-            border: 1px solid var(--color-outline);
-            color: var(--color-on-surface);
-        }
-        .form-select:focus, .form-input:focus {
-             border-color: var(--color-primary);
-             outline: 2px solid transparent;
-             outline-offset: 2px;
-             --tw-ring-color: var(--color-primary);
-        }
-      `}</style>
     </div>
   );
 };

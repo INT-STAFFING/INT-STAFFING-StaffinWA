@@ -109,6 +109,70 @@
         'GRAD' 0,
         'opsz' 24
       }
+
+      /* M3 Form Control Styles */
+      .form-input, .form-textarea, .form-select {
+        appearance: none;
+        background-color: var(--color-surface-container-high);
+        border: none;
+        border-bottom: 1px solid var(--color-on-surface-variant);
+        border-radius: 4px 4px 0 0;
+        padding: 1rem 0.75rem 0.5rem;
+        width: 100%;
+        color: var(--color-on-surface);
+        transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+      }
+      .form-input:focus, .form-textarea:focus, .form-select:focus {
+          outline: none;
+          border-bottom: 2px solid var(--color-primary);
+          background-color: var(--color-surface-container-highest);
+          padding-bottom: calc(0.5rem - 1px);
+      }
+       .form-input::placeholder, .form-textarea::placeholder {
+          color: var(--color-on-surface-variant);
+          opacity: 1;
+      }
+      .form-select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+      }
+      .dark .form-select {
+         background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      }
+      /* M3 Checkbox */
+      .form-checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        height: 1.25rem;
+        width: 1.25rem;
+        border: 2px solid var(--color-on-surface-variant);
+        border-radius: 4px;
+        display: inline-block;
+        position: relative;
+        vertical-align: middle;
+        cursor: pointer;
+        transition: all 150ms;
+      }
+      .form-checkbox:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+      }
+      .form-checkbox:checked::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 1px;
+        width: 6px;
+        height: 12px;
+        border: solid var(--color-on-primary);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
     </style>
     <script>
       tailwind.config = {
