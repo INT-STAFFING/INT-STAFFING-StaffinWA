@@ -6,6 +6,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * @interface SidebarProps
@@ -51,6 +52,7 @@ const NavHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
+    const { mode, toggleMode } = useTheme();
     
     const handleNavLinkClick = () => {
         if (isOpen) {
@@ -70,9 +72,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         <aside className={sidebarClasses}>
             <div className="flex items-center justify-between h-20 px-4">
                 <h1 className="text-2xl font-bold tracking-wider text-primary">Staffing App</h1>
-                 <button onClick={() => setIsOpen(false)} className="md:hidden text-on-surface-variant p-2 rounded-full hover:bg-surface-container-low">
-                    <span className="material-symbols-outlined">close</span>
-                </button>
+                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={toggleMode}
+                        className="text-on-surface-variant p-2 rounded-full hover:bg-surface-container-low"
+                        aria-label={mode === 'dark' ? 'Passa al tema chiaro' : 'Passa al tema scuro'}
+                    >
+                        <span className="material-symbols-outlined">
+                            {mode === 'dark' ? 'light_mode' : 'dark_mode'}
+                        </span>
+                    </button>
+                    <button onClick={() => setIsOpen(false)} className="md:hidden text-on-surface-variant p-2 rounded-full hover:bg-surface-container-low">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                 </div>
             </div>
             <nav className="flex-1 flex flex-col overflow-y-auto">
                 <div className="flex-grow">

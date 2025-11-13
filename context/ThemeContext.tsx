@@ -69,6 +69,8 @@ interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   resetTheme: () => void;
+  mode: 'light' | 'dark';
+  toggleMode: () => void;
 }
 
 // --- Default Theme ---
@@ -190,6 +192,16 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         return defaultTheme;
     });
+
+    const [mode, setMode] = useState<'light' | 'dark'>(() => {
+        if (typeof window !== 'undefined') {
+            if (localStorage.getItem('themeMode') === 'dark' || 
+                (!('themeMode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                return 'dark';
+            }
+        }
+        return 'light';
+    });
     
      useEffect(() => {
         const styleElement = document.getElementById('dynamic-theme-styles') || document.createElement('style');
@@ -214,6 +226,20 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         document.head.appendChild(styleElement);
     }, [theme]);
     
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (mode === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+        try {
+            localStorage.setItem('themeMode', mode);
+        } catch (error) {
+            console.error("Failed to save theme mode to localStorage", error);
+        }
+    }, [mode]);
+
     const setTheme = (newTheme: Theme) => {
         try {
             localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
@@ -231,12 +257,18 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             console.error("Failed to remove theme from localStorage", error);
         }
     };
+
+    const toggleMode = () => {
+        setMode(prevMode => (prevMode === 'light' ? 'dark' : 'light'));
+    };
     
     const contextValue = useMemo(() => ({
         theme,
         setTheme,
         resetTheme,
-    }), [theme]);
+        mode,
+        toggleMode,
+    }), [theme, mode]);
 
     return (
         <ThemeContext.Provider value={contextValue}>
