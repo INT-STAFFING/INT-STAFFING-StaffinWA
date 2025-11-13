@@ -234,9 +234,9 @@ const ForecastingPage: React.FC = () => {
                                             className={
                                                 data.utilization > 100
                                                     ? 'text-error'
-                                                    : data.utilization > 90
-                                                    ? 'text-yellow-600 dark:text-yellow-400'
-                                                    : 'text-tertiary'
+                                                    : data.utilization > 95
+                                                    ? 'text-tertiary'
+                                                    : 'text-yellow-600 dark:text-yellow-400'
                                             }
                                         >
                                             {data.utilization.toFixed(1)}%

@@ -127,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     {isAuthenticated && isLoginProtectionEnabled ? (
                         <div className="space-y-2">
                              <div className="px-4 py-2 text-center text-xs text-on-surface-variant">
-                                Versione V1010
+                                Versione V1011
                             </div>
                             <button
                                 onClick={logout}
@@ -139,7 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </div>
                     ) : (
                         <div className="px-4 py-4 text-center text-xs text-on-surface-variant">
-                            Versione V1010
+                            Versione V1011
                         </div>
                     )}
                 </div>
