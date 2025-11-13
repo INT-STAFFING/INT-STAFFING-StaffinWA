@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo, useCallback } from 'react';
+import { useToast } from './ToastContext';
 
 // --- Types ---
 
@@ -67,8 +68,10 @@ export type Theme = {
 
 interface ThemeContextType {
   theme: Theme;
-  setTheme: (theme: Theme) => void;
-  resetTheme: () => void;
+  saveTheme: (theme: Theme) => Promise<void>;
+  resetTheme: () => Promise<void>;
+  refreshTheme: () => Promise<void>;
+  isDbThemeEnabled: boolean;
   mode: 'light' | 'dark';
   toggleMode: () => void;
 }
@@ -177,21 +180,39 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 // --- Provider ---
 
-const THEME_STORAGE_KEY = 'staffing-app-theme';
+const THEME_STORAGE_KEY = 'staffing-app-db-theme';
+const THEME_VERSION_KEY = 'staffing-app-db-theme-version';
+
+const hexRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
+
+const parseDbTheme = (dbConfig: { key: string; value: string }[]): Theme => {
+    const lightPalette: Partial<M3Palette> = {};
+    const darkPalette: Partial<M3Palette> = {};
+
+    for (const { key, value } of dbConfig) {
+        if (!hexRegex.test(value)) continue; // Skip invalid hex codes
+        
+        if (key.startsWith('theme.light.')) {
+            const paletteKey = key.substring(12) as keyof M3Palette;
+            lightPalette[paletteKey] = value;
+        } else if (key.startsWith('theme.dark.')) {
+            const paletteKey = key.substring(11) as keyof M3Palette;
+            darkPalette[paletteKey] = value;
+        }
+    }
+    
+    // Merge with defaults to ensure all keys are present
+    return {
+        ...defaultTheme,
+        light: { ...defaultTheme.light, ...lightPalette },
+        dark: { ...defaultTheme.dark, ...darkPalette },
+    };
+};
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [theme, _setTheme] = useState<Theme>(() => {
-        try {
-            const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-            if (storedTheme) {
-                // Merge stored theme with defaults to prevent missing keys on updates
-                return { ...defaultTheme, ...JSON.parse(storedTheme) };
-            }
-        } catch (error) {
-            console.error("Failed to parse theme from localStorage", error);
-        }
-        return defaultTheme;
-    });
+    const { addToast } = useToast();
+    const [theme, _setTheme] = useState<Theme>(defaultTheme);
+    const [isDbThemeEnabled, setIsDbThemeEnabled] = useState(false);
 
     const [mode, setMode] = useState<'light' | 'dark'>(() => {
         if (typeof window !== 'undefined') {
@@ -202,6 +223,47 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         return 'light';
     });
+    
+    const loadAndApplyTheme = useCallback(async () => {
+        try {
+            const dbConfig: { key: string; value: string }[] = await fetch('/api/resources?entity=theme').then(res => res.json());
+
+            const enabled = dbConfig.find(c => c.key === 'theme.db.enabled')?.value === 'true';
+            setIsDbThemeEnabled(enabled);
+
+            if (!enabled) {
+                _setTheme(defaultTheme);
+                localStorage.removeItem(THEME_STORAGE_KEY);
+                localStorage.removeItem(THEME_VERSION_KEY);
+                console.warn('DB theme is disabled. Using default theme.');
+                return;
+            }
+
+            const dbVersion = dbConfig.find(c => c.key === 'theme.version')?.value;
+            const localVersion = localStorage.getItem(THEME_VERSION_KEY);
+            const localThemeJSON = localStorage.getItem(THEME_STORAGE_KEY);
+
+            if (dbVersion === localVersion && localThemeJSON) {
+                _setTheme(JSON.parse(localThemeJSON));
+                return;
+            }
+            
+            const newTheme = parseDbTheme(dbConfig);
+            _setTheme(newTheme);
+            localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
+            if (dbVersion) {
+                localStorage.setItem(THEME_VERSION_KEY, dbVersion);
+            }
+        } catch (error) {
+            console.error("Failed to load theme from DB, falling back to default:", error);
+            addToast('Impossibile caricare il tema dal database. Verrà usato il tema di default.', 'error');
+            _setTheme(defaultTheme);
+        }
+    }, [addToast]);
+
+    useEffect(() => {
+        loadAndApplyTheme();
+    }, [loadAndApplyTheme]);
     
      useEffect(() => {
         const styleElement = document.getElementById('dynamic-theme-styles') || document.createElement('style');
@@ -240,23 +302,45 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     }, [mode]);
 
-    const setTheme = (newTheme: Theme) => {
-        try {
-            localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
-            _setTheme(newTheme);
-        } catch (error) {
-            console.error("Failed to save theme to localStorage", error);
+    const saveTheme = useCallback(async (newTheme: Theme) => {
+        const updates: Record<string, string> = {};
+        
+        // Compare light palettes
+        for (const key of Object.keys(defaultTheme.light) as (keyof M3Palette)[]) {
+            if (theme.light[key] !== newTheme.light[key]) {
+                updates[`theme.light.${key}`] = newTheme.light[key];
+            }
         }
-    };
+        // Compare dark palettes
+        for (const key of Object.keys(defaultTheme.dark) as (keyof M3Palette)[]) {
+            if (theme.dark[key] !== newTheme.dark[key]) {
+                updates[`theme.dark.${key}`] = newTheme.dark[key];
+            }
+        }
 
-    const resetTheme = () => {
-        try {
-            localStorage.removeItem(THEME_STORAGE_KEY);
-            _setTheme(defaultTheme);
-        } catch (error) {
-            console.error("Failed to remove theme from localStorage", error);
+        if (Object.keys(updates).length === 0) {
+            addToast('Nessuna modifica da salvare.', 'success');
+            return;
         }
-    };
+
+        try {
+            await fetch('/api/resources?entity=theme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates }),
+            });
+            await loadAndApplyTheme(); // Refresh from DB to get new version and apply
+            addToast('Tema salvato con successo!', 'success');
+        } catch (error) {
+            console.error("Failed to save theme to DB", error);
+            addToast('Salvataggio del tema fallito.', 'error');
+            throw error;
+        }
+    }, [addToast, loadAndApplyTheme, theme]);
+
+    const resetTheme = useCallback(async () => {
+        await saveTheme(defaultTheme);
+    }, [saveTheme]);
 
     const toggleMode = () => {
         setMode(prevMode => (prevMode === 'light' ? 'dark' : 'light'));
@@ -264,11 +348,13 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     const contextValue = useMemo(() => ({
         theme,
-        setTheme,
+        saveTheme,
         resetTheme,
+        refreshTheme: loadAndApplyTheme,
+        isDbThemeEnabled,
         mode,
         toggleMode,
-    }), [theme, mode]);
+    }), [theme, mode, saveTheme, resetTheme, loadAndApplyTheme, isDbThemeEnabled]);
 
     return (
         <ThemeContext.Provider value={contextValue}>

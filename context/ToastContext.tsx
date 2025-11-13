@@ -28,7 +28,9 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
   
   const getPositionClass = () => {
-      switch(theme.toastPosition) {
+      // Logic for toast position is now handled inside AdminSettings, this is a fallback.
+      const position = theme.toastPosition || 'top-center';
+      switch(position) {
           case 'top-right': return 'top-5 right-5';
           case 'top-left': return 'top-5 left-5';
           case 'bottom-right': return 'bottom-5 right-5';

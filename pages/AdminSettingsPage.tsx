@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme, Theme, defaultTheme, M3Palette } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import { SpinnerIcon } from '../components/icons';
 import {
   DashboardCardId,
   DASHBOARD_CARDS_CONFIG,
@@ -18,27 +19,36 @@ const ColorInput: React.FC<{
     colorKey: keyof M3Palette;
     value: string;
     onChange: (key: keyof M3Palette, value: string) => void;
-}> = ({ label, colorKey, value, onChange }) => (
-    <div>
-        <label className="block text-sm font-medium text-on-surface-variant mb-1 capitalize">{label.replace(/([A-Z])/g, ' $1')}</label>
-        <div className="flex items-center space-x-2">
-            <input
-                type="color"
-                value={value}
-                onChange={(e) => onChange(colorKey, e.target.value)}
-                className="w-10 h-10 p-0 border-none rounded-md cursor-pointer bg-surface"
-            />
-            <input
-                type="text"
-                value={value}
-                onChange={(e) => onChange(colorKey, e.target.value)}
-                className="w-full text-sm bg-surface-container-highest border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary px-3 py-2"
-                pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                title="Enter a valid hex color code (e.g., #RRGGBB)"
-            />
+}> = ({ label, colorKey, value, onChange }) => {
+    const [isValid, setIsValid] = useState(true);
+    const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.value;
+        onChange(colorKey, newValue);
+        setIsValid(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(newValue));
+    };
+
+    return (
+        <div>
+            <label className="block text-sm font-medium text-on-surface-variant mb-1 capitalize">{label.replace(/([A-Z])/g, ' $1')}</label>
+            <div className="flex items-center space-x-2">
+                <input
+                    type="color"
+                    value={value}
+                    onChange={(e) => onChange(colorKey, e.target.value)}
+                    className="w-10 h-10 p-0 border-none rounded-md cursor-pointer bg-surface"
+                />
+                <input
+                    type="text"
+                    value={value}
+                    onChange={handleTextChange}
+                    className={`w-full text-sm bg-surface-container-highest border rounded-lg focus:outline-none focus:ring-2 px-3 py-2 ${isValid ? 'border-outline focus:ring-primary' : 'border-error focus:ring-error'}`}
+                    pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                    title="Enter a valid hex color code (e.g., #RRGGBB)"
+                />
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const PaletteGroup: React.FC<{
     title: string;
@@ -64,9 +74,11 @@ const PaletteGroup: React.FC<{
 
 
 const ThemeEditor: React.FC = () => {
-    const { theme, setTheme, resetTheme } = useTheme();
+    const { theme, saveTheme, resetTheme, isDbThemeEnabled } = useTheme();
+    const { addToast } = useToast();
     const [editedTheme, setEditedTheme] = useState<Theme>(theme);
     const [activeMode, setActiveMode] = useState<'light' | 'dark'>('light');
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         setEditedTheme(theme);
@@ -82,16 +94,43 @@ const ThemeEditor: React.FC = () => {
         }));
     };
 
-    const handleSave = () => {
-        setTheme(editedTheme);
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await saveTheme(editedTheme);
+            // Toast is handled within saveTheme
+        } catch (error) {
+            // Error toast is handled within saveTheme
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const handleReset = () => {
-        resetTheme();
+    const handleReset = async () => {
+        setIsSaving(true);
+        try {
+            await resetTheme();
+            addToast('Tema ripristinato ai valori di default.', 'success');
+        } catch (error) {
+             // Error toast is handled within resetTheme -> saveTheme
+        } finally {
+            setIsSaving(false);
+        }
     };
     
+    if (!isDbThemeEnabled) {
+        return (
+             <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
+                <h2 className="text-xl font-semibold mb-4">Personalizzazione Tema Material 3</h2>
+                <div className="p-4 bg-yellow-container text-on-yellow-container rounded-lg">
+                    <p>La personalizzazione del tema dal database è disattivata. Per abilitarla, imposta la chiave `theme.db.enabled` a `true` nella tabella `app_config` del database.</p>
+                </div>
+            </div>
+        )
+    }
+
     const isThemeChanged = JSON.stringify(theme) !== JSON.stringify(editedTheme);
-    const isThemeDefault = JSON.stringify(theme) === JSON.stringify(defaultTheme);
+    const isThemeDefault = JSON.stringify(theme.light) === JSON.stringify(defaultTheme.light) && JSON.stringify(theme.dark) === JSON.stringify(defaultTheme.dark);
 
     const keyGroups = {
         primary: ['primary', 'onPrimary', 'primaryContainer', 'onPrimaryContainer'] as (keyof M3Palette)[],
@@ -129,17 +168,17 @@ const ThemeEditor: React.FC = () => {
             <div className="mt-8 flex justify-end space-x-3">
                 <button 
                     onClick={handleReset} 
-                    disabled={isThemeDefault}
+                    disabled={isThemeDefault || isSaving}
                     className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low disabled:opacity-50 text-primary"
                 >
-                    Ripristina Default
+                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Ripristina Default'}
                 </button>
                  <button 
                     onClick={handleSave}
-                    disabled={!isThemeChanged}
-                    className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
+                    disabled={!isThemeChanged || isSaving}
+                    className="flex items-center justify-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
                 >
-                    Salva Modifiche
+                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Salva Modifiche'}
                 </button>
             </div>
         </div>
@@ -147,83 +186,15 @@ const ThemeEditor: React.FC = () => {
 };
 
 const ToastEditor: React.FC = () => {
-    const { theme, setTheme, resetTheme } = useTheme();
-    const [editedTheme, setEditedTheme] = useState<Theme>(theme);
-
-    useEffect(() => {
-        setEditedTheme(theme);
-    }, [theme]);
-
-    const handleSettingChange = (key: keyof Theme, value: string) => {
-        setEditedTheme(prev => ({ ...prev, [key]: value }));
-    };
-
-    const handleSave = () => {
-        setTheme(editedTheme);
-    };
-    
-    const handleReset = () => {
-        const newTheme = { ...theme };
-        Object.keys(theme).forEach(key => {
-            if (key.startsWith('toast')) {
-                (newTheme as any)[key] = (defaultTheme as any)[key];
-            }
-        });
-        setTheme(newTheme);
-    };
-    
-    const isToastSettingsChanged = 
-        theme.toastPosition !== editedTheme.toastPosition ||
-        theme.toastSuccessBackground !== editedTheme.toastSuccessBackground ||
-        theme.toastSuccessForeground !== editedTheme.toastSuccessForeground ||
-        theme.toastErrorBackground !== editedTheme.toastErrorBackground ||
-        theme.toastErrorForeground !== editedTheme.toastErrorForeground;
-
-    const toastPositionOptions = [
-        { label: 'In Alto al Centro', value: 'top-center' },
-        { label: 'In Alto a Destra', value: 'top-right' },
-        { label: 'In Alto a Sinistra', value: 'top-left' },
-        { label: 'In Basso al Centro', value: 'bottom-center' },
-        { label: 'In Basso a Destra', value: 'bottom-right' },
-        { label: 'In Basso a Sinistra', value: 'bottom-left' },
-    ];
-
-    return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
-            <h2 className="text-xl font-semibold mb-6">Personalizzazione Notifiche Toast</h2>
-            <div className="space-y-6">
-                <div>
-                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Posizione Notifiche</label>
-                    <select
-                        value={editedTheme.toastPosition}
-                        onChange={(e) => handleSettingChange('toastPosition', e.target.value)}
-                        className="w-full max-w-xs text-sm bg-surface-container-highest border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary px-3 py-2"
-                    >
-                        {toastPositionOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                    </select>
-                </div>
-            </div>
-             <div className="mt-8 flex justify-end space-x-3">
-                <button 
-                    onClick={handleReset} 
-                    className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary"
-                >
-                    Ripristina Default Toast
-                </button>
-                 <button 
-                    onClick={handleSave}
-                    disabled={!isToastSettingsChanged}
-                    className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
-                >
-                    Salva Modifiche Toast
-                </button>
-            </div>
-        </div>
-    );
+    // This component is now deprecated as toast colors are part of the main theme palettes.
+    // It can be removed or left as-is for future non-color toast customizations.
+    // For now, let's hide it to avoid confusion.
+    return null;
 };
 
 const VisualizationEditor: React.FC = () => {
-    const { theme, setTheme } = useTheme();
+    // This component is not part of the DB theme feature, so it remains as-is.
+    const { theme, saveTheme: setTheme } = useTheme();
     const [settings, setSettings] = useState(theme.visualizationSettings);
 
     useEffect(() => {
@@ -241,6 +212,7 @@ const VisualizationEditor: React.FC = () => {
     };
 
     const handleSave = () => {
+        // This only saves to localStorage, not the DB, which is fine for this feature.
         setTheme({ ...theme, visualizationSettings: settings });
     };
 
