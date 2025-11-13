@@ -95,12 +95,16 @@ const ThemeEditor: React.FC = () => {
     };
 
     const handleSave = async () => {
+        if (!isThemeChanged) {
+            addToast('Nessuna modifica da salvare.', 'success');
+            return;
+        }
         setIsSaving(true);
         try {
             await saveTheme(editedTheme);
-            // Toast is handled within saveTheme
+            addToast('Tema salvato con successo!', 'success');
         } catch (error) {
-            // Error toast is handled within saveTheme
+            addToast('Salvataggio del tema fallito.', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -112,7 +116,7 @@ const ThemeEditor: React.FC = () => {
             await resetTheme();
             addToast('Tema ripristinato ai valori di default.', 'success');
         } catch (error) {
-             // Error toast is handled within resetTheme -> saveTheme
+            addToast('Ripristino del tema fallito.', 'error');
         } finally {
             setIsSaving(false);
         }

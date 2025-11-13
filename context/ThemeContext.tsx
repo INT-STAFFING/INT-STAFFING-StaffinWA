@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { useToast } from './ToastContext';
 
 // --- Types ---
 
@@ -210,7 +209,6 @@ const parseDbTheme = (dbConfig: { key: string; value: string }[]): Theme => {
 };
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { addToast } = useToast();
     const [theme, _setTheme] = useState<Theme>(defaultTheme);
     const [isDbThemeEnabled, setIsDbThemeEnabled] = useState(false);
 
@@ -256,10 +254,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
         } catch (error) {
             console.error("Failed to load theme from DB, falling back to default:", error);
-            addToast('Impossibile caricare il tema dal database. Verrà usato il tema di default.', 'error');
             _setTheme(defaultTheme);
         }
-    }, [addToast]);
+    }, []);
 
     useEffect(() => {
         loadAndApplyTheme();
@@ -319,7 +316,6 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
 
         if (Object.keys(updates).length === 0) {
-            addToast('Nessuna modifica da salvare.', 'success');
             return;
         }
 
@@ -330,13 +326,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 body: JSON.stringify({ updates }),
             });
             await loadAndApplyTheme(); // Refresh from DB to get new version and apply
-            addToast('Tema salvato con successo!', 'success');
         } catch (error) {
             console.error("Failed to save theme to DB", error);
-            addToast('Salvataggio del tema fallito.', 'error');
             throw error;
         }
-    }, [addToast, loadAndApplyTheme, theme]);
+    }, [loadAndApplyTheme, theme]);
 
     const resetTheme = useCallback(async () => {
         await saveTheme(defaultTheme);
