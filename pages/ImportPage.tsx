@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
-// Fix: Import SpinnerIcon component.
 import { SpinnerIcon } from '../components/icons';
+import * as XLSX from 'xlsx';
 
 type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews';
 
@@ -41,8 +41,6 @@ const ImportPage: React.FC = () => {
         reader.onload = async (e) => {
             try {
                 const data = new Uint8Array(e.target?.result as ArrayBuffer);
-                // This assumes the xlsx library is loaded from a CDN in index.html
-                const XLSX = (window as any).XLSX;
                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 
                 let body: any = {};

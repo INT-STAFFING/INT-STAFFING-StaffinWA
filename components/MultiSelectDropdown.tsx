@@ -3,7 +3,7 @@
  * @description Componente dropdown con checkbox per selezioni multiple.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId, useCallback } from 'react';
 
 interface Option {
     value: string;
@@ -21,7 +21,16 @@ interface MultiSelectDropdownProps {
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, selectedValues, onChange, name, placeholder = 'Seleziona...' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+
+    const baseId = useId();
+    const listboxId = `${baseId}-listbox`;
+    const getOptionId = (index: number) => `${baseId}-option-${index}`;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -30,27 +39,77 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
-    useEffect(() => {
-        if (isOpen) {
-            setSearchTerm('');
-        }
-    }, [isOpen]);
-
-    const handleSelect = (value: string) => {
-        const newSelectedValues = selectedValues.includes(value)
-            ? selectedValues.filter(v => v !== value)
-            : [...selectedValues, value];
-        onChange(name, newSelectedValues);
-    };
 
     const filteredOptions = options.filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleToggleSelection = useCallback((value: string) => {
+        const newSelectedValues = selectedValues.includes(value)
+            ? selectedValues.filter(v => v !== value)
+            : [...selectedValues, value];
+        onChange(name, newSelectedValues);
+    }, [selectedValues, onChange, name]);
+    
+    const openMenu = () => setIsOpen(true);
+    const closeMenu = () => {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+    };
+
+    const handleButtonKeyDown = (e: React.KeyboardEvent) => {
+        if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+            e.preventDefault();
+            openMenu();
+        }
+    };
+    
+    const handleInputKeyDown = (e: React.KeyboardEvent) => {
+        if (filteredOptions.length === 0) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeMenu();
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setActiveIndex(prev => (prev + 1) % filteredOptions.length);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setActiveIndex(prev => (prev - 1 + filteredOptions.length) % filteredOptions.length);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (filteredOptions[activeIndex]) {
+                    handleToggleSelection(filteredOptions[activeIndex].value);
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                closeMenu();
+                break;
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            inputRef.current?.focus();
+            setActiveIndex(0);
+        }
+    }, [isOpen, searchTerm]);
+
+    useEffect(() => {
+        if (isOpen && activeIndex >= 0 && listRef.current) {
+            const activeElement = listRef.current.querySelector(`#${getOptionId(activeIndex)}`);
+            activeElement?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [activeIndex, isOpen]);
 
     const getButtonLabel = () => {
         if (selectedValues.length === 0) {
@@ -65,11 +124,14 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
     return (
         <div className="relative" ref={wrapperRef}>
             <button
+                ref={buttonRef}
                 type="button"
                 className="w-full text-left flex justify-between items-center px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={openMenu}
+                onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
+                aria-controls={listboxId}
             >
                 <span className={selectedValues.length > 0 ? 'text-on-surface' : 'text-on-surface-variant'}>
                     {getButtonLabel()}
@@ -81,35 +143,50 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                 <div className="absolute z-50 mt-1 w-full bg-surface-container-high shadow-lg rounded-md border border-outline-variant">
                     <div className="p-2 border-b border-outline-variant">
                         <input
+                            ref={inputRef}
                             type="text"
                             placeholder="Cerca..."
                             className="w-full px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            autoFocus
+                            onKeyDown={handleInputKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded="true"
+                            aria-controls={listboxId}
+                            aria-activedescendant={filteredOptions.length > 0 ? getOptionId(activeIndex) : undefined}
                         />
                     </div>
-                    <ul className="max-h-60 overflow-y-auto" role="listbox">
+                    <ul 
+                        ref={listRef}
+                        id={listboxId}
+                        className="max-h-60 overflow-y-auto" 
+                        role="listbox" 
+                        aria-multiselectable="true" 
+                        tabIndex={-1}
+                    >
                         {filteredOptions.length > 0 ? (
-                            filteredOptions.map(option => (
+                            filteredOptions.map((option, index) => (
                                 <li
                                     key={option.value}
-                                    className="px-4 py-2 text-sm text-on-surface hover:bg-surface-container cursor-pointer flex items-center"
-                                    onClick={() => handleSelect(option.value)}
+                                    id={getOptionId(index)}
                                     role="option"
                                     aria-selected={selectedValues.includes(option.value)}
+                                    className={`px-4 py-2 text-sm text-on-surface hover:bg-surface-container cursor-pointer flex items-center ${activeIndex === index ? 'bg-surface-container' : ''}`}
+                                    onClick={() => handleToggleSelection(option.value)}
                                 >
                                     <input
                                         type="checkbox"
                                         checked={selectedValues.includes(option.value)}
                                         readOnly
-                                        className="h-4 w-4 rounded border-outline text-primary focus:ring-primary mr-3 pointer-events-none"
+                                        tabIndex={-1}
+                                        className="form-checkbox mr-3 pointer-events-none"
                                     />
                                     {option.label}
                                 </li>
                             ))
                         ) : (
-                            <li className="px-4 py-2 text-sm text-on-surface-variant">Nessun risultato</li>
+                            <li className="px-4 py-2 text-sm text-on-surface-variant" role="option" aria-live="polite">Nessun risultato</li>
                         )}
                     </ul>
                 </div>

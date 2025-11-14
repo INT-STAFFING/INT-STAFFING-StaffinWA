@@ -1,14 +1,11 @@
 /**
  * @file exportUtils.ts
  * @description Funzioni di utilità per esportare dati in formato Excel.
- * Si assume che la libreria 'xlsx' sia caricata globalmente tramite CDN.
  */
 
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, ResourceRequest, Interview } from '../types';
 import { EntitiesContextType } from '../context/AppContext';
-
-// Dichiarazione per informare TypeScript che la variabile XLSX esiste a livello globale.
-declare var XLSX: any;
+import * as XLSX from 'xlsx';
 
 type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews';
 

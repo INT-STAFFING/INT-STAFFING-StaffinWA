@@ -8,9 +8,8 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useTheme } from '../context/ThemeContext';
-
-// Informa TypeScript che D3 e d3-sankey sono disponibili come variabili globali (da CDN).
-declare var d3: any;
+import * as d3 from 'd3';
+import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 
 type ViewMode = 'sankey' | 'network';
 
@@ -182,7 +181,7 @@ const StaffingVisualizationPage: React.FC = () => {
         if (view === 'sankey') {
             const { nodeWidth, nodePadding, linkOpacity } = theme.visualizationSettings.sankey;
 
-            const sankey = d3.sankey()
+            const sankeyGenerator = sankey()
                 .nodeWidth(nodeWidth)
                 .nodePadding(nodePadding)
                 .extent([[1, 5], [width - 1, height - 5]]);
@@ -197,7 +196,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 }))
             };
 
-            const { nodes, links } = sankey(graph);
+            const { nodes, links } = sankeyGenerator(graph);
             
             const color = d3.scaleOrdinal()
                 .domain(['resource', 'project', 'client', 'contract'])
@@ -231,7 +230,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 .style("mix-blend-mode", "multiply");
 
             link.append("path")
-                .attr("d", d3.sankeyLinkHorizontal())
+                .attr("d", sankeyLinkHorizontal())
                 .attr("stroke", (d: any) => color(d.source.type))
                 .attr("stroke-width", (d: any) => Math.max(1, d.width));
                 

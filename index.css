@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Material 3 Tonal Palette Definition */
+:root {
+  /* Light Theme */
+  --color-primary: #006493;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #cae6ff;
+  --color-on-primary-container: #001e2f;
+  --color-secondary: #50606e;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #d3e5f5;
+  --color-on-secondary-container: #0c1d29;
+  --color-tertiary: #64597b;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #cdeda3;
+  --color-on-tertiary-container: #1f1635;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #410002;
+  --color-background: #f8fafc;
+  --color-on-background: #191c1e;
+  --color-surface: #f8fafc;
+  --color-on-surface: #191c1e;
+  --color-surface-variant: #dee3e9;
+  --color-on-surface-variant: #42474c;
+  --color-outline: #72787d;
+  --color-outline-variant: #c2c7cd;
+  --color-shadow: #000000;
+  --color-scrim: #000000;
+  --color-inverse-surface: #2e3133;
+  --color-inverse-on-surface: #f0f1f3;
+  --color-inverse-primary: #8dcdff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f7;
+  --color-surface-container: #eceef1;
+  --color-surface-container-high: #e6e8eb;
+  --color-surface-container-highest: #e1e3e5;
+  
+  /* Custom Colors */
+  --color-yellow-container: #ffea9f;
+  --color-on-yellow-container: #5e4500;
+}
+
+.dark {
+  /* Dark Theme */
+  --color-primary: #8dcdff;
+  --color-on-primary: #00344f;
+  --color-primary-container: #004b70;
+  --color-on-primary-container: #cae6ff;
+  --color-secondary: #b7c9d9;
+  --color-on-secondary: #22323f;
+  --color-secondary-container: #384956;
+  --color-on-secondary-container: #d3e5f5;
+  --color-tertiary: #cec0e8;
+  --color-on-tertiary: #352b4b;
+  --color-tertiary-container: #4c4263;
+  --color-on-tertiary-container: #cdeda3;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-background: #101418;
+  --color-on-background: #e1e3e5;
+  --color-surface: #101418;
+  --color-on-surface: #e1e3e5;
+  --color-surface-variant: #42474c;
+  --color-on-surface-variant: #c2c7cd;
+  --color-outline: #8c9197;
+  --color-outline-variant: #42474c;
+  --color-shadow: #000000;
+  --color-scrim: #000000;
+  --color-inverse-surface: #e1e3e5;
+  --color-inverse-on-surface: #2e3133;
+  --color-inverse-primary: #006493;
+  --color-surface-container-lowest: #0b0f13;
+  --color-surface-container-low: #191c1e;
+  --color-surface-container: #1d2022;
+  --color-surface-container-high: #272a2d;
+  --color-surface-container-highest: #323538;
+
+  /* Custom Colors */
+  --color-yellow-container: #7a5c00;
+  --color-on-yellow-container: #ffea9f;
+}
+
+/* Base styles */
+body {
+  font-family: 'Manrope', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.material-symbols-outlined {
+  font-variation-settings:
+  'FILL' 0,
+  'wght' 400,
+  'GRAD' 0,
+  'opsz' 24
+}
+
+/* M3 Form Control Styles */
+.form-input, .form-textarea, .form-select {
+  appearance: none;
+  background-color: var(--color-surface-container-high);
+  border: none;
+  border-bottom: 1px solid var(--color-on-surface-variant);
+  border-radius: 4px 4px 0 0;
+  padding: 1rem 0.75rem 0.5rem;
+  width: 100%;
+  color: var(--color-on-surface);
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+    outline: none;
+    border-bottom: 2px solid var(--color-primary);
+    background-color: var(--color-surface-container-highest);
+    padding-bottom: calc(0.5rem - 1px);
+}
+ .form-input::placeholder, .form-textarea::placeholder {
+    color: var(--color-on-surface-variant);
+    opacity: 1;
+}
+.form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+.dark .form-select {
+   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+/* M3 Checkbox */
+.form-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 1.25rem;
+  width: 1.25rem;
+  border: 2px solid var(--color-on-surface-variant);
+  border-radius: 4px;
+  display: inline-block;
+  position: relative;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: all 150ms;
+}
+.form-checkbox:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.form-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 6px;
+  height: 12px;
+  border: solid var(--color-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}

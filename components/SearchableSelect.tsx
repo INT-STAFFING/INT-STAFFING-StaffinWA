@@ -3,7 +3,7 @@
  * @description Componente dropdown ricercabile per form.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 
 interface Option {
     value: string;
@@ -22,7 +22,16 @@ interface SearchableSelectProps {
 const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, name, placeholder = 'Seleziona...', required }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+    
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+
+    const baseId = useId();
+    const listboxId = `${baseId}-listbox`;
+    const getOptionId = (index: number) => `${baseId}-option-${index}`;
 
     const selectedOption = options.find(option => option.value === value);
 
@@ -33,67 +42,136 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Fix: Define filteredOptions by filtering options based on the search term.
     const filteredOptions = options.filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    const openMenu = () => setIsOpen(true);
+    const closeMenu = () => {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+    };
 
+    const handleSelect = (newValue: string) => {
+        onChange(name, newValue);
+        closeMenu();
+    };
+
+    const handleButtonKeyDown = (e: React.KeyboardEvent) => {
+        if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+            e.preventDefault();
+            openMenu();
+        }
+    };
+    
+    const handleInputKeyDown = (e: React.KeyboardEvent) => {
+        const optionsCount = filteredOptions.length + 1; // +1 for placeholder
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setActiveIndex(prev => (prev + 1) % optionsCount);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setActiveIndex(prev => (prev - 1 + optionsCount) % optionsCount);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (activeIndex === 0) {
+                    handleSelect('');
+                } else if (filteredOptions[activeIndex - 1]) {
+                    handleSelect(filteredOptions[activeIndex - 1].value);
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                closeMenu();
+                break;
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            inputRef.current?.focus();
+            // Reset active index when search term changes or menu opens
+            setActiveIndex(0);
+        }
+    }, [isOpen, searchTerm]);
+
+    useEffect(() => {
+        if (isOpen && activeIndex >= 0 && listRef.current) {
+            const activeElement = listRef.current.querySelector(`#${getOptionId(activeIndex)}`);
+            activeElement?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [activeIndex, isOpen]);
+    
     return (
         <div className="relative" ref={wrapperRef}>
             <button
+                ref={buttonRef}
                 type="button"
                 className="w-full text-left flex justify-between items-center px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={openMenu}
+                onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
+                aria-controls={listboxId}
             >
                 <span className={selectedOption ? 'text-on-surface' : 'text-on-surface-variant'}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
                 <span className="material-symbols-outlined text-on-surface-variant">unfold_more</span>
             </button>
-            {/* Hidden input to handle native form submission and validation */}
             <input type="hidden" name={name} value={value} required={required} />
 
             {isOpen && (
                 <div className="absolute z-50 mt-1 w-full bg-surface-container-high shadow-lg rounded-md border border-outline-variant">
                     <div className="p-2">
                         <input
+                            ref={inputRef}
                             type="text"
                             placeholder="Cerca..."
                             className="w-full px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            autoFocus
+                            onKeyDown={handleInputKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded="true"
+                            aria-controls={listboxId}
+                            aria-activedescendant={getOptionId(activeIndex)}
                         />
                     </div>
-                    <ul className="max-h-60 overflow-y-auto" role="listbox">
-                         {/* Aggiunta dell'opzione placeholder per resettare il filtro */}
+                    <ul ref={listRef} id={listboxId} className="max-h-60 overflow-y-auto" role="listbox" tabIndex={-1}>
                         <li
-                            className="px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container cursor-pointer"
-                            onClick={() => { onChange(name, ''); setIsOpen(false); }}
+                            id={getOptionId(0)}
+                            role="option"
+                            aria-selected={activeIndex === 0 && !value}
+                            className={`px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container cursor-pointer ${activeIndex === 0 ? 'bg-surface-container' : ''}`}
+                            onClick={() => handleSelect('')}
                         >
                             {placeholder}
                         </li>
                         {filteredOptions.length > 0 ? (
-                            filteredOptions.map(option => (
+                            filteredOptions.map((option, index) => {
+                                const optionIndex = index + 1;
+                                return (
                                 <li
                                     key={option.value}
-                                    className={`px-4 py-2 text-sm text-on-surface hover:bg-surface-container cursor-pointer ${value === option.value ? 'bg-primary-container text-on-primary-container' : ''}`}
-                                    onClick={() => { onChange(name, option.value); setIsOpen(false); }}
+                                    id={getOptionId(optionIndex)}
                                     role="option"
                                     aria-selected={value === option.value}
+                                    className={`px-4 py-2 text-sm text-on-surface hover:bg-surface-container cursor-pointer ${value === option.value ? 'bg-primary-container text-on-primary-container' : ''} ${activeIndex === optionIndex ? 'bg-surface-container' : ''}`}
+                                    onClick={() => handleSelect(option.value)}
                                 >
                                     {option.label}
                                 </li>
-                            ))
+                            )})
                         ) : (
-                            <li className="px-4 py-2 text-sm text-on-surface-variant">Nessun risultato</li>
+                            <li className="px-4 py-2 text-sm text-on-surface-variant" role="option" aria-live="polite">Nessun risultato</li>
                         )}
                     </ul>
                 </div>

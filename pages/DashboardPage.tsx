@@ -20,9 +20,7 @@ import {
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
 import GraphDataView from '../components/GraphDataView';
-
-
-declare var d3: any;
+import * as d3 from 'd3';
 
 // --- Colori Centralizzati per la Dashboard ---
 const DASHBOARD_COLORS = {
