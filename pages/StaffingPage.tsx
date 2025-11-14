@@ -678,7 +678,7 @@ const StaffingPage: React.FC = () => {
 
           <button
             onClick={() => openNewAssignmentModal()}
-            className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
+            className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"
           >
             <span className="material-symbols-outlined mr-2 text-xl">add</span>
             Assegna Risorsa
@@ -1060,7 +1060,7 @@ const StaffingPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 font-semibold"
+              className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold"
             >
               Salva
             </button>
@@ -1117,7 +1117,7 @@ const StaffingPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 font-semibold"
+              className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold"
             >
               Aggiungi
             </button>

@@ -180,7 +180,7 @@ const ThemeEditor: React.FC = () => {
                  <button 
                     onClick={handleSave}
                     disabled={!isThemeChanged || isSaving}
-                    className="flex items-center justify-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
+                    className="flex items-center justify-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50"
                 >
                     {isSaving ? <SpinnerIcon className="w-5 h-5"/> : 'Salva Modifiche'}
                 </button>
@@ -283,7 +283,7 @@ const VisualizationEditor: React.FC = () => {
                  <button 
                     onClick={handleSave}
                     disabled={!isChanged}
-                    className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50"
+                    className="px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50"
                 >
                     Salva Modifiche
                 </button>
@@ -400,7 +400,7 @@ const DashboardLayoutEditor: React.FC = () => {
              <style>{`.dragging { opacity: 0.5; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }`}</style>
             <div className="mt-8 flex justify-end space-x-3">
                 <button onClick={handleReset} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Ripristina Ordine Default</button>
-                <button onClick={handleSave} disabled={!hasChanges} className="px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50">Salva Ordine</button>
+                <button onClick={handleSave} disabled={!hasChanges} className="px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">Salva Ordine</button>
             </div>
         </div>
     );

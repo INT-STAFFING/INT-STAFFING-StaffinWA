@@ -263,7 +263,7 @@ const DbInspectorPage: React.FC = () => {
                              <button
                                 onClick={() => handleExport('postgres')}
                                 disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
+                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full disabled:opacity-50"
                             >
                                 {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
                             </button>

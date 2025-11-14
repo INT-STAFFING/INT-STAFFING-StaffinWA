@@ -150,7 +150,7 @@ const ImportPage: React.FC = () => {
                         <button
                             onClick={handleImport}
                             disabled={!file || isImporting}
-                            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                            className="inline-flex items-center justify-center px-6 py-3 bg-primary text-on-primary font-semibold rounded-full shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                         >
                             {isImporting ? (
                                 <>
