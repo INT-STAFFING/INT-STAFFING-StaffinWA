@@ -21,7 +21,7 @@ interface MultiSelectDropdownProps {
 const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, selectedValues, onChange, name, placeholder = 'Seleziona...' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeIndex, setActiveIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(-1);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -30,7 +30,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
 
     const baseId = useId();
     const listboxId = `${baseId}-listbox`;
-    const getOptionId = (index: number) => `${baseId}-option-${index}`;
+    const getOptionId = (index: number) => `${baseId}-option-${index}`.replace(/:/g, '-');
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -42,7 +42,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredOptions = options.filter(option =>
+    const filteredOptions = (options || []).filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -56,6 +56,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
     const openMenu = () => setIsOpen(true);
     const closeMenu = () => {
         setIsOpen(false);
+        setSearchTerm(''); // Reset search on close
         buttonRef.current?.focus();
     };
 
@@ -106,7 +107,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
 
     useEffect(() => {
         if (isOpen && activeIndex >= 0 && listRef.current) {
-            const activeElement = listRef.current.querySelector(`#${getOptionId(activeIndex)}`);
+            const activeElement = document.getElementById(getOptionId(activeIndex));
             activeElement?.scrollIntoView({ block: 'nearest' });
         }
     }, [activeIndex, isOpen]);
@@ -116,7 +117,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             return placeholder;
         }
         if (selectedValues.length === 1) {
-            return options.find(o => o.value === selectedValues[0])?.label || placeholder;
+            return (options || []).find(o => o.value === selectedValues[0])?.label || placeholder;
         }
         return `${selectedValues.length} elementi selezionati`;
     };
@@ -126,7 +127,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             <button
                 ref={buttonRef}
                 type="button"
-                className="w-full text-left flex justify-between items-center px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full text-left flex justify-between items-center form-input"
                 onClick={openMenu}
                 onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"
@@ -146,7 +147,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                             ref={inputRef}
                             type="text"
                             placeholder="Cerca..."
-                            className="w-full px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            className="form-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onKeyDown={handleInputKeyDown}

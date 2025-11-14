@@ -22,7 +22,7 @@ interface SearchableSelectProps {
 const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, name, placeholder = 'Seleziona...', required }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeIndex, setActiveIndex] = useState(0);
+    const [activeIndex, setActiveIndex] = useState(-1);
     
     const wrapperRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -31,9 +31,11 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
 
     const baseId = useId();
     const listboxId = `${baseId}-listbox`;
-    const getOptionId = (index: number) => `${baseId}-option-${index}`;
+    // FIX: Ensure ID generation is safe for query selectors by cleaning the baseId
+    const getOptionId = (index: number) => `${baseId}-option-${index}`.replace(/:/g, '-');
 
-    const selectedOption = options.find(option => option.value === value);
+
+    const selectedOption = (options || []).find(option => option.value === value);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -45,13 +47,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredOptions = options.filter(option =>
+    const filteredOptions = (options || []).filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
     const openMenu = () => setIsOpen(true);
     const closeMenu = () => {
         setIsOpen(false);
+        setSearchTerm(''); // Reset search on close
         buttonRef.current?.focus();
     };
 
@@ -96,14 +99,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
     useEffect(() => {
         if (isOpen) {
             inputRef.current?.focus();
-            // Reset active index when search term changes or menu opens
-            setActiveIndex(0);
+            setActiveIndex(value ? filteredOptions.findIndex(o => o.value === value) + 1 : 0);
         }
     }, [isOpen, searchTerm]);
 
     useEffect(() => {
         if (isOpen && activeIndex >= 0 && listRef.current) {
-            const activeElement = listRef.current.querySelector(`#${getOptionId(activeIndex)}`);
+            // FIX: Use getElementById which handles special characters in IDs from useId
+            const activeElement = document.getElementById(getOptionId(activeIndex));
             activeElement?.scrollIntoView({ block: 'nearest' });
         }
     }, [activeIndex, isOpen]);
@@ -113,7 +116,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             <button
                 ref={buttonRef}
                 type="button"
-                className="w-full text-left flex justify-between items-center px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full text-left flex justify-between items-center form-input"
                 onClick={openMenu}
                 onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"
@@ -134,7 +137,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                             ref={inputRef}
                             type="text"
                             placeholder="Cerca..."
-                            className="w-full px-3 py-2 text-sm bg-transparent border border-outline rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            className="form-input"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onKeyDown={handleInputKeyDown}
@@ -149,7 +152,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                         <li
                             id={getOptionId(0)}
                             role="option"
-                            aria-selected={activeIndex === 0 && !value}
+                            aria-selected={activeIndex === 0}
                             className={`px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container cursor-pointer ${activeIndex === 0 ? 'bg-surface-container' : ''}`}
                             onClick={() => handleSelect('')}
                         >
