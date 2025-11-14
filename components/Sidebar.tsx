@@ -4,7 +4,9 @@
  */
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
+import * as ReactRouterDOM from 'react-router-dom';
+const { NavLink } = ReactRouterDOM;
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 

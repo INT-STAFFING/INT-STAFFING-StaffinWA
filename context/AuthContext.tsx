@@ -4,7 +4,9 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
+import * as ReactRouterDOM from 'react-router-dom';
+const { useNavigate } = ReactRouterDOM;
 import { useToast } from './ToastContext';
 
 // --- Tipi ---

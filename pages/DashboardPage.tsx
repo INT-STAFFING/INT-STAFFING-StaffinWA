@@ -8,7 +8,9 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
-import { useNavigate, Link } from 'react-router-dom';
+// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
+import * as ReactRouterDOM from 'react-router-dom';
+const { useNavigate, Link } = ReactRouterDOM;
 import { DashboardDataTable } from '../components/DashboardDataTable';
 import { ColumnDef } from '../components/DataTable';
 import {

@@ -17,7 +17,9 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { Link } from 'react-router-dom';
+// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
+import * as ReactRouterDOM from 'react-router-dom';
+const { Link } = ReactRouterDOM;
 
 type ViewMode = 'day' | 'week' | 'month';
 

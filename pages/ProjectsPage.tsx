@@ -10,7 +10,9 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams } from 'react-router-dom';
+// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
+import * as ReactRouterDOM from 'react-router-dom';
+const { useSearchParams } = ReactRouterDOM;
 
 
 type EnrichedProject = Project & { 
