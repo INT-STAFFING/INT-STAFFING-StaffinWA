@@ -8,7 +8,12 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useTheme } from '../context/ThemeContext';
-import * as d3 from 'd3';
+// FIX: Replaced monolithic d3 import with modular imports to resolve type errors.
+import { select } from 'd3-selection';
+import { scaleOrdinal } from 'd3-scale';
+import { zoom as d3Zoom } from 'd3-zoom';
+import { forceSimulation, forceLink, forceManyBody, forceCenter, forceX, forceY } from 'd3-force';
+import { drag as d3Drag } from 'd3-drag';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
 
 type ViewMode = 'sankey' | 'network';
@@ -155,7 +160,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
         const data = JSON.parse(chartDataString);
 
-        const svg = d3.select(svgRef.current);
+        const svg = select(svgRef.current);
         svg.selectAll("*").remove();
 
         if (data.nodes.length === 0) {
@@ -167,7 +172,7 @@ const StaffingVisualizationPage: React.FC = () => {
         const height = view === 'sankey' ? 1600 : 800;
         svg.attr("viewBox", `0 0 ${width} ${height}`);
         
-        const tooltip = d3.select("body").append("div")
+        const tooltip = select("body").append("div")
             .attr("class", "d3-tooltip")
             .style("position", "absolute")
             .style("z-index", "10")
@@ -198,7 +203,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
             const { nodes, links } = sankeyGenerator(graph);
             
-            const color = d3.scaleOrdinal()
+            const color = scaleOrdinal<string, string>()
                 .domain(['resource', 'project', 'client', 'contract'])
                 .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
@@ -235,14 +240,14 @@ const StaffingVisualizationPage: React.FC = () => {
                 .attr("stroke-width", (d: any) => Math.max(1, d.width));
                 
             link.on("mouseover", function(event: any, d: any) {
-                    d3.select(this).attr("stroke-opacity", 0.8);
+                    select(this).attr("stroke-opacity", 0.8);
                     tooltip.style("visibility", "visible").text(`${d.source.name} → ${d.target.name}: ${d.value.toFixed(1)} G/U`);
                 })
                 .on("mousemove", (event: any) => {
                     tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                 })
                 .on("mouseout", function() {
-                    d3.select(this).attr("stroke-opacity", linkOpacity);
+                    select(this).attr("stroke-opacity", linkOpacity);
                     tooltip.style("visibility", "hidden");
                 });
 
@@ -261,25 +266,25 @@ const StaffingVisualizationPage: React.FC = () => {
         } else { // network
             const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
 
-            const zoom = d3.zoom()
+            const zoomBehavior = d3Zoom()
                 .scaleExtent([0.1, 4])
                 .on("zoom", (event: any) => {
                     g.attr("transform", event.transform);
                 });
             
             const g = svg.append("g");
-            svg.call(zoom);
+            svg.call(zoomBehavior as any);
 
-             const color = d3.scaleOrdinal()
+             const color = scaleOrdinal<string, string>()
                 .domain(['resource', 'project', 'client', 'contract'])
                 .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
-            const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
-                .force("charge", d3.forceManyBody().strength(chargeStrength))
-                .force("center", d3.forceCenter(width / 2, height / 2))
-                .force("x", d3.forceX(width / 2).strength(centerStrength))
-                .force("y", d3.forceY(height / 2).strength(centerStrength));
+            const simulation = forceSimulation(data.nodes)
+                .force("link", forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
+                .force("charge", forceManyBody().strength(chargeStrength))
+                .force("center", forceCenter(width / 2, height / 2))
+                .force("x", forceX(width / 2).strength(centerStrength))
+                .force("y", forceY(height / 2).strength(centerStrength));
                 
             const link = g.append("g")
                 .attr("stroke", currentPalette.outline)
@@ -294,10 +299,10 @@ const StaffingVisualizationPage: React.FC = () => {
                 .data(data.nodes)
                 .join("g")
                 .attr("class", "node-group")
-                .call(d3.drag()
+                .call(d3Drag()
                     .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
                     .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
-                    .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+                    .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }) as any
                 );
 
             nodeGroup.append("circle")
@@ -338,7 +343,7 @@ const StaffingVisualizationPage: React.FC = () => {
         setIsLoading(false);
         
         return () => {
-            d3.select(".d3-tooltip").remove();
+            select(".d3-tooltip").remove();
         };
 
     }, [chartDataString, view, theme.visualizationSettings, theme.dark, theme.light]);

@@ -4,9 +4,11 @@
  */
 import React, { useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-
-// Assicura che D3 sia dichiarato come variabile globale (caricato da CDN)
-declare var d3: any;
+// FIX: Replace global d3 declaration with modular imports for type safety and consistency.
+import { select } from 'd3-selection';
+import { scaleBand, scaleLinear } from 'd3-scale';
+import { axisBottom, axisLeft } from 'd3-axis';
+import { max } from 'd3-array';
 
 interface GraphConfig {
     xKey: string;
@@ -30,7 +32,7 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
     useEffect(() => {
         if (!svgRef.current || data.length === 0) return;
 
-        const svg = d3.select(svgRef.current);
+        const svg = select(svgRef.current);
         svg.selectAll("*").remove(); // Pulisce il render precedente
 
         const parent = svg.node().parentElement;
@@ -52,7 +54,7 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
             const chart = svg.append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
                 
-            const tooltip = d3.select("body").selectAll(".d3-tooltip").data([null]).join("div")
+            const tooltip = select("body").selectAll(".d3-tooltip").data([null]).join("div")
                 .attr("class", "d3-tooltip")
                 .style("position", "absolute")
                 .style("z-index", "100")
@@ -67,19 +69,19 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
             const getNestedValue = (obj: any, key: string) => key.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
 
             if (type === 'bar') {
-                const x = d3.scaleBand()
+                const x = scaleBand()
                     .domain(data.map(d => getNestedValue(d, config.xKey)))
                     .range([0, width])
                     .padding(0.4);
 
-                const yMax = d3.max(data, (d: any) => getNestedValue(d, config.yKey));
-                const y = d3.scaleLinear()
+                const yMax = max(data, (d: any) => getNestedValue(d, config.yKey));
+                const y = scaleLinear()
                     .domain([0, (yMax > 0 ? yMax : 10) * 1.1])
                     .range([height, 0]);
 
                 chart.append("g")
                     .attr("transform", `translate(0,${height})`)
-                    .call(d3.axisBottom(x))
+                    .call(axisBottom(x))
                     .selectAll("text")
                     .attr("fill", currentPalette.onSurfaceVariant)
                     .style("text-anchor", "end")
@@ -88,7 +90,7 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
                     .attr("transform", "rotate(-65)");
                 
                 chart.append("g")
-                    .call(d3.axisLeft(y).ticks(5))
+                    .call(axisLeft(y).ticks(5))
                     .selectAll("text")
                     .attr("fill", currentPalette.onSurfaceVariant);
 
@@ -103,14 +105,14 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
                     .attr("fill", currentPalette.primary)
                     .attr("rx", 3)
                     .on("mouseover", (event: any, d: any) => {
-                        d3.select(event.currentTarget).attr("fill", currentPalette.primaryContainer);
+                        select(event.currentTarget).attr("fill", currentPalette.primaryContainer);
                         tooltip.style("visibility", "visible").html(`<strong>${getNestedValue(d, config.xKey)}</strong><br/>Valore: ${getNestedValue(d, config.yKey).toFixed(2)}`);
                     })
                     .on("mousemove", (event: any) => {
                         tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                     })
                     .on("mouseout", (event: any) => {
-                        d3.select(event.currentTarget).attr("fill", currentPalette.primary);
+                        select(event.currentTarget).attr("fill", currentPalette.primary);
                         tooltip.style("visibility", "hidden");
                     })
                     .transition()
@@ -137,7 +139,7 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
 
         return () => {
             resizeObserver.disconnect();
-            d3.select(".d3-tooltip").remove();
+            select(".d3-tooltip").remove();
         };
 
     }, [data, type, config, theme, isDarkMode, currentPalette]);

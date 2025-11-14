@@ -20,7 +20,14 @@ import {
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
 import GraphDataView from '../components/GraphDataView';
-import * as d3 from 'd3';
+// FIX: Replaced monolithic d3 import with modular imports to resolve type errors.
+import { select } from 'd3-selection';
+import { scaleTime, scaleLinear } from 'd3-scale';
+import { extent, max } from 'd3-array';
+import { axisBottom, axisLeft } from 'd3-axis';
+import { timeFormat } from 'd3-time-format';
+import { line } from 'd3-shape';
+import { format } from 'd3-format';
 
 // --- Colori Centralizzati per la Dashboard ---
 const DASHBOARD_COLORS = {
@@ -1119,11 +1126,11 @@ const DashboardPage: React.FC = () => {
     // Chart useEffects
     useEffect(() => {
         if (!trendResource || !trendChartRef.current || saturationTrendData.length === 0) {
-            if (trendChartRef.current) d3.select(trendChartRef.current).selectAll("*").remove();
+            if (trendChartRef.current) select(trendChartRef.current).selectAll("*").remove();
             return;
         }
 
-        const svg = d3.select(trendChartRef.current);
+        const svg = select(trendChartRef.current);
         svg.selectAll("*").remove();
         
         const { width: containerWidth, height: containerHeight } = svg.node().getBoundingClientRect();
@@ -1135,14 +1142,14 @@ const DashboardPage: React.FC = () => {
 
         const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-        const x = d3.scaleTime().domain(d3.extent(saturationTrendData, (d: any) => d.month)).range([0, width]);
-        const y = d3.scaleLinear().domain([0, d3.max(saturationTrendData, (d: any) => Math.max(110, d.value))]).range([height, 0]);
+        const x = scaleTime().domain(extent(saturationTrendData, (d: any) => d.month) as [Date, Date]).range([0, width]);
+        const y = scaleLinear().domain([0, max(saturationTrendData, (d: any) => Math.max(110, d.value)) || 110]).range([height, 0]);
 
-        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(Math.min(saturationTrendData.length, Math.floor(width / 80))).tickFormat(d3.timeFormat("%b %y")));
-        g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat((d: number) => `${d}%`));
+        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).ticks(Math.min(saturationTrendData.length, Math.floor(width / 80))).tickFormat(timeFormat("%b %y") as any));
+        g.append("g").call(axisLeft(y).ticks(5).tickFormat((d: any) => `${d}%`));
 
         g.append("path").datum(saturationTrendData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2)
-          .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.value)));
+          .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.value)) as any);
         
         g.append("line").attr("x1", 0).attr("x2", width).attr("y1", y(100)).attr("y2", y(100)).attr("stroke", DASHBOARD_COLORS.chart.threshold).attr("stroke-width", 1.5).attr("stroke-dasharray", "4");
 
@@ -1151,7 +1158,7 @@ const DashboardPage: React.FC = () => {
     useEffect(() => {
         if (!costForecastChartRef.current || monthlyCostForecastData.length === 0) return;
         
-        const svg = d3.select(costForecastChartRef.current);
+        const svg = select(costForecastChartRef.current);
         svg.selectAll("*").remove();
 
         const { width: containerWidth, height: containerHeight } = svg.node().getBoundingClientRect();
@@ -1163,18 +1170,18 @@ const DashboardPage: React.FC = () => {
 
         const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-        const x = d3.scaleTime().domain(d3.extent(monthlyCostForecastData, (d: any) => d.month)).range([0, width]);
-        const yMax = d3.max(monthlyCostForecastData, (d: any) => Math.max(d.historic, d.forecast));
-        const y = d3.scaleLinear().domain([0, yMax * 1.1]).range([height, 0]);
+        const x = scaleTime().domain(extent(monthlyCostForecastData, (d: any) => d.month) as [Date, Date]).range([0, width]);
+        const yMax = max(monthlyCostForecastData, (d: any) => Math.max(d.historic, d.forecast));
+        const y = scaleLinear().domain([0, (yMax || 0) * 1.1]).range([height, 0]);
 
-        g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(Math.min(monthlyCostForecastData.length, Math.floor(width / 80))).tickFormat(d3.timeFormat("%b %y")));
-        g.append("g").call(d3.axisLeft(y).ticks(5).tickFormat(d3.format("~s")));
+        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).ticks(Math.min(monthlyCostForecastData.length, Math.floor(width / 80))).tickFormat(timeFormat("%b %y") as any));
+        g.append("g").call(axisLeft(y).ticks(5).tickFormat(format("~s") as any));
 
         g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.secondary).attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
-            .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.historic)));
+            .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.historic)) as any);
         
         g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2.5)
-            .attr("d", d3.line().x((d: any) => x(d.month)).y((d: any) => y(d.forecast)));
+            .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.forecast)) as any);
 
     }, [monthlyCostForecastData]);
 
