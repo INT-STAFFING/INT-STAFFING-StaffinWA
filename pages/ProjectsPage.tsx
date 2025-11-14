@@ -68,9 +68,14 @@ const ProjectsPage: React.FC = () => {
         return projects
             .filter(project => {
                 const isStaffed = staffedProjectIds.has(project.id!);
-                if(showOnlyUnstaffed && isStaffed) {
-                    return false;
+
+                // "Solo senza staff" filter: Must be unstaffed AND 'In corso'
+                if (showOnlyUnstaffed) {
+                    if (isStaffed || project.status !== 'In corso') {
+                        return false;
+                    }
                 }
+                
                 const nameMatch = project.name.toLowerCase().includes(filters.name.toLowerCase());
                 const clientMatch = filters.clientId ? project.clientId === filters.clientId : true;
                 const statusMatch = filters.status ? project.status === filters.status : true;
@@ -354,7 +359,7 @@ const ProjectsPage: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
                             <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea"></textarea>
                         </div>
-                        <div className="flex justify-end space-x-3 pt-4">
+                        <div className="flex justify-end space-x-2 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
                             <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50 font-semibold">
                                {(isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}

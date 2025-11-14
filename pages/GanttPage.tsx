@@ -69,6 +69,19 @@ const GanttPage: React.FC = () => {
         [clients]
     );
 
+    const getGanttBarClass = (status: string | null): string => {
+        switch (status) {
+            case 'In corso':
+                return 'bg-primary text-on-primary';
+            case 'Completato':
+                return 'bg-tertiary-container text-on-tertiary-container';
+            case 'In pausa':
+                return 'bg-yellow-container text-on-yellow-container';
+            default:
+                return 'bg-surface-variant text-on-surface-variant';
+        }
+    };
+
     // Scala temporale (segmenti) calcolata su TUTTI i progetti, estesa per includere sempre "oggi"
     const { timeScale, ganttStartDate, totalDays } = useMemo(() => {
         const validProjects = projects.filter(p => p.startDate && p.endDate);
@@ -366,7 +379,15 @@ const GanttPage: React.FC = () => {
                 <div className="mb-4 px-1 text-xs text-on-surface-variant flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <span className="inline-block w-6 h-2 rounded-full bg-primary" />
-                        <span>Periodo di attività del progetto</span>
+                        <span>In corso</span>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <span className="inline-block w-6 h-2 rounded-full bg-tertiary-container" />
+                        <span>Completato</span>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <span className="inline-block w-6 h-2 rounded-full bg-yellow-container" />
+                        <span>In pausa</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="inline-block w-3 h-3 border border-outline bg-surface-container" />
@@ -454,6 +475,7 @@ const GanttPage: React.FC = () => {
                                         project.startDate,
                                         project.endDate
                                     );
+                                    const barClasses = getGanttBarClass(project.status);
                                     const clientName =
                                         (project.clientId &&
                                             clientMap.get(project.clientId)) ||
@@ -568,7 +590,7 @@ const GanttPage: React.FC = () => {
                                                 {/* Barra Gantt */}
                                                 {project.startDate && project.endDate && (
                                                     <div
-                                                        className="absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full bg-primary hover:opacity-80 shadow-sm group/bar flex items-center px-2 text-[11px] text-on-primary truncate"
+                                                        className={`absolute h-2/3 top-1/2 -translate-y-1/2 rounded-full hover:opacity-80 shadow-sm group/bar flex items-center px-2 text-[11px] truncate ${barClasses}`}
                                                         style={barStyle}
                                                     >
                                                         <span className="truncate">

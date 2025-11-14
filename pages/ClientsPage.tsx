@@ -221,7 +221,7 @@ const ClientsPage: React.FC = () => {
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Email Contatto *</label>
                             <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="form-input"/>
                         </div>
-                        <div className="flex justify-end space-x-3 pt-4">
+                        <div className="flex justify-end space-x-2 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
                              <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50">
                                 {(isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}

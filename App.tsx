@@ -30,7 +30,8 @@ const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
-const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
+// FIX: The lazy import for InterviewsPage was expecting a default export, which caused a type error.
+// It has been updated to handle a named export and moved to the dedicated section below for consistency.
 const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
 const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = lazy(() => import('./pages/UserManualPage'));
@@ -38,6 +39,7 @@ const UserManualPage = lazy(() => import('./pages/UserManualPage'));
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
 const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
+const InterviewsPage = lazy(() => import('./pages/InterviewsPage').then(module => ({ default: module.InterviewsPage })));
 
 interface HeaderProps {
   onToggleSidebar: () => void;

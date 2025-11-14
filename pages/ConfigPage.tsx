@@ -114,7 +114,7 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                             required
                             className="w-full form-input"
                         />
-                        <div className="flex justify-end space-x-3 pt-5">
+                        <div className="flex justify-end space-x-2 pt-5">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
                              <button type="submit" disabled={isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full hover:opacity-90 disabled:opacity-50 font-semibold">
                                 {(isActionLoading(`addConfig-${configType}`) || isActionLoading(`updateConfig-${configType}-${'id' in editingOption ? editingOption.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}

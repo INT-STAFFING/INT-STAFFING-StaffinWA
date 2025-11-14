@@ -1050,7 +1050,7 @@ const StaffingPage: React.FC = () => {
               />
             </div>
           </div>
-          <div className="mt-6 flex justify-end space-x-3">
+          <div className="mt-6 flex justify-end space-x-2">
             <button
               type="button"
               onClick={() => setBulkModalOpen(false)}
@@ -1107,7 +1107,7 @@ const StaffingPage: React.FC = () => {
               />
             </div>
           </div>
-          <div className="mt-6 flex justify-end space-x-3">
+          <div className="mt-6 flex justify-end space-x-2">
             <button
               type="button"
               onClick={() => setAssignmentModalOpen(false)}

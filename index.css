@@ -101,14 +101,13 @@ body {
   'opsz' 24
 }
 
-/* M3 Form Control Styles */
+/* M3 Form Control Styles (Updated to "Outlined" style) */
 .form-input, .form-textarea, .form-select {
   appearance: none;
-  background-color: var(--color-surface-container-high);
-  border: none;
-  border-bottom: 1px solid var(--color-on-surface-variant);
-  border-radius: 4px 4px 0 0;
-  padding: 1rem 0.75rem 0.5rem;
+  background-color: transparent;
+  border: 1px solid var(--color-outline);
+  border-radius: 8px;
+  padding: 0.75rem;
   width: 100%;
   color: var(--color-on-surface);
   transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -117,9 +116,10 @@ body {
 }
 .form-input:focus, .form-textarea:focus, .form-select:focus {
     outline: none;
-    border-bottom: 2px solid var(--color-primary);
-    background-color: var(--color-surface-container-highest);
-    padding-bottom: calc(0.5rem - 1px);
+    border-width: 2px;
+    border-color: var(--color-primary);
+    /* Adjust padding to compensate for the thicker border, preventing layout shift */
+    padding: calc(0.75rem - 1px);
 }
  .form-input::placeholder, .form-textarea::placeholder {
     color: var(--color-on-surface-variant);
@@ -132,9 +132,13 @@ body {
   background-size: 1.5em 1.5em;
   padding-right: 2.5rem;
 }
+.form-select:focus {
+    padding-right: calc(2.5rem - 1px);
+}
 .dark .form-select {
    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
 }
+
 /* M3 Checkbox */
 .form-checkbox {
   appearance: none;
