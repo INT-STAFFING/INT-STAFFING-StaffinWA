@@ -136,6 +136,44 @@ export const InterviewsPage: React.FC = () => {
       lastDayOfWork: null
     };
   };
+  
+  const handleOpenResourceModal = () => {
+    if (editingInterview && 'id' in editingInterview) {
+        setResourceDraft(buildResourceDraftFromInterview(editingInterview as Interview));
+        setIsResourceModalOpen(true);
+    }
+  };
+
+  const handleResourceDraftChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!resourceDraft) return;
+    const { name, value, type } = e.target;
+    setResourceDraft(prev => ({
+        ...prev!,
+        [name]: type === 'number' ? Number(value) : value
+    }));
+};
+
+  const handleResourceSelectChange = (name: string, value: string) => {
+    if (!resourceDraft) return;
+    setResourceDraft(prev => ({
+        ...prev!,
+        [name]: value
+    }));
+  };
+
+  const handleCreateResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resourceDraft) return;
+
+    try {
+        await addResource(resourceDraft);
+        addToast(`Risorsa '${resourceDraft.name}' creata con successo.`, 'success');
+        setIsResourceModalOpen(false);
+        setResourceDraft(null);
+    } catch (err) {
+        // toast is already shown in context
+    }
+  };
 
   const enrichedData = useMemo<EnrichedInterview[]>(() => {
     return interviews.map((i) => {
@@ -226,6 +264,7 @@ export const InterviewsPage: React.FC = () => {
   const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id!, label: r.name })), [roles]);
   const horizontalOptions = useMemo(() => horizontals.map((h) => ({ value: h.value, label: h.value })), [horizontals]);
   const resourceOptions = useMemo(() => resources.map((r) => ({ value: r.id!, label: r.name })), [resources]);
+  const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
   const requestOptions = useMemo(
     () =>
       resourceRequests
@@ -483,373 +522,131 @@ export const InterviewsPage: React.FC = () => {
                     </div>
                     <div className="text-xs text-on-surface-variant font-mono">{request.requestCode}</div>
                   </td>
-                  <td className="px-4 py-2 text-center font-semibold--- START OF FILE pages/DbInspectorPage.tsx ---
+                  <td className="px-4 py-2 text-center font-semibold text-on-surface">{interviewCount}</td>
+                  <td className="px-4 py-2 text-on-surface-variant">{candidates.join(', ') || <i className="text-error">Nessun candidato</i>}</td>
+                </tr>
+              ))}
+              {pipelineData.length === 0 && (
+                <tr>
+                    <td colSpan={3} className="text-center py-4 text-on-surface-variant">Nessuna richiesta di risorse attiva.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-import React, { useState, useEffect } from 'react';
-import { useToast } from '../context/ToastContext';
-import { SpinnerIcon } from '../components/icons';
-import ConfirmationModal from '../components/ConfirmationModal';
-
-interface Column {
-    column_name: string;
-    data_type: string;
-}
-
-interface TableData {
-    columns: Column[];
-    rows: any[];
-}
-
-const DbInspectorPage: React.FC = () => {
-    const [tables, setTables] = useState<string[]>([]);
-    const [selectedTable, setSelectedTable] = useState<string>('');
-    const [tableData, setTableData] = useState<TableData | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [editingRowId, setEditingRowId] = useState<string | null>(null);
-    const [editingRowData, setEditingRowData] = useState<any | null>(null);
-    const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
-    const [isExportingPg, setIsExportingPg] = useState(false);
-    const [isExportingMysql, setIsExportingMysql] = useState(false);
-    const { addToast } = useToast();
-
-    useEffect(() => {
-        const fetchTables = async () => {
-            setIsLoading(true);
-            try {
-                const response = await fetch('/api/resources?entity=db_inspector&action=list_tables');
-                if (!response.ok) throw new Error('Failed to fetch table list');
-                const data = await response.json();
-                setTables(data);
-                if (data.length > 0) {
-                    setSelectedTable(data[0]);
-                }
-            } catch (error) {
-                addToast((error as Error).message, 'error');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchTables();
-    }, [addToast]);
-
-    useEffect(() => {
-        if (!selectedTable) {
-            setTableData(null);
-            return;
-        }
-        const fetchTableData = async () => {
-            setIsLoading(true);
-            setTableData(null);
-            setEditingRowId(null);
-            try {
-                const response = await fetch(`/api/resources?entity=db_inspector&action=get_table_data&table=${selectedTable}`);
-                if (!response.ok) throw new Error(`Failed to fetch data for table ${selectedTable}`);
-                const data = await response.json();
-                setTableData(data);
-            } catch (error) {
-                addToast((error as Error).message, 'error');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchTableData();
-    }, [selectedTable, addToast]);
-    
-    const handleEdit = (row: any) => {
-        setEditingRowId(row.id);
-        setEditingRowData({ ...row });
-    };
-
-    const handleCancel = () => {
-        setEditingRowId(null);
-        setEditingRowData(null);
-    };
-
-    const handleSave = async () => {
-        if (!editingRowData || !selectedTable) return;
-        setIsSaving(true);
-        try {
-            const updates = { ...editingRowData };
-            delete updates.id;
-
-            const response = await fetch(`/api/resources?entity=db_inspector&action=update_row&table=${selectedTable}&id=${editingRowId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to save changes');
-            }
-            addToast('Riga aggiornata con successo.', 'success');
-            setTableData(prev => {
-                if (!prev) return null;
-                return {
-                    ...prev,
-                    rows: prev.rows.map(row => (row.id === editingRowId ? editingRowData : row)),
-                };
-            });
-            handleCancel();
-        } catch (error) {
-            addToast((error as Error).message, 'error');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleDeleteAll = async () => {
-        if (!selectedTable) return;
-        setIsSaving(true);
-        try {
-            const response = await fetch(`/api/resources?entity=db_inspector&action=delete_all_rows&table=${selectedTable}`, {
-                method: 'DELETE',
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to delete all rows');
-            }
-            addToast(`Tutte le righe dalla tabella '${selectedTable}' sono state eliminate.`, 'success');
-            setTableData(prev => prev ? { ...prev, rows: [] } : null); // Clear the data locally
-            handleCancel(); // Close any inline editing
-        } catch (error) {
-            addToast((error as Error).message, 'error');
-        } finally {
-            setIsSaving(false);
-            setIsDeleteAllModalOpen(false);
-        }
-    };
-
-    const handleExport = async (dialect: 'postgres' | 'mysql') => {
-        if (dialect === 'postgres') setIsExportingPg(true);
-        else setIsExportingMysql(true);
-    
-        try {
-            const response = await fetch(`/api/resources?entity=db_inspector&action=export_sql&dialect=${dialect}`);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Failed to export ${dialect} SQL`);
-            }
-            const sql = await response.text();
-            const blob = new Blob([sql], { type: 'application/sql' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `db_export_${dialect}.sql`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            addToast(`Export ${dialect.toUpperCase()} SQL completato.`, 'success');
-        } catch (error) {
-            addToast((error as Error).message, 'error');
-        } finally {
-            if (dialect === 'postgres') setIsExportingPg(false);
-            else setIsExportingMysql(false);
-        }
-    };
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, colName: string, colType: string) => {
-        if (!editingRowData) return;
-        let value: any = e.target.value;
+       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <h2 className="text-2xl font-bold text-on-surface">Elenco Colloqui</h2>
+            <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
+                </div>
+                <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuovo Colloquio</button>
+            </div>
+        </div>
         
-        if (colType.includes('boolean')) {
-            value = value === 'true';
-        } else if (colType.includes('int') || colType.includes('numeric')) {
-            value = value === '' ? null : Number(value);
-        }
-        
-        setEditingRowData({ ...editingRowData, [colName]: value });
-    };
+        <div className="p-4 bg-surface rounded-2xl shadow mb-6">
+            {/* Filter controls */}
+        </div>
 
-    const renderInputField = (col: Column, value: any) => {
-        const colName = col.column_name;
-        const colType = col.data_type;
-    
-        if (colType.includes('timestamp') || colType.includes('date')) {
-            const dateValue = value ? new Date(value).toISOString().split('T')[0] : '';
-            return (
-                <input
-                    type="date"
-                    value={dateValue}
-                    onChange={e => handleInputChange(e, colName, colType)}
-                    className="form-input text-sm p-1"
-                />
-            );
-        }
-        if (colType.includes('int') || colType.includes('numeric')) {
-            return (
-                <input
-                    type="number"
-                    value={value ?? ''}
-                    onChange={e => handleInputChange(e, colName, colType)}
-                    className="form-input text-sm p-1"
-                />
-            );
-        }
-        if (colType.includes('boolean')) {
-            return (
-                <select
-                    value={String(value ?? 'false')}
-                    onChange={e => handleInputChange(e, colName, colType)}
-                    className="form-select text-sm p-1"
-                >
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                </select>
-            );
-        }
-        return (
-            <input
-                type="text"
-                value={value ?? ''}
-                onChange={e => handleInputChange(e, colName, colType)}
-                className="form-input text-sm p-1"
-            />
-        );
-    };
+        {view === 'card' ? (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {sortedAndFilteredData.map(renderCard)}
+            </div>
+        ) : (
+            <div className="bg-surface rounded-2xl shadow overflow-x-auto">
+               {/* Table view will be here */}
+            </div>
+        )}
+      
+      {/* Modals */}
+      {editingInterview && (
+        <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>
+          <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Nome *</label><input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input"/></div>
+                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Cognome *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
+            </div>
+            {/* Rest of the form */}
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data di Nascita</label><input type="date" name="birthDate" value={toISODate(editingInterview.birthDate)} onChange={handleChange} className="form-input"/></div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Proposto</label><SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" /></div>
+                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Horizontal</label><SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal"/></div>
+            </div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Richiesta Collegata</label><SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Nessuna richiesta collegata" /></div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Riassunto CV</label><textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} rows={4} className="form-textarea"></textarea></div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Colloquiato da</label><MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona intervistatori"/></div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Colloquio</label><input type="date" name="interviewDate" value={toISODate(editingInterview.interviewDate)} onChange={handleChange} className="form-input"/></div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Feedback</label><SearchableSelect name="feedback" value={editingInterview.feedback || ''} onChange={handleSelectChange} options={feedbackOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Seleziona feedback"/></div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label><textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea></div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Stato Assunzione</label><SearchableSelect name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleSelectChange} options={hiringStatusOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Seleziona stato"/></div>
+                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Ingresso Prevista</label><input type="date" name="entryDate" value={toISODate(editingInterview.entryDate)} onChange={handleChange} className="form-input" disabled={editingInterview.hiringStatus !== 'SI'}/></div>
+            </div>
+            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Stato Processo *</label><SearchableSelect name="status" value={editingInterview.status} onChange={handleSelectChange} options={statusOptions.map(o => ({ value: o.value, label: o.label }))} required/></div>
 
-    const renderCellContent = (value: any, columnName: string) => {
-        const currencyColumns = [
-            'daily_cost', 'standard_cost', 'daily_expenses', 'budget', 'capienza', 'backlog',
-            'produzione_lorda', 'produzione_lorda_network_italia', 'perdite', 'spese_onorari_esterni',
-            'spese_altro', 'fatture_onorari', 'fatture_spese', 'iva', 'incassi'
-        ];
-    
-        if (currencyColumns.includes(columnName) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value))))) {
-            return (Number(value) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
-        }
-        
-        if (value === null || value === undefined) return <i className="text-on-surface-variant/70">NULL</i>;
-        if (typeof value === 'boolean') return value ? 'true' : 'false';
-        if (typeof value === 'object' && value !== null) return JSON.stringify(value);
-        return String(value);
-    };
-
-    return (
-        <div>
-            <h1 className="text-3xl font-bold text-on-surface mb-6">Database Inspector</h1>
-            
-            <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="table-select" className="block text-sm font-medium text-on-surface-variant mb-2">Seleziona una Tabella</label>
-                        <select
-                            id="table-select"
-                            value={selectedTable}
-                            onChange={e => setSelectedTable(e.target.value)}
-                            className="form-select w-full"
-                            disabled={isLoading}
+            <div className="flex justify-between items-center pt-6 border-t border-outline-variant">
+                 <div>
+                    {editingInterview && 'id' in editingInterview && editingInterview.hiringStatus === 'SI' && (
+                        <button
+                            type="button"
+                            onClick={handleOpenResourceModal}
+                            className="px-4 py-2 border border-tertiary-container bg-tertiary-container text-on-tertiary-container rounded-full hover:opacity-90 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+                            disabled={isActionLoading('addResource')}
                         >
-                            {tables.map(table => <option key={table} value={table}>{table}</option>)}
-                        </select>
-                    </div>
-                     <div className="space-y-2">
-                         <label className="block text-sm font-medium text-on-surface-variant mb-2">Azioni Globali</label>
-                         <div className="flex items-center gap-2">
-                             <button
-                                onClick={() => handleExport('postgres')}
-                                disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                            >
-                                {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
-                            </button>
-                            <button
-                                onClick={() => handleExport('mysql')}
-                                disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                            >
-                                {isExportingMysql ? <SpinnerIcon className="w-5 h-5"/> : 'Export MySQL'}
-                            </button>
-                            <button
-                                onClick={() => setIsDeleteAllModalOpen(true)}
-                                disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
-                                className="px-4 py-2 bg-error text-on-error font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                                title="Elimina Tutte le Righe dalla Tabella Selezionata"
-                            >
-                                Svuota
-                            </button>
-                         </div>
-                    </div>
+                           <span className="material-symbols-outlined">person_add</span>
+                            Crea nuova Risorsa
+                        </button>
+                    )}
+                </div>
+                <div className="flex justify-end space-x-2">
+                    <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                    <button type="submit" disabled={isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50">
+                        {isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                    </button>
                 </div>
             </div>
+          </form>
+        </Modal>
+      )}
 
-            {isLoading && !tableData && (
-                <div className="flex justify-center items-center py-12">
-                    <SpinnerIcon className="w-8 h-8 text-primary" />
+      {resourceDraft && (
+        <Modal isOpen={isResourceModalOpen} onClose={() => setIsResourceModalOpen(false)} title="Crea Nuova Risorsa da Candidato">
+            <form onSubmit={handleCreateResource} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Nome e Cognome *</label><input type="text" name="name" value={resourceDraft.name} onChange={handleResourceDraftChange} required className="form-input"/></div>
+                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Email *</label><input type="email" name="email" value={resourceDraft.email} onChange={handleResourceDraftChange} required className="form-input"/></div>
                 </div>
-            )}
-            
-            {tableData && (
-                <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
-                    {(isLoading || isSaving) && (
-                        <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
-                            <SpinnerIcon className="w-8 h-8 text-primary" />
-                        </div>
-                    )}
-                    <table className="min-w-full divide-y divide-outline-variant">
-                        <thead className="bg-surface-container-low">
-                            <tr>
-                                {tableData.columns.map(col => (
-                                    <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                        {col.column_name}
-                                        <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
-                                    </th>
-                                ))}
-                                <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-outline-variant">
-                            {tableData.rows.map(row => (
-                                <tr key={row.id} className="hover:bg-surface-container">
-                                    {tableData.columns.map(col => (
-                                        <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
-                                            {editingRowId === row.id && col.column_name !== 'id' ? (
-                                                renderInputField(col, editingRowData[col.column_name])
-                                            ) : (
-                                                renderCellContent(row[col.column_name], col.column_name)
-                                            )}
-                                        </td>
-                                    ))}
-                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                        {editingRowId === row.id ? (
-                                            <div className="flex items-center justify-end space-x-2">
-                                                <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
-                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
-                                                </button>
-                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
-                                            </div>
-                                        ) : (
-                                            <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                     {tableData.rows.length === 0 && (
-                        <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo *</label><SearchableSelect name="roleId" value={resourceDraft.roleId} onChange={handleResourceSelectChange} options={roleOptions} required /></div>
+                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Horizontal *</label><SearchableSelect name="horizontal" value={resourceDraft.horizontal} onChange={handleResourceSelectChange} options={horizontalOptions} required /></div>
                 </div>
-            )}
-            
-            <ConfirmationModal
-                isOpen={isDeleteAllModalOpen}
-                onClose={() => setIsDeleteAllModalOpen(false)}
-                onConfirm={handleDeleteAll}
-                title={`Conferma Eliminazione Totale`}
-                message={
-                    <>
-                        Sei assolutamente sicuro di voler eliminare <strong>tutte le righe</strong> dalla tabella <strong>{selectedTable}</strong>?
-                        <br />
-                        <strong className="text-error">Questa azione è irreversibile.</strong>
-                    </>
-                }
-                isConfirming={isSaving}
-            />
-        </div>
-    );
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Sede *</label><SearchableSelect name="location" value={resourceDraft.location} onChange={handleResourceSelectChange} options={locationOptions} required /></div>
+                     <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Assunzione</label><input type="date" name="hireDate" value={resourceDraft.hireDate} onChange={handleResourceDraftChange} className="form-input"/></div>
+                </div>
+                 <div className="flex justify-end space-x-2 pt-4">
+                    <button type="button" onClick={() => setIsResourceModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                    <button type="submit" disabled={isActionLoading('addResource')} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50">
+                        {isActionLoading('addResource') ? <SpinnerIcon className="w-5 h-5"/> : 'Crea Risorsa'}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+      )}
+
+      {interviewToDelete && (
+        <ConfirmationModal
+            isOpen={!!interviewToDelete}
+            onClose={() => setInterviewToDelete(null)}
+            onConfirm={handleDelete}
+            title="Conferma Eliminazione"
+            message={`Sei sicuro di voler eliminare il colloquio per ${interviewToDelete.candidateName} ${interviewToDelete.candidateSurname}?`}
+            isConfirming={isActionLoading(`deleteInterview-${interviewToDelete.id}`)}
+        />
+      )}
+    </div>
+  );
 };
-
-export default DbInspectorPage;
-```
