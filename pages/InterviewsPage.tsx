@@ -7,6 +7,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useToast } from '../context/ToastContext';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -84,7 +85,8 @@ export const InterviewsPage: React.FC = () => {
     deleteInterview,
     isActionLoading,
     addResource,
-    locations
+    locations,
+    loading
   } = useEntitiesContext();
   const { addToast } = useToast();
 
@@ -220,6 +222,12 @@ export const InterviewsPage: React.FC = () => {
       if (aValue instanceof Date && bValue instanceof Date) {
         return sortConfig.direction === 'ascending' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
       }
+      // For date strings
+      const dateA = new Date(aValue);
+      const dateB = new Date(bValue);
+      if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+          return sortConfig.direction === 'ascending' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+      }
       return 0;
     });
   }, [enrichedData, filters, sortConfig]);
@@ -295,14 +303,6 @@ export const InterviewsPage: React.FC = () => {
     { value: 'Non Contattabile', label: 'Non Contattabile' }
   ];
 
-  const requestSort = (key: string) => {
-    let direction: SortDirection = 'ascending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
-
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   const handleFilterSelectChange = (name: string, value: string) => setFilters((prev) => ({ ...prev, [name]: value }));
@@ -364,17 +364,46 @@ export const InterviewsPage: React.FC = () => {
     }
   };
 
-  const columns = [
-    { header: 'Candidato', sortKey: 'candidateSurname' },
-    { header: 'Ruolo Proposto', sortKey: 'roleName' },
-    { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel' },
-    { header: 'Colloquiato Da' },
-    { header: 'Data Colloquio', sortKey: 'interviewDate' },
-    { header: 'Feedback', sortKey: 'feedback' },
-    { header: 'Stato Assunzione', sortKey: 'hiringStatus' },
-    { header: 'Data Ingresso', sortKey: 'entryDate' },
-    { header: 'Stato Processo', sortKey: 'status' }
+  const columns: ColumnDef<EnrichedInterview>[] = [
+    { header: 'Candidato', sortKey: 'candidateSurname', cell: i => (
+        <div>
+            <div className="font-medium text-on-surface">{i.candidateName} {i.candidateSurname}</div>
+            <div className="text-xs text-on-surface-variant">{i.age ?? 'N/A'} anni</div>
+        </div>
+    )},
+    { header: 'Ruolo Proposto', sortKey: 'roleName', cell: i => i.roleName || 'N/A' },
+    { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel', cell: i => i.resourceRequestLabel || 'N/A' },
+    { header: 'Colloquiato Da', sortKey: 'interviewersNames', cell: i => i.interviewersNames.join(', ') || 'N/A' },
+    { header: 'Data Colloquio', sortKey: 'interviewDate', cell: i => formatDate(i.interviewDate) },
+    { header: 'Feedback', sortKey: 'feedback', cell: i => (
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-secondary-container/70 text-on-secondary-container`}>{i.feedback || 'N/A'}</span>
+    )},
+    { header: 'Stato Assunzione', sortKey: 'hiringStatus', cell: i => (
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(i.hiringStatus)}`}>{i.hiringStatus || 'Da definire'}</span>
+    )},
+    { header: 'Data Ingresso', sortKey: 'entryDate', cell: i => formatDate(i.entryDate) },
+    { header: 'Stato Processo', sortKey: 'status', cell: i => (
+        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(i.status)}`}>{i.status}</span>
+    )}
   ];
+
+  const renderRow = (interview: EnrichedInterview) => (
+    <tr key={interview.id} className="group hover:bg-surface-container">
+        {columns.map((col, i) => (
+            <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">
+                {col.cell(interview)}
+            </td>
+        ))}
+        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
+            <div className="flex items-center justify-end space-x-3">
+                <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                </button>
+            </div>
+        </td>
+    </tr>
+  );
 
   const renderCard = (interview: EnrichedInterview) => (
     <div key={interview.id} className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col gap-4">
@@ -443,6 +472,17 @@ export const InterviewsPage: React.FC = () => {
       </div>
     </div>
   );
+  
+  const filtersNode = (
+    <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
+        <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
+        <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Tutti i Feedback"/>
+        <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Stato Assunzione"/>
+        <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Stato Processo"/>
+        <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
+    </div>
+);
 
   return (
     <div>
@@ -548,7 +588,7 @@ export const InterviewsPage: React.FC = () => {
         </div>
         
         <div className="p-4 bg-surface rounded-2xl shadow mb-6">
-            {/* Filter controls */}
+            {filtersNode}
         </div>
 
         {view === 'card' ? (
@@ -556,8 +596,32 @@ export const InterviewsPage: React.FC = () => {
                 {sortedAndFilteredData.map(renderCard)}
             </div>
         ) : (
-            <div className="bg-surface rounded-2xl shadow overflow-x-auto">
-               {/* Table view will be here */}
+            <div className="bg-surface rounded-2xl shadow">
+                <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
+                    <DataTable<EnrichedInterview>
+                        title=""
+                        addNewButtonLabel=""
+                        data={sortedAndFilteredData}
+                        columns={columns}
+                        filtersNode={<></>}
+                        onAddNew={() => {}}
+                        renderRow={renderRow}
+                        renderMobileCard={renderCard}
+                        initialSortKey="interviewDate"
+                        isLoading={loading}
+                        tableLayout={{
+                            dense: true,
+                            striped: true,
+                            headerSticky: true,
+                            headerBackground: true,
+                            headerBorder: true,
+                            width: 'auto',
+                        }}
+                        tableClassNames={{
+                            base: 'w-full text-sm',
+                        }}
+                    />
+                </div>
             </div>
         )}
       
