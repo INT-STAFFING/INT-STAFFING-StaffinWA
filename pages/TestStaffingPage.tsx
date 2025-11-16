@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom';
 // @ts-ignore
 import { MaterialReactTable, useMaterialReactTable } from 'https://aistudiocdn.com/material-react-table@^3.2.1';
 // @ts-ignore
-import type { MRT_ColumnDef, MRT_Row } from 'https://aistudiocdn.com/material-react-table@^3.2.1';
+import type { MRT_ColumnDef, MRT_Row, MrtRowData } from 'https://aistudiocdn.com/material-react-table@^3.2.1';
 // @ts-ignore
 import { MRT_Localization_IT } from 'https://aistudiocdn.com/material-react-table@^3.2.1/locales/it';
 // @ts-ignore
@@ -71,7 +71,7 @@ type EnrichedAssignment = Assignment & {
 // MRT expects sub-rows to be of the same type as parent rows (`MrtRowData`).
 // Since our sub-rows have a different structure (`EnrichedAssignment`), we must cast
 // them later. The cell renderers correctly handle this heterogeneous data.
-type MrtRowData = Resource & {
+type MrtRowDataType = Resource & {
   subRows?: MrtRowData[];
 };
 
@@ -91,7 +91,7 @@ const TestStaffingPage: React.FC = () => {
     companyCalendar,
     isActionLoading,
   } = useEntitiesContext();
-  const { bulkUpdateAllocations } = useAllocationsContext();
+  const { allocations, bulkUpdateAllocations } = useAllocationsContext();
 
   const [isBulkModalOpen, setBulkModalOpen] = useState(false);
   const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
@@ -172,7 +172,7 @@ const TestStaffingPage: React.FC = () => {
   const getProjectById = useCallback((id: string) => projectsById.get(id), [projectsById]);
 
   // --- Trasformazione dati per MRT ---
-  const mrtDisplayData = useMemo(() => {
+  const mrtDisplayData: MrtRowDataType[] = useMemo(() => {
     const filteredAssignments = assignments.filter(a =>
       (!filters.projectId || a.projectId === filters.projectId) &&
       (!filters.clientId || projectsById.get(a.projectId)?.clientId === filters.clientId) &&
@@ -207,13 +207,13 @@ const TestStaffingPage: React.FC = () => {
         // The cell renderers correctly handle the heterogeneous data structure.
         return { ...resource, subRows: enrichedAssignments as unknown as MrtRowData[] };
       })
-      .filter(item => filters.resourceId ? true : item.subRows.length > 0)
+      .filter(item => filters.resourceId ? true : item.subRows!.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [resources, assignments, projectsById, clientsById, filters]);
 
   // --- Definizione Colonne MRT ---
-  const columns = useMemo<MRT_ColumnDef<MrtRowData>[]>(() => {
-    const staticColumns: MRT_ColumnDef<MrtRowData>[] = [
+  const columns = useMemo<MRT_ColumnDef<MrtRowDataType>[]>(() => {
+    const staticColumns: MRT_ColumnDef<MrtRowDataType>[] = [
       {
         id: 'resourceProject',
         header: 'Risorsa / Progetto',
@@ -242,7 +242,7 @@ const TestStaffingPage: React.FC = () => {
       { accessorFn: (row) => (row.subRows ? null : (row as any).projectManager), id: 'pm', header: 'PM', size: 150 },
     ];
 
-    const dynamicTimeColumns: MRT_ColumnDef<MrtRowData>[] = timeColumns.map((col) => ({
+    const dynamicTimeColumns: MRT_ColumnDef<MrtRowDataType>[] = timeColumns.map((col) => ({
       id: col.dateIso || col.label,
       header: col.label,
       // @ts-ignore - subHeader is not in the base type but it works
@@ -320,7 +320,7 @@ const TestStaffingPage: React.FC = () => {
                     const row: any = { Risorsa: resource.name, Progetto: assignment.projectName, Cliente: assignment.clientName, PM: assignment.projectManager };
                     timeColumns.forEach(col => {
                         if (col.dateIso) { // Solo per day-view per ora
-                            row[col.dateIso] = useAllocationsContext().allocations[assignment.id!]?.[col.dateIso!] || 0;
+                            row[col.dateIso] = allocations[assignment.id!]?.[col.dateIso!] || 0;
                         }
                     });
                     return row;
