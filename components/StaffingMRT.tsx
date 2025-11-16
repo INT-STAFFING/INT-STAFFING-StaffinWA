@@ -37,48 +37,37 @@
 */
 
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import {
-  MaterialReactTable,
-  type MRT_ColumnDef,
-  type MRT_Row,
-} from 'material-react-table';
-import { Box, Button, ToggleButton, ToggleButtonGroup, Tooltip, IconButton } from '@mui/material';
+import * as MRT from 'material-react-table';
+import * as MuiMaterial from '@mui/material';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment, Project, Client, Role } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 // FIX: Using namespace import for react-router-dom to address potential module resolution errors.
 import * as ReactRouterDOM from 'react-router-dom';
-const { Link } = ReactRouterDOM;
 import SearchableSelect from './SearchableSelect'; 
 
 // --- Types for nested table data structure ---
 
 type ViewMode = 'day' | 'week' | 'month';
 
-// Parent row type
-interface ResourceRow {
-  kind: 'resource';
+// FIX: A unified type for both parent and child rows to satisfy MaterialReactTable's TData constraint.
+interface TableData {
+  kind: 'resource' | 'assignment';
   id: string;
   resource: Resource;
-  subRows: AssignmentRow[];
-  roleName: string;
-}
 
-// Child row type
-interface AssignmentRow {
-  kind: 'assignment';
-  id: string;
-  assignment: Assignment;
-  resource: Resource; // Parent resource for context
-  project: Project | null;
-  client: Client | null;
-  projectName: string;
-  clientName: string;
-  projectManager: string | null;
-}
+  // Resource-specific properties (for parent rows)
+  roleName?: string;
+  subRows?: TableData[]; // Now subRows are of the same type
 
-// Data type for the table, which will be the parent row type
-type TableData = ResourceRow;
+  // Assignment-specific properties (for child rows)
+  assignment?: Assignment;
+  project?: Project | null;
+  client?: Client | null;
+  projectName?: string;
+  clientName?: string;
+  projectManager?: string | null;
+}
 
 interface StaffingMRTProps {
     currentDate: Date;
@@ -104,7 +93,7 @@ function buildNestedRows(
     clients: Client[],
     roles: Role[],
     filters: { resourceId: string; projectId: string; clientId: string; projectManager: string; }
-): ResourceRow[] {
+): TableData[] {
     const projectsById = new Map(projects.map(p => [p.id!, p]));
     const clientsById = new Map(clients.map(c => [c.id!, c]));
 
@@ -138,10 +127,10 @@ function buildNestedRows(
         visibleResources = visibleResources.filter(r => resourceIdsFromAssignments.has(r.id!));
     }
 
-    const nestedData = visibleResources.map((resource): ResourceRow => {
+    const nestedData = visibleResources.map((resource): TableData => {
         const resourceAssignments = assignmentsByResource.get(resource.id!) || [];
         
-        const subRows: AssignmentRow[] = resourceAssignments.map(assignment => {
+        const subRows: TableData[] = resourceAssignments.map(assignment => {
             const project = projectsById.get(assignment.projectId) || null;
             const client = project && project.clientId ? clientsById.get(project.clientId) || null : null;
             return {
@@ -169,7 +158,7 @@ function buildNestedRows(
     return nestedData
         .filter(row => {
             if (filters.resourceId) return true;
-            return row.subRows.length > 0;
+            return row.subRows!.length > 0;
         })
         .sort((a, b) => a.resource.name.localeCompare(b.resource.name));
 }
@@ -178,17 +167,18 @@ function buildNestedRows(
 
 const PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5);
 
-const AllocationCell: React.FC<{ row: MRT_Row<TableData>; date: string; isNonWorkingDay: boolean; }> = ({ row, date, isNonWorkingDay }) => {
-    const { assignment } = row.original as AssignmentRow;
+const AllocationCell: React.FC<{ row: MRT.MRT_Row<TableData>; date: string; isNonWorkingDay: boolean; }> = ({ row, date, isNonWorkingDay }) => {
+    // FIX: Access `assignment` property from the unified `TableData` type, using non-null assertion as this cell is only for assignment rows.
+    const { assignment } = row.original;
     const { allocations, updateAllocation } = useAllocationsContext();
-    const percentage = allocations[assignment.id!]?.[date] || 0;
+    const percentage = allocations[assignment!.id!]?.[date] || 0;
 
-    if (isNonWorkingDay) return <Box sx={{ p: 1, textAlign: 'center', color: 'text.secondary' }}>-</Box>;
+    if (isNonWorkingDay) return <MuiMaterial.Box sx={{ p: 1, textAlign: 'center', color: 'text.secondary' }}>-</MuiMaterial.Box>;
     
     return (
       <select
         value={percentage}
-        onChange={(e) => updateAllocation(assignment.id!, date, parseInt(e.target.value, 10))}
+        onChange={(e) => updateAllocation(assignment!.id!, date, parseInt(e.target.value, 10))}
         className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none text-on-surface"
       >
         {PERCENTAGE_OPTIONS.map((p) => <option key={p} value={p}>{p > 0 ? `${p}%` : '-'}</option>)}
@@ -196,7 +186,7 @@ const AllocationCell: React.FC<{ row: MRT_Row<TableData>; date: string; isNonWor
     );
 };
 
-const ReadonlyAggregatedCell: React.FC<{ row: MRT_Row<TableData>; startDate: Date; endDate: Date; }> = ({ row, startDate, endDate }) => {
+const ReadonlyAggregatedCell: React.FC<{ row: MRT.MRT_Row<TableData>; startDate: Date; endDate: Date; }> = ({ row, startDate, endDate }) => {
     const { companyCalendar, assignments } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
 
@@ -211,7 +201,8 @@ const ReadonlyAggregatedCell: React.FC<{ row: MRT_Row<TableData>; startDate: Dat
         if (workingDays === 0) return 0;
 
         let totalPersonDays = 0;
-        const assignmentsToCalc = isResourceRow ? assignments.filter(a => a.resourceId === resource.id) : [(row.original as AssignmentRow).assignment];
+        // FIX: Use non-null assertion for `assignment` on sub-rows.
+        const assignmentsToCalc = isResourceRow ? assignments.filter(a => a.resourceId === resource.id) : [row.original.assignment!];
 
         assignmentsToCalc.forEach((assignment) => {
             const assignmentAllocations = allocations[assignment.id!];
@@ -238,13 +229,13 @@ const ReadonlyAggregatedCell: React.FC<{ row: MRT_Row<TableData>; startDate: Dat
         return isResourceRow ? 'bg-surface-container-low' : 'bg-transparent';
     }, [averageAllocation, resource.maxStaffingPercentage, isResourceRow]);
 
-    return <Box className={`w-full h-full flex items-center justify-center font-semibold text-sm ${cellColor}`}>{averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}</Box>;
+    return <MuiMaterial.Box className={`w-full h-full flex items-center justify-center font-semibold text-sm ${cellColor}`}>{averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}</MuiMaterial.Box>;
 };
 
-const DailyTotalCell: React.FC<{ row: MRT_Row<TableData>; date: string; isNonWorkingDay: boolean; }> = ({ row, date, isNonWorkingDay }) => {
+const DailyTotalCell: React.FC<{ row: MRT.MRT_Row<TableData>; date: string; isNonWorkingDay: boolean; }> = ({ row, date, isNonWorkingDay }) => {
     const { resource, subRows } = row.original;
     const { allocations } = useAllocationsContext();
-    const total = useMemo(() => subRows.reduce((sum, a) => sum + (allocations[a.id!]?.[date] || 0), 0), [subRows, allocations, date]);
+    const total = useMemo(() => subRows?.reduce((sum, a) => sum + (allocations[a.id!]?.[date] || 0), 0) ?? 0, [subRows, allocations, date]);
     
     const effectiveNonWorking = isNonWorkingDay || (resource.lastDayOfWork && date > resource.lastDayOfWork);
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
@@ -255,7 +246,7 @@ const DailyTotalCell: React.FC<{ row: MRT_Row<TableData>; date: string; isNonWor
     else if (total > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
     else cellColor = 'bg-surface-container-low';
 
-    return <Box className={`w-full h-full flex items-center justify-center font-semibold text-sm ${cellColor}`}>{effectiveNonWorking ? '-' : (total > 0 ? `${total}%` : '-')}</Box>;
+    return <MuiMaterial.Box className={`w-full h-full flex items-center justify-center font-semibold text-sm ${cellColor}`}>{effectiveNonWorking ? '-' : (total > 0 ? `${total}%` : '-')}</MuiMaterial.Box>;
 };
 
 const StaffingMRT: React.FC<StaffingMRTProps> = ({
@@ -333,11 +324,11 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
         setRowExpansion(expanded);
     }, [tableData]);
 
-    const columns = useMemo<MRT_ColumnDef<TableData>[]>(() => {
-        const dynamicColumns: MRT_ColumnDef<TableData>[] = timeColumns.map((col, index) => ({
+    const columns = useMemo<MRT.MRT_ColumnDef<TableData>[]>(() => {
+        const dynamicColumns: MRT.MRT_ColumnDef<TableData>[] = timeColumns.map((col, index) => ({
             id: `time-col-${index}`,
             header: col.label,
-            Header: () => <Box sx={{ textAlign: 'center' }}><div>{col.label}</div><div className="text-xs font-normal">{col.subLabel}</div></Box>,
+            Header: () => <MuiMaterial.Box sx={{ textAlign: 'center' }}><div>{col.label}</div><div className="text-xs font-normal">{col.subLabel}</div></MuiMaterial.Box>,
             size: viewMode === 'day' ? 75 : 130,
             muiTableHeadCellProps: { align: 'center', sx: { backgroundColor: col.isNonWorkingDay ? 'var(--color-surface-container)' : 'inherit' }},
             Cell: ({ row }) => {
@@ -361,43 +352,48 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
                     if (row.depth === 0) {
                         const { resource, roleName } = row.original;
                         return (
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <Link to={`/workload?resourceId=${resource.id}`} className="font-bold text-primary hover:underline">{resource.name}</Link>
+                            <MuiMaterial.Box sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <ReactRouterDOM.Link to={`/workload?resourceId=${resource.id}`} className="font-bold text-primary hover:underline">{resource.name}</ReactRouterDOM.Link>
                                 <span className="text-xs text-on-surface-variant">{roleName} (Max: {resource.maxStaffingPercentage}%)</span>
-                            </Box>
+                            </MuiMaterial.Box>
                         );
                     }
-                    const { project, projectName } = row.original as AssignmentRow;
-                    return <Link to={`/projects?projectId=${project?.id}`} className="text-primary hover:underline ml-4">{projectName}</Link>;
+                    // FIX: Access properties safely from unified TableData type.
+                    const { project, projectName } = row.original;
+                    return <ReactRouterDOM.Link to={`/projects?projectId=${project?.id}`} className="text-primary hover:underline ml-4">{projectName}</ReactRouterDOM.Link>;
                 },
             },
-            { accessorKey: 'clientName', header: 'Cliente', size: 150, Cell: ({ row }) => row.depth > 0 ? (row.original as AssignmentRow).clientName : null },
-            { accessorKey: 'projectManager', header: 'Project Manager', size: 150, Cell: ({ row }) => row.depth > 0 ? (row.original as AssignmentRow).projectManager : null },
+            // FIX: Access properties safely from unified TableData type.
+            { accessorKey: 'clientName', header: 'Cliente', size: 150, Cell: ({ row }) => row.depth > 0 ? row.original.clientName : null },
+            // FIX: Access properties safely from unified TableData type.
+            { accessorKey: 'projectManager', header: 'Project Manager', size: 150, Cell: ({ row }) => row.depth > 0 ? row.original.projectManager : null },
             {
                 id: 'actions', header: 'Azioni', size: 120,
                 Cell: ({ row }) => (
-                    <Box sx={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                    <MuiMaterial.Box sx={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
                         {row.depth === 0 ? (
-                            <Tooltip title={`Aggiungi assegnazione per ${row.original.resource.name}`}>
-                                <IconButton size="small" onClick={() => onOpenNewAssignmentModal(row.original.resource.id!)} color="primary">
+                            <MuiMaterial.Tooltip title={`Aggiungi assegnazione per ${row.original.resource.name}`}>
+                                <MuiMaterial.IconButton size="small" onClick={() => onOpenNewAssignmentModal(row.original.resource.id!)} color="primary">
                                     <span className="material-symbols-outlined text-base">add_circle</span>
-                                </IconButton>
-                            </Tooltip>
+                                </MuiMaterial.IconButton>
+                            </MuiMaterial.Tooltip>
                         ) : (
                             <>
-                                <Tooltip title="Assegnazione Massiva">
-                                    <IconButton size="small" onClick={() => onOpenBulkModal((row.original as AssignmentRow).assignment)} color="primary">
+                                <MuiMaterial.Tooltip title="Assegnazione Massiva">
+                                    {/* FIX: Access properties safely from unified TableData type. */}
+                                    <MuiMaterial.IconButton size="small" onClick={() => onOpenBulkModal(row.original.assignment!)} color="primary">
                                         <span className="material-symbols-outlined text-base">calendar_add_on</span>
-                                    </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Rimuovi Assegnazione">
-                                    <IconButton size="small" onClick={() => onDeleteAssignment((row.original as AssignmentRow).assignment)} color="error">
+                                    </MuiMaterial.IconButton>
+                                </MuiMaterial.Tooltip>
+                                <MuiMaterial.Tooltip title="Rimuovi Assegnazione">
+                                    {/* FIX: Access properties safely from unified TableData type. */}
+                                    <MuiMaterial.IconButton size="small" onClick={() => onDeleteAssignment(row.original.assignment!)} color="error">
                                         <span className="material-symbols-outlined text-base">delete</span>
-                                    </IconButton>
-                                </Tooltip>
+                                    </MuiMaterial.IconButton>
+                                </MuiMaterial.Tooltip>
                             </>
                         )}
-                    </Box>
+                    </MuiMaterial.Box>
                 ),
             },
             ...dynamicColumns,
@@ -410,7 +406,7 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
     const projectManagerOptions = useMemo(() => [...new Set(projects.map(p => p.projectManager).filter(Boolean) as string[])].sort().map(pm => ({ value: pm, label: pm })), [projects]);
 
     return (
-        <MaterialReactTable
+        <MRT.MaterialReactTable
             columns={columns}
             data={tableData}
             enableExpanding
@@ -421,54 +417,55 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
             enableColumnVirtualization
             enableDensityToggle={false}
             getRowId={(row) => row.id}
-            getSubRows={(originalRow) => originalRow.subRows ?? []}
+            // FIX: The `getSubRows` prop now correctly returns `TableData[] | undefined`, matching the expected type.
+            getSubRows={(originalRow) => originalRow.subRows}
             initialState={{ density: 'compact' }}
-            // FIX: The state property for row expansion is `rowExpansion`, not `expanded`.
+            // FIX: The `rowExpansion` state now works correctly with the unified `TableData` type.
             state={{ rowExpansion }}
-            onExpandedChange={setRowExpansion}
+            onRowExpansionChange={setRowExpansion}
             muiTableContainerProps={{ sx: { maxHeight: 660 } }}
             muiTablePaperProps={{ elevation: 2, sx: { borderRadius: '1.75rem' } }}
             renderTopToolbarCustomActions={() => (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: '1rem', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
-                    <Box sx={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <Button onClick={onPrev} variant="outlined">← Prec.</Button>
-                        <Button onClick={onToday} variant="contained" color="secondary">Oggi</Button>
-                        <Button onClick={onNext} variant="outlined">Succ. →</Button>
-                    </Box>
-                    <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewChange} size="small">
-                        <ToggleButton value="day">Giorno</ToggleButton>
-                        <ToggleButton value="week">Settimana</ToggleButton>
-                        <ToggleButton value="month">Mese</ToggleButton>
-                    </ToggleButtonGroup>
-                    <Button
+                <MuiMaterial.Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: '1rem', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+                    <MuiMaterial.Box sx={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <MuiMaterial.Button onClick={onPrev} variant="outlined">← Prec.</MuiMaterial.Button>
+                        <MuiMaterial.Button onClick={onToday} variant="contained" color="secondary">Oggi</MuiMaterial.Button>
+                        <MuiMaterial.Button onClick={onNext} variant="outlined">Succ. →</MuiMaterial.Button>
+                    </MuiMaterial.Box>
+                    <MuiMaterial.ToggleButtonGroup value={viewMode} exclusive onChange={handleViewChange} size="small">
+                        <MuiMaterial.ToggleButton value="day">Giorno</MuiMaterial.ToggleButton>
+                        <MuiMaterial.ToggleButton value="week">Settimana</MuiMaterial.ToggleButton>
+                        <MuiMaterial.ToggleButton value="month">Mese</MuiMaterial.ToggleButton>
+                    </MuiMaterial.ToggleButtonGroup>
+                    <MuiMaterial.Button
                         variant="contained"
                         onClick={() => onOpenNewAssignmentModal()}
                         startIcon={<span className="material-symbols-outlined">add</span>}
                     >
                         Assegna Risorsa
-                    </Button>
-                </Box>
+                    </MuiMaterial.Button>
+                </MuiMaterial.Box>
             )}
             renderBottomToolbar={() => (
-                 <Box sx={{ p: '1rem', pt: 0, display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', alignItems: 'end' }}>
-                    <Box>
+                 <MuiMaterial.Box sx={{ p: '1rem', pt: 0, display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', alignItems: 'end' }}>
+                    <MuiMaterial.Box>
                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Risorsa</label>
                         <SearchableSelect name="resourceId" value={filters.resourceId} onChange={onChangeFilter} options={resourceOptions} placeholder="Tutte le Risorse" />
-                    </Box>
-                    <Box>
+                    </MuiMaterial.Box>
+                    <MuiMaterial.Box>
                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente</label>
                         <SearchableSelect name="clientId" value={filters.clientId} onChange={onChangeFilter} options={clientOptions} placeholder="Tutti i Clienti" />
-                    </Box>
-                    <Box>
+                    </MuiMaterial.Box>
+                    <MuiMaterial.Box>
                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
                         <SearchableSelect name="projectManager" value={filters.projectManager} onChange={onChangeFilter} options={projectManagerOptions} placeholder="Tutti i PM" />
-                    </Box>
-                    <Box>
+                    </MuiMaterial.Box>
+                    <MuiMaterial.Box>
                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto</label>
                         <SearchableSelect name="projectId" value={filters.projectId} onChange={onChangeFilter} options={projectOptions} placeholder="Tutti i Progetti" />
-                    </Box>
-                    <Button onClick={onClearFilters} variant="contained" color="secondary">Reset Filtri</Button>
-                </Box>
+                    </MuiMaterial.Box>
+                    <MuiMaterial.Button onClick={onClearFilters} variant="contained" color="secondary">Reset Filtri</MuiMaterial.Button>
+                </MuiMaterial.Box>
             )}
         />
     );
