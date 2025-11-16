@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment, Role } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday } from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -274,7 +274,7 @@ const TestStaffingPage: React.FC = () => {
     }));
 
     return [ ...staticColumns, ...dynamicTimeColumns ];
-  }, [timeColumns, rolesById, companyCalendar, openNewAssignmentModal]);
+  }, [timeColumns, rolesById, companyCalendar, openNewAssignmentModal, viewMode]);
 
   // --- Configurazione Tabella MRT ---
   const table = useMaterialReactTable({
@@ -382,27 +382,113 @@ const DailyTotalCell: React.FC<{ resource: Resource; date: string; isNonWorkingD
 });
 
 const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Date; endDate: Date }> = React.memo(({ resource, startDate, endDate }) => {
-  const { assignments, companyCalendar } = useEntitiesContext(); const { allocations } = useAllocationsContext();
+  const { assignments, companyCalendar } = useEntitiesContext();
+  const { allocations } = useAllocationsContext();
+
   const { averageAllocation, cellColor } = useMemo(() => {
-    const workingDays = companyCalendar.length; // Placeholder, a real calculation is needed
-    let totalPersonDays = 0; // Placeholder
-    // NOTE: La logica completa di calcolo è complessa e omessa qui per brevità, ma dovrebbe replicare l'originale
-    const averageAllocation = 0; // Calcolo omesso
+    const effectiveEndDate =
+      resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
+        ? new Date(resource.lastDayOfWork)
+        : endDate;
+    if (startDate > effectiveEndDate) return { averageAllocation: 0, cellColor: 'bg-surface-container-low' };
+
+    const workingDays = getWorkingDaysBetween(
+      startDate,
+      effectiveEndDate,
+      companyCalendar,
+      resource.location
+    );
+    if (workingDays === 0) return { averageAllocation: 0, cellColor: 'bg-surface-container-low' };
+
+    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
+    let totalPersonDays = 0;
+
+    resourceAssignments.forEach((assignment) => {
+      const assignmentAllocations = allocations[assignment.id!];
+      if (assignmentAllocations) {
+        let currentDate = new Date(startDate);
+        while (currentDate <= effectiveEndDate) {
+          const dateStr = formatDate(currentDate, 'iso');
+          if (assignmentAllocations[dateStr]) {
+            if (
+              !isHoliday(currentDate, resource.location, companyCalendar) &&
+              currentDate.getDay() !== 0 &&
+              currentDate.getDay() !== 6
+            ) {
+              totalPersonDays += assignmentAllocations[dateStr] / 100;
+            }
+          }
+          currentDate = addDays(currentDate, 1);
+        }
+      }
+    });
+
+    const averageAllocation = (totalPersonDays / workingDays) * 100;
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
     const roundedAverage = Math.round(averageAllocation);
     let cellColor = 'bg-surface-container-low';
     if (roundedAverage > maxPercentage) cellColor = 'bg-error-container text-on-error-container';
     else if (roundedAverage === maxPercentage) cellColor = 'bg-tertiary-container text-on-tertiary-container';
     else if (roundedAverage > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
+    
     return { averageAllocation, cellColor };
   }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
+
   return <div className={`w-full h-full flex items-center justify-center font-semibold text-sm ${cellColor}`}>{averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}</div>;
 });
 
+
 const ReadonlyAggregatedAllocationCell: React.FC<{ assignment: Assignment; startDate: Date; endDate: Date }> = React.memo(({ assignment, startDate, endDate }) => {
-    // Logica simile alla cella aggregata totale, ma per una singola assegnazione. Omessa per brevità.
-    const averageAllocation = 0; // Calcolo omesso
-    const cellColor = averageAllocation > 100 ? 'bg-error-container text-on-error-container' : 'bg-transparent';
+    const { companyCalendar, resources } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
+    const resource = resources.find((r) => r.id === assignment.resourceId);
+
+    const { averageAllocation, cellColor } = useMemo(() => {
+        if (!resource) return { averageAllocation: 0, cellColor: 'bg-transparent' };
+
+        const effectiveEndDate =
+          resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
+            ? new Date(resource.lastDayOfWork)
+            : endDate;
+        if (startDate > effectiveEndDate) return { averageAllocation: 0, cellColor: 'bg-transparent' };
+
+        const workingDays = getWorkingDaysBetween(
+          startDate,
+          effectiveEndDate,
+          companyCalendar,
+          resource.location
+        );
+        if (workingDays === 0) return { averageAllocation: 0, cellColor: 'bg-transparent' };
+
+        let totalPersonDays = 0;
+        const assignmentAllocations = allocations[assignment.id!];
+
+        if (assignmentAllocations) {
+          let currentDate = new Date(startDate);
+          while (currentDate <= effectiveEndDate) {
+            const dateStr = formatDate(currentDate, 'iso');
+            if (assignmentAllocations[dateStr]) {
+              if (
+                !isHoliday(currentDate, resource.location, companyCalendar) &&
+                currentDate.getDay() !== 0 &&
+                currentDate.getDay() !== 6
+              ) {
+                totalPersonDays += assignmentAllocations[dateStr] / 100;
+              }
+            }
+            currentDate = addDays(currentDate, 1);
+          }
+        }
+        
+        const averageAllocation = (totalPersonDays / workingDays) * 100;
+        let cellColor = 'bg-transparent';
+        if (averageAllocation > 100) cellColor = 'bg-error-container text-on-error-container';
+        else if (averageAllocation >= 95 && averageAllocation <= 100) cellColor = 'bg-tertiary-container text-on-tertiary-container';
+        else if (averageAllocation > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
+        
+        return { averageAllocation, cellColor };
+    }, [assignment.id, startDate, endDate, allocations, companyCalendar, resource]);
+
     return <div className={`w-full h-full flex items-center justify-center font-semibold text-sm ${cellColor}`}>{averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}</div>;
 });
 
