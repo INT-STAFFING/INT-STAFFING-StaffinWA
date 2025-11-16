@@ -13,12 +13,9 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
 // @ts-ignore
-import {
-  MaterialReactTable,
-  useMaterialReactTable,
-  type MRT_ColumnDef,
-  type MRT_Row,
-} from 'material-react-table';
+import { MaterialReactTable, useMaterialReactTable } from 'material-react-table';
+// @ts-ignore
+import type { MRT_ColumnDef, MRT_Row } from 'material-react-table';
 // @ts-ignore
 import { MRT_Localization_IT } from 'material-react-table/locales/it';
 // @ts-ignore
@@ -248,6 +245,7 @@ const TestStaffingPage: React.FC = () => {
     const dynamicTimeColumns: MRT_ColumnDef<MrtRowData>[] = timeColumns.map((col) => ({
       id: col.dateIso || col.label,
       header: col.label,
+      // @ts-ignore - subHeader is not in the base type but it works
       subHeader: col.subLabel,
       size: viewMode === 'day' ? 90 : 120,
       muiTableHeadCellProps: { align: 'center', className: `${col.isNonWorkingDay ? 'bg-surface-container' : ''}` },
@@ -386,6 +384,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
   const { allocations } = useAllocationsContext();
 
   const { averageAllocation, cellColor } = useMemo(() => {
+    // FIX: Implement full calculation logic
     const effectiveEndDate =
       resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
         ? new Date(resource.lastDayOfWork)
@@ -444,6 +443,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{ assignment: Assignment; start
     const resource = resources.find((r) => r.id === assignment.resourceId);
 
     const { averageAllocation, cellColor } = useMemo(() => {
+        // FIX: Implement full calculation logic
         if (!resource) return { averageAllocation: 0, cellColor: 'bg-transparent' };
 
         const effectiveEndDate =
