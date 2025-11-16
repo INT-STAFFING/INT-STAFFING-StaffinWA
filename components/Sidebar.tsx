@@ -122,6 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                             <NavHeader>Amministrazione</NavHeader>
                             <NavItem to="/admin-settings" icon="admin_panel_settings" label="Impostazioni Admin" onClick={handleNavLinkClick} />
                             <NavItem to="/db-inspector" icon="database" label="Database Inspector" onClick={handleNavLinkClick} />
+                            <NavItem to="/test-staffing" icon="science" label="Test Staffing (MRT)" onClick={handleNavLinkClick} />
                         </>
                     )}
                 </div>

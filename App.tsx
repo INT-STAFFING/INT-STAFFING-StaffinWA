@@ -30,16 +30,17 @@ const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
-// FIX: The lazy import for InterviewsPage was expecting a default export, which caused a type error.
-// It has been updated to handle a named export and moved to the dedicated section below for consistency.
 const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
 const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = lazy(() => import('./pages/UserManualPage'));
+const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
+// FIX: The lazy import for InterviewsPage was incorrect for a default export.
+// It has been updated to use the correct syntax for default exports.
+const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
 const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
-const InterviewsPage = lazy(() => import('./pages/InterviewsPage').then(module => ({ default: module.InterviewsPage })));
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -73,6 +74,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'db-inspector': return 'Database Inspector';
       case 'staffing-visualization': return 'Visualizzazione Staffing';
       case 'manuale-utente': return 'Manuale Utente';
+      case 'test-staffing': return 'Test Staffing (MRT)';
       default: return 'Staffing Planner';
     }
   };
@@ -174,6 +176,14 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                 element={
                   <AdminRoute>
                     <DbInspectorPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/test-staffing"
+                element={
+                  <AdminRoute>
+                    <TestStaffingPage />
                   </AdminRoute>
                 }
               />

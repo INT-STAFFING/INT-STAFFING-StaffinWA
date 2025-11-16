@@ -7,7 +7,6 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useToast } from '../context/ToastContext';
-import { DataTable, ColumnDef } from '../components/DataTable';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -16,6 +15,9 @@ type EnrichedInterview = Interview & {
   interviewersNames: string[];
   age: number | null;
 };
+
+type SortDirection = 'ascending' | 'descending';
+type SortConfig = { key: keyof EnrichedInterview | string; direction: SortDirection } | null;
 
 // --- Helper Functions ---
 const calculateAge = (birthDate: string | null): number | null => {
@@ -68,8 +70,7 @@ const getHiringStatusBadgeClass = (status: InterviewHiringStatus | null) => {
   }
 };
 
-// FIX: Changed to a named export to resolve type error during lazy loading.
-export const InterviewsPage: React.FC = () => {
+const InterviewsPage: React.FC = () => {
   const {
     interviews,
     resources,
@@ -82,8 +83,7 @@ export const InterviewsPage: React.FC = () => {
     deleteInterview,
     isActionLoading,
     addResource,
-    locations,
-    loading
+    locations
   } = useEntitiesContext();
   const { addToast } = useToast();
 
@@ -91,6 +91,7 @@ export const InterviewsPage: React.FC = () => {
   const [editingInterview, setEditingInterview] = useState<Interview | Omit<Interview, 'id'> | null>(null);
   const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
   const [filters, setFilters] = useState({ name: '', roleId: '', feedback: '', status: '', hiringStatus: '' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'interviewDate', direction: 'descending' });
   const [view, setView] = useState<'table' | 'card'>('table');
 
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
@@ -134,44 +135,6 @@ export const InterviewsPage: React.FC = () => {
       lastDayOfWork: null
     };
   };
-  
-  const handleOpenResourceModal = () => {
-    if (editingInterview && 'id' in editingInterview) {
-        setResourceDraft(buildResourceDraftFromInterview(editingInterview as Interview));
-        setIsResourceModalOpen(true);
-    }
-  };
-
-  const handleResourceDraftChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!resourceDraft) return;
-    const { name, value, type } = e.target;
-    setResourceDraft(prev => ({
-        ...prev!,
-        [name]: type === 'number' ? Number(value) : value
-    }));
-};
-
-  const handleResourceSelectChange = (name: string, value: string) => {
-    if (!resourceDraft) return;
-    setResourceDraft(prev => ({
-        ...prev!,
-        [name]: value
-    }));
-  };
-
-  const handleCreateResource = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resourceDraft) return;
-
-    try {
-        await addResource(resourceDraft);
-        addToast(`Risorsa '${resourceDraft.name}' creata con successo.`, 'success');
-        setIsResourceModalOpen(false);
-        setResourceDraft(null);
-    } catch (err) {
-        // toast is already shown in context
-    }
-  };
 
   const enrichedData = useMemo<EnrichedInterview[]>(() => {
     return interviews.map((i) => {
@@ -190,8 +153,8 @@ export const InterviewsPage: React.FC = () => {
     });
   }, [interviews, resources, roles, resourceRequests, projects]);
 
-  const dataForTable = useMemo<EnrichedInterview[]>(() => {
-    return enrichedData.filter(
+  const sortedAndFilteredData = useMemo(() => {
+    const filtered = enrichedData.filter(
       (i) =>
         (i.candidateName + ' ' + i.candidateSurname).toLowerCase().includes(filters.name.toLowerCase()) &&
         (!filters.roleId || i.roleId === filters.roleId) &&
@@ -199,7 +162,28 @@ export const InterviewsPage: React.FC = () => {
         (!filters.status || i.status === filters.status) &&
         (!filters.hiringStatus || i.hiringStatus === filters.hiringStatus)
     );
-  }, [enrichedData, filters]);
+
+    if (!sortConfig) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const aValue = (a as any)[sortConfig.key];
+      const bValue = (b as any)[sortConfig.key];
+
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+      }
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      if (aValue instanceof Date && bValue instanceof Date) {
+        return sortConfig.direction === 'ascending' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
+      }
+      return 0;
+    });
+  }, [enrichedData, filters, sortConfig]);
 
   const summaryCards = useMemo(() => {
     const dataToSummarize = enrichedData;
@@ -241,7 +225,6 @@ export const InterviewsPage: React.FC = () => {
   const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id!, label: r.name })), [roles]);
   const horizontalOptions = useMemo(() => horizontals.map((h) => ({ value: h.value, label: h.value })), [horizontals]);
   const resourceOptions = useMemo(() => resources.map((r) => ({ value: r.id!, label: r.name })), [resources]);
-  const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
   const requestOptions = useMemo(
     () =>
       resourceRequests
@@ -271,6 +254,14 @@ export const InterviewsPage: React.FC = () => {
     { value: 'StandBy', label: 'StandBy' },
     { value: 'Non Contattabile', label: 'Non Contattabile' }
   ];
+
+  const requestSort = (key: string) => {
+    let direction: SortDirection = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -333,46 +324,17 @@ export const InterviewsPage: React.FC = () => {
     }
   };
 
-  const columns: ColumnDef<EnrichedInterview>[] = [
-    { header: 'Candidato', sortKey: 'candidateSurname', cell: i => (
-        <div>
-            <div className="font-medium text-on-surface">{i.candidateName} {i.candidateSurname}</div>
-            <div className="text-xs text-on-surface-variant">{i.age ?? 'N/A'} anni</div>
-        </div>
-    )},
-    { header: 'Ruolo Proposto', sortKey: 'roleName', cell: i => i.roleName || 'N/A' },
-    { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel', cell: i => i.resourceRequestLabel || 'N/A' },
-    { header: 'Colloquiato Da', sortKey: 'interviewersNames', cell: i => i.interviewersNames.join(', ') || 'N/A' },
-    { header: 'Data Colloquio', sortKey: 'interviewDate', cell: i => formatDate(i.interviewDate) },
-    { header: 'Feedback', sortKey: 'feedback', cell: i => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-secondary-container/70 text-on-secondary-container`}>{i.feedback || 'N/A'}</span>
-    )},
-    { header: 'Stato Assunzione', sortKey: 'hiringStatus', cell: i => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(i.hiringStatus)}`}>{i.hiringStatus || 'Da definire'}</span>
-    )},
-    { header: 'Data Ingresso', sortKey: 'entryDate', cell: i => formatDate(i.entryDate) },
-    { header: 'Stato Processo', sortKey: 'status', cell: i => (
-        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(i.status)}`}>{i.status}</span>
-    )}
+  const columns = [
+    { header: 'Candidato', sortKey: 'candidateSurname' },
+    { header: 'Ruolo Proposto', sortKey: 'roleName' },
+    { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel' },
+    { header: 'Colloquiato Da' },
+    { header: 'Data Colloquio', sortKey: 'interviewDate' },
+    { header: 'Feedback', sortKey: 'feedback' },
+    { header: 'Stato Assunzione', sortKey: 'hiringStatus' },
+    { header: 'Data Ingresso', sortKey: 'entryDate' },
+    { header: 'Stato Processo', sortKey: 'status' }
   ];
-
-  const renderRow = (interview: EnrichedInterview) => (
-    <tr key={interview.id} className="group hover:bg-surface-container">
-        {columns.map((col, i) => (
-            <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">
-                {col.cell(interview)}
-            </td>
-        ))}
-        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-            <div className="flex items-center justify-end space-x-3">
-                <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
-                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
-                </button>
-            </div>
-        </td>
-    </tr>
-  );
 
   const renderCard = (interview: EnrichedInterview) => (
     <div key={interview.id} className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col gap-4">
@@ -441,17 +403,6 @@ export const InterviewsPage: React.FC = () => {
       </div>
     </div>
   );
-  
-  const filtersNode = (
-    <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-        <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
-        <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Tutti i Feedback"/>
-        <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Stato Assunzione"/>
-        <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Stato Processo"/>
-        <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
-    </div>
-);
 
   return (
     <div>
@@ -532,158 +483,379 @@ export const InterviewsPage: React.FC = () => {
                     <div className="text-xs text-on-surface-variant font-mono">{request.requestCode}</div>
                   </td>
                   <td className="px-4 py-2 text-center font-semibold text-on-surface">{interviewCount}</td>
-                  <td className="px-4 py-2 text-on-surface-variant">{candidates.join(', ') || <i className="text-error">Nessun candidato</i>}</td>
+                  <td className="px-4 py-2 text-xs text-on-surface-variant">{candidates.join(', ') || <span className="italic">Nessun candidato</span>}</td>
                 </tr>
               ))}
-              {pipelineData.length === 0 && (
-                <tr>
-                    <td colSpan={3} className="text-center py-4 text-on-surface-variant">Nessuna richiesta di risorse attiva.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
       </div>
 
-       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-            <h2 className="text-2xl font-bold text-on-surface">Elenco Colloqui</h2>
-            <div className="flex items-center gap-4 w-full md:w-auto">
-                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
-                </div>
-                <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuovo Colloquio</button>
-            </div>
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <h1 className="text-3xl font-bold text-on-surface self-start">Gestione Colloqui</h1>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+            <button
+              onClick={() => setView('table')}
+              className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'
+              }`}
+            >
+              Tabella
+            </button>
+            <button
+              onClick={() => setView('card')}
+              className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'
+              }`}
+            >
+              Card
+            </button>
+          </div>
+          <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">
+            Aggiungi Colloquio
+          </button>
         </div>
-        
-        <div className="p-4 bg-surface rounded-2xl shadow mb-6">
-            {filtersNode}
-        </div>
+      </div>
 
-        {view === 'table' ? (
-            <div className="bg-surface rounded-2xl shadow">
-                <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
-                    <DataTable<EnrichedInterview>
-                        title=""
-                        addNewButtonLabel=""
-                        data={dataForTable}
-                        columns={columns}
-                        filtersNode={<></>}
-                        onAddNew={() => {}}
-                        renderRow={renderRow}
-                        renderMobileCard={renderCard}
-                        initialSortKey="interviewDate"
-                        isLoading={loading}
-                        tableLayout={{
-                            dense: true,
-                            striped: true,
-                            headerSticky: true,
-                            headerBackground: true,
-                            headerBorder: true,
-                            width: 'auto',
-                        }}
-                        tableClassNames={{
-                            base: 'w-full text-sm',
-                        }}
-                    />
-                </div>
+      <div className="mb-6 p-4 bg-surface-container rounded-2xl shadow relative z-20">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+          <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..." />
+          <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
+          <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback" />
+          <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione" />
+          <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {view === 'table' ? (
+        <div className="bg-surface-container rounded-2xl shadow">
+          <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
+            <table className="min-w-full table-fixed">
+              <thead className="sticky top-0 z-10 bg-surface-container-high border-b border-outline-variant">
+                <tr>
+                  {columns.map((col) => (
+                    <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                      {col.sortKey ? (
+                        <button
+                          type="button"
+                          onClick={() => requestSort(col.sortKey!)}
+                          className="flex items-center space-x-1 hover:text-on-surface"
+                        >
+                          <span className={sortConfig?.key === col.sortKey ? 'font-bold text-on-surface' : ''}>{col.header}</span>
+                          <span className="material-symbols-outlined text-sm">{sortConfig?.key === col.sortKey ? (sortConfig.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
+                        </button>
+                      ) : (
+                        <span>{col.header}</span>
+                      )}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-outline-variant">
+                {sortedAndFilteredData.map((interview) => (
+                  <tr key={interview.id} className="h-8 hover:bg-surface-container-low">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <div className="font-medium text-on-surface">
+                        {interview.candidateName} {interview.candidateSurname}{' '}
+                        <span className="text-on-surface-variant">({interview.age ?? 'N/A'})</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{interview.roleName || 'N/A'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
+                      <span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
+                      <span className="text-xs">{interview.interviewersNames.join(', ')}</span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatDate(interview.interviewDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{interview.feedback || 'N/A'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>
+                        {interview.hiringStatus || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatDate(interview.entryDate)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-3">
+                        <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica">
+                          <span className="material-symbols-outlined">edit</span>
+                        </button>
+                        <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                          {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-on-surface-variant">Nessun dato trovato.</p>}
+        </div>
+      ) : (
+        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+          {sortedAndFilteredData.length > 0 ? (
+            sortedAndFilteredData.map(renderCard)
+          ) : (
+            <div className="col-span-full text-center py-8 text-on-surface-variant bg-surface-container rounded-2xl shadow">
+              Nessun colloquio trovato con i filtri correnti.
             </div>
-        ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {dataForTable.length > 0 ? (
-                    dataForTable.map(renderCard)
-                ) : (
-                    <p className="col-span-full text-center py-8 text-on-surface-variant">Nessun colloquio trovato.</p>
-                )}
-            </div>
-        )}
-      
-      {/* Modals */}
+          )}
+        </div>
+      )}
+
+      {/* Modale INTERVIEW */}
       {editingInterview && (
         <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>
-          <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Nome *</label><input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input"/></div>
-                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Cognome *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome Candidato *</label>
+                <input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Cognome Candidato *</label>
+                <input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input" />
+              </div>
             </div>
-            {/* Rest of the form */}
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data di Nascita</label><input type="date" name="birthDate" value={toISODate(editingInterview.birthDate)} onChange={handleChange} className="form-input"/></div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Proposto</label><SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" /></div>
-                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Horizontal</label><SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal"/></div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data di Nascita</label>
+              <input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input" />
             </div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Richiesta Collegata</label><SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Nessuna richiesta collegata" /></div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Riassunto CV</label><textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} rows={4} className="form-textarea"></textarea></div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Colloquiato da</label><MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona intervistatori"/></div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Colloquio</label><input type="date" name="interviewDate" value={toISODate(editingInterview.interviewDate)} onChange={handleChange} className="form-input"/></div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Feedback</label><SearchableSelect name="feedback" value={editingInterview.feedback || ''} onChange={handleSelectChange} options={feedbackOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Seleziona feedback"/></div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label><textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea></div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Stato Assunzione</label><SearchableSelect name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleSelectChange} options={hiringStatusOptions.map(o => ({ value: o.value, label: o.label }))} placeholder="Seleziona stato"/></div>
-                <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Ingresso Prevista</label><input type="date" name="entryDate" value={toISODate(editingInterview.entryDate)} onChange={handleChange} className="form-input" disabled={editingInterview.hiringStatus !== 'SI'}/></div>
-            </div>
-            <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Stato Processo *</label><SearchableSelect name="status" value={editingInterview.status} onChange={handleSelectChange} options={statusOptions.map(o => ({ value: o.value, label: o.label }))} required/></div>
 
-            <div className="flex justify-between items-center pt-6 border-t border-outline-variant">
-                 <div>
-                    {editingInterview && 'id' in editingInterview && editingInterview.hiringStatus === 'SI' && (
-                        <button
-                            type="button"
-                            onClick={handleOpenResourceModal}
-                            className="px-4 py-2 border border-tertiary-container bg-tertiary-container text-on-tertiary-container rounded-full hover:opacity-90 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
-                            disabled={isActionLoading('addResource')}
-                        >
-                           <span className="material-symbols-outlined">person_add</span>
-                            Crea nuova Risorsa
-                        </button>
-                    )}
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Collega a Richiesta Risorsa</label>
+              <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Nessuna (Opzionale)" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Horizontal</label>
+                <SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ruolo Proposto</label>
+                <SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona..." />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Riassunto CV</label>
+              <textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Colloquio</label>
+                <input type="date" name="interviewDate" value={editingInterview.interviewDate || ''} onChange={handleChange} className="form-input" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Feedback</label>
+                <SearchableSelect name="feedback" value={editingInterview.feedback || ''} onChange={handleSelectChange} options={feedbackOptions} placeholder="Seleziona..." />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Colloquiato Da</label>
+              <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona una o più persone" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Note Colloquio</label>
+              <textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Stato Assunzione</label>
+                <SearchableSelect name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleSelectChange} options={hiringStatusOptions} placeholder="Seleziona..." />
+              </div>
+              {editingInterview.hiringStatus === 'SI' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Ingresso *</label>
+                  <input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={handleChange} required className="form-input" />
                 </div>
-                <div className="flex justify-end space-x-2">
-                    <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                    <button type="submit" disabled={isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50">
-                        {isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
-                    </button>
-                </div>
+              )}
+            </div>
+
+            {editingInterview.hiringStatus === 'SI' && editingInterview.entryDate && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = buildResourceDraftFromInterview(editingInterview as Interview);
+                    setResourceDraft(draft);
+                    setIsResourceModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-tertiary-container text-on-tertiary-container font-semibold rounded-full hover:opacity-90"
+                >
+                  Crea nuova Risorsa
+                </button>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
+                Annulla
+              </button>
+              <button
+                type="submit"
+                disabled={isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`)}
+                className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
+              >
+                {isActionLoading('addInterview') || isActionLoading(`updateInterview-${'id' in editingInterview ? editingInterview.id : ''}`) ? (
+                  <SpinnerIcon className="w-5 h-5" />
+                ) : (
+                  'Salva'
+                )}
+              </button>
             </div>
           </form>
         </Modal>
       )}
 
-      {resourceDraft && (
-        <Modal isOpen={isResourceModalOpen} onClose={() => setIsResourceModalOpen(false)} title="Crea Nuova Risorsa da Candidato">
-            <form onSubmit={handleCreateResource} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Nome e Cognome *</label><input type="text" name="name" value={resourceDraft.name} onChange={handleResourceDraftChange} required className="form-input"/></div>
-                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Email *</label><input type="email" name="email" value={resourceDraft.email} onChange={handleResourceDraftChange} required className="form-input"/></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo *</label><SearchableSelect name="roleId" value={resourceDraft.roleId} onChange={handleResourceSelectChange} options={roleOptions} required /></div>
-                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Horizontal *</label><SearchableSelect name="horizontal" value={resourceDraft.horizontal} onChange={handleResourceSelectChange} options={horizontalOptions} required /></div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Sede *</label><SearchableSelect name="location" value={resourceDraft.location} onChange={handleResourceSelectChange} options={locationOptions} required /></div>
-                     <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Data Assunzione</label><input type="date" name="hireDate" value={resourceDraft.hireDate} onChange={handleResourceDraftChange} className="form-input"/></div>
-                </div>
-                 <div className="flex justify-end space-x-2 pt-4">
-                    <button type="button" onClick={() => setIsResourceModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                    <button type="submit" disabled={isActionLoading('addResource')} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50">
-                        {isActionLoading('addResource') ? <SpinnerIcon className="w-5 h-5"/> : 'Crea Risorsa'}
-                    </button>
-                </div>
-            </form>
+      {isResourceModalOpen && resourceDraft && (
+        <Modal isOpen={isResourceModalOpen} onClose={() => setIsResourceModalOpen(false)} title="Aggiungi Risorsa (da Interview)">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!resourceDraft) return;
+              try {
+                await addResource(resourceDraft);
+                addToast('Risorsa creata con successo.', 'success');
+                setIsResourceModalOpen(false);
+                setIsModalOpen(false);
+                setEditingInterview(null);
+              } catch (err) {
+                addToast('Errore nella creazione della risorsa.', 'error');
+              }
+            }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome e Cognome *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={resourceDraft.name}
+                  onChange={(e) => setResourceDraft({ ...resourceDraft, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Email *</label>
+                <input
+                  type="email"
+                  required
+                  className="form-input"
+                  value={resourceDraft.email}
+                  onChange={(e) => setResourceDraft({ ...resourceDraft, email: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ruolo *</label>
+                <SearchableSelect
+                  name="roleId"
+                  value={resourceDraft.roleId}
+                  onChange={(_, v) => setResourceDraft({ ...resourceDraft, roleId: v })}
+                  options={roles.sort((a, b) => a.name.localeCompare(b.name)).map((r) => ({ value: r.id!, label: r.name }))}
+                  placeholder="Seleziona un ruolo"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Horizontal *</label>
+                <SearchableSelect
+                  name="horizontal"
+                  value={resourceDraft.horizontal}
+                  onChange={(_, v) => setResourceDraft({ ...resourceDraft, horizontal: v })}
+                  options={horizontals.sort((a, b) => a.value.localeCompare(b.value)).map((h) => ({ value: h.value, label: h.value }))}
+                  placeholder="Seleziona un horizontal"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Sede *</label>
+                <SearchableSelect
+                  name="location"
+                  value={resourceDraft.location}
+                  onChange={(_, v) => setResourceDraft({ ...resourceDraft, location: v })}
+                  options={locations.sort((a, b) => a.value.localeCompare(b.value)).map((l) => ({ value: l.value, label: l.value }))}
+                  placeholder="Seleziona una sede"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Assunzione</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={resourceDraft.hireDate || ''}
+                  onChange={(e) => setResourceDraft({ ...resourceDraft, hireDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Max Staffing ({resourceDraft.maxStaffingPercentage}%)</label>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={resourceDraft.maxStaffingPercentage}
+                onChange={(e) => setResourceDraft({ ...resourceDraft, maxStaffingPercentage: parseInt(e.target.value, 10) })}
+                className="w-full accent-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-on-surface-variant">Note</label>
+              <textarea
+                className="form-textarea"
+                rows={3}
+                value={resourceDraft.notes || ''}
+                onChange={(e) => setResourceDraft({ ...resourceDraft, notes: e.target.value })}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button type="button" onClick={() => setIsResourceModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
+                Annulla
+              </button>
+              <button
+                type="submit"
+                disabled={isActionLoading('addResource')}
+                className="flex items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
+              >
+                {isActionLoading('addResource') ? <SpinnerIcon className="w-5 h-5" /> : 'Crea Risorsa'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 
       {interviewToDelete && (
         <ConfirmationModal
-            isOpen={!!interviewToDelete}
-            onClose={() => setInterviewToDelete(null)}
-            onConfirm={handleDelete}
-            title="Conferma Eliminazione"
-            message={`Sei sicuro di voler eliminare il colloquio per ${interviewToDelete.candidateName} ${interviewToDelete.candidateSurname}?`}
-            isConfirming={isActionLoading(`deleteInterview-${interviewToDelete.id}`)}
+          isOpen={!!interviewToDelete}
+          onClose={() => setInterviewToDelete(null)}
+          onConfirm={handleDelete}
+          title="Conferma Eliminazione"
+          message={`Sei sicuro di voler eliminare il colloquio per ${interviewToDelete.candidateName} ${interviewToDelete.candidateSurname}?`}
+          isConfirming={isActionLoading(`deleteInterview-${interviewToDelete.id}`)}
         />
       )}
     </div>
   );
 };
+
+export default InterviewsPage;
