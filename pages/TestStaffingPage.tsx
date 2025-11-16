@@ -13,13 +13,13 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
 // @ts-ignore
-import { MaterialReactTable, useMaterialReactTable } from 'material-react-table';
+import { MaterialReactTable, useMaterialReactTable } from 'https://aistudiocdn.com/material-react-table@^3.2.1';
 // @ts-ignore
-import type { MRT_ColumnDef, MRT_Row } from 'material-react-table';
+import type { MRT_ColumnDef, MRT_Row } from 'https://aistudiocdn.com/material-react-table@^3.2.1';
 // @ts-ignore
-import { MRT_Localization_IT } from 'material-react-table/locales/it';
+import { MRT_Localization_IT } from 'https://aistudiocdn.com/material-react-table@^3.2.1/locales/it';
 // @ts-ignore
-import { mkConfig, generateCsv, download } from 'export-to-csv';
+import { mkConfig, generateCsv, download } from 'https://aistudiocdn.com/export-to-csv@^1.4.0';
 
 type ViewMode = 'day' | 'week' | 'month';
 
