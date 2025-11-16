@@ -46,7 +46,9 @@ import { Box, Button, ToggleButton, ToggleButtonGroup, Tooltip, IconButton } fro
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment, Project, Client, Role } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
-import { Link } from 'react-router-dom';
+// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
+import * as ReactRouterDOM from 'react-router-dom';
+const { Link } = ReactRouterDOM;
 import SearchableSelect from './SearchableSelect'; 
 
 // --- Types for nested table data structure ---
@@ -187,7 +189,7 @@ const AllocationCell: React.FC<{ row: MRT_Row<TableData>; date: string; isNonWor
       <select
         value={percentage}
         onChange={(e) => updateAllocation(assignment.id!, date, parseInt(e.target.value, 10))}
-        className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none"
+        className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none text-on-surface"
       >
         {PERCENTAGE_OPTIONS.map((p) => <option key={p} value={p}>{p > 0 ? `${p}%` : '-'}</option>)}
       </select>
@@ -354,7 +356,7 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
 
         return [
             {
-                accessorKey: 'resource.name', header: 'Risorsa / Progetto', size: 280, pinned: 'left',
+                accessorKey: 'resource.name', header: 'Risorsa / Progetto', size: 280, id: 'resourceProject',
                 Cell: ({ row }) => {
                     if (row.depth === 0) {
                         const { resource, roleName } = row.original;
@@ -366,7 +368,7 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
                         );
                     }
                     const { project, projectName } = row.original as AssignmentRow;
-                    return <Link to={`/projects?projectId=${project?.id}`} className="text-primary hover:underline">{projectName}</Link>;
+                    return <Link to={`/projects?projectId=${project?.id}`} className="text-primary hover:underline ml-4">{projectName}</Link>;
                 },
             },
             { accessorKey: 'clientName', header: 'Cliente', size: 150, Cell: ({ row }) => row.depth > 0 ? (row.original as AssignmentRow).clientName : null },
@@ -421,52 +423,51 @@ const StaffingMRT: React.FC<StaffingMRTProps> = ({
             getRowId={(row) => row.id}
             getSubRows={(originalRow) => originalRow.subRows ?? []}
             initialState={{ density: 'compact' }}
-            // FIX: The state property for row expansion in Material React Table is 'expanded', not 'rowExpansion'.
-            // The corresponding handler is 'onExpandedChange'.
-            state={{ expanded: rowExpansion }}
+            // FIX: The state property for row expansion is `rowExpansion`, not `expanded`.
+            state={{ rowExpansion }}
             onExpandedChange={setRowExpansion}
             muiTableContainerProps={{ sx: { maxHeight: 660 } }}
-            renderTopToolbar={() => (
-                <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-                        <Box sx={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                            <Button onClick={onPrev} variant="outlined">← Prec.</Button>
-                            <Button onClick={onToday} variant="contained" color="secondary">Oggi</Button>
-                            <Button onClick={onNext} variant="outlined">Succ. →</Button>
-                        </Box>
-                        <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewChange} size="small">
-                            <ToggleButton value="day">Giorno</ToggleButton>
-                            <ToggleButton value="week">Settimana</ToggleButton>
-                            <ToggleButton value="month">Mese</ToggleButton>
-                        </ToggleButtonGroup>
-                        <Button
-                            variant="contained"
-                            onClick={() => onOpenNewAssignmentModal()}
-                            startIcon={<span className="material-symbols-outlined">add</span>}
-                        >
-                            Assegna Risorsa
-                        </Button>
+            muiTablePaperProps={{ elevation: 2, sx: { borderRadius: '1.75rem' } }}
+            renderTopToolbarCustomActions={() => (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: '1rem', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+                    <Box sx={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <Button onClick={onPrev} variant="outlined">← Prec.</Button>
+                        <Button onClick={onToday} variant="contained" color="secondary">Oggi</Button>
+                        <Button onClick={onNext} variant="outlined">Succ. →</Button>
                     </Box>
-            
-                    <Box sx={{ p: '1rem', pt: 0, display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', alignItems: 'end' }}>
-                        <Box>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Risorsa</label>
-                            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={onChangeFilter} options={resourceOptions} placeholder="Tutte le Risorse" />
-                        </Box>
-                        <Box>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente</label>
-                            <SearchableSelect name="clientId" value={filters.clientId} onChange={onChangeFilter} options={clientOptions} placeholder="Tutti i Clienti" />
-                        </Box>
-                        <Box>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
-                            <SearchableSelect name="projectManager" value={filters.projectManager} onChange={onChangeFilter} options={projectManagerOptions} placeholder="Tutti i PM" />
-                        </Box>
-                        <Box>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto</label>
-                            <SearchableSelect name="projectId" value={filters.projectId} onChange={onChangeFilter} options={projectOptions} placeholder="Tutti i Progetti" />
-                        </Box>
-                        <Button onClick={onClearFilters} variant="contained" color="secondary">Reset Filtri</Button>
+                    <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewChange} size="small">
+                        <ToggleButton value="day">Giorno</ToggleButton>
+                        <ToggleButton value="week">Settimana</ToggleButton>
+                        <ToggleButton value="month">Mese</ToggleButton>
+                    </ToggleButtonGroup>
+                    <Button
+                        variant="contained"
+                        onClick={() => onOpenNewAssignmentModal()}
+                        startIcon={<span className="material-symbols-outlined">add</span>}
+                    >
+                        Assegna Risorsa
+                    </Button>
+                </Box>
+            )}
+            renderBottomToolbar={() => (
+                 <Box sx={{ p: '1rem', pt: 0, display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', alignItems: 'end' }}>
+                    <Box>
+                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Risorsa</label>
+                        <SearchableSelect name="resourceId" value={filters.resourceId} onChange={onChangeFilter} options={resourceOptions} placeholder="Tutte le Risorse" />
                     </Box>
+                    <Box>
+                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente</label>
+                        <SearchableSelect name="clientId" value={filters.clientId} onChange={onChangeFilter} options={clientOptions} placeholder="Tutti i Clienti" />
+                    </Box>
+                    <Box>
+                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
+                        <SearchableSelect name="projectManager" value={filters.projectManager} onChange={onChangeFilter} options={projectManagerOptions} placeholder="Tutti i PM" />
+                    </Box>
+                    <Box>
+                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto</label>
+                        <SearchableSelect name="projectId" value={filters.projectId} onChange={onChangeFilter} options={projectOptions} placeholder="Tutti i Progetti" />
+                    </Box>
+                    <Button onClick={onClearFilters} variant="contained" color="secondary">Reset Filtri</Button>
                 </Box>
             )}
         />
