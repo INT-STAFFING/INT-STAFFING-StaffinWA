@@ -17,9 +17,6 @@ type EnrichedInterview = Interview & {
   age: number | null;
 };
 
-type SortDirection = 'ascending' | 'descending';
-type SortConfig = { key: keyof EnrichedInterview | string; direction: SortDirection } | null;
-
 // --- Helper Functions ---
 const calculateAge = (birthDate: string | null): number | null => {
   if (!birthDate) return null;
@@ -94,7 +91,6 @@ export const InterviewsPage: React.FC = () => {
   const [editingInterview, setEditingInterview] = useState<Interview | Omit<Interview, 'id'> | null>(null);
   const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
   const [filters, setFilters] = useState({ name: '', roleId: '', feedback: '', status: '', hiringStatus: '' });
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'interviewDate', direction: 'descending' });
   const [view, setView] = useState<'table' | 'card'>('table');
 
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
@@ -194,8 +190,8 @@ export const InterviewsPage: React.FC = () => {
     });
   }, [interviews, resources, roles, resourceRequests, projects]);
 
-  const sortedAndFilteredData = useMemo(() => {
-    const filtered = enrichedData.filter(
+  const dataForTable = useMemo<EnrichedInterview[]>(() => {
+    return enrichedData.filter(
       (i) =>
         (i.candidateName + ' ' + i.candidateSurname).toLowerCase().includes(filters.name.toLowerCase()) &&
         (!filters.roleId || i.roleId === filters.roleId) &&
@@ -203,34 +199,7 @@ export const InterviewsPage: React.FC = () => {
         (!filters.status || i.status === filters.status) &&
         (!filters.hiringStatus || i.hiringStatus === filters.hiringStatus)
     );
-
-    if (!sortConfig) return filtered;
-
-    return [...filtered].sort((a, b) => {
-      const aValue = (a as any)[sortConfig.key];
-      const bValue = (b as any)[sortConfig.key];
-
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-      }
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-      if (aValue instanceof Date && bValue instanceof Date) {
-        return sortConfig.direction === 'ascending' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
-      }
-      // For date strings
-      const dateA = new Date(aValue);
-      const dateB = new Date(bValue);
-      if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-          return sortConfig.direction === 'ascending' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
-      }
-      return 0;
-    });
-  }, [enrichedData, filters, sortConfig]);
+  }, [enrichedData, filters]);
 
   const summaryCards = useMemo(() => {
     const dataToSummarize = enrichedData;
@@ -591,17 +560,13 @@ export const InterviewsPage: React.FC = () => {
             {filtersNode}
         </div>
 
-        {view === 'card' ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {sortedAndFilteredData.map(renderCard)}
-            </div>
-        ) : (
+        {view === 'table' ? (
             <div className="bg-surface rounded-2xl shadow">
                 <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
                     <DataTable<EnrichedInterview>
                         title=""
                         addNewButtonLabel=""
-                        data={sortedAndFilteredData}
+                        data={dataForTable}
                         columns={columns}
                         filtersNode={<></>}
                         onAddNew={() => {}}
@@ -622,6 +587,14 @@ export const InterviewsPage: React.FC = () => {
                         }}
                     />
                 </div>
+            </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {dataForTable.length > 0 ? (
+                    dataForTable.map(renderCard)
+                ) : (
+                    <p className="col-span-full text-center py-8 text-on-surface-variant">Nessun colloquio trovato.</p>
+                )}
             </div>
         )}
       

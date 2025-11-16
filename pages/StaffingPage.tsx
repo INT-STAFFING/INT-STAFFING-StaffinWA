@@ -875,7 +875,7 @@ const StaffingPage: React.FC = () => {
                               className="group hover:bg-surface-container-low"
                             >
                               <td
-                                className="sticky left-0 bg-surface group-hover:bg-surface-container-low px-3 py-4 text-sm font-medium pl-8 z-10"
+                                className="sticky left-0 bg-surface group-hover:bg-surface-container-low px-3 py-4 text-sm font-medium pl-8 z-9"
                                 style={{ minWidth: '260px' }}
                               >
                                 {project ? (
