@@ -113,7 +113,7 @@ const SkillForceGraph: React.FC<{
             node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
         });
 
-        return () => simulation.stop();
+        return () => { simulation.stop(); };
     }, [nodes, links, width, height, theme]);
 
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
