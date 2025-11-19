@@ -9,7 +9,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const TABLE_WHITELIST = [
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
     'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
-    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations'
+    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations',
+    'skills', 'resource_skills', 'project_skills'
 ];
 
 const pgSchema = [
@@ -32,7 +33,10 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`,
     `CREATE TABLE IF NOT EXISTS contract_projects ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, project_id) );`,
     `CREATE TABLE IF NOT EXISTS contract_managers ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, resource_id) );`,
-    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`
+    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`,
+    `CREATE TABLE IF NOT EXISTS skills ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, category VARCHAR(255) );`,
+    `CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, PRIMARY KEY (resource_id, skill_id) );`,
+    `CREATE TABLE IF NOT EXISTS project_skills ( project_id UUID REFERENCES projects(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, PRIMARY KEY (project_id, skill_id) );`
 ];
 
 const translateToMysql = (pgStatement: string) => {

@@ -106,6 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     
                     <NavHeader>Gestione</NavHeader>
                     <NavItem to="/resources" icon="person" label="Risorse" onClick={handleNavLinkClick} />
+                    <NavItem to="/skills-map" icon="school" label="Mappa Competenze" onClick={handleNavLinkClick} />
                     <NavItem to="/projects" icon="business_center" label="Progetti" onClick={handleNavLinkClick} />
                     <NavItem to="/contracts" icon="request_quote" label="Contratti" onClick={handleNavLinkClick} />
                     <NavItem to="/clients" icon="apartment" label="Clienti" onClick={handleNavLinkClick} />
@@ -129,7 +130,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     {isAuthenticated && isLoginProtectionEnabled ? (
                         <div className="space-y-2">
                              <div className="px-4 py-2 text-center text-xs text-on-surface-variant">
-                                Versione V1011
+                                Versione V1012
                             </div>
                             <button
                                 onClick={logout}
@@ -141,7 +142,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </div>
                     ) : (
                         <div className="px-4 py-4 text-center text-xs text-on-surface-variant">
-                            Versione V1011
+                            Versione V1012
                         </div>
                     )}
                 </div>

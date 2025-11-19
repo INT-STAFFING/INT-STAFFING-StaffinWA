@@ -37,6 +37,7 @@ const UserManualPage = lazy(() => import('./pages/UserManualPage'));
 // FIX: The lazy import for InterviewsPage was incorrect for a default export.
 // It has been updated to use the correct syntax for default exports.
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
+const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -74,6 +75,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'db-inspector': return 'Database Inspector';
       case 'staffing-visualization': return 'Visualizzazione Staffing';
       case 'manuale-utente': return 'Manuale Utente';
+      case 'skills-map': return 'Mappa Competenze';
       default: return 'Staffing Planner';
     }
   };
@@ -182,6 +184,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/interviews" element={<InterviewsPage />} />
               <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
               <Route path="/manuale-utente" element={<UserManualPage />} />
+              <Route path="/skills-map" element={<SkillsMapPage />} />
               <Route
                 path="/admin-settings"
                 element={

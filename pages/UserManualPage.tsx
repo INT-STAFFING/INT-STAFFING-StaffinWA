@@ -18,6 +18,18 @@ const SubSection: React.FC<{ title: string; children: React.ReactNode }> = ({ ti
     </div>
 );
 
+const FormulaBox: React.FC<{ title: string; formula: string; description: React.ReactNode }> = ({ title, formula, description }) => (
+    <div className="bg-surface-container-low border border-outline-variant rounded-lg p-4 my-4">
+        <h4 className="font-bold text-primary mb-2">{title}</h4>
+        <div className="font-mono bg-surface-container p-2 rounded text-sm mb-3 border border-outline-variant overflow-x-auto">
+            {formula}
+        </div>
+        <div className="text-sm text-on-surface-variant">
+            {description}
+        </div>
+    </div>
+);
+
 
 const UserManualPage: React.FC = () => {
     return (
@@ -140,7 +152,7 @@ const UserManualPage: React.FC = () => {
                     </ul>
                 </SubSection>
             </Section>
-
+            
             <Section title="7. Amministrazione (Potenziato)">
                 <p>La sezione per gli amministratori è stata notevolmente ampliata con nuove funzionalità di personalizzazione e controllo.</p>
                 <SubSection title="Impostazioni Admin">
@@ -159,6 +171,116 @@ const UserManualPage: React.FC = () => {
                          <li><strong>Accesso Diretto:</strong> Visualizza e modifica i dati grezzi di qualsiasi tabella del database.</li>
                          <li><strong>Azioni Pericolose:</strong> Include una funzione per svuotare completamente una tabella (`TRUNCATE`).</li>
                          <li><strong>Export SQL:</strong> Genera uno script `.sql` completo (schema + dati) per l'intero database, con la possibilità di scegliere tra il dialetto PostgreSQL (per Neon/Vercel) e MySQL per migrazioni o backup.</li>
+                    </ul>
+                </SubSection>
+            </Section>
+
+            <Section title="8. Dettaglio Calcoli e Formule">
+                <p>In questa sezione vengono esplicitate le formule matematiche utilizzate dall'applicazione per calcolare metriche, KPI e report. La trasparenza di questi calcoli è fondamentale per una corretta interpretazione dei dati.</p>
+
+                <SubSection title="Concetti Fondamentali">
+                    <p>Prima di procedere con le formule, è importante definire alcuni concetti base:</p>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Giorno Lavorativo (Working Day):</strong> Un giorno dal lunedì al venerdì che non è segnato come festività nel calendario aziendale.</li>
+                        <li><strong>Giorno/Uomo (Person-Day):</strong> Unità di misura che rappresenta il lavoro svolto da una persona in un giorno lavorativo standard (8 ore).</li>
+                        <li><strong>Allocazione Percentuale:</strong> La percentuale di tempo che una risorsa dedica a un progetto in un dato giorno (es. 50% = 4 ore).</li>
+                        <li><strong>Capacità Massima (Max Staffing %):</strong> La percentuale massima di tempo lavorativo disponibile per una risorsa (es. 100% per full-time, 50% per part-time).</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Calcolo Giorni/Uomo (G/U)">
+                    <p>Il calcolo dei giorni/uomo è alla base di quasi tutte le metriche.</p>
+                    <FormulaBox 
+                        title="Giorni/Uomo Allocati (Periodo)" 
+                        formula="Σ (Percentuale Allocazione Giornaliera / 100) per ogni Giorno Lavorativo nel Periodo"
+                        description={
+                            <>
+                                Esempio: Se una risorsa è allocata al 50% su un progetto per 10 giorni lavorativi:<br/>
+                                <code>(50 / 100) * 10 = 5 G/U</code>.
+                            </>
+                        }
+                    />
+                    <FormulaBox 
+                        title="Giorni/Uomo Disponibili (Periodo)" 
+                        formula="Giorni Lavorativi nel Periodo * (Max Staffing % / 100)"
+                        description={
+                            <>
+                                Esempio: In un mese con 20 giorni lavorativi, per una risorsa part-time (50%):<br/>
+                                <code>20 * (50 / 100) = 10 G/U Disponibili</code>.
+                            </>
+                        }
+                    />
+                </SubSection>
+
+                <SubSection title="Metriche di Utilizzo Risorse">
+                    <p>Queste metriche aiutano a capire quanto efficacemente viene impiegato il personale.</p>
+                    <FormulaBox 
+                        title="Percentuale di Utilizzo (Periodo)" 
+                        formula="(Giorni/Uomo Allocati Totali / Giorni/Uomo Disponibili Totali) * 100"
+                        description={
+                            <>
+                                Calcola quanto della capacità disponibile è stata effettivamente pianificata.<br/>
+                                Esempio: 15 G/U Allocati su 20 G/U Disponibili = <code>(15 / 20) * 100 = 75%</code>.
+                            </>
+                        }
+                    />
+                    <FormulaBox 
+                        title="Full-Time Equivalent (FTE)" 
+                        formula="Giorni/Uomo Allocati / Giorni Lavorativi Standard nel Periodo"
+                        description="Normalizza lo sforzo allocato come se fosse svolto da persone a tempo pieno. Un valore di 1.5 FTE significa che il lavoro pianificato equivale a quello di una persona e mezza a tempo pieno."
+                    />
+                </SubSection>
+
+                <SubSection title="Calcoli Economici e di Budget">
+                    <p>Queste formule legano il tempo allocato ai costi finanziari.</p>
+                    <FormulaBox 
+                        title="Costo Giornaliero Risorsa" 
+                        formula="Costo Giornaliero Ruolo"
+                        description="Il costo è determinato dal Ruolo associato alla risorsa (tabella Ruoli). Non viene calcolato sulla singola persona per motivi di privacy e semplificazione."
+                    />
+                    <FormulaBox 
+                        title="Costo Allocato Stimato (Progetto)" 
+                        formula="Σ (G/U Allocati * Costo Giornaliero Ruolo * % Realizzazione Progetto)"
+                        description={
+                            <>
+                                Somma dei costi per ogni assegnazione sul progetto. La <code>% Realizzazione</code> è un fattore correttivo definito sul progetto (default 100%) per simulare inefficienze o margini.<br/>
+                                Esempio: 10 G/U di un Senior (500€/giorno) su un progetto al 90% di realizzazione:<br/>
+                                <code>10 * 500 * 0.90 = 4.500€</code>.
+                            </>
+                        }
+                    />
+                    <FormulaBox 
+                        title="Varianza Budget" 
+                        formula="Budget Progetto - Costo Allocato Stimato"
+                        description="Indica se il progetto è sopra o sotto budget. Un valore negativo indica che i costi stimati superano il budget."
+                    />
+                    <FormulaBox 
+                        title="Backlog Contratto" 
+                        formula="Capienza Contratto - Σ (Budget Progetti Collegati)"
+                        description="Rappresenta la capacità finanziaria residua del contratto quadro. Viene aggiornata ogni volta che si modifica il budget di un progetto collegato."
+                    />
+                </SubSection>
+
+                <SubSection title="Dashboard KPI">
+                    <p>Formule specifiche per le card della Dashboard.</p>
+                    <ul className="list-disc pl-5 space-y-4">
+                        <li>
+                            <strong>Costo Stimato (Mese Corrente):</strong> Somma del <em>Costo Allocato Stimato</em> di tutte le allocazioni che cadono nel mese corrente.
+                        </li>
+                        <li>
+                            <strong>FTE Non Allocati:</strong>
+                            <div className="bg-surface-container p-2 rounded mt-1 text-sm font-mono">
+                                (Σ Max Staffing % di tutte le risorse attive / 100) - FTE Totali Allocati nel Mese
+                            </div>
+                            Rappresenta il "potenziale di fuoco" non utilizzato.
+                        </li>
+                         <li>
+                            <strong>Tariffa Media Giornaliera (Progetto):</strong>
+                            <div className="bg-surface-container p-2 rounded mt-1 text-sm font-mono">
+                                Costo Allocato Totale / Giorni/Uomo Totali
+                            </div>
+                             Indica il costo medio effettivo di una giornata di lavoro sul progetto, pesato in base al mix di seniority delle risorse impiegate.
+                        </li>
                     </ul>
                 </SubSection>
             </Section>

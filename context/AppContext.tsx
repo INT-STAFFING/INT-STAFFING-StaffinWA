@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -39,6 +39,9 @@ export interface EntitiesContextType {
     wbsTasks: WbsTask[];
     resourceRequests: ResourceRequest[];
     interviews: Interview[];
+    skills: Skill[];
+    resourceSkills: ResourceSkill[];
+    projectSkills: ProjectSkill[];
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -47,10 +50,10 @@ export interface EntitiesContextType {
     addRole: (role: Omit<Role, 'id'>) => Promise<void>;
     updateRole: (role: Role) => Promise<void>;
     deleteRole: (roleId: string) => Promise<void>;
-    addResource: (resource: Omit<Resource, 'id'>) => Promise<void>;
+    addResource: (resource: Omit<Resource, 'id'>) => Promise<Resource>;
     updateResource: (resource: Resource) => Promise<void>;
     deleteResource: (resourceId: string) => Promise<void>;
-    addProject: (project: Omit<Project, 'id'>) => Promise<void>;
+    addProject: (project: Omit<Project, 'id'>) => Promise<Project>;
     updateProject: (project: Project) => Promise<void>;
     deleteProject: (projectId: string) => Promise<void>;
     addContract: (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => Promise<void>;
@@ -75,6 +78,14 @@ export interface EntitiesContextType {
     addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
     updateInterview: (interview: Interview) => Promise<void>;
     deleteInterview: (interviewId: string) => Promise<void>;
+    addSkill: (skill: Omit<Skill, 'id'>) => Promise<void>;
+    updateSkill: (skill: Skill) => Promise<void>;
+    deleteSkill: (skillId: string) => Promise<void>;
+    addResourceSkill: (resourceSkill: ResourceSkill) => Promise<void>;
+    deleteResourceSkill: (resourceId: string, skillId: string) => Promise<void>;
+    addProjectSkill: (projectSkill: ProjectSkill) => Promise<void>;
+    deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
+    getResourceComputedSkills: (resourceId: string) => ComputedSkill[];
     fetchData: () => Promise<void>;
 }
 
@@ -129,6 +140,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [wbsTasks, setWbsTasks] = useState<WbsTask[]>([]);
     const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
     const [interviews, setInterviews] = useState<Interview[]>([]);
+    const [skills, setSkills] = useState<Skill[]>([]);
+    const [resourceSkills, setResourceSkills] = useState<ResourceSkill[]>([]);
+    const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -154,6 +168,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setContracts(data.contracts || []);
             setContractProjects(data.contractProjects || []);
             setContractManagers(data.contractManagers || []);
+            setSkills(data.skills || []);
+            setResourceSkills(data.resourceSkills || []);
+            setProjectSkills(data.projectSkills || []);
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -263,6 +280,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const newResource = await apiFetch('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) });
             setResources(prev => [...prev, newResource]);
             addToast(`Risorsa '${newResource.name}' aggiunta.`, 'success');
+            return newResource;
         } catch (error) {
             addToast(`Errore aggiunta risorsa: ${(error as Error).message}`, 'error');
             throw error;
@@ -316,6 +334,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const newProject = await apiFetch('/api/resources?entity=projects', { method: 'POST', body: JSON.stringify(project) });
             setProjects(prev => [...prev, newProject]);
             addToast(`Progetto '${newProject.name}' aggiunto.`, 'success');
+            return newProject;
         } catch (error) {
             addToast(`Errore aggiunta progetto: ${(error as Error).message}`, 'error');
             throw error;
@@ -708,6 +727,203 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast, interviews]);
+
+    // --- Skill Management ---
+
+    const addSkill = useCallback(async (skill: Omit<Skill, 'id'>) => {
+        const actionKey = 'addSkill';
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const newSkill = await apiFetch('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) });
+            setSkills(prev => [...prev, newSkill]);
+            addToast(`Competenza '${newSkill.name}' aggiunta.`, 'success');
+        } catch (error) {
+            addToast(`Errore aggiunta competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    const updateSkill = useCallback(async (skill: Skill) => {
+        const actionKey = `updateSkill-${skill.id}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            const updatedSkill = await apiFetch(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
+            setSkills(prev => prev.map(s => s.id === updatedSkill.id ? updatedSkill : s));
+            addToast(`Competenza '${updatedSkill.name}' aggiornata.`, 'success');
+        } catch (error) {
+            addToast(`Errore modifica competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    const deleteSkill = useCallback(async (skillId: string) => {
+        const skillName = skills.find(s => s.id === skillId)?.name || 'sconosciuta';
+        const actionKey = `deleteSkill-${skillId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch(`/api/resources?entity=skills&id=${skillId}`, { method: 'DELETE' });
+            setSkills(prev => prev.filter(s => s.id !== skillId));
+            setResourceSkills(prev => prev.filter(rs => rs.skillId !== skillId));
+            setProjectSkills(prev => prev.filter(ps => ps.skillId !== skillId));
+            addToast(`Competenza '${skillName}' eliminata.`, 'success');
+        } catch (error) {
+            addToast(`Errore eliminazione competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast, skills]);
+
+    const addResourceSkill = useCallback(async (resourceSkill: ResourceSkill) => {
+        const actionKey = `addResourceSkill-${resourceSkill.resourceId}-${resourceSkill.skillId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch('/api/resources?entity=resource-skills', { method: 'POST', body: JSON.stringify(resourceSkill) });
+            setResourceSkills(prev => {
+                const exists = prev.some(rs => rs.resourceId === resourceSkill.resourceId && rs.skillId === resourceSkill.skillId);
+                if (exists) {
+                    return prev.map(rs => (rs.resourceId === resourceSkill.resourceId && rs.skillId === resourceSkill.skillId) ? resourceSkill : rs);
+                }
+                return [...prev, resourceSkill];
+            });
+            addToast('Competenza associata alla risorsa.', 'success');
+        } catch (error) {
+            addToast(`Errore associazione competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    const deleteResourceSkill = useCallback(async (resourceId: string, skillId: string) => {
+        const actionKey = `deleteResourceSkill-${resourceId}-${skillId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch(`/api/resources?entity=resource-skills&resourceId=${resourceId}&skillId=${skillId}`, { method: 'DELETE' });
+            setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId)));
+            addToast('Associazione competenza rimossa.', 'success');
+        } catch (error) {
+            addToast(`Errore rimozione competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    const addProjectSkill = useCallback(async (projectSkill: ProjectSkill) => {
+        const actionKey = `addProjectSkill-${projectSkill.projectId}-${projectSkill.skillId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch('/api/resources?entity=project-skills', { method: 'POST', body: JSON.stringify(projectSkill) });
+            setProjectSkills(prev => {
+                const exists = prev.some(ps => ps.projectId === projectSkill.projectId && ps.skillId === projectSkill.skillId);
+                if (exists) return prev;
+                return [...prev, projectSkill];
+            });
+            addToast('Competenza associata al progetto.', 'success');
+        } catch (error) {
+            addToast(`Errore associazione competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    const deleteProjectSkill = useCallback(async (projectId: string, skillId: string) => {
+        const actionKey = `deleteProjectSkill-${projectId}-${skillId}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch(`/api/resources?entity=project-skills&projectId=${projectId}&skillId=${skillId}`, { method: 'DELETE' });
+            setProjectSkills(prev => prev.filter(ps => !(ps.projectId === projectId && ps.skillId === skillId)));
+            addToast('Associazione competenza rimossa.', 'success');
+        } catch (error) {
+            addToast(`Errore rimozione competenza: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+    // --- Skill Matrix Algorithm ---
+    const getResourceComputedSkills = useCallback((resourceId: string): ComputedSkill[] => {
+        // 1. Get Manual Skills
+        const manual = resourceSkills.filter(rs => rs.resourceId === resourceId);
+
+        // 2. Get Assignments for this resource
+        const userAssignments = assignments.filter(a => a.resourceId === resourceId);
+
+        // 3. Calculate Inferred Skills
+        const inferredMap = new Map<string, { days: number, projectCount: number }>(); // skillId -> { totalDays, projectCount }
+
+        userAssignments.forEach(assignment => {
+             // Get skills for this project
+            const pSkills = projectSkills.filter(ps => ps.projectId === assignment.projectId);
+            if (pSkills.length === 0) return;
+
+            // Calculate days worked on this assignment
+            let days = 0;
+            const allocs = allocations[assignment.id!];
+            if (allocs) {
+                Object.values(allocs).forEach(pct => days += pct / 100);
+            }
+            if (days === 0) return; // Ignore if no work done
+
+            // Attribute days to each skill
+            pSkills.forEach(ps => {
+                const current = inferredMap.get(ps.skillId) || { days: 0, projectCount: 0 };
+                inferredMap.set(ps.skillId, { 
+                    days: current.days + days,
+                    projectCount: current.projectCount + 1
+                });
+            });
+        });
+
+        // 4. Merge Manual and Inferred
+        const mergedSkillsMap = new Map<string, ComputedSkill>();
+
+        // Add inferred first
+        inferredMap.forEach((data, skillId) => {
+            const skill = skills.find(s => s.id === skillId);
+            if (skill) {
+                mergedSkillsMap.set(skillId, {
+                    skill,
+                    inferredDays: data.days,
+                    projectCount: data.projectCount
+                });
+            }
+        });
+
+        // Merge manual
+        manual.forEach(ms => {
+            const skill = skills.find(s => s.id === ms.skillId);
+            if (skill) {
+                const existing = mergedSkillsMap.get(ms.skillId);
+                if (existing) {
+                    existing.manualDetails = ms;
+                } else {
+                    mergedSkillsMap.set(ms.skillId, {
+                        skill,
+                        manualDetails: ms,
+                        inferredDays: 0,
+                        projectCount: 0
+                    });
+                }
+            }
+        });
+
+        // Convert map to array and sort
+        // Priority: Manual > Inferred Days (Desc)
+        return Array.from(mergedSkillsMap.values()).sort((a, b) => {
+             if (a.manualDetails && !b.manualDetails) return -1;
+             if (!a.manualDetails && b.manualDetails) return 1;
+             return b.inferredDays - a.inferredDays;
+        });
+
+    }, [resourceSkills, assignments, projectSkills, allocations, skills]);
     
     // --- Allocations-specific functions ---
 
@@ -780,7 +996,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading,
+        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -792,8 +1008,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addWbsTask, updateWbsTask, deleteWbsTask,
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
         addInterview, updateInterview, deleteInterview,
+        addSkill, updateSkill, deleteSkill,
+        addResourceSkill, deleteResourceSkill,
+        addProjectSkill, deleteProjectSkill,
+        getResourceComputedSkills,
         fetchData
-    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, fetchData]);
+    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, getResourceComputedSkills, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

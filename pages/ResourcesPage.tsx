@@ -32,13 +32,17 @@ const formatCurrency = (value: number | undefined): string => {
 
 // --- Component ---
 const ResourcesPage: React.FC = () => {
-    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading, loading } = useEntitiesContext();
+    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading, loading, skills, resourceSkills, addResourceSkill, deleteResourceSkill } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active' });
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
+    // State for skills management in modal
+    const [selectedSkillDetails, setSelectedSkillDetails] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string }[]>([]);
+    const [tempSelectedSkillId, setTempSelectedSkillId] = useState<string>('');
+
     const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
@@ -139,7 +143,12 @@ const ResourcesPage: React.FC = () => {
         return 'text-gray-500';
     };
 
-    const openModalForNew = () => { setEditingResource(emptyResource); setIsModalOpen(true); };
+    const openModalForNew = () => { 
+        setEditingResource(emptyResource); 
+        setSelectedSkillDetails([]);
+        setTempSelectedSkillId('');
+        setIsModalOpen(true); 
+    };
     const openModalForEdit = (resource: Resource) => { 
         const formattedResource = {
             ...resource,
@@ -147,21 +156,73 @@ const ResourcesPage: React.FC = () => {
             lastDayOfWork: resource.lastDayOfWork ? resource.lastDayOfWork.split('T')[0] : null,
         };
         setEditingResource(formattedResource); 
+        
+        // Pre-load existing skills with dates
+        const currentSkills = resourceSkills
+            .filter(rs => rs.resourceId === resource.id)
+            .map(rs => ({
+                skillId: rs.skillId,
+                acquisitionDate: rs.acquisitionDate ? rs.acquisitionDate.split('T')[0] : '',
+                expirationDate: rs.expirationDate ? rs.expirationDate.split('T')[0] : '',
+            }));
+        setSelectedSkillDetails(currentSkills);
+        setTempSelectedSkillId('');
+        
         setIsModalOpen(true); 
         handleCancelInlineEdit(); 
     };
-    const handleCloseModal = () => { setIsModalOpen(false); setEditingResource(null); };
+    const handleCloseModal = () => { setIsModalOpen(false); setEditingResource(null); setSelectedSkillDetails([]); setTempSelectedSkillId(''); };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingResource) {
             try {
-                if ('id' in editingResource) await updateResource(editingResource as Resource);
-                else await addResource(editingResource as Omit<Resource, 'id'>);
+                let resourceId: string;
+                if ('id' in editingResource) {
+                    await updateResource(editingResource as Resource);
+                    resourceId = editingResource.id!;
+                } else {
+                    const newResource = await addResource(editingResource as Omit<Resource, 'id'>);
+                    resourceId = newResource.id!;
+                }
+
+                // Update Skills
+                const oldSkills = resourceSkills.filter(rs => rs.resourceId === resourceId).map(rs => rs.skillId);
+                const currentSkillIds = selectedSkillDetails.map(s => s.skillId);
+                
+                const toAddOrUpdate = selectedSkillDetails;
+                const toRemove = oldSkills.filter(id => !currentSkillIds.includes(id));
+                
+                await Promise.all([
+                    ...toAddOrUpdate.map(detail => addResourceSkill({ 
+                        resourceId, 
+                        skillId: detail.skillId, 
+                        acquisitionDate: detail.acquisitionDate || null, 
+                        expirationDate: detail.expirationDate || null 
+                    })),
+                    ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
+                ]);
+
                 handleCloseModal();
             } catch (e) {}
         }
     };
+
+    const handleAddSkill = () => {
+        if (tempSelectedSkillId && !selectedSkillDetails.some(s => s.skillId === tempSelectedSkillId)) {
+            setSelectedSkillDetails([...selectedSkillDetails, { skillId: tempSelectedSkillId, acquisitionDate: '', expirationDate: '' }]);
+            setTempSelectedSkillId('');
+        }
+    };
+
+    const handleRemoveSkill = (skillId: string) => {
+        setSelectedSkillDetails(selectedSkillDetails.filter(s => s.skillId !== skillId));
+    };
+
+    const handleSkillDateChange = (skillId: string, field: 'acquisitionDate' | 'expirationDate', value: string) => {
+        setSelectedSkillDetails(prev => prev.map(s => s.skillId === skillId ? { ...s, [field]: value } : s));
+    };
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (editingResource) {
@@ -215,6 +276,8 @@ const ResourcesPage: React.FC = () => {
     const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
     const locationOptions = useMemo(() => locations.sort((a,b)=> a.value.localeCompare(b.value)).map(l => ({ value: l.value, label: l.value })), [locations]);
     const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
+    const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
+
 
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</div> },
@@ -392,6 +455,64 @@ const ResourcesPage: React.FC = () => {
                                 <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                             </div>
                         </div>
+                        
+                        {/* Skills Section */}
+                        <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Competenze</label>
+                            <div className="flex gap-2 mb-3">
+                                <div className="flex-grow">
+                                    <SearchableSelect
+                                        name="tempSkillId"
+                                        value={tempSelectedSkillId}
+                                        onChange={(_, val) => setTempSelectedSkillId(val)}
+                                        options={skillOptions.filter(s => !selectedSkillDetails.some(sd => sd.skillId === s.value))}
+                                        placeholder="Aggiungi competenza..."
+                                    />
+                                </div>
+                                <button type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50">
+                                    <span className="material-symbols-outlined">add</span>
+                                </button>
+                            </div>
+                            
+                            {selectedSkillDetails.length > 0 && (
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                    {selectedSkillDetails.map(detail => {
+                                        const skillName = skills.find(s => s.id === detail.skillId)?.name || 'Unknown';
+                                        return (
+                                            <div key={detail.skillId} className="p-2 bg-surface rounded border border-outline flex flex-col gap-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="font-medium text-sm text-on-surface">{skillName}</span>
+                                                    <button type="button" onClick={() => handleRemoveSkill(detail.skillId)} className="text-error hover:text-error-container">
+                                                        <span className="material-symbols-outlined text-sm">close</span>
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                        <label className="text-xs text-on-surface-variant block">Data Conseguimento</label>
+                                                        <input 
+                                                            type="date" 
+                                                            value={detail.acquisitionDate} 
+                                                            onChange={(e) => handleSkillDateChange(detail.skillId, 'acquisitionDate', e.target.value)}
+                                                            className="w-full text-xs p-1 border rounded bg-transparent"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-xs text-on-surface-variant block">Data Scadenza</label>
+                                                        <input 
+                                                            type="date" 
+                                                            value={detail.expirationDate} 
+                                                            onChange={(e) => handleSkillDateChange(detail.skillId, 'expirationDate', e.target.value)}
+                                                            className="w-full text-xs p-1 border rounded bg-transparent"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>

@@ -13,15 +13,40 @@ const defaultThemeForSeed = {
         surfaceContainer: '#eceef1', surfaceContainerHigh: '#e6e8eb', surfaceContainerHighest: '#e1e3e5',
     },
     dark: {
-        primary: '#8dcdff', onPrimary: '#00344f', primaryContainer: '#004b70', onPrimaryContainer: '#cae6ff',
-        secondary: '#b7c9d9', onSecondary: '#22323f', secondaryContainer: '#384956', onSecondaryContainer: '#d3e5f5',
-        tertiary: '#cec0e8', onTertiary: '#352b4b', tertiaryContainer: '#4c4263', onTertiaryContainer: '#eaddff',
-        error: '#ffb4ab', onError: '#690005', errorContainer: '#93000a', onErrorContainer: '#ffdad6',
-        background: '#101418', onBackground: '#e1e3e5', surface: '#101418', onSurface: '#e1e3e5',
-        surfaceVariant: '#42474c', onSurfaceVariant: '#c2c7cd', outline: '#8c9197', outlineVariant: '#42474c',
-        shadow: '#000000', scrim: '#000000', inverseSurface: '#e1e3e5', inverseOnSurface: '#2e3133',
-        inversePrimary: '#006493', surfaceContainerLowest: '#0b0f13', surfaceContainerLow: '#191c1e',
-        surfaceContainer: '#1d2022', surfaceContainerHigh: '#272a2d', surfaceContainerHighest: '#323538',
+        primary: '#8dcdff',
+        onPrimary: '#00344f',
+        primaryContainer: '#004b70',
+        onPrimaryContainer: '#cae6ff',
+        secondary: '#b7c9d9',
+        onSecondary: '#22323f',
+        secondaryContainer: '#384956',
+        onSecondaryContainer: '#d3e5f5',
+        tertiary: '#cec0e8',
+        onTertiary: '#352b4b',
+        tertiaryContainer: '#4c4263',
+        onTertiaryContainer: '#eaddff',
+        error: '#ffb4ab',
+        onError: '#690005',
+        errorContainer: '#93000a',
+        onErrorContainer: '#ffdad6',
+        background: '#101418',
+        onBackground: '#e1e3e5',
+        surface: '#101418',
+        onSurface: '#e1e3e5',
+        surfaceVariant: '#42474c',
+        onSurfaceVariant: '#c2c7cd',
+        outline: '#8c9197',
+        outlineVariant: '#42474c',
+        shadow: '#000000',
+        scrim: '#000000',
+        inverseSurface: '#e1e3e5',
+        inverseOnSurface: '#2e3133',
+        inversePrimary: '#006493',
+        surfaceContainerLowest: '#0b0f13',
+        surfaceContainerLow: '#191c1e',
+        surfaceContainer: '#1d2022',
+        surfaceContainerHigh: '#272a2d',
+        surfaceContainerHighest: '#323538',
     },
 };
 
@@ -246,6 +271,34 @@ export async function ensureDbTablesExist(db: VercelPool) {
             entry_date DATE,
             status VARCHAR(50) NOT NULL,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+
+    // New Skills Tables
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS skills (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            category VARCHAR(255)
+        );
+    `;
+    
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS resource_skills (
+            resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            skill_id UUID REFERENCES skills(id) ON DELETE CASCADE,
+            level INT,
+            PRIMARY KEY (resource_id, skill_id)
+        );
+    `;
+    await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS acquisition_date DATE;`;
+    await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS expiration_date DATE;`;
+
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS project_skills (
+            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+            skill_id UUID REFERENCES skills(id) ON DELETE CASCADE,
+            PRIMARY KEY (project_id, skill_id)
         );
     `;
 

@@ -7,7 +7,7 @@ import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Fix: Import WbsTask type
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -66,7 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             interviewsRes,
             contractsRes,
             contractProjectsRes,
-            contractManagersRes
+            contractManagersRes,
+            skillsRes,
+            resourceSkillsRes,
+            projectSkillsRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -87,6 +90,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM contracts;`,
             db.sql`SELECT * FROM contract_projects;`,
             db.sql`SELECT * FROM contract_managers;`,
+            db.sql`SELECT * FROM skills;`,
+            db.sql`SELECT * FROM resource_skills;`,
+            db.sql`SELECT * FROM project_skills;`
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -142,6 +148,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }) as Contract[],
             contractProjects: contractProjectsRes.rows.map(toCamelCase),
             contractManagers: contractManagersRes.rows.map(toCamelCase),
+            skills: skillsRes.rows.map(toCamelCase) as Skill[],
+            resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
+            projectSkills: projectSkillsRes.rows.map(toCamelCase) as ProjectSkill[]
         };
 
         return res.status(200).json(data);

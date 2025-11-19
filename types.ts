@@ -323,3 +323,59 @@ export interface Interview {
     /** @property {InterviewStatus} status - Stato del processo di selezione. */
     status: InterviewStatus;
 }
+
+/**
+ * @interface Skill
+ * @description Rappresenta una competenza tecnica o soft skill.
+ */
+export interface Skill {
+    /** @property {string} [id] - L'identificatore univoco. */
+    id?: string;
+    /** @property {string} name - Nome della competenza. */
+    name: string;
+    /** @property {string} [category] - Categoria della competenza (es. Frontend, Backend). */
+    category?: string;
+}
+
+/**
+ * @interface ResourceSkill
+ * @description Rappresenta l'associazione tra una risorsa e una competenza.
+ */
+export interface ResourceSkill {
+    /** @property {string} resourceId - ID della risorsa. */
+    resourceId: string;
+    /** @property {string} skillId - ID della competenza. */
+    skillId: string;
+    /** @property {number} [level] - Livello di competenza (opzionale). */
+    level?: number;
+    /** @property {string | null} [acquisitionDate] - Data di conseguimento (opzionale). */
+    acquisitionDate?: string | null;
+    /** @property {string | null} [expirationDate] - Data di scadenza (opzionale). */
+    expirationDate?: string | null;
+}
+
+/**
+ * @interface ProjectSkill
+ * @description Rappresenta l'associazione tra un progetto e una competenza.
+ */
+export interface ProjectSkill {
+    /** @property {string} projectId - ID del progetto. */
+    projectId: string;
+    /** @property {string} skillId - ID della competenza. */
+    skillId: string;
+}
+
+/**
+ * @interface ComputedSkill
+ * @description Rappresenta una competenza aggregata per una risorsa, combinando dati manuali e inferiti.
+ */
+export interface ComputedSkill {
+    /** @property {Skill} skill - L'oggetto Skill completo. */
+    skill: Skill;
+    /** @property {ResourceSkill | undefined} manualDetails - Dettagli manuali se presenti (es. date certificazione). */
+    manualDetails?: ResourceSkill;
+    /** @property {number} inferredDays - Giorni/Uomo totali calcolati dai progetti. */
+    inferredDays: number;
+    /** @property {number} projectCount - Numero di progetti che hanno contribuito a questa competenza. */
+    projectCount: number;
+}

@@ -26,7 +26,8 @@ const toCamelCase = (obj: any): any => {
 const EXPORT_TABLE_WHITELIST = [
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
     'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
-    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations'
+    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations',
+    'skills', 'resource_skills', 'project_skills'
 ];
 
 const pgSchema = [
@@ -49,7 +50,10 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`,
     `CREATE TABLE IF NOT EXISTS contract_projects ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, project_id) );`,
     `CREATE TABLE IF NOT EXISTS contract_managers ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, resource_id) );`,
-    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`
+    `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`,
+    `CREATE TABLE IF NOT EXISTS skills ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, category VARCHAR(255) );`,
+    `CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, acquisition_date DATE, expiration_date DATE, PRIMARY KEY (resource_id, skill_id) );`,
+    `CREATE TABLE IF NOT EXISTS project_skills ( project_id UUID REFERENCES projects(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, PRIMARY KEY (project_id, skill_id) );`
 ];
 
 const translateToMysql = (pgStatement: string) => {
@@ -462,6 +466,99 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             } finally {
                 contractClient.release();
             }
+        
+        // --- GESTORE ENTITÀ: SKILLS ---
+        case 'skills':
+            switch (method) {
+                case 'POST':
+                    try {
+                        const { name, category } = req.body;
+                        const newId = uuidv4();
+                        await db.sql`INSERT INTO skills (id, name, category) VALUES (${newId}, ${name}, ${category});`;
+                        return res.status(201).json({ id: newId, ...req.body });
+                    } catch (error) {
+                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Una competenza con nome '${req.body.name}' esiste già.` }); }
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'PUT':
+                    try {
+                        const { name, category } = req.body;
+                        await db.sql`UPDATE skills SET name = ${name}, category = ${category} WHERE id = ${id as string};`;
+                        return res.status(200).json({ id, ...req.body });
+                    } catch (error) {
+                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Una competenza con nome '${req.body.name}' esiste già.` }); }
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'DELETE':
+                    try {
+                        await db.sql`DELETE FROM skills WHERE id = ${id as string};`;
+                        return res.status(204).end();
+                    } catch (error) { return res.status(500).json({ error: (error as Error).message }); }
+                default:
+                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+
+        // --- GESTORE ENTITÀ: RESOURCE SKILLS ---
+        case 'resource-skills':
+            switch(method) {
+                case 'POST':
+                    try {
+                        const { resourceId, skillId, level, acquisitionDate, expirationDate } = req.body;
+                        await db.sql`
+                            INSERT INTO resource_skills (resource_id, skill_id, level, acquisition_date, expiration_date)
+                            VALUES (${resourceId}, ${skillId}, ${level}, ${acquisitionDate || null}, ${expirationDate || null})
+                            ON CONFLICT (resource_id, skill_id) DO UPDATE 
+                            SET level = EXCLUDED.level,
+                                acquisition_date = EXCLUDED.acquisition_date,
+                                expiration_date = EXCLUDED.expiration_date;
+                        `;
+                        return res.status(200).json({ resourceId, skillId, level, acquisitionDate, expirationDate });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'DELETE':
+                    try {
+                        const { resourceId, skillId } = req.query;
+                        if (!resourceId || !skillId) return res.status(400).json({ error: 'Missing resourceId or skillId' });
+                        await db.sql`DELETE FROM resource_skills WHERE resource_id = ${resourceId as string} AND skill_id = ${skillId as string};`;
+                        return res.status(204).end();
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                default:
+                    res.setHeader('Allow', ['POST', 'DELETE']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
+
+        // --- GESTORE ENTITÀ: PROJECT SKILLS ---
+        case 'project-skills':
+             switch(method) {
+                case 'POST':
+                    try {
+                        const { projectId, skillId } = req.body;
+                        await db.sql`
+                            INSERT INTO project_skills (project_id, skill_id)
+                            VALUES (${projectId}, ${skillId})
+                            ON CONFLICT (project_id, skill_id) DO NOTHING;
+                        `;
+                        return res.status(200).json({ projectId, skillId });
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                case 'DELETE':
+                    try {
+                        const { projectId, skillId } = req.query;
+                        if (!projectId || !skillId) return res.status(400).json({ error: 'Missing projectId or skillId' });
+                        await db.sql`DELETE FROM project_skills WHERE project_id = ${projectId as string} AND skill_id = ${skillId as string};`;
+                        return res.status(204).end();
+                    } catch (error) {
+                        return res.status(500).json({ error: (error as Error).message });
+                    }
+                default:
+                    res.setHeader('Allow', ['POST', 'DELETE']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+            }
 
         // --- GESTORE ENTITÀ: CALENDARIO ---
         case 'calendar':
@@ -712,7 +809,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 'clients', 'roles', 'resources', 'projects', 'assignments', 'allocations',
                 'company_calendar', 'wbs_tasks', 'resource_requests', 'interviews', 'horizontals',
                 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
-                'contracts', 'contract_projects', 'contract_managers'
+                'contracts', 'contract_projects', 'contract_managers', 'skills', 'resource_skills', 'project_skills'
             ];
             
             if (typeof table === 'string' && !TABLE_WHITELIST.includes(table)) {

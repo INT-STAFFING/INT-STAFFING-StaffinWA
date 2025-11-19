@@ -8,6 +8,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Project } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 // FIX: Using namespace import for react-router-dom to address potential module resolution errors.
@@ -29,12 +30,13 @@ const formatDateForDisplay = (dateStr: string | null): string => {
 };
 
 const ProjectsPage: React.FC = () => {
-    const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments, loading } = useEntitiesContext();
+    const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments, loading, skills, projectSkills, addProjectSkill, deleteProjectSkill } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
     const [showOnlyUnstaffed, setShowOnlyUnstaffed] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
+    const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
      useEffect(() => {
         const projectId = searchParams.get('projectId');
@@ -99,16 +101,47 @@ const ProjectsPage: React.FC = () => {
         setShowOnlyUnstaffed(false);
     };
 
-    const openModalForNew = () => { setEditingProject(emptyProject); setIsModalOpen(true); };
-    const openModalForEdit = (project: Project) => { setEditingProject(project); setIsModalOpen(true); handleCancelInlineEdit(); };
-    const handleCloseModal = () => { setIsModalOpen(false); setEditingProject(null); };
+    const openModalForNew = () => { 
+        setEditingProject(emptyProject); 
+        setSelectedSkills([]);
+        setIsModalOpen(true); 
+    };
+    const openModalForEdit = (project: Project) => { 
+        setEditingProject(project); 
+        const currentSkills = projectSkills.filter(ps => ps.projectId === project.id).map(ps => ps.skillId);
+        setSelectedSkills(currentSkills);
+        setIsModalOpen(true); 
+        handleCancelInlineEdit(); 
+    };
+    const handleCloseModal = () => { setIsModalOpen(false); setEditingProject(null); setSelectedSkills([]); };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingProject) {
             try {
-                if ('id' in editingProject) await updateProject(editingProject as Project);
-                else await addProject(editingProject as Omit<Project, 'id'>);
+                if ('id' in editingProject) {
+                    // Update Project
+                    await updateProject(editingProject as Project);
+                    
+                    // Update Skills
+                    const projectId = editingProject.id!;
+                    const oldSkills = projectSkills.filter(ps => ps.projectId === projectId).map(ps => ps.skillId);
+                    const toAdd = selectedSkills.filter(id => !oldSkills.includes(id));
+                    const toRemove = oldSkills.filter(id => !selectedSkills.includes(id));
+                    
+                    await Promise.all([
+                        ...toAdd.map(skillId => addProjectSkill({ projectId, skillId })),
+                        ...toRemove.map(skillId => deleteProjectSkill(projectId, skillId))
+                    ]);
+
+                } else {
+                    // Create Project
+                    const newProject = await addProject(editingProject as Omit<Project, 'id'>);
+                    // Add Skills
+                    if (newProject && newProject.id) {
+                        await Promise.all(selectedSkills.map(skillId => addProjectSkill({ projectId: newProject.id!, skillId })));
+                    }
+                }
                 handleCloseModal();
             } catch (e) {}
         }
@@ -155,6 +188,7 @@ const ProjectsPage: React.FC = () => {
     const statusOptions = useMemo(() => projectStatuses.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
     const projectManagerOptions = useMemo(() => resources.map(r => ({ value: r.name, label: r.name })).sort((a,b) => a.label.localeCompare(b.label)), [resources]);
     const contractOptions = useMemo(() => contracts.map(c => ({ value: c.id!, label: c.name })), [contracts]);
+    const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
 
 
     const columns: ColumnDef<EnrichedProject>[] = [
@@ -326,6 +360,18 @@ const ProjectsPage: React.FC = () => {
                                 <SearchableSelect name="contractId" value={editingProject.contractId || ''} onChange={handleSelectChange} options={contractOptions} placeholder="Nessun contratto" />
                             </div>
                         </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tecnologie / Competenze</label>
+                            <MultiSelectDropdown
+                                name="skills"
+                                selectedValues={selectedSkills}
+                                onChange={(_, values) => setSelectedSkills(values)}
+                                options={skillOptions}
+                                placeholder="Seleziona competenze..."
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio</label>
