@@ -8,9 +8,11 @@ import { useEntitiesContext } from '../context/AppContext';
 import { Skill } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { useToast } from '../context/ToastContext';
 
 // --- Types ---
 type EnrichedSkill = Skill & {
@@ -22,14 +24,18 @@ type EnrichedSkill = Skill & {
 const SkillsPage: React.FC = () => {
     const { 
         skills, 
+        resources,
         resourceSkills, 
         projectSkills, 
         addSkill, 
         updateSkill, 
         deleteSkill, 
+        addResourceSkill,
         isActionLoading, 
         loading 
     } = useEntitiesContext();
+
+    const { addToast } = useToast();
 
     // UI State
     const [view, setView] = useState<'table' | 'card'>('table');
@@ -37,6 +43,22 @@ const SkillsPage: React.FC = () => {
     const [editingSkill, setEditingSkill] = useState<Skill | Omit<Skill, 'id'> | null>(null);
     const [skillToDelete, setSkillToDelete] = useState<EnrichedSkill | null>(null);
     
+    // Assignment Modal State
+    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+    const [assignmentData, setAssignmentData] = useState<{
+        targetSkill: Skill | null; // Se presente, stiamo assegnando QUESTA skill specifica (da riga)
+        selectedSkillIds: string[]; // Usato se targetSkill è null (assegnazione massiva)
+        selectedResourceIds: string[];
+        acquisitionDate: string;
+        expirationDate: string;
+    }>({
+        targetSkill: null,
+        selectedSkillIds: [],
+        selectedResourceIds: [],
+        acquisitionDate: '',
+        expirationDate: ''
+    });
+
     // Filter State
     const [filters, setFilters] = useState({ name: '', category: '' });
 
@@ -103,6 +125,9 @@ const SkillsPage: React.FC = () => {
         return Array.from(cats).sort().map(c => ({ value: c!, label: c! }));
     }, [skills]);
 
+    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: s.name })), [skills]);
+
     // --- Handlers ---
 
     const handleOpenModal = (skill?: Skill) => {
@@ -147,6 +172,47 @@ const SkillsPage: React.FC = () => {
         }
     };
 
+    // --- Assignment Handlers ---
+
+    const openAssignmentModal = (skill: Skill | null = null) => {
+        setAssignmentData({
+            targetSkill: skill,
+            selectedSkillIds: skill ? [skill.id!] : [],
+            selectedResourceIds: [],
+            acquisitionDate: '',
+            expirationDate: ''
+        });
+        setIsAssignmentModalOpen(true);
+    };
+
+    const handleAssignmentSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const { selectedResourceIds, selectedSkillIds, acquisitionDate, expirationDate } = assignmentData;
+
+        if (selectedResourceIds.length === 0 || selectedSkillIds.length === 0) {
+            return;
+        }
+
+        try {
+            const promises = [];
+            for (const resourceId of selectedResourceIds) {
+                for (const skillId of selectedSkillIds) {
+                    promises.push(addResourceSkill({
+                        resourceId,
+                        skillId,
+                        acquisitionDate: acquisitionDate || null,
+                        expirationDate: expirationDate || null
+                    }));
+                }
+            }
+            await Promise.all(promises);
+            addToast(`${promises.length} associazioni create con successo.`, 'success');
+            setIsAssignmentModalOpen(false);
+        } catch (error) {
+            addToast('Errore durante l\'assegnazione delle competenze.', 'error');
+        }
+    };
+
     // --- Render Helpers ---
 
     const columns: ColumnDef<EnrichedSkill>[] = [
@@ -161,7 +227,12 @@ const SkillsPage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(skill)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => handleOpenModal(skill)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => openAssignmentModal(skill)} className="text-on-surface-variant hover:text-tertiary" title="Assegna a Risorse">
+                        <span className="material-symbols-outlined">person_add</span>
+                    </button>
+                    <button onClick={() => handleOpenModal(skill)} className="text-on-surface-variant hover:text-primary" title="Modifica">
+                        <span className="material-symbols-outlined">edit</span>
+                    </button>
                     <button onClick={() => setSkillToDelete(skill)} className="text-on-surface-variant hover:text-error" title="Elimina">
                         {isActionLoading(`deleteSkill-${skill.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
@@ -180,6 +251,9 @@ const SkillsPage: React.FC = () => {
                     </span>
                 </div>
                 <div className="flex gap-1">
+                     <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-tertiary">
+                        <span className="material-symbols-outlined">person_add</span>
+                    </button>
                     <button onClick={() => handleOpenModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-primary">
                         <span className="material-symbols-outlined">edit</span>
                     </button>
@@ -210,6 +284,10 @@ const SkillsPage: React.FC = () => {
                         <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
                         <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
                     </div>
+                    <button onClick={() => openAssignmentModal(null)} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-lg">group_add</span>
+                        Assegna Skills
+                    </button>
                     <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Skill</button>
                 </div>
             </div>
@@ -279,7 +357,7 @@ const SkillsPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Modals */}
+            {/* Add/Edit Skill Modal */}
             {isModalOpen && editingSkill && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingSkill ? 'Modifica Competenza' : 'Nuova Competenza'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -324,6 +402,73 @@ const SkillsPage: React.FC = () => {
                                 ) : (
                                 'Salva'
                                 )}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+            
+            {/* Assignment Modal */}
+            {isAssignmentModalOpen && (
+                <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)} title={assignmentData.targetSkill ? `Assegna ${assignmentData.targetSkill.name}` : 'Assegnazione Competenze Massiva'}>
+                    <form onSubmit={handleAssignmentSubmit} className="space-y-4 flex flex-col h-[60vh]">
+                        <div className="flex-grow space-y-4 overflow-y-auto p-1">
+                             {!assignmentData.targetSkill && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Competenze da Assegnare</label>
+                                    <MultiSelectDropdown 
+                                        name="selectedSkillIds" 
+                                        selectedValues={assignmentData.selectedSkillIds} 
+                                        onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedSkillIds: v }))} 
+                                        options={skillOptions} 
+                                        placeholder="Seleziona una o più skills..."
+                                    />
+                                </div>
+                            )}
+                            
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Risorse Destinatarie</label>
+                                <MultiSelectDropdown 
+                                    name="selectedResourceIds" 
+                                    selectedValues={assignmentData.selectedResourceIds} 
+                                    onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedResourceIds: v }))} 
+                                    options={resourceOptions} 
+                                    placeholder="Seleziona una o più risorse..."
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Conseguimento</label>
+                                    <input 
+                                        type="date" 
+                                        className="form-input"
+                                        value={assignmentData.acquisitionDate}
+                                        onChange={e => setAssignmentData(prev => ({ ...prev, acquisitionDate: e.target.value }))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Scadenza</label>
+                                    <input 
+                                        type="date" 
+                                        className="form-input"
+                                        value={assignmentData.expirationDate}
+                                        onChange={e => setAssignmentData(prev => ({ ...prev, expirationDate: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3 pt-4 flex-shrink-0">
+                             <button type="button" onClick={() => setIsAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
+                                Annulla
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={assignmentData.selectedResourceIds.length === 0 || assignmentData.selectedSkillIds.length === 0}
+                                className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
+                            >
+                                Assegna
                             </button>
                         </div>
                     </form>
