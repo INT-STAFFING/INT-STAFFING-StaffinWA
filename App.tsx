@@ -6,12 +6,13 @@
 import React, { useState, lazy, Suspense } from 'react';
 // FIX: Using namespace import for react-router-dom to address potential module resolution errors.
 import * as ReactRouterDOM from 'react-router-dom';
-const { BrowserRouter, Routes, Route, Navigate, useLocation } = ReactRouterDOM;
+const { BrowserRouter, Routes, Route, Navigate, useLocation, Link } = ReactRouterDOM;
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
+import BottomNavBar from './components/BottomNavBar';
 
 // Lazy load all page components for code splitting
 const StaffingPage = lazy(() => import('./pages/StaffingPage'));
@@ -33,7 +34,6 @@ const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
 const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = lazy(() => import('./pages/UserManualPage'));
-const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 // FIX: The lazy import for InterviewsPage was incorrect for a default export.
 // It has been updated to use the correct syntax for default exports.
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
@@ -74,10 +74,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'db-inspector': return 'Database Inspector';
       case 'staffing-visualization': return 'Visualizzazione Staffing';
       case 'manuale-utente': return 'Manuale Utente';
-      case 'test-staffing': return 'Test Staffing (MRT)';
       default: return 'Staffing Planner';
     }
   };
+  
+  const pageTitle = getPageTitle(location.pathname);
 
   return (
     <header className="flex-shrink-0 bg-surface border-b border-outline-variant">
@@ -89,9 +90,27 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         >
           <span className="material-symbols-outlined">menu</span>
         </button>
-        <h1 className="text-xl font-semibold text-on-surface md:text-2xl">
-          {getPageTitle(location.pathname)}
-        </h1>
+        
+        <nav aria-label="breadcrumb" className="flex-1 min-w-0">
+          <ol className="flex items-center space-x-1 text-sm md:text-base truncate">
+            <li>
+              <Link to="/staffing" className="text-on-surface-variant hover:text-on-surface hover:underline">
+                Home
+              </Link>
+            </li>
+            {pageTitle !== 'Staffing' && pageTitle !== 'Staffing Planner' && (
+              <>
+                <li>
+                  <span className="material-symbols-outlined text-on-surface-variant text-base">chevron_right</span>
+                </li>
+                <li className="font-semibold text-on-surface truncate" aria-current="page">
+                  {pageTitle}
+                </li>
+              </>
+            )}
+          </ol>
+        </nav>
+        
         <div className="md:hidden w-10" />
       </div>
     </header>
@@ -139,7 +158,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
     <div className="flex-1 flex flex-col overflow-hidden">
       <Header onToggleSidebar={onToggleSidebar} />
 
-      <main className="flex-1 overflow-y-auto bg-background">
+      <main className="flex-1 overflow-y-auto bg-background pb-20 md:pb-0">
         <div className="w-full max-w-none px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           <Suspense fallback={loadingSpinner}>
             <Routes>
@@ -179,14 +198,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
                   </AdminRoute>
                 }
               />
-              <Route
-                path="/test-staffing"
-                element={
-                  <AdminRoute>
-                    <TestStaffingPage />
-                  </AdminRoute>
-                }
-              />
             </Routes>
           </Suspense>
         </div>
@@ -211,6 +222,7 @@ const MainLayout: React.FC = () => {
       <div className="flex h-screen w-screen overflow-hidden bg-background">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
+        <BottomNavBar onMenuClick={() => setIsSidebarOpen(true)} />
       </div>
     </>
   );
