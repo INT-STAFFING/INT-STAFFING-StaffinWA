@@ -102,6 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <NavHeader>Analisi</NavHeader>
                     <NavItem to="/forecasting" icon="trending_up" label="Forecasting" onClick={handleNavLinkClick} />
                     <NavItem to="/gantt" icon="align_horizontal_left" label="Gantt Progetti" onClick={handleNavLinkClick} />
+                    <NavItem to="/skill-analysis" icon="hub" label="Analisi Competenze" onClick={handleNavLinkClick} />
                     <NavItem to="/reports" icon="summarize" label="Report" onClick={handleNavLinkClick} />
                     <NavItem to="/staffing-visualization" icon="schema" label="Visualizzazione" onClick={handleNavLinkClick} />
                     

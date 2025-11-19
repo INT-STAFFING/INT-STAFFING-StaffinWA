@@ -51,7 +51,9 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     const clientNameMap = new Map<string, string>();
     const resourceEmailMap = new Map<string, string>();
     const locationValueMap = new Map<string, string>();
+    const skillNameMap = new Map<string, string>();
     
+    // 1. Import Configs
     const importConfig = async (tableName: string, items: { Valore: string }[], map?: Map<string, string>, label: string = 'Configurazione') => {
         if (!Array.isArray(items)) return;
         const existing = await client.query(`SELECT id, value FROM ${tableName}`);
@@ -60,11 +62,12 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
         for (const item of items) {
             const value = item.Valore;
             if (!value) { warnings.push(`${label}: una riga è stata saltata perché non ha un valore.`); continue; }
-            if (map ? map.has(value) : existing.rows.some((r: { value: string; }) => r.value === value)) { warnings.push(`${label} '${value}' già esistente, saltato.`);
+            if (map ? map.has(value) : existing.rows.some((r: { value: string; }) => r.value === value)) { 
+                // warnings.push(`${label} '${value}' già esistente, saltato.`);
             } else {
                 const newId = uuidv4();
                 await client.query(`INSERT INTO ${tableName} (id, value) VALUES ($1, $2)`, [newId, value]);
-                map?.set(value, newId);
+                if (map) map.set(value, newId);
             }
         }
     };
@@ -75,22 +78,148 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     await importConfig('client_sectors', importedSectors, undefined, 'Settore Cliente');
     await importConfig('locations', importedLocations, locationValueMap, 'Sede');
 
-    if (Array.isArray(importedCalendar)) { /* ... (omitted for brevity, same as original) ... */ }
-    
-    const existingRoles = await client.query('SELECT id, name FROM roles');
-    existingRoles.rows.forEach((r: { name: string; id: string; }) => roleNameMap.set(r.name, r.id));
+    // 2. Import Calendar
+    if (Array.isArray(importedCalendar)) {
+        for (const event of importedCalendar) {
+            const { 'Nome Evento': name, Data: date, Tipo: type, 'Sede (se locale)': location } = event;
+            if (!name || !date || !type) continue;
+            
+            const dateObj = parseDate(date);
+            if (!dateObj) continue;
+            const dateStr = formatDateForDB(dateObj);
 
-    const existingClients = await client.query('SELECT id, name FROM clients');
-    existingClients.rows.forEach((c: { name: string; id: string; }) => clientNameMap.set(c.name, c.id));
+            const existing = await client.query('SELECT id FROM company_calendar WHERE date = $1 AND location IS NOT DISTINCT FROM $2', [dateStr, location === 'Tutte' ? null : location]);
+            if (existing.rows.length === 0) {
+                const newId = uuidv4();
+                await client.query(
+                    'INSERT INTO company_calendar (id, name, date, type, location) VALUES ($1, $2, $3, $4, $5)',
+                    [newId, name, dateStr, type, location === 'Tutte' ? null : location]
+                );
+            }
+        }
+    }
     
-    if (Array.isArray(importedRoles)) { /* ... (omitted for brevity, same as original) ... */ }
-    if (Array.isArray(importedClients)) { /* ... (omitted for brevity, same as original) ... */ }
+    // 3. Import Roles
+    if (Array.isArray(importedRoles)) {
+        const existingRoles = await client.query('SELECT id, name FROM roles');
+        existingRoles.rows.forEach((r: { name: string; id: string; }) => roleNameMap.set(r.name, r.id));
 
-    const existingResources = await client.query('SELECT id, email FROM resources');
-    existingResources.rows.forEach((r: { email: string; id: string; }) => resourceEmailMap.set(r.email, r.id));
+        for (const role of importedRoles) {
+            const { 'Nome Ruolo': name, 'Livello Seniority': seniorityLevel, 'Costo Giornaliero (€)': dailyCost, 'Costo Standard (€)': standardCost } = role;
+            if (!name) continue;
+
+            if (!roleNameMap.has(name)) {
+                const newId = uuidv4();
+                const dailyExpenses = (Number(dailyCost) || 0) * 0.035;
+                await client.query(
+                    'INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) VALUES ($1, $2, $3, $4, $5, $6)',
+                    [newId, name, seniorityLevel, dailyCost, standardCost, dailyExpenses]
+                );
+                roleNameMap.set(name, newId);
+            }
+        }
+    }
+
+    // 4. Import Clients
+    if (Array.isArray(importedClients)) {
+        const existingClients = await client.query('SELECT id, name FROM clients');
+        existingClients.rows.forEach((c: { name: string; id: string; }) => clientNameMap.set(c.name, c.id));
+
+        for (const cl of importedClients) {
+            const { 'Nome Cliente': name, Settore: sector, 'Email Contatto': contactEmail } = cl;
+            if (!name) continue;
+
+            if (!clientNameMap.has(name)) {
+                const newId = uuidv4();
+                await client.query(
+                    'INSERT INTO clients (id, name, sector, contact_email) VALUES ($1, $2, $3, $4)',
+                    [newId, name, sector, contactEmail]
+                );
+                clientNameMap.set(name, newId);
+            }
+        }
+    }
+
+    // 5. Import Resources (and Skills)
+    if (Array.isArray(importedResources)) {
+        const existingResources = await client.query('SELECT id, email FROM resources');
+        existingResources.rows.forEach((r: { email: string; id: string; }) => resourceEmailMap.set(r.email, r.id));
+        
+        // Pre-load skills map
+        const existingSkills = await client.query('SELECT id, name FROM skills');
+        existingSkills.rows.forEach((s: { name: string; id: string; }) => skillNameMap.set(s.name.toLowerCase(), s.id));
+
+        for (const res of importedResources) {
+            const { Nome: name, Email: email, Ruolo: roleName, Horizontal: horizontal, Sede: location, 'Data Assunzione': hireDate, 'Anzianità (anni)': workSeniority, Note: notes, Competenze: skillsString } = res;
+            if (!name || !email) {
+                warnings.push(`Risorsa '${name || 'Sconosciuta'}' saltata: dati obbligatori mancanti.`);
+                continue;
+            }
+
+            const roleId = roleName ? roleNameMap.get(roleName) : null;
+            if (roleName && !roleId) warnings.push(`Ruolo '${roleName}' non trovato per risorsa '${name}'.`);
+
+            let resourceId = resourceEmailMap.get(email);
+            
+            if (!resourceId) {
+                resourceId = uuidv4();
+                await client.query(
+                    'INSERT INTO resources (id, name, email, role_id, horizontal, location, hire_date, work_seniority, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+                    [resourceId, name, email, roleId, horizontal, location, formatDateForDB(parseDate(hireDate)), workSeniority, notes]
+                );
+                resourceEmailMap.set(email, resourceId);
+            } else {
+                 await client.query(
+                    'UPDATE resources SET name=$1, role_id=$2, horizontal=$3, location=$4, hire_date=$5, work_seniority=$6, notes=$7 WHERE id=$8',
+                    [name, roleId, horizontal, location, formatDateForDB(parseDate(hireDate)), workSeniority, notes, resourceId]
+                );
+            }
+
+            // Handle Skills Import
+            if (skillsString && typeof skillsString === 'string') {
+                const skillsList = skillsString.split(',').map((s: string) => s.trim()).filter(Boolean);
+                for (const skillName of skillsList) {
+                    const normalizedName = skillName.toLowerCase();
+                    let skillId = skillNameMap.get(normalizedName);
+
+                    if (!skillId) {
+                        // Create new skill if not exists
+                        skillId = uuidv4();
+                        await client.query('INSERT INTO skills (id, name) VALUES ($1, $2)', [skillId, skillName]);
+                        skillNameMap.set(normalizedName, skillId);
+                    }
+
+                    // Assign skill to resource if not already assigned
+                    await client.query(
+                        'INSERT INTO resource_skills (resource_id, skill_id) VALUES ($1, $2) ON CONFLICT (resource_id, skill_id) DO NOTHING',
+                        [resourceId, skillId]
+                    );
+                }
+            }
+        }
+    }
     
-    if (Array.isArray(importedResources)) { /* ... (omitted for brevity, same as original) ... */ }
-    if (Array.isArray(importedProjects)) { /* ... (omitted for brevity, same as original) ... */ }
+    // 6. Import Projects
+    if (Array.isArray(importedProjects)) {
+        for (const proj of importedProjects) {
+            const { 'Nome Progetto': name, Cliente: clientName, Stato: status, 'Budget (€)': budget, 'Realizzazione (%)': realizationPercentage, 'Data Inizio': startDate, 'Data Fine': endDate, 'Project Manager': projectManager, Note: notes } = proj;
+            
+            if (!name) continue;
+            
+            const clientId = clientName ? clientNameMap.get(clientName) : null;
+            if (clientName && !clientId) warnings.push(`Cliente '${clientName}' non trovato per progetto '${name}'.`);
+
+            const existing = await client.query('SELECT id FROM projects WHERE name = $1 AND client_id IS NOT DISTINCT FROM $2', [name, clientId]);
+            
+            if (existing.rows.length === 0) {
+                const newId = uuidv4();
+                await client.query(
+                    'INSERT INTO projects (id, name, client_id, status, budget, realization_percentage, start_date, end_date, project_manager, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+                    [newId, name, clientId, status, budget, realizationPercentage, formatDateForDB(parseDate(startDate)), formatDateForDB(parseDate(endDate)), projectManager, notes]
+                );
+            }
+        }
+    }
 };
 
 const importStaffing = async (client: any, body: any, warnings: string[]) => {

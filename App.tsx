@@ -39,6 +39,7 @@ const UserManualPage = lazy(() => import('./pages/UserManualPage'));
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
 const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
 const SkillsPage = lazy(() => import('./pages/SkillsPage'));
+const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -78,6 +79,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'staffing-visualization': return 'Visualizzazione Staffing';
       case 'manuale-utente': return 'Manuale Utente';
       case 'skills-map': return 'Mappa Competenze';
+      case 'skill-analysis': return 'Analisi Competenze';
       default: return 'Staffing Planner';
     }
   };
@@ -186,6 +188,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/resource-requests" element={<ResourceRequestPage />} />
               <Route path="/interviews" element={<InterviewsPage />} />
               <Route path="/skills-map" element={<SkillsMapPage />} />
+              <Route path="/skill-analysis" element={<SkillAnalysisPage />} />
               <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
               <Route path="/manuale-utente" element={<UserManualPage />} />
               <Route

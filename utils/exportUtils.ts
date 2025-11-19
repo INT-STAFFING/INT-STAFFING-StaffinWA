@@ -20,7 +20,7 @@ const formatDateForExport = (date: Date | string | null): string => {
  * Esporta le entità principali (Risorse, Progetti, Clienti, etc.) in un file Excel.
  */
 export const exportCoreEntities = (data: EntitiesContextType) => {
-    const { clients, roles, resources, projects, companyCalendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = data;
+    const { clients, roles, resources, projects, companyCalendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, resourceSkills, skills } = data;
     const wb = XLSX.utils.book_new();
 
     const clientsSheetData = clients.map(c => ({ 'Nome Cliente': c.name, 'Settore': c.sector, 'Email Contatto': c.contactEmail }));
@@ -29,7 +29,26 @@ export const exportCoreEntities = (data: EntitiesContextType) => {
     const rolesSheetData = roles.map(r => ({ 'Nome Ruolo': r.name, 'Livello Seniority': r.seniorityLevel, 'Costo Giornaliero (€)': r.dailyCost, 'Costo Standard (€)': r.standardCost, 'Spese Giornaliere Calcolate (€)': r.dailyExpenses }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rolesSheetData), 'Ruoli');
 
-    const resourcesSheetData = resources.map(r => ({ 'Nome': r.name, 'Email': r.email, 'Sede': r.location, 'Ruolo': roles.find(role => role.id === r.roleId)?.name || 'N/A', 'Horizontal': r.horizontal, 'Data Assunzione': formatDateForExport(r.hireDate), 'Anzianità (anni)': r.workSeniority, 'Note': r.notes || '' }));
+    const resourcesSheetData = resources.map(r => {
+        // Recupera le competenze associate e le unisce in una stringa separata da virgole
+        const associatedSkills = resourceSkills
+            .filter(rs => rs.resourceId === r.id)
+            .map(rs => skills.find(s => s.id === rs.skillId)?.name)
+            .filter(Boolean)
+            .join(', ');
+
+        return { 
+            'Nome': r.name, 
+            'Email': r.email, 
+            'Sede': r.location, 
+            'Ruolo': roles.find(role => role.id === r.roleId)?.name || 'N/A', 
+            'Horizontal': r.horizontal, 
+            'Competenze': associatedSkills,
+            'Data Assunzione': formatDateForExport(r.hireDate), 
+            'Anzianità (anni)': r.workSeniority, 
+            'Note': r.notes || '' 
+        };
+    });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resourcesSheetData), 'Risorse');
 
     const projectsSheetData = projects.map(p => ({ 'Nome Progetto': p.name, 'Cliente': clients.find(c => c.id === p.clientId)?.name || 'N/A', 'Stato': p.status, 'Budget (€)': p.budget, 'Realizzazione (%)': p.realizationPercentage, 'Data Inizio': formatDateForExport(p.startDate), 'Data Fine': formatDateForExport(p.endDate), 'Project Manager': p.projectManager, 'Note': p.notes || '' }));
@@ -53,7 +72,6 @@ export const exportCoreEntities = (data: EntitiesContextType) => {
 /**
  * Esporta la griglia di staffing in un formato ottimizzato per la re-importazione.
  */
-// Fix: Update function signature to include allocations, which are in a separate context.
 export const exportStaffing = (data: EntitiesContextType & { allocations: Allocation }) => {
     const { resources, projects, assignments, allocations } = data;
     const wb = XLSX.utils.book_new();
@@ -182,7 +200,8 @@ export const exportTemplate = (type: ExportType) => {
         case 'core_entities':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "sector", "contactEmail"]]), 'Clienti');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "seniorityLevel", "dailyCost", "standardCost"]]), 'Ruoli');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "email", "roleName", "horizontal", "location", "hireDate", "workSeniority", "notes"]]), 'Risorse');
+            // Added "Competenze" column to Resources template
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "email", "roleName", "horizontal", "location", "Competenze", "hireDate", "workSeniority", "notes"]]), 'Risorse');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "clientName", "status", "budget", "realizationPercentage", "startDate", "endDate", "projectManager", "notes"]]), 'Progetti');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "date", "type", "location"]]), 'Calendario');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["value"]]), 'Config_Horizontals');
