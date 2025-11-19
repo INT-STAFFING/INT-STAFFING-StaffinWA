@@ -96,6 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <NavItem to="/dashboard" icon="dashboard" label="Dashboard" onClick={handleNavLinkClick} />
                     <NavItem to="/resource-requests" icon="assignment_add" label="Richiesta Risorse" onClick={handleNavLinkClick} />
                     <NavItem to="/interviews" icon="chat" label="Gestione Colloqui" onClick={handleNavLinkClick} />
+                    <NavItem to="/skills-map" icon="school" label="Mappa Competenze" onClick={handleNavLinkClick} />
                     <NavItem to="/manuale-utente" icon="help_center" label="Manuale Utente" onClick={handleNavLinkClick} />
 
                     <NavHeader>Analisi</NavHeader>
@@ -106,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     
                     <NavHeader>Gestione</NavHeader>
                     <NavItem to="/resources" icon="person" label="Risorse" onClick={handleNavLinkClick} />
-                    <NavItem to="/skills-map" icon="school" label="Mappa Competenze" onClick={handleNavLinkClick} />
+                    <NavItem to="/skills" icon="psychology" label="Competenze" onClick={handleNavLinkClick} />
                     <NavItem to="/projects" icon="business_center" label="Progetti" onClick={handleNavLinkClick} />
                     <NavItem to="/contracts" icon="request_quote" label="Contratti" onClick={handleNavLinkClick} />
                     <NavItem to="/clients" icon="apartment" label="Clienti" onClick={handleNavLinkClick} />

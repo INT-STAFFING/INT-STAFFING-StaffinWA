@@ -38,6 +38,7 @@ const UserManualPage = lazy(() => import('./pages/UserManualPage'));
 // It has been updated to use the correct syntax for default exports.
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
 const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
+const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -59,6 +60,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'workload': return 'Carico Risorse';
       case 'gantt': return 'Gantt Progetti';
       case 'resources': return 'Gestione Risorse';
+      case 'skills': return 'Gestione Competenze';
       case 'projects': return 'Gestione Progetti';
       case 'clients': return 'Gestione Clienti';
       case 'roles': return 'Gestione Ruoli';
@@ -167,6 +169,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/" element={<Navigate to="/staffing" replace />} />
               <Route path="/staffing" element={<StaffingPage />} />
               <Route path="/resources" element={<ResourcesPage />} />
+              <Route path="/skills" element={<SkillsPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/roles" element={<RolesPage />} />
@@ -182,9 +185,9 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/resource-requests" element={<ResourceRequestPage />} />
               <Route path="/interviews" element={<InterviewsPage />} />
+              <Route path="/skills-map" element={<SkillsMapPage />} />
               <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
               <Route path="/manuale-utente" element={<UserManualPage />} />
-              <Route path="/skills-map" element={<SkillsMapPage />} />
               <Route
                 path="/admin-settings"
                 element={
