@@ -1,15 +1,16 @@
+
 /**
  * @file exportUtils.ts
  * @description Funzioni di utilità per esportare dati in formato Excel.
  */
 
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, ResourceRequest, Interview } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility } from '../types';
 import { EntitiesContextType } from '../context/AppContext';
 import * as XLSX from 'xlsx';
 
-type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews';
+type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills';
 
-const formatDateForExport = (date: Date | string | null): string => {
+const formatDateForExport = (date: Date | string | null | undefined): string => {
     if (!date) return '';
     const d = new Date(date);
     if (isNaN(d.getTime())) return '';
@@ -178,6 +179,38 @@ export const exportInterviews = (data: EntitiesContextType) => {
 };
 
 /**
+ * Esporta le competenze e le associazioni con le risorse.
+ */
+export const exportSkills = (data: EntitiesContextType) => {
+    const { skills, resources, resourceSkills } = data;
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Competenze Definition
+    const skillsData = skills.map(s => ({
+        'Nome Competenza': s.name,
+        'Categoria': s.category
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(skillsData), 'Competenze');
+
+    // Sheet 2: Resource Associations
+    const associationsData = resourceSkills.map(rs => {
+        const res = resources.find(r => r.id === rs.resourceId);
+        const skill = skills.find(s => s.id === rs.skillId);
+        if (!res || !skill) return null;
+        return {
+            'Nome Risorsa': res.name,
+            'Nome Competenza': skill.name,
+            'Data Conseguimento': formatDateForExport(rs.acquisitionDate),
+            'Data Scadenza': formatDateForExport(rs.expirationDate)
+        };
+    }).filter(Boolean);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(associationsData), 'Associazioni_Risorse');
+
+    XLSX.writeFile(wb, `Staffing_Export_Skills_${formatDateForExport(new Date())}.xlsx`);
+};
+
+
+/**
  * Genera e avvia il download di un template Excel vuoto basato sul tipo di importazione.
  */
 export const exportTemplate = (type: ExportType) => {
@@ -218,6 +251,10 @@ export const exportTemplate = (type: ExportType) => {
             break;
         case 'interviews':
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["candidateName", "candidateSurname", "birthDate", "horizontal", "roleName", "cv_summary", "interviewersNames", "interviewDate", "feedback", "notes", "hiringStatus", "entryDate", "status"]]), 'Colloqui');
+            break;
+        case 'skills':
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Categoria"]]), 'Competenze');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
             break;
     }
 

@@ -4,11 +4,10 @@
  */
 
 import React from 'react';
-// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
-import * as ReactRouterDOM from 'react-router-dom';
-const { NavLink } = ReactRouterDOM;
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useEntitiesContext } from '../context/AppContext';
 
 /**
  * @interface SidebarProps
@@ -24,6 +23,13 @@ interface SidebarProps {
 const NavItem: React.FC<{ to: string; icon: string; label: string; onClick: () => void }> = ({ to, icon, label, onClick }) => {
     const baseClasses = "flex items-center text-sm font-medium text-on-surface-variant transition-colors duration-200 h-14";
     const activeClasses = "text-on-secondary-container";
+    const { pageVisibility } = useEntitiesContext();
+    const { isAdmin } = useAuth();
+
+    // Check visibility
+    if (pageVisibility[to] && !isAdmin) {
+        return null;
+    }
 
     return (
         <NavLink to={to} onClick={onClick}>

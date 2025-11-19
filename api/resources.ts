@@ -168,6 +168,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     res.setHeader('Allow', ['GET', 'POST']);
                     return res.status(405).end(`Method ${method} Not Allowed`);
             }
+            
+        // --- GESTORE ENTITÀ: PAGE VISIBILITY ---
+        case 'page-visibility':
+             switch(method) {
+                case 'POST':
+                    const visClient = await db.connect();
+                    try {
+                        const { path, restricted } = req.body;
+                        if (!path) throw new Error('Path required');
+                        const key = `page_vis.${path}`;
+                        const value = restricted ? 'true' : 'false';
+                        
+                        await visClient.query(
+                             `INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
+                             [key, value]
+                        );
+                        
+                        return res.status(200).json({ success: true, path, restricted });
+                    } catch (error) {
+                         return res.status(500).json({ error: (error as Error).message });
+                    } finally {
+                        visClient.release();
+                    }
+                default:
+                    res.setHeader('Allow', ['POST']);
+                    return res.status(405).end(`Method ${method} Not Allowed`);
+             }
 
         // --- GESTORE ENTITÀ: RISORSE ---
         case 'resources':

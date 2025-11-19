@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme, Theme, defaultTheme, M3Palette } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { SpinnerIcon } from '../components/icons';
 import {
   DashboardCardId,
@@ -406,6 +407,77 @@ const DashboardLayoutEditor: React.FC = () => {
     );
 };
 
+const PageVisibilityEditor: React.FC = () => {
+    const { pageVisibility, updatePageVisibility, isActionLoading } = useEntitiesContext();
+
+    const pages = [
+        { path: '/staffing', label: 'Staffing' },
+        { path: '/workload', label: 'Carico Risorse' },
+        { path: '/dashboard', label: 'Dashboard' },
+        { path: '/resource-requests', label: 'Richiesta Risorse' },
+        { path: '/interviews', label: 'Gestione Colloqui' },
+        { path: '/skills-map', label: 'Mappa Competenze' },
+        { path: '/manuale-utente', label: 'Manuale Utente' },
+        { path: '/forecasting', label: 'Forecasting' },
+        { path: '/gantt', label: 'Gantt Progetti' },
+        { path: '/skill-analysis', label: 'Analisi Competenze' },
+        { path: '/reports', label: 'Report' },
+        { path: '/staffing-visualization', label: 'Visualizzazione' },
+        { path: '/resources', label: 'Gestione Risorse' },
+        { path: '/skills', label: 'Gestione Competenze' },
+        { path: '/projects', label: 'Gestione Progetti' },
+        { path: '/contracts', label: 'Gestione Contratti' },
+        { path: '/clients', label: 'Gestione Clienti' },
+        { path: '/roles', label: 'Gestione Ruoli' },
+        { path: '/calendar', label: 'Calendario' },
+        { path: '/config', label: 'Configurazioni' },
+        { path: '/export', label: 'Esporta Dati' },
+        { path: '/import', label: 'Importa Dati' },
+    ];
+
+    const handleToggle = (path: string, currentRestricted: boolean) => {
+        updatePageVisibility(path, !currentRestricted);
+    };
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
+            <h2 className="text-xl font-semibold mb-4">Configurazione Visibilità Pagine</h2>
+            <p className="text-sm text-on-surface-variant mb-6">
+                Abilita l'opzione "Solo Admin" per rendere una pagina visibile esclusivamente agli amministratori.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pages.map(page => {
+                    const isRestricted = !!pageVisibility[page.path];
+                    const isLoading = isActionLoading(`updatePageVis-${page.path}`);
+
+                    return (
+                        <div key={page.path} className="flex items-center justify-between p-4 border border-outline-variant rounded-xl bg-surface">
+                            <div className="flex flex-col">
+                                <span className="font-medium text-on-surface">{page.label}</span>
+                                <span className="text-xs text-on-surface-variant font-mono">{page.path}</span>
+                            </div>
+                            <label className="flex items-center cursor-pointer">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={isRestricted}
+                                        onChange={() => handleToggle(page.path, isRestricted)}
+                                        disabled={isLoading}
+                                    />
+                                    <div className={`block w-10 h-6 rounded-full ${isRestricted ? 'bg-primary' : 'bg-surface-variant'}`}></div>
+                                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${isRestricted ? 'transform translate-x-4' : ''}`}></div>
+                                </div>
+                                {isLoading && <SpinnerIcon className="w-4 h-4 ml-2 text-primary" />}
+                            </label>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 const AdminSettingsPage: React.FC = () => {
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
 
@@ -445,6 +517,7 @@ const AdminSettingsPage: React.FC = () => {
                 </div>
             </div>
             
+            <PageVisibilityEditor />
             <DashboardLayoutEditor />
             <ToastEditor />
             <VisualizationEditor />

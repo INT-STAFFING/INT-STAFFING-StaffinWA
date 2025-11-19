@@ -9,9 +9,7 @@ import { Resource } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
-// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
-import * as ReactRouterDOM from 'react-router-dom';
-const { useSearchParams } = ReactRouterDOM;
+import { useSearchParams } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 

@@ -1,3 +1,4 @@
+
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -397,6 +398,64 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
     }
 };
 
+const importSkills = async (client: any, body: any, warnings: string[]) => {
+    const { skills: importedSkills, associations: importedAssociations } = body;
+    const skillNameMap = new Map<string, string>();
+    
+    // 1. Import Skills Definition
+    if (Array.isArray(importedSkills)) {
+        // Pre-load existing
+        const existingSkills = await client.query('SELECT id, name FROM skills');
+        existingSkills.rows.forEach((s: any) => skillNameMap.set(s.name.toLowerCase(), s.id));
+
+        for (const s of importedSkills) {
+            const { 'Nome Competenza': name, Categoria: category } = s;
+            if (!name) continue;
+            const normalized = name.toString().toLowerCase();
+            
+            if (!skillNameMap.has(normalized)) {
+                const newId = uuidv4();
+                await client.query('INSERT INTO skills (id, name, category) VALUES ($1, $2, $3)', [newId, name, category]);
+                skillNameMap.set(normalized, newId);
+            } else {
+                 // Update category if exists
+                 const id = skillNameMap.get(normalized);
+                 await client.query('UPDATE skills SET category = $1 WHERE id = $2', [category, id]);
+            }
+        }
+    }
+
+    // 2. Import Associations
+    if (Array.isArray(importedAssociations)) {
+        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name.toLowerCase(), r.id]));
+        
+        for (const assoc of importedAssociations) {
+             const { 'Nome Risorsa': resName, 'Nome Competenza': skillName, 'Data Conseguimento': acqDate, 'Data Scadenza': expDate } = assoc;
+             
+             if (!resName || !skillName) continue;
+             
+             const resourceId = resourceMap.get(resName.toString().toLowerCase());
+             const skillId = skillNameMap.get(skillName.toString().toLowerCase());
+             
+             if (!resourceId) {
+                 warnings.push(`Associazione saltata: Risorsa '${resName}' non trovata.`);
+                 continue;
+             }
+             if (!skillId) {
+                 warnings.push(`Associazione saltata: Competenza '${skillName}' non trovata (assicurati che sia nel foglio Competenze).`);
+                 continue;
+             }
+             
+             await client.query(`
+                INSERT INTO resource_skills (resource_id, skill_id, acquisition_date, expiration_date)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (resource_id, skill_id) DO UPDATE 
+                SET acquisition_date = EXCLUDED.acquisition_date, expiration_date = EXCLUDED.expiration_date;
+             `, [resourceId, skillId, formatDateForDB(parseDate(acqDate)), formatDateForDB(parseDate(expDate))]);
+        }
+    }
+};
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -423,6 +482,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break;
             case 'interviews':
                 await importInterviews(client, req.body, warnings);
+                break;
+            case 'skills':
+                await importSkills(client, req.body, warnings);
                 break;
             default:
                 throw new Error('Tipo di importazione non valido.');

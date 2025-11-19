@@ -4,9 +4,7 @@
  */
 
 import React, { useState, lazy, Suspense } from 'react';
-// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
-import * as ReactRouterDOM from 'react-router-dom';
-const { BrowserRouter, Routes, Route, Navigate, useLocation, Link } = ReactRouterDOM;
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
@@ -153,6 +151,18 @@ interface AppContentProps {
   onToggleSidebar: () => void;
 }
 
+// New Wrapper for dynamic route protection
+const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = ({ path, children }) => {
+  const { isAdmin } = useAuth();
+  const { pageVisibility } = useEntitiesContext();
+
+  if (pageVisibility[path] && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
 
@@ -169,28 +179,28 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
           <Suspense fallback={loadingSpinner}>
             <Routes>
               <Route path="/" element={<Navigate to="/staffing" replace />} />
-              <Route path="/staffing" element={<StaffingPage />} />
-              <Route path="/resources" element={<ResourcesPage />} />
-              <Route path="/skills" element={<SkillsPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/clients" element={<ClientsPage />} />
-              <Route path="/roles" element={<RolesPage />} />
-              <Route path="/contracts" element={<ContractsPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/forecasting" element={<ForecastingPage />} />
-              <Route path="/workload" element={<WorkloadPage />} />
-              <Route path="/gantt" element={<GanttPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/export" element={<ExportPage />} />
-              <Route path="/import" element={<ImportPage />} />
-              <Route path="/config" element={<ConfigPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/resource-requests" element={<ResourceRequestPage />} />
-              <Route path="/interviews" element={<InterviewsPage />} />
-              <Route path="/skills-map" element={<SkillsMapPage />} />
-              <Route path="/skill-analysis" element={<SkillAnalysisPage />} />
-              <Route path="/staffing-visualization" element={<StaffingVisualizationPage />} />
-              <Route path="/manuale-utente" element={<UserManualPage />} />
+              <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
+              <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
+              <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />
+              <Route path="/projects" element={<DynamicRoute path="/projects"><ProjectsPage /></DynamicRoute>} />
+              <Route path="/clients" element={<DynamicRoute path="/clients"><ClientsPage /></DynamicRoute>} />
+              <Route path="/roles" element={<DynamicRoute path="/roles"><RolesPage /></DynamicRoute>} />
+              <Route path="/contracts" element={<DynamicRoute path="/contracts"><ContractsPage /></DynamicRoute>} />
+              <Route path="/dashboard" element={<DynamicRoute path="/dashboard"><DashboardPage /></DynamicRoute>} />
+              <Route path="/forecasting" element={<DynamicRoute path="/forecasting"><ForecastingPage /></DynamicRoute>} />
+              <Route path="/workload" element={<DynamicRoute path="/workload"><WorkloadPage /></DynamicRoute>} />
+              <Route path="/gantt" element={<DynamicRoute path="/gantt"><GanttPage /></DynamicRoute>} />
+              <Route path="/calendar" element={<DynamicRoute path="/calendar"><CalendarPage /></DynamicRoute>} />
+              <Route path="/export" element={<DynamicRoute path="/export"><ExportPage /></DynamicRoute>} />
+              <Route path="/import" element={<DynamicRoute path="/import"><ImportPage /></DynamicRoute>} />
+              <Route path="/config" element={<DynamicRoute path="/config"><ConfigPage /></DynamicRoute>} />
+              <Route path="/reports" element={<DynamicRoute path="/reports"><ReportsPage /></DynamicRoute>} />
+              <Route path="/resource-requests" element={<DynamicRoute path="/resource-requests"><ResourceRequestPage /></DynamicRoute>} />
+              <Route path="/interviews" element={<DynamicRoute path="/interviews"><InterviewsPage /></DynamicRoute>} />
+              <Route path="/skills-map" element={<DynamicRoute path="/skills-map"><SkillsMapPage /></DynamicRoute>} />
+              <Route path="/skill-analysis" element={<DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>} />
+              <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
+              <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
               <Route
                 path="/admin-settings"
                 element={

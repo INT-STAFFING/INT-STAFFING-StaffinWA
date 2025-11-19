@@ -11,9 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-// FIX: Using namespace import for react-router-dom to address potential module resolution errors.
-import * as ReactRouterDOM from 'react-router-dom';
-const { useSearchParams } = ReactRouterDOM;
+import { useSearchParams } from 'react-router-dom';
 
 
 type EnrichedProject = Project & { 

@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill, PageVisibility } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 
@@ -42,6 +42,7 @@ export interface EntitiesContextType {
     skills: Skill[];
     resourceSkills: ResourceSkill[];
     projectSkills: ProjectSkill[];
+    pageVisibility: PageVisibility;
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -85,6 +86,7 @@ export interface EntitiesContextType {
     deleteResourceSkill: (resourceId: string, skillId: string) => Promise<void>;
     addProjectSkill: (projectSkill: ProjectSkill) => Promise<void>;
     deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
+    updatePageVisibility: (path: string, restricted: boolean) => Promise<void>;
     getResourceComputedSkills: (resourceId: string) => ComputedSkill[];
     fetchData: () => Promise<void>;
 }
@@ -143,6 +145,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [skills, setSkills] = useState<Skill[]>([]);
     const [resourceSkills, setResourceSkills] = useState<ResourceSkill[]>([]);
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
+    const [pageVisibility, setPageVisibility] = useState<PageVisibility>({});
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -171,6 +174,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setSkills(data.skills || []);
             setResourceSkills(data.resourceSkills || []);
             setProjectSkills(data.projectSkills || []);
+            setPageVisibility(data.pageVisibility || {});
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -848,6 +852,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [addToast]);
 
+    // --- Page Visibility Management ---
+    
+    const updatePageVisibility = useCallback(async (path: string, restricted: boolean) => {
+        const actionKey = `updatePageVis-${path}`;
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+             await apiFetch('/api/resources?entity=page-visibility', { 
+                 method: 'POST', 
+                 body: JSON.stringify({ path, restricted }) 
+             });
+             setPageVisibility(prev => ({ ...prev, [path]: restricted }));
+             addToast(`Visibilità aggiornata per ${path}.`, 'success');
+        } catch (error) {
+            addToast(`Errore aggiornamento visibilità: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
+
+
     // --- Skill Matrix Algorithm ---
     const getResourceComputedSkills = useCallback((resourceId: string): ComputedSkill[] => {
         // 1. Get Manual Skills
@@ -996,7 +1021,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, loading, isActionLoading,
+        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -1011,9 +1036,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addSkill, updateSkill, deleteSkill,
         addResourceSkill, deleteResourceSkill,
         addProjectSkill, deleteProjectSkill,
+        updatePageVisibility,
         getResourceComputedSkills,
         fetchData
-    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, getResourceComputedSkills, fetchData]);
+    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updatePageVisibility, getResourceComputedSkills, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

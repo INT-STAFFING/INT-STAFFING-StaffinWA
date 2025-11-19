@@ -7,7 +7,7 @@ import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Fix: Import WbsTask type
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -69,7 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             contractManagersRes,
             skillsRes,
             resourceSkillsRes,
-            projectSkillsRes
+            projectSkillsRes,
+            pageVisibilityRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -92,7 +93,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM contract_managers;`,
             db.sql`SELECT * FROM skills;`,
             db.sql`SELECT * FROM resource_skills;`,
-            db.sql`SELECT * FROM project_skills;`
+            db.sql`SELECT * FROM project_skills;`,
+            db.sql`SELECT key, value FROM app_config WHERE key LIKE 'page_vis.%';`
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -115,6 +117,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             return event;
         }) as CalendarEvent[];
+        
+        // Mappa visibilità pagine
+        const pageVisibility: PageVisibility = {};
+        pageVisibilityRes.rows.forEach(row => {
+             const path = row.key.replace('page_vis.', '');
+             pageVisibility[path] = row.value === 'true';
+        });
 
 
         // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
@@ -150,7 +159,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             contractManagers: contractManagersRes.rows.map(toCamelCase),
             skills: skillsRes.rows.map(toCamelCase) as Skill[],
             resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
-            projectSkills: projectSkillsRes.rows.map(toCamelCase) as ProjectSkill[]
+            projectSkills: projectSkillsRes.rows.map(toCamelCase) as ProjectSkill[],
+            pageVisibility
         };
 
         return res.status(200).json(data);

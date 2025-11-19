@@ -3,8 +3,7 @@
  * @description Componente per la barra di navigazione inferiore su dispositivi mobili.
  */
 import React from 'react';
-import * as ReactRouterDOM from 'react-router-dom';
-const { NavLink } = ReactRouterDOM;
+import { NavLink } from 'react-router-dom';
 
 interface BottomNavBarProps {
   onMenuClick: () => void;

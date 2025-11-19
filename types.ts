@@ -379,3 +379,11 @@ export interface ComputedSkill {
     /** @property {number} projectCount - Numero di progetti che hanno contribuito a questa competenza. */
     projectCount: number;
 }
+
+/**
+ * @interface PageVisibility
+ * @description Mappa la visibilità delle pagine. Key = percorso (es. /staffing), Value = true se solo admin.
+ */
+export interface PageVisibility {
+    [path: string]: boolean;
+}

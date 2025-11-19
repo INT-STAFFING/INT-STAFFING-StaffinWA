@@ -1,3 +1,4 @@
+
 /**
  * @file ExportPage.tsx
  * @description Pagina dedicata all'esportazione dei dati dell'applicazione in file Excel separati.
@@ -6,10 +7,10 @@
 import React, { useState } from 'react';
 // Fix: Import useAllocationsContext to get allocations data.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews } from '../utils/exportUtils';
+import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 
-type ExportType = 'core' | 'staffing' | 'requests' | 'interviews';
+type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills';
 
 interface ExportCardProps {
     title: string;
@@ -76,6 +77,9 @@ const ExportPage: React.FC = () => {
                 case 'interviews':
                     await exportInterviews(allData);
                     break;
+                case 'skills':
+                    await exportSkills(allData);
+                    break;
             }
         } catch (error) {
             console.error(`Failed to export ${type}:`, error);
@@ -114,10 +118,17 @@ const ExportPage: React.FC = () => {
                 />
                  <ExportCard
                     title="Colloqui"
-                    description="Esporta l'elenco completo di tutti i colloqui di selezione registrati nel sistema, inclusi feedback e stati."
+                    description="Esporta l'elenco completo di tutte le colloqui di selezione registrati nel sistema, inclusi feedback e stati."
                     onExport={() => handleExport('interviews')}
                     isExporting={exportingType === 'interviews'}
                     icon="groups"
+                />
+                 <ExportCard
+                    title="Competenze e Associazioni"
+                    description="Esporta l'elenco delle competenze (Skills) e tutte le associazioni con le risorse, incluse date di conseguimento e scadenza."
+                    onExport={() => handleExport('skills')}
+                    isExporting={exportingType === 'skills'}
+                    icon="school"
                 />
             </div>
         </div>
