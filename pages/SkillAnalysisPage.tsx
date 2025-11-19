@@ -260,8 +260,8 @@ const SkillChordDiagram: React.FC<{
             .join("g");
 
         group.append("path")
-            .attr("fill", (d: any) => color(d.index.toString()))
-            .attr("stroke", (d: any) => rgb(color(d.index.toString()) as string).darker().toString())
+            .attr("fill", (d: any) => color(d.index.toString()) as string)
+            .attr("stroke", (d: any) => rgb(color(d.index.toString()) as string).darker().toString() as string)
             .attr("d", arcGenerator as any);
 
         // Labels
@@ -285,8 +285,8 @@ const SkillChordDiagram: React.FC<{
             .data(chords)
             .join("path")
             .attr("d", ribbonGenerator as any)
-            .attr("fill", (d: any) => color(d.target.index.toString()))
-            .attr("stroke", (d: any) => rgb(color(d.target.index.toString()) as string).darker().toString());
+            .attr("fill", (d: any) => color(d.target.index.toString()) as string)
+            .attr("stroke", (d: any) => rgb(color(d.target.index.toString()) as string).darker().toString() as string);
 
     }, [matrix, names, width, height, theme]);
 
@@ -429,10 +429,10 @@ const SkillAnalysisPage: React.FC = () => {
              if(p.status === 'Completato') return; // Skip completed
              nodes.push({ id: p.id, name: p.name, type: 'project' });
              nodeSet.add(p.id);
-             const pSkills = projectSkills.filter(ps => ps.projectId === p.id);
+             const pSkills = projectSkills.filter(ps => ps.projectId === p.id).map(ps => ps.skillId);
              pSkills.forEach(ps => {
-                 if(nodeSet.has(ps.skillId)) {
-                     links.push({ source: p.id, target: ps.skillId, value: 1 });
+                 if(nodeSet.has(ps)) {
+                     links.push({ source: p.id, target: ps, value: 1 });
                  }
              });
         });

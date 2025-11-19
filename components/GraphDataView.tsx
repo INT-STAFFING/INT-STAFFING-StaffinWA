@@ -94,7 +94,7 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
                     .selectAll("text")
                     .attr("fill", currentPalette.onSurfaceVariant);
 
-                chart.selectAll(".bar")
+                const bars = chart.selectAll(".bar")
                     .data(data)
                     .join("rect")
                     .attr("class", "bar")
@@ -114,8 +114,10 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
                     .on("mouseout", (event: any) => {
                         select(event.currentTarget).attr("fill", currentPalette.primary);
                         tooltip.style("visibility", "hidden");
-                    })
-                    .transition()
+                    });
+                
+                // Explicitly cast to any to use transition, as d3-transition types might not augment Selection automatically in this setup
+                (bars as any).transition()
                     .duration(800)
                     .attr("y", (d: any) => y(getNestedValue(d, config.yKey)))
                     .attr("height", (d: any) => height - y(getNestedValue(d, config.yKey)));

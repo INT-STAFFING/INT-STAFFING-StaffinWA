@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
@@ -25,6 +25,13 @@ const ImportPage: React.FC = () => {
         details?: string[];
     } | null>(null);
     const { fetchData } = useEntitiesContext(); 
+    
+    // Ref per l'input file
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileSelectClick = () => {
+        fileInputRef.current?.click();
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -147,11 +154,22 @@ const ImportPage: React.FC = () => {
                      <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-on-primary rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">3</span> Carica e importa il file</h2>
                      <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
                         <div>
-                            <label htmlFor="file-upload" className="cursor-pointer inline-flex items-center px-4 py-2 border border-outline rounded-full shadow-sm text-sm font-medium text-on-surface bg-surface hover:bg-surface-container">
+                            {/* Input nascosto */}
+                            <input 
+                                ref={fileInputRef}
+                                type="file" 
+                                className="hidden" 
+                                accept=".xlsx, .xls" 
+                                onChange={handleFileChange} 
+                            />
+                            {/* Pulsante custom per triggerare l'input */}
+                            <button 
+                                onClick={handleFileSelectClick}
+                                className="cursor-pointer inline-flex items-center px-4 py-2 border border-outline rounded-full shadow-sm text-sm font-medium text-on-surface bg-surface hover:bg-surface-container"
+                            >
                                 <span className="material-symbols-outlined mr-2">upload_file</span>
                                 <span>{file ? 'Cambia file...' : 'Seleziona un file...'}</span>
-                                <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".xlsx, .xls" onChange={handleFileChange} />
-                            </label>
+                            </button>
                             {file && <p className="mt-2 text-sm text-on-surface-variant">{file.name}</p>}
                         </div>
 

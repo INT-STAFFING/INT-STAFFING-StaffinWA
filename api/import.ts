@@ -46,6 +46,13 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
+/**
+ * Normalizza una stringa per confronti sicuri (trim + lowercase).
+ */
+const normalize = (str: any): string => {
+    return String(str || '').trim().toLowerCase();
+};
+
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
     const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects, calendar: importedCalendar, horizontals: importedHorizontals, seniorityLevels: importedSeniority, projectStatuses: importedStatuses, clientSectors: importedSectors, locations: importedLocations } = body;
     const roleNameMap = new Map<string, string>();
@@ -148,7 +155,7 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
         
         // Pre-load skills map
         const existingSkills = await client.query('SELECT id, name FROM skills');
-        existingSkills.rows.forEach((s: { name: string; id: string; }) => skillNameMap.set(s.name.toLowerCase(), s.id));
+        existingSkills.rows.forEach((s: { name: string; id: string; }) => skillNameMap.set(normalize(s.name), s.id));
 
         for (const res of importedResources) {
             const { Nome: name, Email: email, Ruolo: roleName, Horizontal: horizontal, Sede: location, 'Data Assunzione': hireDate, 'Anzianità (anni)': workSeniority, Note: notes, Competenze: skillsString } = res;
@@ -176,17 +183,17 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
                 );
             }
 
-            // Handle Skills Import
+            // Handle Skills Import from Resources Sheet
             if (skillsString && typeof skillsString === 'string') {
                 const skillsList = skillsString.split(',').map((s: string) => s.trim()).filter(Boolean);
                 for (const skillName of skillsList) {
-                    const normalizedName = skillName.toLowerCase();
+                    const normalizedName = normalize(skillName);
                     let skillId = skillNameMap.get(normalizedName);
 
                     if (!skillId) {
                         // Create new skill if not exists
                         skillId = uuidv4();
-                        await client.query('INSERT INTO skills (id, name) VALUES ($1, $2)', [skillId, skillName]);
+                        await client.query('INSERT INTO skills (id, name) VALUES ($1, $2)', [skillId, skillName.trim()]); // Use original casing for insert
                         skillNameMap.set(normalizedName, skillId);
                     }
 
@@ -227,8 +234,8 @@ const importStaffing = async (client: any, body: any, warnings: string[]) => {
     const { staffing } = body;
     if (!Array.isArray(staffing)) return;
 
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name, r.id]));
-    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [p.name, p.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
     const assignmentMap = new Map((await client.query('SELECT id, resource_id, project_id FROM assignments')).rows.map((a: any) => [`${a.resource_id}-${a.project_id}`, a.id]));
 
     for (const row of staffing) {
@@ -240,8 +247,8 @@ const importStaffing = async (client: any, body: any, warnings: string[]) => {
             continue;
         }
 
-        const resourceId = resourceMap.get(resourceName);
-        const projectId = projectMap.get(projectName);
+        const resourceId = resourceMap.get(normalize(resourceName));
+        const projectId = projectMap.get(normalize(projectName));
 
         if (!resourceId) { warnings.push(`Staffing per '${resourceName}' saltato: risorsa non trovata.`); continue; }
         if (!projectId) { warnings.push(`Staffing per '${projectName}' saltato: progetto non trovato.`); continue; }
@@ -280,9 +287,9 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
     const { resource_requests: importedRequests } = body;
     if (!Array.isArray(importedRequests)) return;
 
-    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [p.name, p.id]));
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [r.name, r.id]));
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name, r.id]));
+    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
     
     for (const req of importedRequests) {
         const { projectName, roleName, requestorName, startDate, endDate, commitmentPercentage, isUrgent, isTechRequest, notes, status } = req;
@@ -292,13 +299,13 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
             continue;
         }
 
-        const projectId = projectMap.get(projectName);
+        const projectId = projectMap.get(normalize(projectName));
         if (!projectId) {
             warnings.push(`Richiesta per progetto '${projectName}' saltata: progetto non trovato.`);
             continue;
         }
 
-        const roleId = roleMap.get(roleName);
+        const roleId = roleMap.get(normalize(roleName));
         if (!roleId) {
             warnings.push(`Richiesta per ruolo '${roleName}' saltata: ruolo non trovato.`);
             continue;
@@ -306,7 +313,7 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
         
         let requestorId = null;
         if (requestorName) {
-            requestorId = resourceMap.get(requestorName);
+            requestorId = resourceMap.get(normalize(requestorName));
             if (!requestorId) {
                 warnings.push(`Richiedente '${requestorName}' non trovato per una richiesta, verrà lasciato vuoto.`);
             }
@@ -341,9 +348,9 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
     const { interviews: importedInterviews } = body;
     if (!Array.isArray(importedInterviews)) return;
     
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [r.name, r.id]));
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name, r.id]));
-    const horizontalSet = new Set((await client.query('SELECT value FROM horizontals')).rows.map((h: any) => h.value));
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const horizontalSet = new Set((await client.query('SELECT value FROM horizontals')).rows.map((h: any) => normalize(h.value)));
 
     for (const interview of importedInterviews) {
         const { candidateName, candidateSurname, birthDate, horizontal, roleName, cv_summary, interviewersNames, interviewDate, feedback, notes, hiringStatus, entryDate, status } = interview;
@@ -355,7 +362,7 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
         
         let roleId = null;
         if (roleName) {
-            roleId = roleMap.get(String(roleName));
+            roleId = roleMap.get(normalize(roleName));
             if (!roleId) {
                 warnings.push(`Ruolo '${roleName}' non trovato per ${candidateName}, sarà lasciato vuoto.`);
             }
@@ -363,8 +370,8 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
         
         let validHorizontal = null;
         if (horizontal) {
-            if (horizontalSet.has(String(horizontal))) {
-                validHorizontal = String(horizontal);
+            if (horizontalSet.has(normalize(horizontal))) {
+                validHorizontal = String(horizontal); // Keep original casing if possible, or fetch from set if map
             } else {
                 warnings.push(`Horizontal '${horizontal}' non trovato per ${candidateName}, sarà lasciato vuoto.`);
             }
@@ -374,9 +381,8 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
         if (interviewersNames && typeof interviewersNames === 'string') {
             const names = interviewersNames.split(',').map(name => name.trim());
             for (const name of names) {
-                const id = resourceMap.get(name);
+                const id = resourceMap.get(normalize(name));
                 if (id) {
-                    // Fix: The value 'id' from the map is of type 'unknown' and needs to be cast to a string.
                     interviewersIds.push(String(id));
                 } else {
                     warnings.push(`Intervistatore '${name}' non trovato per colloquio di ${candidateName}.`);
@@ -406,16 +412,16 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
     if (Array.isArray(importedSkills)) {
         // Pre-load existing
         const existingSkills = await client.query('SELECT id, name FROM skills');
-        existingSkills.rows.forEach((s: any) => skillNameMap.set(s.name.toLowerCase(), s.id));
+        existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
 
         for (const s of importedSkills) {
             const { 'Nome Competenza': name, Categoria: category } = s;
             if (!name) continue;
-            const normalized = name.toString().toLowerCase();
+            const normalized = normalize(name);
             
             if (!skillNameMap.has(normalized)) {
                 const newId = uuidv4();
-                await client.query('INSERT INTO skills (id, name, category) VALUES ($1, $2, $3)', [newId, name, category]);
+                await client.query('INSERT INTO skills (id, name, category) VALUES ($1, $2, $3)', [newId, String(name).trim(), category]);
                 skillNameMap.set(normalized, newId);
             } else {
                  // Update category if exists
@@ -427,22 +433,26 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
 
     // 2. Import Associations
     if (Array.isArray(importedAssociations)) {
-        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [r.name.toLowerCase(), r.id]));
+        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
         
+        // Reload skills map if skills were added above to ensure we have latest IDs
+        const allSkills = await client.query('SELECT id, name FROM skills');
+        allSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
+
         for (const assoc of importedAssociations) {
              const { 'Nome Risorsa': resName, 'Nome Competenza': skillName, 'Data Conseguimento': acqDate, 'Data Scadenza': expDate } = assoc;
              
              if (!resName || !skillName) continue;
              
-             const resourceId = resourceMap.get(resName.toString().toLowerCase());
-             const skillId = skillNameMap.get(skillName.toString().toLowerCase());
+             const resourceId = resourceMap.get(normalize(resName));
+             const skillId = skillNameMap.get(normalize(skillName));
              
              if (!resourceId) {
                  warnings.push(`Associazione saltata: Risorsa '${resName}' non trovata.`);
                  continue;
              }
              if (!skillId) {
-                 warnings.push(`Associazione saltata: Competenza '${skillName}' non trovata (assicurati che sia nel foglio Competenze).`);
+                 warnings.push(`Associazione saltata: Competenza '${skillName}' non trovata (assicurati che sia definita nel foglio Competenze).`);
                  continue;
              }
              
@@ -470,6 +480,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         await client.query('BEGIN');
 
+        console.log(`Starting import of type: ${type}`);
+
         switch(type) {
             case 'core_entities':
                 await importCoreEntities(client, req.body, warnings);
@@ -491,6 +503,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         await client.query('COMMIT');
+        console.log(`Import completed with ${warnings.length} warnings.`);
         res.status(200).json({ message: 'Importazione completata con successo.', warnings });
     } catch (error) {
         await client.query('ROLLBACK');
