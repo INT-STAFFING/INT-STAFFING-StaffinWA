@@ -1,3 +1,4 @@
+
 /**
  * @file ReportsPage.tsx
  * @description Pagina per la visualizzazione di report analitici su costi e utilizzo.
@@ -62,7 +63,7 @@ const useSort = <T extends string>() => {
 // --- Componenti Principali dei Report ---
 
 const ProjectCostsReport: React.FC = () => {
-    const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar } = useEntitiesContext();
+    const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar, getRoleCost } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
     const { sortConfig, SortableHeader } = useSort<ProjectCostSortKey>();
@@ -78,9 +79,6 @@ const ProjectCostsReport: React.FC = () => {
                 projectAssignments.forEach(assignment => {
                     const resource = resources.find(r => r.id === assignment.resourceId);
                     if (!resource || !assignment.id) return;
-
-                    const role = roles.find(ro => ro.id === resource.roleId);
-                    const dailyRate = role?.dailyCost || 0;
                     
                     const assignmentAllocations = allocations[assignment.id];
                     if (assignmentAllocations) {
@@ -89,6 +87,10 @@ const ProjectCostsReport: React.FC = () => {
                              const allocDate = new Date(dateStr);
                              if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
+                                
+                                // Use historical cost for accuracy
+                                const dailyRate = getRoleCost(resource.roleId, allocDate);
+                                
                                 personDays += dayFraction;
                                 allocatedCost += dayFraction * dailyRate;
                              }
@@ -110,7 +112,7 @@ const ProjectCostsReport: React.FC = () => {
                     avgCostPerDay: personDays > 0 ? allocatedCost / personDays : 0,
                 };
             });
-    }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations]);
+    }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations, getRoleCost]);
     
     const sortedData = useMemo(() => {
         if (!sortConfig) return reportData;
@@ -227,7 +229,7 @@ const ProjectCostsReport: React.FC = () => {
 
 
 const ResourceUtilizationReport: React.FC = () => {
-    const { resources, roles, assignments, companyCalendar, horizontals } = useEntitiesContext();
+    const { resources, roles, assignments, companyCalendar, horizontals, getRoleCost } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     const [filters, setFilters] = useState({ roleId: '', horizontal: '' });
@@ -266,7 +268,10 @@ const ResourceUtilizationReport: React.FC = () => {
                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 allocatedDays += dayFraction;
-                                allocatedCost += dayFraction * (role?.dailyCost || 0);
+                                
+                                // Use historical cost
+                                const dailyRate = getRoleCost(resource.roleId, allocDate);
+                                allocatedCost += dayFraction * dailyRate;
                             }
                         }
                     }
@@ -284,7 +289,7 @@ const ResourceUtilizationReport: React.FC = () => {
                     allocatedCost,
                 };
             }).filter(Boolean) as Exclude<ReturnType<typeof reportData[0]>, null>[];
-    }, [resources, roles, assignments, companyCalendar, month, filters, allocations]);
+    }, [resources, roles, assignments, companyCalendar, month, filters, allocations, getRoleCost]);
     
     const sortedData = useMemo(() => {
         if (!sortConfig) return reportData;
@@ -373,9 +378,9 @@ const ResourceUtilizationReport: React.FC = () => {
                                             ${
                                                 d.utilization > 100
                                                     ? 'text-error'
-                                                    : d.utilization >= 90
-                                                    ? 'text-on-yellow-container'
-                                                    : 'text-tertiary'
+                                                    : d.utilization > 95
+                                                    ? 'text-tertiary'
+                                                    : 'text-yellow-600 dark:text-yellow-400'
                                             }
                                         `}
                                     >
@@ -387,7 +392,7 @@ const ResourceUtilizationReport: React.FC = () => {
                                 </tr>
                             ))
                         ) : (
-                             <tr>
+                            <tr>
                                 <td colSpan={6} className="px-6 py-8 text-center text-sm text-on-surface-variant">
                                     Nessun dato trovato per i filtri correnti.
                                 </td>
@@ -396,7 +401,6 @@ const ResourceUtilizationReport: React.FC = () => {
                     </tbody>
                 </table>
             </div>
-
         </div>
     );
 };
@@ -406,23 +410,24 @@ const ReportsPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-on-background mb-6">Report</h1>
-
-            <div className="mb-6 border-b border-outline-variant">
-                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                    <button onClick={() => setActiveTab('projectCosts')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'}`}>
-                        Report Costi Progetto
-                    </button>
-                    <button onClick={() => setActiveTab('resourceUtilization')} className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'}`}>
-                        Report Utilizzo Risorse
-                    </button>
-                </nav>
-            </div>
+            <h1 className="text-3xl font-bold text-on-surface mb-6">Report e Analisi</h1>
             
-            <div className="bg-surface rounded-2xl shadow p-6">
-                {activeTab === 'projectCosts' && <ProjectCostsReport />}
-                {activeTab === 'resourceUtilization' && <ResourceUtilizationReport />}
+            <div className="flex border-b border-outline-variant mb-6">
+                <button 
+                    onClick={() => setActiveTab('projectCosts')} 
+                    className={`px-6 py-3 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
+                >
+                    Costi per Progetto
+                </button>
+                <button 
+                    onClick={() => setActiveTab('resourceUtilization')} 
+                    className={`px-6 py-3 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
+                >
+                    Utilizzo Risorse
+                </button>
             </div>
+
+            {activeTab === 'projectCosts' ? <ProjectCostsReport /> : <ResourceUtilizationReport />}
         </div>
     );
 };

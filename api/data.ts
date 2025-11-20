@@ -1,3 +1,4 @@
+
 /**
  * @file api/data.ts
  * @description Endpoint API per recuperare tutti i dati iniziali necessari all'applicazione con una singola richiesta.
@@ -7,7 +8,7 @@ import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // Fix: Import WbsTask type
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -50,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const [
             clientsRes,
             rolesRes,
+            roleCostHistoryRes,
             resourcesRes,
             projectsRes,
             assignmentsRes,
@@ -74,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
+            db.sql`SELECT * FROM role_cost_history;`,
             db.sql`SELECT * FROM resources;`,
             db.sql`SELECT * FROM projects;`,
             db.sql`SELECT * FROM assignments;`,
@@ -130,6 +133,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const data = {
             clients: clientsRes.rows.map(toCamelCase) as Client[],
             roles: rolesRes.rows.map(toCamelCase) as Role[],
+            roleCostHistory: roleCostHistoryRes.rows.map(row => {
+                 const h = toCamelCase(row);
+                 if (h.startDate) h.startDate = new Date(h.startDate).toISOString().split('T')[0];
+                 if (h.endDate) h.endDate = new Date(h.endDate).toISOString().split('T')[0];
+                 return h;
+            }) as RoleCostHistory[],
             resources: resourcesRes.rows.map(toCamelCase) as Resource[],
             projects: projectsRes.rows.map(row => {
                 const project = toCamelCase(row);

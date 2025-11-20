@@ -1,3 +1,4 @@
+
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -586,7 +587,7 @@ const CostForecastCard: React.FC<any> = ({ chartRef }) => (
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading } = useEntitiesContext();
+    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 
@@ -621,8 +622,6 @@ const DashboardPage: React.FC = () => {
         const unassignedResources = activeResources.filter(r => r.id && !assignedResourceIds.has(r.id) && r.maxStaffingPercentage > 0);
 
         // --- Projects ---
-        // A project is "active" if its end date hasn't passed.
-        // Projects without an end date are considered indefinitely active.
         const activeProjects = projects.filter(p => {
             if (p.endDate) {
                 const endDate = new Date(p.endDate);
@@ -634,13 +633,11 @@ const DashboardPage: React.FC = () => {
         });
         const totalActiveProjects = activeProjects.length;
 
-        // Unstaffed projects are from the pool of ACTIVE projects that are also "In corso"
         const unstaffedProjects = activeProjects.filter(p => {
             const isStaffed = assignments.some(a => a.projectId === p.id);
             return p.status === 'In corso' && !isStaffed;
         });
 
-        // --- Other KPIs ---
         const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
 
         return {
@@ -665,8 +662,6 @@ const DashboardPage: React.FC = () => {
             const resource = resources.find(r => r.id === assignment.resourceId);
             if (!resource || resource.resigned) continue;
             
-            const role = roles.find(r => r.id === resource.roleId);
-            const dailyRate = role?.dailyCost || 0;
             const project = projects.find(p => p.id === assignment.projectId);
             const realization = (project?.realizationPercentage ?? 100) / 100;
 
@@ -677,6 +672,10 @@ const DashboardPage: React.FC = () => {
                     if (allocDate >= firstDay && allocDate <= lastDay) {
                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                             const personDayFraction = (assignmentAllocations[dateStr] / 100);
+                            
+                            // Use historical cost
+                            const dailyRate = getRoleCost(resource.roleId, allocDate);
+                            
                             const dailyCost = personDayFraction * dailyRate * realization;
                             totalCost += dailyCost;
                             totalPersonDays += personDayFraction;
@@ -689,7 +688,6 @@ const DashboardPage: React.FC = () => {
             }
         }
         
-        // --- New Logic for FTE ---
         const totalAvailableFTE = activeResources.reduce((sum, r) => sum + (r.maxStaffingPercentage / 100), 0);
         const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, null);
         const totalAllocatedFTE = workingDaysInMonth > 0 ? totalPersonDays / workingDaysInMonth : 0;
@@ -702,8 +700,9 @@ const DashboardPage: React.FC = () => {
             unallocatedFTE,
             totalAvailableFTE
         };
-    }, [assignments, resources, roles, projects, allocations, companyCalendar, clients, activeResources]);
+    }, [assignments, resources, roles, projects, allocations, companyCalendar, clients, activeResources, getRoleCost]);
 
+    // ... (averageAllocationData and fteData logic remains unchanged as they deal with days, not costs) ...
     const averageAllocationData = useMemo(() => {
         const filteredResources = avgAllocFilter.resourceId
             ? activeResources.filter(r => r.id === avgAllocFilter.resourceId)
@@ -741,7 +740,7 @@ const DashboardPage: React.FC = () => {
             };
         });
     }, [activeResources, assignments, allocations, companyCalendar, avgAllocFilter]);
-    
+
     const fteData = useMemo(() => {
         const filteredProjects = fteFilter.clientId
             ? projects.filter(p => p.clientId === fteFilter.clientId)
@@ -775,7 +774,7 @@ const DashboardPage: React.FC = () => {
             return { ...project, totalPersonDays, fte: totalPersonDays / totalWorkingDays };
         }).filter(p => p.totalPersonDays > 0);
     }, [projects, assignments, allocations, companyCalendar, resources, fteFilter]);
-    
+
     const budgetAnalysisData = useMemo(() => {
         const filteredProjects = budgetFilter.clientId
             ? projects.filter(p => p.clientId === budgetFilter.clientId)
@@ -787,13 +786,13 @@ const DashboardPage: React.FC = () => {
             projectAssignments.forEach(assignment => {
                 const resource = resources.find(r => r.id === assignment.resourceId);
                 if (!resource) return;
-                const role = roles.find(ro => ro.id === resource.roleId);
-                const dailyRate = role?.dailyCost || 0;
                 
                 const assignmentAllocations = allocations[assignment.id!];
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
-                         if (!isHoliday(parseISODate(dateStr), resource.location, companyCalendar) && parseISODate(dateStr).getDay() !== 0 && parseISODate(dateStr).getDay() !== 6) {
+                        const allocDate = parseISODate(dateStr);
+                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            const dailyRate = getRoleCost(resource.roleId, allocDate);
                             estimatedCost += ((assignmentAllocations[dateStr] / 100) * dailyRate);
                         }
                     }
@@ -803,7 +802,7 @@ const DashboardPage: React.FC = () => {
             estimatedCost = estimatedCost * (project.realizationPercentage / 100);
             return { ...project, budget, estimatedCost, variance: budget - estimatedCost };
         });
-    }, [projects, assignments, allocations, resources, roles, companyCalendar, budgetFilter]);
+    }, [projects, assignments, allocations, resources, roles, companyCalendar, budgetFilter, getRoleCost]);
 
     const temporalBudgetAnalysisData = useMemo(() => {
         const filteredProjects = temporalBudgetFilter.clientId
@@ -813,7 +812,7 @@ const DashboardPage: React.FC = () => {
         const filterStartDate = parseISODate(temporalBudgetFilter.startDate);
         const filterEndDate = parseISODate(temporalBudgetFilter.endDate);
         if (isNaN(filterStartDate.getTime()) || isNaN(filterEndDate.getTime())) {
-            return []; // Invalid date range
+            return []; 
         }
     
         return filteredProjects.map(project => {
@@ -841,8 +840,6 @@ const DashboardPage: React.FC = () => {
             projectAssignments.forEach(assignment => {
                 const resource = resources.find(r => r.id === assignment.resourceId);
                 if (!resource) return;
-                const role = roles.find(ro => ro.id === resource.roleId);
-                const dailyRate = role?.dailyCost || 0;
                 
                 const assignmentAllocations = allocations[assignment.id!];
                 if (assignmentAllocations) {
@@ -850,6 +847,7 @@ const DashboardPage: React.FC = () => {
                         const allocDate = parseISODate(dateStr);
                         if (allocDate >= filterStartDate && allocDate <= filterEndDate) {
                              if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                                const dailyRate = getRoleCost(resource.roleId, allocDate);
                                 estimatedCost += ((assignmentAllocations[dateStr] / 100) * dailyRate);
                             }
                         }
@@ -862,7 +860,7 @@ const DashboardPage: React.FC = () => {
     
             return { ...project, periodBudget, estimatedCost, variance };
         });
-    }, [projects, assignments, allocations, resources, roles, companyCalendar, temporalBudgetFilter]);
+    }, [projects, assignments, allocations, resources, roles, companyCalendar, temporalBudgetFilter, getRoleCost]);
 
     const averageDailyRateData = useMemo(() => {
         const filteredProjects = avgDailyRateFilter.clientId
@@ -883,8 +881,6 @@ const DashboardPage: React.FC = () => {
             projectAssignments.forEach(assignment => {
                 const resource = resources.find(r => r.id === assignment.resourceId);
                 if (!resource) return;
-                const role = roles.find(ro => ro.id === resource.roleId);
-                const dailyRate = role?.dailyCost || 0;
                 
                 const assignmentAllocations = allocations[assignment.id!];
                 if (assignmentAllocations) {
@@ -893,6 +889,8 @@ const DashboardPage: React.FC = () => {
                         const dateStr = currentDate.toISOString().slice(0, 10);
                         if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
                             const personDayFraction = (assignmentAllocations[dateStr] / 100);
+                            const dailyRate = getRoleCost(resource.roleId, currentDate);
+                            
                             totalPersonDays += personDayFraction;
                             totalCost += personDayFraction * dailyRate * (project.realizationPercentage / 100);
                         }
@@ -910,7 +908,7 @@ const DashboardPage: React.FC = () => {
                 avgDailyRate: totalPersonDays > 0 ? totalCost / totalPersonDays : 0,
             };
         }).filter(p => p.totalPersonDays > 0);
-    }, [projects, assignments, allocations, resources, roles, clients, companyCalendar, avgDailyRateFilter]);
+    }, [projects, assignments, allocations, resources, roles, clients, companyCalendar, avgDailyRateFilter, getRoleCost]);
     
     const underutilizedResourcesData = useMemo(() => {
         const [year, monthNum] = underutilizedFilter.split('-').map(Number);
@@ -1044,8 +1042,7 @@ const DashboardPage: React.FC = () => {
             for (const assignment of assignments) {
                 const resource = activeResources.find(r => r.id === assignment.resourceId);
                 if (!resource) continue;
-                const role = roles.find(ro => ro.id === resource.roleId);
-                const dailyRate = role?.dailyCost || 0;
+                
                 const project = projects.find(p => p.id === assignment.projectId);
                 const realization = (project?.realizationPercentage ?? 100) / 100;
                 
@@ -1054,6 +1051,7 @@ const DashboardPage: React.FC = () => {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = parseISODate(dateStr);
                         if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            const dailyRate = getRoleCost(resource.roleId, allocDate);
                             totalCost += ((assignmentAllocations[dateStr] / 100) * dailyRate * realization);
                         }
                     }
@@ -1076,7 +1074,7 @@ const DashboardPage: React.FC = () => {
         }
         return forecastData;
 
-    }, [activeResources, assignments, allocations, roles, projects, companyCalendar]);
+    }, [activeResources, assignments, allocations, roles, projects, companyCalendar, getRoleCost]);
 
     // Totals
     const avgAllocationTotals = useMemo(() => {

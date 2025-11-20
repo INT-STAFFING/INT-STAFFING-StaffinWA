@@ -1,4 +1,6 @@
+
 import type { VercelPool } from '@vercel/postgres';
+import { v4 as uuidv4 } from 'uuid';
 
 const defaultThemeForSeed = {
     light: {
@@ -110,6 +112,17 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(10, 2);`;
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC(10, 2);`;
     
+    // New Role Cost History Table for SCD Type 2
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS role_cost_history (
+            id UUID PRIMARY KEY,
+            role_id UUID REFERENCES roles(id) ON DELETE CASCADE,
+            daily_cost NUMERIC(10, 2) NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE
+        );
+    `;
+
     await db.sql`
         CREATE TABLE IF NOT EXISTS resources (
             id UUID PRIMARY KEY,
@@ -309,6 +322,25 @@ export async function ensureDbTablesExist(db: VercelPool) {
             value VARCHAR(255) NOT NULL
         );
     `;
+
+    // Backfill for Role Cost History (Seeding history from current roles if empty)
+    const historyCheck = await db.sql`SELECT COUNT(*) FROM role_cost_history;`;
+    if (historyCheck.rows[0].count === '0') {
+        const existingRoles = await db.sql`SELECT id, daily_cost FROM roles;`;
+        if (existingRoles.rows.length > 0) {
+             console.log('Backfilling role cost history...');
+             for (const role of existingRoles.rows) {
+                 const newId = uuidv4();
+                 // Start date far in the past to cover all existing allocations
+                 const startDate = '2020-01-01'; 
+                 await db.sql`
+                    INSERT INTO role_cost_history (id, role_id, daily_cost, start_date)
+                    VALUES (${newId}, ${role.id}, ${role.daily_cost}, ${startDate});
+                 `;
+             }
+             console.log('Role cost history backfilled.');
+        }
+    }
 
     // Backfill request_code for existing resource_requests
     const backfillClient = await db.connect();

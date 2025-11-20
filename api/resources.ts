@@ -1,3 +1,4 @@
+
 /**
  * @file api/resources.ts
  * @description Endpoint API consolidato per la gestione delle operazioni CRUD su varie entità (Risorse, Clienti, Ruoli, etc.).
@@ -25,7 +26,7 @@ const toCamelCase = (obj: any): any => {
 
 const EXPORT_TABLE_WHITELIST = [
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
-    'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
+    'clients', 'roles', 'role_cost_history', 'resources', 'contracts', 'projects', 'resource_requests',
     'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations',
     'skills', 'resource_skills', 'project_skills'
 ];
@@ -40,6 +41,7 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS app_config ( key VARCHAR(255) PRIMARY KEY, value VARCHAR(255) NOT NULL );`,
     `CREATE TABLE IF NOT EXISTS clients ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, sector VARCHAR(255), contact_email VARCHAR(255) );`,
     `CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2) );`,
+    `CREATE TABLE IF NOT EXISTS role_cost_history ( id UUID PRIMARY KEY, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, daily_cost NUMERIC(10, 2) NOT NULL, start_date DATE NOT NULL, end_date DATE );`,
     `CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100 NOT NULL, location VARCHAR(255), resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE );`,
     `CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL, cig_derivato VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0, UNIQUE(name), UNIQUE(cig) );`,
     `CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`,
@@ -297,38 +299,98 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- GESTORE ENTITÀ: RUOLI ---
         case 'roles':
-            switch (method) {
-                case 'POST':
-                    try {
+            const roleClient = await db.connect();
+            try {
+                switch (method) {
+                    case 'POST':
+                        await roleClient.query('BEGIN');
                         const { name, seniorityLevel, dailyCost, standardCost } = req.body;
                         const dailyExpenses = (Number(dailyCost) || 0) * 0.035;
                         const newId = uuidv4();
-                        await db.sql`INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) VALUES (${newId}, ${name}, ${seniorityLevel}, ${dailyCost}, ${standardCost}, ${dailyExpenses});`;
+                        
+                        // Insert Role
+                        await roleClient.query(
+                            `INSERT INTO roles (id, name, seniority_level, daily_cost, standard_cost, daily_expenses) 
+                             VALUES ($1, $2, $3, $4, $5, $6);`,
+                            [newId, name, seniorityLevel, dailyCost, standardCost, dailyExpenses]
+                        );
+
+                        // Start Cost History
+                        const historyId = uuidv4();
+                        const today = new Date().toISOString().split('T')[0];
+                        await roleClient.query(
+                            `INSERT INTO role_cost_history (id, role_id, daily_cost, start_date) 
+                             VALUES ($1, $2, $3, $4);`,
+                             [historyId, newId, dailyCost, today]
+                        );
+
+                        await roleClient.query('COMMIT');
                         return res.status(201).json({ id: newId, ...req.body, dailyExpenses });
-                    } catch (error) {
-                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` }); }
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'PUT':
-                    try {
-                        const { name, seniorityLevel, dailyCost, standardCost } = req.body;
-                        const dailyExpenses = (Number(dailyCost) || 0) * 0.035;
-                        await db.sql`UPDATE roles SET name = ${name}, seniority_level = ${seniorityLevel}, daily_cost = ${dailyCost}, standard_cost = ${standardCost}, daily_expenses = ${dailyExpenses} WHERE id = ${id as string};`;
-                        return res.status(200).json({ id, ...req.body, dailyExpenses });
-                    } catch (error) {
-                        if ((error as any).code === '23505') { return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` }); }
-                        return res.status(500).json({ error: (error as Error).message });
-                    }
-                case 'DELETE':
-                    try {
-                        const { rows } = await db.sql`SELECT COUNT(*) FROM resources WHERE role_id = ${id as string};`;
+
+                    case 'PUT':
+                        await roleClient.query('BEGIN');
+                        const roleId = id as string;
+                        const { name: uName, seniorityLevel: uSeniority, dailyCost: uCost, standardCost: uStandard } = req.body;
+                        const uExpenses = (Number(uCost) || 0) * 0.035;
+
+                        // Get old cost
+                        const currentRoleRes = await roleClient.query('SELECT daily_cost FROM roles WHERE id = $1', [roleId]);
+                        const oldCost = currentRoleRes.rows[0]?.daily_cost;
+                        const newCost = Number(uCost);
+
+                        // Update Role Table
+                        await roleClient.query(
+                            `UPDATE roles SET name = $1, seniority_level = $2, daily_cost = $3, standard_cost = $4, daily_expenses = $5 
+                             WHERE id = $6;`,
+                            [uName, uSeniority, uCost, uStandard, uExpenses, roleId]
+                        );
+
+                        // Manage History if cost changed
+                        if (oldCost != newCost) {
+                            const now = new Date();
+                            const todayDate = now.toISOString().split('T')[0];
+                            const yesterday = new Date(now);
+                            yesterday.setDate(yesterday.getDate() - 1);
+                            const yesterdayDate = yesterday.toISOString().split('T')[0];
+
+                            // Close current open record (set end date to yesterday)
+                            await roleClient.query(
+                                `UPDATE role_cost_history SET end_date = $1 WHERE role_id = $2 AND end_date IS NULL;`,
+                                [yesterdayDate, roleId]
+                            );
+
+                            // Insert new record starting today
+                            const newHistoryId = uuidv4();
+                            await roleClient.query(
+                                `INSERT INTO role_cost_history (id, role_id, daily_cost, start_date) 
+                                 VALUES ($1, $2, $3, $4);`,
+                                [newHistoryId, roleId, newCost, todayDate]
+                            );
+                        }
+
+                        await roleClient.query('COMMIT');
+                        return res.status(200).json({ id, ...req.body, dailyExpenses: uExpenses });
+
+                    case 'DELETE':
+                        const { rows } = await roleClient.query(`SELECT COUNT(*) FROM resources WHERE role_id = $1;`, [id]);
                         if (rows[0].count > 0) { return res.status(409).json({ error: `Impossibile eliminare il ruolo. È ancora assegnato a ${rows[0].count} risorsa/e.` });}
-                        await db.sql`DELETE FROM roles WHERE id = ${id as string};`;
+                        
+                        await roleClient.query('BEGIN');
+                        // History is deleted via CASCADE constraint in schema
+                        await roleClient.query(`DELETE FROM roles WHERE id = $1;`, [id]);
+                        await roleClient.query('COMMIT');
                         return res.status(204).end();
-                    } catch (error) { return res.status(500).json({ error: (error as Error).message });}
-                default:
-                    res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
-                    return res.status(405).end(`Method ${method} Not Allowed`);
+                        
+                    default:
+                        res.setHeader('Allow', ['POST', 'PUT', 'DELETE']);
+                        return res.status(405).end(`Method ${method} Not Allowed`);
+                }
+            } catch (error) {
+                await roleClient.query('ROLLBACK');
+                if ((error as any).code === '23505') { return res.status(409).json({ error: `Un ruolo con nome '${req.body.name}' esiste già.` }); }
+                return res.status(500).json({ error: (error as Error).message });
+            } finally {
+                roleClient.release();
             }
 
         // --- GESTORE ENTITÀ: PROGETTI ---
@@ -836,7 +898,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 'clients', 'roles', 'resources', 'projects', 'assignments', 'allocations',
                 'company_calendar', 'wbs_tasks', 'resource_requests', 'interviews', 'horizontals',
                 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
-                'contracts', 'contract_projects', 'contract_managers', 'skills', 'resource_skills', 'project_skills'
+                'contracts', 'contract_projects', 'contract_managers', 'skills', 'resource_skills', 'project_skills', 'role_cost_history'
             ];
             
             if (typeof table === 'string' && !TABLE_WHITELIST.includes(table)) {

@@ -1,3 +1,4 @@
+
 /**
  * @file AppContext.tsx
  * @description Provider di contesto React per la gestione centralizzata dello stato.
@@ -7,9 +8,10 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill, PageVisibility } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill, PageVisibility, RoleCostHistory } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
+import { getRoleCostForDate } from '../utils/costUtils';
 
 // --- Definizione Tipi Contesti ---
 
@@ -24,6 +26,7 @@ type ConfigLists = {
 export interface EntitiesContextType {
     clients: Client[];
     roles: Role[];
+    roleCostHistory: RoleCostHistory[];
     resources: Resource[];
     projects: Project[];
     contracts: Contract[];
@@ -88,6 +91,7 @@ export interface EntitiesContextType {
     deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
     updatePageVisibility: (path: string, restricted: boolean) => Promise<void>;
     getResourceComputedSkills: (resourceId: string) => ComputedSkill[];
+    getRoleCost: (roleId: string, date: Date | string) => number;
     fetchData: () => Promise<void>;
 }
 
@@ -126,6 +130,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [actionLoading, setActionLoading] = useState<Set<string>>(new Set());
     const [clients, setClients] = useState<Client[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
+    const [roleCostHistory, setRoleCostHistory] = useState<RoleCostHistory[]>([]);
     const [resources, setResources] = useState<Resource[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
@@ -155,6 +160,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const data = await apiFetch('/api/data');
             setClients(data.clients);
             setRoles(data.roles);
+            setRoleCostHistory(data.roleCostHistory || []);
             setResources(data.resources);
             setProjects(data.projects);
             setAssignments(data.assignments);
@@ -239,6 +245,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const newRole = await apiFetch('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) });
             setRoles(prev => [...prev, newRole]);
+            // Refresh history since POST now creates a history record
+            await fetchData(); 
             addToast(`Ruolo '${newRole.name}' aggiunto.`, 'success');
         } catch (error) {
             addToast(`Errore aggiunta ruolo: ${(error as Error).message}`, 'error');
@@ -246,13 +254,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally {
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
-    }, [addToast]);
+    }, [addToast, fetchData]);
     const updateRole = useCallback(async (role: Role) => {
         const actionKey = `updateRole-${role.id}`;
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
             const updatedRole = await apiFetch(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) });
             setRoles(prev => prev.map(r => r.id === updatedRole.id ? updatedRole : r));
+             // Refresh history since PUT might update history
+            await fetchData();
             addToast(`Ruolo '${updatedRole.name}' aggiornato.`, 'success');
         } catch (error) {
             addToast(`Errore modifica ruolo: ${(error as Error).message}`, 'error');
@@ -260,7 +270,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally {
             setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
-    }, [addToast]);
+    }, [addToast, fetchData]);
     const deleteRole = useCallback(async (roleId: string) => {
         const roleName = roles.find(r => r.id === roleId)?.name || 'sconosciuto';
         const actionKey = `deleteRole-${roleId}`;
@@ -268,6 +278,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             await apiFetch(`/api/resources?entity=roles&id=${roleId}`, { method: 'DELETE' });
             setRoles(prev => prev.filter(r => r.id !== roleId));
+            // Also filter out history
+            setRoleCostHistory(prev => prev.filter(h => h.roleId !== roleId));
             addToast(`Ruolo '${roleName}' eliminato.`, 'success');
         } catch (error) {
             addToast(`Errore eliminazione ruolo: ${(error as Error).message}`, 'error');
@@ -833,7 +845,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addToast(`Errore associazione competenza: ${(error as Error).message}`, 'error');
             throw error;
         } finally {
-            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+            setActionLoading(prev => { const newSet = new Set(prev).add(actionKey); return newSet; });
         }
     }, [addToast]);
 
@@ -949,6 +961,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         });
 
     }, [resourceSkills, assignments, projectSkills, allocations, skills]);
+
+    // --- Helper for Role Cost ---
+    const getRoleCost = useCallback((roleId: string, date: Date | string) => {
+        return getRoleCostForDate(roleId, date, roleCostHistory, roles);
+    }, [roleCostHistory, roles]);
     
     // --- Allocations-specific functions ---
 
@@ -1021,7 +1038,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading,
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -1038,8 +1055,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addProjectSkill, deleteProjectSkill,
         updatePageVisibility,
         getResourceComputedSkills,
+        getRoleCost,
         fetchData
-    }), [clients, roles, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updatePageVisibility, getResourceComputedSkills, fetchData]);
+    }), [clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updatePageVisibility, getResourceComputedSkills, getRoleCost, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

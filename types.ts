@@ -1,3 +1,4 @@
+
 /**
  * @file types.ts
  * @description Definizioni dei tipi e delle interfacce TypeScript utilizzate in tutta l'applicazione.
@@ -46,6 +47,23 @@ export interface Role {
     standardCost?: number;
     /** @property {number} [dailyExpenses] - Le spese giornaliere accessorie, calcolate in base al costo giornaliero. */
     dailyExpenses?: number;
+}
+
+/**
+ * @interface RoleCostHistory
+ * @description Rappresenta la storia del costo giornaliero di un ruolo nel tempo.
+ */
+export interface RoleCostHistory {
+    /** @property {string} id - ID univoco del record storico. */
+    id: string;
+    /** @property {string} roleId - ID del ruolo associato. */
+    roleId: string;
+    /** @property {number} dailyCost - Il costo in vigore in quel periodo. */
+    dailyCost: number;
+    /** @property {string} startDate - Data di inizio validità (YYYY-MM-DD). */
+    startDate: string;
+    /** @property {string | null} endDate - Data di fine validità (YYYY-MM-DD) o null se è il record corrente. */
+    endDate: string | null;
 }
 
 /**
