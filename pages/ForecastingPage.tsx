@@ -1,3 +1,4 @@
+
 /**
  * @file ForecastingPage.tsx
  * @description Pagina di forecasting e capacity planning per analizzare il carico di lavoro futuro con proiezioni intelligenti.
@@ -50,6 +51,7 @@ const ForecastingPage: React.FC = () => {
     };
 
     // 1. Pre-calcolo della media storica per ogni assegnazione
+    // OPTIMIZATION: Memoized to run only when assignments/allocations change
     const historicalAverages = useMemo(() => {
         const averages: Record<string, number> = {}; // assignmentId -> avgPercentage (0-100)
         const today = new Date();
@@ -77,8 +79,6 @@ const ForecastingPage: React.FC = () => {
             if (countDays > 0) {
                 averages[assignment.id!] = totalPercentage / countDays;
             } else {
-                // Se non c'è storico (es. assegnazione futura), potremmo usare un default
-                // Per ora lasciamo 0, l'algoritmo proietterà solo se c'è una "velocità" storica consolidata
                 averages[assignment.id!] = 0; 
             }
         });
@@ -86,14 +86,14 @@ const ForecastingPage: React.FC = () => {
         return averages;
     }, [assignments, allocations]);
 
+    // OPTIMIZATION: Heavy Calculation Area
     const forecastData = useMemo(() => {
         const results = [];
         const today = new Date();
-        // Normalizziamo "oggi" all'inizio della giornata per confronti corretti
         today.setHours(0,0,0,0);
 
+        // Pre-filter resources and assignments to reduce inner loop iterations
         let filteredResources = resources.filter(r => !r.resigned);
-
         if (filters.horizontal) {
             filteredResources = filteredResources.filter(r => r.horizontal === filters.horizontal);
         }
@@ -116,6 +116,14 @@ const ForecastingPage: React.FC = () => {
         // Mappa rapida progetti per accesso veloce alle date
         const projectMap = new Map(projects.map(p => [p.id, p]));
 
+        // Create efficient lookup for assignments by resource
+        const assignmentsByResource = new Map<string, any[]>();
+        assignmentsToConsider.forEach(a => {
+             if (!assignmentsByResource.has(a.resourceId)) assignmentsByResource.set(a.resourceId, []);
+             assignmentsByResource.get(a.resourceId)?.push(a);
+        });
+
+
         for (let i = 0; i < forecastHorizon; i++) {
             const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
             const monthName = date.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
@@ -137,12 +145,10 @@ const ForecastingPage: React.FC = () => {
 
             // 2. Calcolo Allocazioni (Reali + Proiettate)
             let allocatedPersonDays = 0;
-            let projectedPersonDays = 0; // Solo per tracciamento interno
-
-            const relevantAssignmentIds = new Set(assignmentsToConsider.map(a => a.id));
+            let projectedPersonDays = 0;
 
             filteredResources.forEach(resource => {
-                const resourceAssignments = assignments.filter(a => a.resourceId === resource.id && relevantAssignmentIds.has(a.id!));
+                const resourceAssignments = assignmentsByResource.get(resource.id!) || [];
                 
                 resourceAssignments.forEach(assignment => {
                     const project = projectMap.get(assignment.projectId);
@@ -152,25 +158,19 @@ const ForecastingPage: React.FC = () => {
                     const projStart = project.startDate ? new Date(project.startDate) : null;
                     const projEnd = project.endDate ? new Date(project.endDate) : null;
 
-                    // Se il progetto finisce prima di questo mese o inizia dopo, saltalo
                     if (projEnd && projEnd < firstDayOfMonth) return;
                     if (projStart && projStart > lastDayOfMonth) return;
 
-                    // Determina l'intervallo effettivo di attività del progetto in questo mese
                     const activeStart = projStart && projStart > firstDayOfMonth ? projStart : firstDayOfMonth;
                     const activeEnd = projEnd && projEnd < lastDayOfMonth ? projEnd : lastDayOfMonth;
 
-                    // Se la risorsa termina di lavorare, tronca l'allocazione
                     const resourceEnd = resource.lastDayOfWork ? new Date(resource.lastDayOfWork) : null;
                     const effectiveEnd = resourceEnd && resourceEnd < activeEnd ? resourceEnd : activeEnd;
                     
                     if (activeStart > effectiveEnd) return;
 
-                    // --- Calcolo Allocazione ---
-                    
                     const assignmentAllocations = allocations[assignment.id!];
                     let hasHardBookingInMonth = false;
-                    let hardBookingDays = 0;
 
                     // Controlliamo se esistono allocazioni "hard" (inserite manualmente) nel DB per questo mese
                     if (assignmentAllocations) {
@@ -179,7 +179,6 @@ const ForecastingPage: React.FC = () => {
                             if (allocDate >= firstDayOfMonth && allocDate <= lastDayOfMonth) {
                                 if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                     allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
-                                    hardBookingDays++;
                                     hasHardBookingInMonth = true;
                                 }
                             }
@@ -187,17 +186,13 @@ const ForecastingPage: React.FC = () => {
                     }
 
                     // --- ALGORITMO PREDITTIVO ---
-                    // Se abilitato, il mese è futuro, e NON ci sono allocazioni manuali ("Hard Booking")
-                    // allora usiamo la media storica proiettata.
                     const isFutureMonth = firstDayOfMonth > today;
                     
                     if (enableProjections && isFutureMonth && !hasHardBookingInMonth) {
                         const avgPercent = historicalAverages[assignment.id!] || 0;
                         
                         if (avgPercent > 0) {
-                            // Calcola giorni lavorativi nell'intervallo attivo del progetto/risorsa
                             const potentialWorkingDays = getWorkingDaysBetween(activeStart, effectiveEnd, companyCalendar, resource.location);
-                            
                             const projectedLoad = potentialWorkingDays * (avgPercent / 100);
                             allocatedPersonDays += projectedLoad;
                             projectedPersonDays += projectedLoad;

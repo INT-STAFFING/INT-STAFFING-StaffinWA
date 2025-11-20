@@ -152,33 +152,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await apiFetch('/api/data');
-            setClients(data.clients);
-            setRoles(data.roles);
-            setRoleCostHistory(data.roleCostHistory || []);
-            setResources(data.resources);
-            setProjects(data.projects);
-            setAssignments(data.assignments);
-            setAllocations(data.allocations);
-            setHorizontals(data.horizontals);
-            setSeniorityLevels(data.seniorityLevels);
-            setProjectStatuses(data.projectStatuses);
-            setClientSectors(data.clientSectors);
-            setLocations(data.locations);
-            setCompanyCalendar(data.companyCalendar);
-            setWbsTasks(data.wbsTasks || []);
-            setResourceRequests(data.resourceRequests || []);
-            setInterviews(data.interviews || []);
-            setContracts(data.contracts || []);
-            setContractProjects(data.contractProjects || []);
-            setContractManagers(data.contractManagers || []);
-            setSkills(data.skills || []);
-            setResourceSkills(data.resourceSkills || []);
-            setProjectSkills(data.projectSkills || []);
-            setPageVisibility(data.pageVisibility || {});
-            if (data.skillThresholds && Object.keys(data.skillThresholds).length > 0) {
-                setSkillThresholds(prev => ({ ...prev, ...data.skillThresholds }));
+            // Phase 1: Metadata (Fast Load)
+            const metaData = await apiFetch('/api/data?scope=metadata');
+            setClients(metaData.clients);
+            setRoles(metaData.roles);
+            setRoleCostHistory(metaData.roleCostHistory || []);
+            setResources(metaData.resources);
+            setProjects(metaData.projects);
+            setHorizontals(metaData.horizontals);
+            setSeniorityLevels(metaData.seniorityLevels);
+            setProjectStatuses(metaData.projectStatuses);
+            setClientSectors(metaData.clientSectors);
+            setLocations(metaData.locations);
+            setCompanyCalendar(metaData.companyCalendar);
+            setSkills(metaData.skills || []);
+            setResourceSkills(metaData.resourceSkills || []);
+            setPageVisibility(metaData.pageVisibility || {});
+            if (metaData.skillThresholds && Object.keys(metaData.skillThresholds).length > 0) {
+                setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             }
+            
+            // Initial render can happen here if we structured the app to allow partial data,
+            // but for now we keep loading true until core planning data is also here.
+
+            // Phase 2: Planning Data (Slower)
+            // Calculate date range for initial load (Current Year +/- 6 months to be safe for initial view)
+            const today = new Date();
+            const start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0]; // Start of Year
+            const end = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]; // End of Year
+            
+            const planningData = await apiFetch(`/api/data?scope=planning&start=${start}&end=${end}`);
+            
+            setAssignments(planningData.assignments);
+            setAllocations(planningData.allocations); // Optimized map from backend
+            setWbsTasks(planningData.wbsTasks || []);
+            setResourceRequests(planningData.resourceRequests || []);
+            setInterviews(planningData.interviews || []);
+            setContracts(planningData.contracts || []);
+            setContractProjects(planningData.contractProjects || []);
+            setContractManagers(planningData.contractManagers || []);
+            setProjectSkills(planningData.projectSkills || []);
+
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -191,12 +205,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchData();
     }, [fetchData]);
 
-    // --- CRUD Operations with Local State Updates ---
-    // ... (existing CRUD operations) ...
+    // ... [CRUD Operations remain mostly the same, assuming endpoints handle specific entities] ...
+    // Insert all CRUD methods here as per original file
     
-    // [Existing CRUD implementations omitted for brevity, they remain unchanged]
-    
-    // Add these missing CRUD implementations back in context of the file content:
     const addClient = useCallback(async (client: Omit<Client, 'id'>) => {
         const actionKey = 'addClient';
         setActionLoading(prev => new Set(prev).add(actionKey));
@@ -847,7 +858,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addToast(`Errore associazione competenza: ${(error as Error).message}`, 'error');
             throw error;
         } finally {
-            setActionLoading(prev => { const newSet = new Set(prev).add(actionKey); return newSet; });
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
         }
     }, [addToast]);
 

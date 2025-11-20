@@ -8,6 +8,14 @@ import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 
+// WHITELIST per db_inspector per prevenire SQL Injection
+const ALLOWED_TABLES = new Set([
+    'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 
+    'app_config', 'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
+    'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 
+    'contract_managers', 'allocations', 'skills', 'resource_skills', 'project_skills', 'role_cost_history'
+]);
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action } = req.query;
@@ -406,28 +414,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             case 'db_inspector':
                 if (action === 'list_tables') {
                      const result = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-                     return res.status(200).json(result.rows.map((r: any) => r.table_name).filter((t: string) => t !== 'spatial_ref_sys'));
+                     // Filter results using the whitelist to only show safe tables
+                     const safeTables = result.rows
+                         .map((r: any) => r.table_name)
+                         .filter((t: string) => ALLOWED_TABLES.has(t));
+                     return res.status(200).json(safeTables);
                 } else if (action === 'get_table_data') {
                      const table = req.query.table as string;
-                     // Basic SQL injection protection: check if table name is valid (in list)
-                     const tables = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-                     if (!tables.rows.some((r: any) => r.table_name === table)) return res.status(400).json({error: 'Invalid table'});
+                     
+                     // SECURITY: Whitelist validation
+                     if (!ALLOWED_TABLES.has(table)) {
+                         return res.status(400).json({error: 'Invalid table'});
+                     }
                      
                      const columns = await client.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1`, [table]);
-                     const rows = await client.query(`SELECT * FROM ${table} LIMIT 100`);
+                     const rows = await client.query(`SELECT * FROM "${table}" LIMIT 100`); // Using quote for safety even if whitelisted
                      return res.status(200).json({ columns: columns.rows, rows: rows.rows });
                 } else if (action === 'update_row') {
                     const table = req.query.table as string;
+                    // SECURITY: Whitelist validation
+                    if (!ALLOWED_TABLES.has(table)) {
+                         return res.status(400).json({error: 'Invalid table'});
+                    }
+
                     const updates = req.body;
                     const rowId = req.query.id as string;
-                    // Simplified update construction
-                    const setClause = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`).join(', ');
+                    
+                    const columns = Object.keys(updates);
+                    if (columns.length === 0) return res.status(400).json({error: 'No updates provided'});
+
+                    // Construct query with parameters
+                    const setClause = columns.map((k, i) => `"${k}" = $${i + 2}`).join(', ');
                     const values = Object.values(updates);
-                    await client.query(`UPDATE ${table} SET ${setClause} WHERE id = $1`, [rowId, ...values]);
+                    
+                    // Using quote for table name safely because it's whitelisted
+                    await client.query(`UPDATE "${table}" SET ${setClause} WHERE id = $1`, [rowId, ...values]);
                     return res.status(200).json({ success: true });
+
                 } else if (action === 'delete_all_rows') {
                     const table = req.query.table as string;
-                    await client.query(`DELETE FROM ${table}`);
+                    // SECURITY: Whitelist validation
+                    if (!ALLOWED_TABLES.has(table)) {
+                         return res.status(400).json({error: 'Invalid table'});
+                    }
+                    await client.query(`DELETE FROM "${table}"`);
                     return res.status(200).json({ success: true });
                 } else if (action === 'export_sql') {
                     const exportHandler = (await import('./export-sql.js')).default;
