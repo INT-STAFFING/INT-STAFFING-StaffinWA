@@ -433,6 +433,7 @@ const PageVisibilityEditor: React.FC = () => {
         { path: '/config', label: 'Configurazioni' },
         { path: '/export', label: 'Esporta Dati' },
         { path: '/import', label: 'Importa Dati' },
+        { path: '/test-staffing', label: 'Test Staffing (Mobile)' },
     ];
 
     const handleToggle = (path: string, currentRestricted: boolean) => {

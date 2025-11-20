@@ -38,6 +38,7 @@ const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
 const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
 const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
+const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -78,6 +79,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'manuale-utente': return 'Manuale Utente';
       case 'skills-map': return 'Mappa Competenze';
       case 'skill-analysis': return 'Analisi Competenze';
+      case 'test-staffing': return 'Test Staffing Mobile';
       default: return 'Staffing Planner';
     }
   };
@@ -201,6 +203,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/skill-analysis" element={<DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>} />
               <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
               <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
+              <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
               <Route
                 path="/admin-settings"
                 element={
