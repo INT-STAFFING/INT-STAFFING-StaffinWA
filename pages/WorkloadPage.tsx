@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource } from '../types';
+import { Resource, Assignment } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -51,7 +51,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
   const total = useMemo(() => {
     const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     return resourceAssignments.reduce((sum, a) => {
-      return sum + (allocations[a.id]?.[date] || 0);
+      return sum + (allocations[a.id!]?.[date] || 0);
     }, 0);
   }, [assignments, allocations, resource.id, date]);
 
@@ -110,7 +110,7 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     let totalPersonDays = 0;
 
     resourceAssignments.forEach((assignment) => {
-      const assignmentAllocations = allocations[assignment.id];
+      const assignmentAllocations = allocations[assignment.id!];
       if (assignmentAllocations) {
         let currentDate = new Date(startDate);
         while (currentDate <= effectiveEndDate) {
@@ -154,6 +154,111 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
   );
 };
 
+// --- Mobile Component (Read Only) ---
+
+const MobileWorkloadCard: React.FC<{
+    resource: Resource;
+    roleName: string;
+    timeColumns: any[];
+    assignments: Assignment[];
+    allocations: any;
+    projects: any[];
+    clients: any[];
+}> = React.memo(({ resource, roleName, timeColumns, assignments, allocations, projects, clients }) => {
+    
+    let totalLoadSum = 0;
+    let workingDaysCount = 0;
+
+    // Calculate aggregates for current period
+    const assignmentDetails = assignments.map(assignment => {
+        const project = projects.find(p => p.id === assignment.projectId);
+        const client = clients.find(c => c.id === project?.clientId);
+        
+        let assignmentLoadSum = 0;
+        let validDays = 0;
+
+        timeColumns.forEach(col => {
+             if (!col.isNonWorkingDay && col.dateIso) {
+                 assignmentLoadSum += allocations[assignment.id!]?.[col.dateIso] || 0;
+                 validDays++;
+             }
+        });
+        const avgLoad = validDays > 0 ? assignmentLoadSum / validDays : 0;
+        
+        return {
+            projectName: project?.name || 'Unknown',
+            clientName: client?.name || 'Unknown',
+            avgLoad
+        };
+    });
+
+    // Total Load calculation
+    timeColumns.forEach(col => {
+        if (!col.isNonWorkingDay && col.dateIso) {
+            workingDaysCount++;
+            assignments.forEach(a => {
+                totalLoadSum += allocations[a.id!]?.[col.dateIso] || 0;
+            });
+        }
+    });
+    const totalAvgLoad = workingDaysCount > 0 ? totalLoadSum / workingDaysCount : 0;
+
+    const getLoadColor = (load: number) => {
+        const max = resource.maxStaffingPercentage;
+        if (load > max) return 'bg-error text-on-error';
+        if (load === max) return 'bg-tertiary text-on-tertiary';
+        if (load > 0) return 'bg-yellow-container text-on-yellow-container';
+        return 'bg-surface-variant text-on-surface-variant';
+    };
+    
+    const getBarColor = (load: number) => {
+        const max = resource.maxStaffingPercentage;
+        if (load > max) return 'bg-error';
+        if (load >= max * 0.9) return 'bg-tertiary'; 
+        return 'bg-primary';
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-primary flex flex-col gap-3">
+            <div className="flex justify-between items-start">
+                <div>
+                    <h3 className="font-bold text-lg text-on-surface">{resource.name}</h3>
+                    <p className="text-sm text-on-surface-variant">{roleName}</p>
+                </div>
+                <div className={`px-2 py-1 rounded text-xs font-bold ${getLoadColor(totalAvgLoad)}`}>
+                    {totalAvgLoad.toFixed(0)}% Avg
+                </div>
+            </div>
+
+            <div className="w-full bg-surface-container-highest rounded-full h-2.5">
+                <div 
+                    className={`h-2.5 rounded-full ${getBarColor(totalAvgLoad)}`} 
+                    style={{ width: `${Math.min(totalAvgLoad, 100)}%` }}
+                ></div>
+            </div>
+
+            <div className="space-y-2 mt-1">
+                {assignmentDetails.length > 0 ? (
+                    assignmentDetails.map((d, i) => (
+                        <div key={i} className="flex justify-between items-center p-3 bg-surface-container-low rounded-lg border border-transparent">
+                            <div className="flex flex-col truncate pr-2">
+                                <span className="font-medium text-sm text-on-surface truncate">{d.projectName}</span>
+                                <span className="text-xs text-on-surface-variant truncate">{d.clientName}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-sm font-semibold text-primary">{d.avgLoad.toFixed(0)}%</span>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-sm text-on-surface-variant italic text-center py-2">Nessuna assegnazione nel periodo.</p>
+                )}
+            </div>
+        </div>
+    );
+});
+
+
 /**
  * Componente principale della pagina Carico Risorse.
  * Gestisce la navigazione temporale, i filtri e il rendering della griglia di carico.
@@ -161,7 +266,22 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
 const WorkloadPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+      const handleResize = () => setIsMobile(window.innerWidth < 768);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+      if (isMobile && viewMode === 'day') {
+          setViewMode('week');
+      }
+  }, [isMobile]);
+
   const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
+  const { allocations } = useAllocationsContext();
 
   const [filters, setFilters] = useState({
     resourceId: '',
@@ -187,8 +307,40 @@ const WorkloadPage: React.FC = () => {
       startDate: Date;
       endDate: Date;
       isNonWorkingHeader?: boolean;
+      dateIso?: string; // Added for mobile calculation
     }[] = [];
     let d = new Date(currentDate);
+
+    if (isMobile) {
+         let daysToGenerate = 1;
+         if (viewMode === 'week') {
+              d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+              daysToGenerate = 7;
+         } else if (viewMode === 'month') {
+              d.setDate(1);
+              daysToGenerate = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+         } else {
+             daysToGenerate = 7;
+         }
+
+         for (let i = 0; i < daysToGenerate; i++) {
+             const day = new Date(d);
+             day.setDate(d.getDate() + i);
+             const dayOfWeek = day.getDay();
+             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+             const dateIso = formatDate(day, 'iso');
+             const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
+             cols.push({ 
+                 label: formatDate(day, 'day'), 
+                 subLabel: '', 
+                 startDate: day, 
+                 endDate: day, 
+                 isNonWorkingHeader: isWeekend || !!holiday, 
+                 dateIso 
+             });
+         }
+         return cols;
+    }
 
     if (viewMode === 'day') {
       return getCalendarDays(d, 28).map((day) => {
@@ -234,27 +386,27 @@ const WorkloadPage: React.FC = () => {
       }
     }
     return cols;
-  }, [currentDate, viewMode, companyCalendar]);
+  }, [currentDate, viewMode, companyCalendar, isMobile]);
 
   const handlePrev = useCallback(() => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7 * 8);
-      else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 6);
+      if (viewMode === 'week') isMobile ? newDate.setDate(newDate.getDate() - 7) : newDate.setDate(newDate.getDate() - 7 * 8);
+      else if (viewMode === 'month') isMobile ? newDate.setMonth(newDate.getMonth() - 1) : newDate.setMonth(newDate.getMonth() - 6);
       else newDate.setDate(newDate.getDate() - 35);
       return newDate;
     });
-  }, [viewMode]);
+  }, [viewMode, isMobile]);
 
   const handleNext = useCallback(() => {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
-      if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7 * 8);
-      else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 6);
+      if (viewMode === 'week') isMobile ? newDate.setDate(newDate.getDate() + 7) : newDate.setDate(newDate.getDate() + 7 * 8);
+      else if (viewMode === 'month') isMobile ? newDate.setMonth(newDate.getMonth() + 1) : newDate.setMonth(newDate.getMonth() + 6);
       else newDate.setDate(newDate.getDate() + 35);
       return newDate;
     });
-  }, [viewMode]);
+  }, [viewMode, isMobile]);
 
   const handleToday = () => setCurrentDate(new Date());
 
@@ -323,7 +475,7 @@ const WorkloadPage: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col w-full max-w-full">
+    <div className="flex flex-col w-full max-w-full h-full">
       {/* Barra controlli + info */}
       <div className="flex-shrink-0">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
@@ -346,6 +498,7 @@ const WorkloadPage: React.FC = () => {
             >
               Succ. →
             </button>
+             {isMobile && <span className="ml-2 text-sm font-semibold text-on-surface">{viewMode === 'week' ? 'Settimana Corrente' : 'Mese'}</span>}
           </div>
           <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
             {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
@@ -362,13 +515,15 @@ const WorkloadPage: React.FC = () => {
               </button>
             ))}
           </div>
-          <div className="text-sm text-on-surface-variant text-right">
-            Vista di sola lettura.{' '}
-            <a href="/staffing" className="text-primary hover:underline">
-              Vai a Staffing per modifiche
-            </a>
-            .
-          </div>
+          {!isMobile && (
+             <div className="text-sm text-on-surface-variant text-right">
+                Vista di sola lettura.{' '}
+                <a href="/staffing" className="text-primary hover:underline">
+                  Vai a Staffing per modifiche
+                </a>
+                .
+             </div>
+          )}
         </div>
 
         {/* Sezione Filtri */}
@@ -386,42 +541,46 @@ const WorkloadPage: React.FC = () => {
                 placeholder="Tutte le Risorse"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface-variant">
-                Ruolo
-              </label>
-              <MultiSelectDropdown
-                name="roleIds"
-                selectedValues={filters.roleIds}
-                onChange={handleMultiSelectFilterChange}
-                options={roleOptions}
-                placeholder="Tutti i Ruoli"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface-variant">
-                Progetto
-              </label>
-              <SearchableSelect
-                name="projectId"
-                value={filters.projectId}
-                onChange={handleFilterChange}
-                options={projectOptions}
-                placeholder="Tutti i Progetti"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-on-surface-variant">
-                Cliente
-              </label>
-              <SearchableSelect
-                name="clientId"
-                value={filters.clientId}
-                onChange={handleFilterChange}
-                options={clientOptions}
-                placeholder="Tutti i Clienti"
-              />
-            </div>
+            {!isMobile && (
+                <>
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant">
+                        Ruolo
+                      </label>
+                      <MultiSelectDropdown
+                        name="roleIds"
+                        selectedValues={filters.roleIds}
+                        onChange={handleMultiSelectFilterChange}
+                        options={roleOptions}
+                        placeholder="Tutti i Ruoli"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant">
+                        Progetto
+                      </label>
+                      <SearchableSelect
+                        name="projectId"
+                        value={filters.projectId}
+                        onChange={handleFilterChange}
+                        options={projectOptions}
+                        placeholder="Tutti i Progetti"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-on-surface-variant">
+                        Cliente
+                      </label>
+                      <SearchableSelect
+                        name="clientId"
+                        value={filters.clientId}
+                        onChange={handleFilterChange}
+                        options={clientOptions}
+                        placeholder="Tutti i Clienti"
+                      />
+                    </div>
+                </>
+            )}
             <button
               onClick={clearFilters}
               className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto"
@@ -432,8 +591,34 @@ const WorkloadPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Griglia Carico - con max height come Staffing */}
+      {/* Griglia Carico */}
       <div className="flex-grow overflow-auto bg-surface rounded-2xl shadow max-h-[660px]">
+        {isMobile ? (
+            <div className="space-y-4 p-4 pb-20">
+                {displayResources.map(resource => {
+                     const role = roles.find(r => r.id === resource.roleId);
+                     const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+                     
+                     return (
+                        <MobileWorkloadCard 
+                            key={resource.id} 
+                            resource={resource}
+                            roleName={role?.name || ''}
+                            timeColumns={timeColumns}
+                            assignments={resourceAssignments}
+                            allocations={allocations}
+                            projects={projects}
+                            clients={clients}
+                        />
+                     )
+                })}
+                 {displayResources.length === 0 && (
+                  <div className="text-center py-8 text-on-surface-variant">
+                    Nessuna risorsa trovata con i filtri correnti.
+                  </div>
+                )}
+            </div>
+        ) : (
         <table className="min-w-full divide-y divide-outline-variant">
           <thead className="bg-surface-container-low sticky top-0 z-20">
             <tr>
@@ -501,7 +686,8 @@ const WorkloadPage: React.FC = () => {
             ))}
           </tbody>
         </table>
-        {displayResources.length === 0 && (
+        )}
+        {!isMobile && displayResources.length === 0 && (
           <div className="text-center py-8 text-on-surface-variant">
             Nessuna risorsa trovata con i filtri correnti.
           </div>
