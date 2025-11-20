@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { Skill } from '../types';
+import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -52,12 +52,14 @@ const SkillsPage: React.FC = () => {
         selectedResourceIds: string[];
         acquisitionDate: string;
         expirationDate: string;
+        level: number;
     }>({
         targetSkill: null,
         selectedSkillIds: [],
         selectedResourceIds: [],
         acquisitionDate: '',
-        expirationDate: ''
+        expirationDate: '',
+        level: 1
     });
 
     // Filter State
@@ -182,14 +184,15 @@ const SkillsPage: React.FC = () => {
             selectedSkillIds: skill ? [skill.id!] : [],
             selectedResourceIds: [],
             acquisitionDate: '',
-            expirationDate: ''
+            expirationDate: '',
+            level: 1
         });
         setIsAssignmentModalOpen(true);
     };
 
     const handleAssignmentSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { selectedResourceIds, selectedSkillIds, acquisitionDate, expirationDate } = assignmentData;
+        const { selectedResourceIds, selectedSkillIds, acquisitionDate, expirationDate, level } = assignmentData;
 
         if (selectedResourceIds.length === 0 || selectedSkillIds.length === 0) {
             return;
@@ -203,7 +206,8 @@ const SkillsPage: React.FC = () => {
                         resourceId,
                         skillId,
                         acquisitionDate: acquisitionDate || null,
-                        expirationDate: expirationDate || null
+                        expirationDate: expirationDate || null,
+                        level
                     }));
                 }
             }
@@ -422,7 +426,7 @@ const SkillsPage: React.FC = () => {
             {/* Assignment Modal */}
             {isAssignmentModalOpen && (
                 <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)} title={assignmentData.targetSkill ? `Assegna ${assignmentData.targetSkill.name}` : 'Assegnazione Competenze Massiva'}>
-                    <form onSubmit={handleAssignmentSubmit} className="space-y-4 flex flex-col h-[60vh]">
+                    <form onSubmit={handleAssignmentSubmit} className="space-y-4 flex flex-col h-[70vh]">
                         <div className="flex-grow space-y-4 overflow-y-auto p-1">
                              {!assignmentData.targetSkill && (
                                 <div>
@@ -446,6 +450,19 @@ const SkillsPage: React.FC = () => {
                                     options={resourceOptions} 
                                     placeholder="Seleziona una o più risorse..."
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Livello Competenza</label>
+                                <select 
+                                    className="form-select"
+                                    value={assignmentData.level}
+                                    onChange={(e) => setAssignmentData(prev => ({ ...prev, level: parseInt(e.target.value, 10) }))}
+                                >
+                                    {Object.entries(SKILL_LEVELS).map(([val, label]) => (
+                                        <option key={val} value={val}>{label}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

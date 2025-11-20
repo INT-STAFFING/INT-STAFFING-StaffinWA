@@ -1,14 +1,6 @@
 
-/**
- * @file AppContext.tsx
- * @description Provider di contesto React per la gestione centralizzata dello stato.
- * Suddivide lo stato in due contesti per ottimizzare i re-render:
- * - EntitiesContext: Dati "statici" (clienti, progetti, etc.) e le loro funzioni CRUD.
- * - AllocationsContext: Dati delle allocazioni che cambiano frequentemente.
- */
-
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill, PageVisibility, RoleCostHistory } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, ComputedSkill, PageVisibility, RoleCostHistory, DEFAULT_SKILL_LEVEL_THRESHOLDS, SkillThresholds } from '../types';
 import { isHoliday } from '../utils/dateUtils';
 import { useToast } from './ToastContext';
 import { getRoleCostForDate } from '../utils/costUtils';
@@ -46,6 +38,7 @@ export interface EntitiesContextType {
     resourceSkills: ResourceSkill[];
     projectSkills: ProjectSkill[];
     pageVisibility: PageVisibility;
+    skillThresholds: SkillThresholds;
     loading: boolean;
     isActionLoading: (key: string) => boolean;
     addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -90,6 +83,7 @@ export interface EntitiesContextType {
     addProjectSkill: (projectSkill: ProjectSkill) => Promise<void>;
     deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
     updatePageVisibility: (path: string, restricted: boolean) => Promise<void>;
+    updateSkillThresholds: (thresholds: SkillThresholds) => Promise<void>;
     getResourceComputedSkills: (resourceId: string) => ComputedSkill[];
     getRoleCost: (roleId: string, date: Date | string) => number;
     fetchData: () => Promise<void>;
@@ -151,6 +145,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [resourceSkills, setResourceSkills] = useState<ResourceSkill[]>([]);
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
     const [pageVisibility, setPageVisibility] = useState<PageVisibility>({});
+    const [skillThresholds, setSkillThresholds] = useState<SkillThresholds>(DEFAULT_SKILL_LEVEL_THRESHOLDS);
 
     const isActionLoading = useCallback((key: string) => actionLoading.has(key), [actionLoading]);
 
@@ -181,6 +176,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setResourceSkills(data.resourceSkills || []);
             setProjectSkills(data.projectSkills || []);
             setPageVisibility(data.pageVisibility || {});
+            if (data.skillThresholds && Object.keys(data.skillThresholds).length > 0) {
+                setSkillThresholds(prev => ({ ...prev, ...data.skillThresholds }));
+            }
         } catch (error) {
             console.error("Failed to fetch data:", error);
             addToast(`Caricamento dati fallito: ${(error as Error).message}`, 'error');
@@ -194,7 +192,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [fetchData]);
 
     // --- CRUD Operations with Local State Updates ---
-
+    // ... (existing CRUD operations) ...
+    
+    // [Existing CRUD implementations omitted for brevity, they remain unchanged]
+    
+    // Add these missing CRUD implementations back in context of the file content:
     const addClient = useCallback(async (client: Omit<Client, 'id'>) => {
         const actionKey = 'addClient';
         setActionLoading(prev => new Set(prev).add(actionKey));
@@ -884,6 +886,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [addToast]);
 
+    // --- Skill Thresholds Management ---
+    const updateSkillThresholds = useCallback(async (thresholds: SkillThresholds) => {
+        const actionKey = 'updateSkillThresholds';
+        setActionLoading(prev => new Set(prev).add(actionKey));
+        try {
+            await apiFetch('/api/resources?entity=skill-thresholds', {
+                method: 'POST',
+                body: JSON.stringify({ thresholds })
+            });
+            setSkillThresholds(thresholds);
+            addToast('Soglie competenze aggiornate.', 'success');
+        } catch (error) {
+            addToast(`Errore aggiornamento soglie: ${(error as Error).message}`, 'error');
+            throw error;
+        } finally {
+            setActionLoading(prev => { const newSet = new Set(prev); newSet.delete(actionKey); return newSet; });
+        }
+    }, [addToast]);
 
     // --- Skill Matrix Algorithm ---
     const getResourceComputedSkills = useCallback((resourceId: string): ComputedSkill[] => {
@@ -901,7 +921,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const pSkills = projectSkills.filter(ps => ps.projectId === assignment.projectId);
             if (pSkills.length === 0) return;
 
-            // Calculate days worked on this assignment
+            // Calculate days worked on this assignment (FTE)
             let days = 0;
             const allocs = allocations[assignment.id!];
             if (allocs) {
@@ -926,9 +946,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         inferredMap.forEach((data, skillId) => {
             const skill = skills.find(s => s.id === skillId);
             if (skill) {
+                // Calculate Inferred Level using DYNAMIC THRESHOLDS
+                let inferredLevel = 1; // Default Novice
+                if (data.days >= skillThresholds.EXPERT) inferredLevel = 5;
+                else if (data.days >= skillThresholds.SENIOR) inferredLevel = 4;
+                else if (data.days >= skillThresholds.MIDDLE) inferredLevel = 3;
+                else if (data.days >= skillThresholds.JUNIOR) inferredLevel = 2;
+
                 mergedSkillsMap.set(skillId, {
                     skill,
                     inferredDays: data.days,
+                    inferredLevel,
                     projectCount: data.projectCount
                 });
             }
@@ -946,6 +974,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         skill,
                         manualDetails: ms,
                         inferredDays: 0,
+                        inferredLevel: 0,
                         projectCount: 0
                     });
                 }
@@ -960,7 +989,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
              return b.inferredDays - a.inferredDays;
         });
 
-    }, [resourceSkills, assignments, projectSkills, allocations, skills]);
+    }, [resourceSkills, assignments, projectSkills, allocations, skills, skillThresholds]);
 
     // --- Helper for Role Cost ---
     const getRoleCost = useCallback((roleId: string, date: Date | string) => {
@@ -1038,7 +1067,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Memoize context values to prevent unnecessary re-renders of consumers
     const entitiesContextValue = useMemo<EntitiesContextType>(() => ({
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading,
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, loading, isActionLoading,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
         addResource, updateResource, deleteResource,
@@ -1054,10 +1083,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addResourceSkill, deleteResourceSkill,
         addProjectSkill, deleteProjectSkill,
         updatePageVisibility,
+        updateSkillThresholds,
         getResourceComputedSkills,
         getRoleCost,
         fetchData
-    }), [clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updatePageVisibility, getResourceComputedSkills, getRoleCost, fetchData]);
+    }), [clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, loading, isActionLoading, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addContract, updateContract, deleteContract, recalculateContractBacklog, addAssignment, addMultipleAssignments, deleteAssignment, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addWbsTask, updateWbsTask, deleteWbsTask, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updatePageVisibility, updateSkillThresholds, getResourceComputedSkills, getRoleCost, fetchData]);
 
     const allocationsContextValue = useMemo<AllocationsContextType>(() => ({
         allocations,

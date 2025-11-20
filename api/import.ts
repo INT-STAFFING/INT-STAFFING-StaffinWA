@@ -1,4 +1,5 @@
 
+
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -440,7 +441,7 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
         allSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
 
         for (const assoc of importedAssociations) {
-             const { 'Nome Risorsa': resName, 'Nome Competenza': skillName, 'Data Conseguimento': acqDate, 'Data Scadenza': expDate } = assoc;
+             const { 'Nome Risorsa': resName, 'Nome Competenza': skillName, 'Livello': level, 'Data Conseguimento': acqDate, 'Data Scadenza': expDate } = assoc;
              
              if (!resName || !skillName) continue;
              
@@ -455,13 +456,22 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
                  warnings.push(`Associazione saltata: Competenza '${skillName}' non trovata (assicurati che sia definita nel foglio Competenze).`);
                  continue;
              }
+
+             // Normalize level: Default to 1, ensure it's 1-5
+             let normalizedLevel = 1;
+             if (level) {
+                 const parsed = parseInt(String(level), 10);
+                 if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) {
+                     normalizedLevel = parsed;
+                 }
+             }
              
              await client.query(`
-                INSERT INTO resource_skills (resource_id, skill_id, acquisition_date, expiration_date)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO resource_skills (resource_id, skill_id, level, acquisition_date, expiration_date)
+                VALUES ($1, $2, $3, $4, $5)
                 ON CONFLICT (resource_id, skill_id) DO UPDATE 
-                SET acquisition_date = EXCLUDED.acquisition_date, expiration_date = EXCLUDED.expiration_date;
-             `, [resourceId, skillId, formatDateForDB(parseDate(acqDate)), formatDateForDB(parseDate(expDate))]);
+                SET level = EXCLUDED.level, acquisition_date = EXCLUDED.acquisition_date, expiration_date = EXCLUDED.expiration_date;
+             `, [resourceId, skillId, normalizedLevel, formatDateForDB(parseDate(acqDate)), formatDateForDB(parseDate(expDate))]);
         }
     }
 };

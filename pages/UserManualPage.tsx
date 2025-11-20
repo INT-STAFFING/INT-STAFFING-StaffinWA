@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -36,252 +37,168 @@ const UserManualPage: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 md:p-12">
             <header className="text-center mb-16">
                 <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Manuale Utente</h1>
-                <p className="text-xl text-gray-500 dark:text-gray-400">La tua guida completa allo Staffing Allocation Planner.</p>
+                <p className="text-xl text-gray-500 dark:text-gray-400">Guida tecnica e funzionale allo Staffing Allocation Planner (V1.3).</p>
             </header>
             
             <Section title="1. Introduzione">
-                <p>Benvenuto nello <strong>Staffing Allocation Planner</strong>. Questo strumento è stato creato per centralizzare, semplificare e potenziare la pianificazione delle risorse umane sui progetti aziendali. Dalla gestione operativa quotidiana all'analisi strategica di alto livello, l'applicazione fornisce tutti gli strumenti necessari per ottimizzare l'utilizzo del personale, monitorare i costi, prevedere le necessità future e personalizzare l'esperienza d'uso.</p>
-                <p>Questo manuale è strutturato per guidarti attraverso ogni modulo dell'applicazione. Ti consigliamo di leggerlo per intero per comprendere appieno le potenzialità dello strumento.</p>
+                <p>Benvenuto nello <strong>Staffing Allocation Planner</strong>. Questa piattaforma è progettata per la gestione strategica e operativa delle risorse umane sui progetti. L'applicazione combina funzionalità di pianificazione quotidiana (Staffing) con strumenti avanzati di controllo di gestione (Costi Storici, Forecasting Predittivo) e analisi delle competenze.</p>
+                <p>Questo manuale descrive il funzionamento del sistema, con un focus particolare sulle formule di calcolo e sugli algoritmi utilizzati.</p>
             </Section>
 
-            <Section title="2. La Dashboard: Il Tuo Centro di Controllo Dinamico">
-                <p>La Dashboard è il tuo centro di comando, progettata per darti una visione d'insieme immediata e completa. È composta da diverse "card" analitiche che riassumono i dati più importanti. L'ordine di queste card può essere personalizzato da un amministratore nella pagina <strong>Impostazioni Admin</strong>.</p>
-                <SubSection title="Indicatori Chiave di Performance (KPI)">
-                    <p>Le card in cima alla pagina mostrano i KPI fondamentali:</p>
-                    <ul>
-                        <li><strong>Budget Complessivo:</strong> La somma dei budget di tutti i progetti registrati.</li>
-                        <li><strong>Costo Stimato (Mese Corrente):</strong> Una stima del costo totale del personale allocato per il mese in corso.</li>
-                        <li><strong>Giorni Allocati (Mese Corrente):</strong> Il totale dei giorni/uomo (person-days) allocati su tutti i progetti nel mese corrente.</li>
-                    </ul>
+            <Section title="2. Dashboard & KPI">
+                <p>La Dashboard aggrega i dati in tempo reale per fornire una visione d'insieme immediata.</p>
+                
+                <SubSection title="Indicatori Economici e di Sforzo">
+                    <FormulaBox 
+                        title="Budget Complessivo" 
+                        formula="Σ (Budget di tutti i progetti attivi o pianificati)"
+                        description="Rappresenta il valore totale del portafoglio progetti censito a sistema."
+                    />
+                    <FormulaBox 
+                        title="Costo Stimato (Mese Corrente)" 
+                        formula="Σ [(Allocazione% / 100) * CostoRuoloStorico(Data) * %Realizzazione]"
+                        description={
+                            <>
+                                Calcolato sommando il costo giornaliero di ogni allocazione nel mese corrente. 
+                                <br/><strong>Nota Importante:</strong> Il sistema utilizza il <em>Costo Storico</em>. Se una risorsa ha cambiato livello (e quindi costo) a metà mese, i giorni precedenti il cambio vengono calcolati col vecchio costo, quelli successivi col nuovo.
+                            </>
+                        }
+                    />
+                    <FormulaBox 
+                        title="Giorni Allocati (Mese Corrente)" 
+                        formula="Σ (Allocazione% / 100) su tutti i giorni lavorativi del mese"
+                        description="Il totale dei giorni/uomo (Person-Days) che l'azienda erogherà nel mese corrente."
+                    />
                 </SubSection>
-                <SubSection title="Card di Attenzione e Monitoraggio">
-                     <p>Queste card evidenziano situazioni che richiedono un'azione immediata. Sono interattive: cliccandoci sopra, verrai reindirizzato alla pagina pertinente con i filtri già applicati.</p>
+
+                <SubSection title="Monitoraggio Operativo">
                     <ul>
-                        <li><strong>Risorse Non Allocate:</strong> Mostra il numero di risorse attive che non hanno alcuna allocazione.</li>
-                        <li><strong>Progetti Senza Staff:</strong> Indica il numero di progetti "In corso" a cui non è stata ancora assegnata nessuna risorsa.</li>
-                        <li><strong>FTE Non Allocati:</strong> Calcola i <em>Full-Time Equivalent</em> (equivalenti a tempo pieno) disponibili ma non ancora allocati nel mese corrente.</li>
-                    </ul>
-                </SubSection>
-                <SubSection title="Analisi Dettagliate con Vista Grafica">
-                    <p>La parte principale della dashboard contiene una serie di tabelle e grafici che offrono insight specifici. Ogni card è dotata di <strong>filtri indipendenti</strong> e di un selettore <code className="text-sm">📊</code> / <code className="text-sm">📋</code> per passare da una <strong>vista grafica</strong> a una <strong>vista tabellare</strong>.</p>
-                    <ul>
-                        <li><strong>Allocazione Media:</strong> Confronta il carico di lavoro medio percentuale di ogni risorsa tra il mese corrente e il mese successivo.</li>
-                        <li><strong>FTE per Progetto:</strong> Calcola il numero di persone a tempo pieno equivalenti dedicate a ciascun progetto.</li>
-                        <li><strong>Analisi Budget (Totale e Temporale):</strong> Confronta il budget con il costo stimato, mostrando la varianza. La versione "Temporale" permette di analizzare un intervallo di date personalizzato.</li>
-                        <li><strong>Tariffa Media Giornaliera:</strong> Calcola il costo medio giornaliero effettivo per ogni progetto, basato sui ruoli delle risorse allocate.</li>
-                        <li><strong>Risorse Sottoutilizzate, Costo per Cliente, Sforzo per Horizontal, Analisi per Sede:</strong> Ulteriori analisi per identificare inefficienze e aree di maggiore investimento.</li>
-                    </ul>
-                </SubSection>
-                <SubSection title="Grafici a Tutto Schermo">
-                     <p>In fondo alla pagina, troverai grafici più ampi per analisi di trend:</p>
-                    <ul>
-                         <li><strong>Trend Saturazione Risorsa:</strong> Seleziona una risorsa per visualizzare l'andamento del suo carico di lavoro negli ultimi e nei prossimi mesi.</li>
-                         <li><strong>Forecast Costo Mensile:</strong> Mostra una previsione dei costi totali per i prossimi mesi basata sulle allocazioni correnti.</li>
+                        <li><strong>Risorse Non Allocate:</strong> Numero di risorse attive (`resigned = false`) che non hanno alcuna allocazione (`assignment`) attiva.</li>
+                        <li><strong>Progetti Senza Staff:</strong> Progetti in stato "In corso" che non hanno nessuna risorsa assegnata.</li>
+                        <li><strong>FTE Non Allocati:</strong> Differenza tra la capacità totale teorica (somma delle % max delle risorse) e l'allocazione effettiva nel mese.</li>
                     </ul>
                 </SubSection>
             </Section>
 
-            <Section title="3. Operatività: Staffing e Carico Risorse">
-                <p>Queste due sezioni sono il cuore operativo dell'applicazione, dove gestisci le allocazioni giorno per giorno.</p>
-                 <SubSection title="Pagina Staffing">
-                     <p>Qui puoi visualizzare e modificare la griglia di allocazione di tutte le risorse su tutti i progetti. È la vista più completa e potente per la pianificazione dettagliata.</p>
+            <Section title="3. Gestione Staffing & Mobile">
+                <SubSection title="Pianificazione Staffing">
+                    <p>La griglia di staffing permette di definire quanto tempo (in %) una risorsa dedica a un progetto giorno per giorno.</p>
                     <ul>
-                        <li><strong>Griglia Interattiva:</strong> Per ogni risorsa e progetto, definisci la percentuale di allocazione giornaliera. I giorni non lavorativi sono bloccati.</li>
-                        <li><strong>Riga di Carico Totale:</strong> La prima riga per ogni risorsa mostra il suo carico totale giornaliero, con colori che indicano il livello di carico: <span className="font-semibold text-yellow-600">giallo</span> (sottoutilizzo), <span className="font-semibold text-green-600">verde</span> (pieno utilizzo) e <span className="font-semibold text-red-600">rosso</span> (sovraccarico).</li>
-                        <li><strong>Assegnazione Massiva (<code className="text-sm">🗓️</code>):</strong> Applica una percentuale a un intero intervallo di date in un'unica operazione.</li>
+                        <li><strong>Validazione:</strong> Il sistema evidenzia in <span className="text-red-500 font-bold">Rosso</span> se la somma delle allocazioni giornaliere di una risorsa supera la sua capacità massima (solitamente 100%).</li>
+                        <li><strong>Giorni Non Lavorativi:</strong> I weekend e le festività (nazionali o locali in base alla sede della risorsa) sono automaticamente bloccati.</li>
                     </ul>
                 </SubSection>
-                <SubSection title="Pagina Carico Risorse">
-                     <p>Questa pagina è una versione semplificata e di <strong>sola lettura</strong> della griglia di staffing. Mostra unicamente le righe del carico totale per ogni risorsa, offrendo una visione chiara del carico individuale senza il rischio di modifiche accidentali.</p>
-                </SubSection>
-            </Section>
-            
-            <Section title="4. Gestione Anagrafiche">
-                <p>Le pagine nella sezione "Gestione" ti permettono di amministrare le entità fondamentali del sistema, ora con un'interfaccia potenziata.</p>
-                 <SubSection title="Interfaccia Tabellare Avanzata">
-                    <p>Tutte le pagine di gestione utilizzano una nuova tabella dati con funzionalità avanzate:</p>
+                <SubSection title="Esperienza Mobile (Responsive)">
+                    <p>Su dispositivi mobili, la complessa griglia di staffing si trasforma automaticamente in una vista <strong>"Agenda a Card"</strong>:</p>
                     <ul>
-                        <li><strong>Modifica Rapida (<code className="text-sm">edit</code>):</strong> Trasforma una riga della tabella in un form per modifiche veloci senza lasciare la pagina.</li>
-                        <li><strong>Modifica Dettagliata (<code className="text-sm">edit_note</code>):</strong> Apre il classico modulo modale per modifiche complete.</li>
-                        <li><strong>Filtri per Colonna:</strong> Sotto l'intestazione principale, è presente una riga di campi di input che ti permette di filtrare i dati per ogni singola colonna.</li>
-                        <li><strong>Ordinamento Multi-colonna:</strong> Clicca sulle intestazioni delle colonne per ordinare i dati.</li>
-                        <li><strong>Vista Mobile:</strong> Su schermi piccoli, la tabella si trasforma automaticamente in una vista a "card" per una migliore leggibilità.</li>
-                    </ul>
-                </SubSection>
-                <SubSection title="Entità Gestite">
-                    <ul>
-                        <li><strong>Risorse:</strong> Gestisci i dipendenti, la loro `maxStaffingPercentage` e lo stato di dimissione.</li>
-                        <li><strong>Progetti:</strong> Definisci budget, `realizationPercentage` e collega i progetti ai Contratti.</li>
-                        <li><strong>Contratti (Novità):</strong> Raggruppa più progetti sotto un unico cappello finanziario. Il `Backlog` (capienza residua) viene calcolato automaticamente ma può essere ricalcolato manualmente con l'icona <code className="text-sm">refresh</code>.</li>
-                        <li><strong>Clienti e Ruoli:</strong> Gestisci le anagrafiche standard.</li>
-                    </ul>
-                </SubSection>
-            </Section>
-            
-            <Section title="5. Modulo HR & Recruitment">
-                <p>Questi moduli sono dedicati al processo di ricerca, selezione e assunzione di nuovo personale.</p>
-                <SubSection title="Richiesta Risorse">
-                    <p>Formalizza le necessità di personale per i progetti. La pagina è stata migliorata con:</p>
-                    <ul>
-                        <li><strong>Vista Tabella/Card:</strong> Puoi alternare tra una vista tabellare e una a "card" più visuale.</li>
-                        <li><strong>Riepilogo FTE:</strong> Le card in cima alla pagina riassumono gli FTE (Full-Time Equivalent) totali richiesti, aggregati per ruolo.</li>
-                        <li><strong>Codice Richiesta:</strong> Ogni richiesta ha ora un codice univoco e leggibile (es. `HCR00001`) per un facile tracciamento.</li>
-                    </ul>
-                </SubSection>
-                 <SubSection title="Gestione Colloqui">
-                    <p>Traccia l'intero ciclo di vita di un candidato. Nuove funzionalità includono:</p>
-                    <ul>
-                        <li><strong>Card Riassuntive Interattive:</strong> Le card in cima non solo mostrano i totali, ma agiscono anche da filtri rapidi (es. clicca su "Prossimi Ingressi" per vedere solo i candidati assunti).</li>
-                        <li><strong>Pipeline per Richiesta:</strong> Una nuova tabella mostra tutte le richieste di risorse attive e i candidati attualmente in pipeline per ciascuna, evidenziando le richieste scoperte.</li>
-                        <li><strong>Creazione Risorsa:</strong> Quando un candidato viene assunto (`Stato Assunzione = SI`), un pulsante "Crea nuova Risorsa" appare nel modulo, permettendoti di creare direttamente l'anagrafica della nuova risorsa con i dati pre-compilati dal colloquio.</li>
+                        <li>Ogni risorsa diventa una card verticale.</li>
+                        <li>Una <strong>barra di progresso</strong> colorata indica immediatamente il carico totale nel periodo (Verde = Ok, Rosso = Overbooking).</li>
+                        <li>Cliccando su un progetto nella card, si apre un editor a tutto schermo ottimizzato per il touch.</li>
                     </ul>
                 </SubSection>
             </Section>
 
-            <Section title="6. Analisi, Report e Visualizzazioni">
-                <p>Queste sezioni offrono strumenti potenti per analizzare i dati da diverse prospettive.</p>
-                 <SubSection title="Forecasting & Gantt">
-                    <p>Queste sezioni sono state potenziate. Il <strong>Gantt Progetti</strong> è ora una timeline interattiva completa con livelli di zoom (mese, trimestre, anno), un indicatore della data odierna e la possibilità di espandere ogni progetto per vedere le risorse assegnate.</p>
+            <Section title="4. Forecasting & Algoritmi Predittivi">
+                <p>La pagina di Forecasting permette di anticipare il carico di lavoro futuro. Il sistema opera in due modalità:</p>
+                
+                <SubSection title="1. Modalità Consuntiva (Hard Booking)">
+                    <p>Per i mesi passati o correnti, o dove sono state inserite allocazioni manuali puntuali, il sistema somma semplicemente i valori presenti nel database.</p>
                 </SubSection>
-                <SubSection title="Visualizzazione Staffing (Potenziato)">
-                    <p>Questa pagina ora utilizza la potente libreria D3.js per creare visualizzazioni grafiche interattive e personalizzabili:</p>
+
+                <SubSection title="2. Modalità Predittiva (Proiezione)">
+                    <p>Se abilitata (switch in alto), per i mesi futuri dove <strong>non</strong> sono presenti allocazioni puntuali, il sistema stima il carico:</p>
+                    <FormulaBox 
+                        title="Algoritmo di Proiezione" 
+                        formula="Carico Previsto = Giorni Lavorativi Mese * Media Storica Allocazione %"
+                        description={
+                            <>
+                                Il sistema calcola la <strong>velocità media storica</strong> con cui la risorsa ha lavorato sul progetto fino ad oggi.
+                                <br/>Se il progetto è attivo nel mese futuro (ovvero la data corrente è compresa tra <code>Data Inizio</code> e <code>Data Fine</code> progetto), il sistema applica questa media ai giorni lavorativi futuri.
+                            </>
+                        }
+                    />
+                    <p>Questo permette di avere una stima realistica del "run-rate" senza dover pianificare manualmente ogni singolo giorno dei prossimi 12 mesi.</p>
+                </SubSection>
+            </Section>
+
+            <Section title="5. Analisi Economica e Contratti">
+                
+                <SubSection title="Storicizzazione dei Costi (SCD Type 2)">
+                    <p>Il sistema gestisce la storicità dei costi dei ruoli per garantire report finanziari accurati anche retroattivamente.</p>
                     <ul>
-                        <li><strong>Diagramma di Flusso (Sankey):</strong> Mostra come lo "sforzo" (giorni/uomo) fluisce da Risorse a Progetti, Clienti e Contratti. L'aspetto del grafico (es. spessore dei nodi, opacità dei link) può essere personalizzato da un amministratore.</li>
-                        <li><strong>Mappa delle Connessioni (Network):</strong> Visualizza le entità come nodi interattivi.</li>
-                        <li><strong>Export:</strong> Entrambi i grafici possono essere esportati come immagini vettoriali <strong>SVG</strong> o raster <strong>PNG</strong>.</li>
+                        <li>Quando il costo giornaliero di un ruolo viene modificato in "Gestione Ruoli", il sistema non sovrascrive il valore precedente.</li>
+                        <li>Viene creato un nuovo record storico valido da "Oggi" in poi.</li>
+                        <li>Il record precedente viene "chiuso" con data fine "Ieri".</li>
+                        <li><strong>Nei Report:</strong> Quando si calcola il costo di un'allocazione passata (es. Gennaio 2023), il sistema recupera il costo che il ruolo aveva <em>in quella data specifica</em>, non il costo attuale.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Gestione Contratti e Backlog">
+                    <p>I progetti possono essere raggruppati sotto un "Contratto Quadro".</p>
+                    <FormulaBox 
+                        title="Backlog Commerciale" 
+                        formula="Backlog = Capienza Contratto - Σ (Budget Progetti Collegati)"
+                        description="Indica quanto budget è ancora disponibile nel contratto per avviare nuovi progetti o estendere quelli esistenti. Non dipende dal consuntivo (speso), ma dal pianificato (venduto)."
+                    />
+                </SubSection>
+            </Section>
+
+            <Section title="6. Analisi Competenze (Skill Matrix)">
+                <p>Il sistema offre un motore avanzato per il tracciamento delle competenze, distinguendo tra competenze dichiarate e competenze acquisite sul campo.</p>
+                
+                <SubSection title="Modalità di Assegnazione">
+                    <ul>
+                        <li><strong>Esplicite (Manuali):</strong> Competenze certificate o dichiarate, inserite manualmente con un livello specifico (da 1 a 5) e date di validità. Hanno la priorità nel calcolo del profilo.</li>
+                        <li><strong>Implicite (Inferite):</strong> Competenze dedotte dal lavoro svolto. Se una risorsa lavora su un progetto taggato con la skill "React", il sistema calcola automaticamente il livello di competenza basandosi sui giorni lavorati.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Livelli di Competenza e Calcolo Automatico">
+                    <p>Ogni competenza è classificata su 5 livelli: <strong>Novice, Junior, Middle, Senior, Expert</strong>.</p>
+                    <p>Per le competenze inferite, il livello viene calcolato sommando i <strong>Giorni/Uomo (FTE)</strong> totali lavorati dalla risorsa su progetti associati a quella competenza.</p>
+                    
+                    <FormulaBox 
+                        title="Algoritmo di Calcolo Livello Inferito" 
+                        formula="Totale FTE Skill = Σ (Allocazione% / 100) su tutti i giorni lavorativi dei progetti con la skill"
+                        description={
+                            <>
+                                Il valore risultante viene confrontato con le soglie configurate (Admin Settings).
+                                <br/><strong>Soglie di Default (FTE Totali):</strong>
+                                <ul className="list-disc list-inside mt-2">
+                                    <li><strong>Novice:</strong> &lt; 60 FTE</li>
+                                    <li><strong>Junior:</strong> 60 - 149 FTE</li>
+                                    <li><strong>Middle:</strong> 150 - 349 FTE</li>
+                                    <li><strong>Senior:</strong> 350 - 699 FTE</li>
+                                    <li><strong>Expert:</strong> ≥ 700 FTE</li>
+                                </ul>
+                                <p className="mt-2 text-xs italic">* 1 FTE = 1 Giorno lavorativo a tempo pieno.</p>
+                            </>
+                        }
+                    />
+                </SubSection>
+
+                <SubSection title="Visualizzazioni Avanzate">
+                    <p>Nella pagina <strong>Analisi Competenze</strong> sono disponibili 4 viste grafiche:</p>
+                    <ul>
+                        <li><strong>Network (Grafo):</strong> Mostra le relazioni tra Persone, Progetti e Skills come una rete interattiva. Utile per vedere cluster di competenze.</li>
+                        <li><strong>Heatmap:</strong> Matrice Risorse x Skills che evidenzia con colori intensi le competenze più forti.</li>
+                        <li><strong>Chord Diagram:</strong> Mostra la co-occorrenza delle skills. Se "Java" e "Spring" sono spesso usate negli stessi progetti, saranno collegate da archi spessi.</li>
+                        <li><strong>Radar (Spider Chart):</strong> Confronta il profilo di competenza di una singola risorsa su più assi.</li>
                     </ul>
                 </SubSection>
             </Section>
             
-            <Section title="7. Amministrazione (Potenziato)">
-                <p>La sezione per gli amministratori è stata notevolmente ampliata con nuove funzionalità di personalizzazione e controllo.</p>
-                <SubSection title="Impostazioni Admin">
-                     <p>Questa nuova pagina è il centro di controllo per la personalizzazione dell'applicazione:</p>
+            <Section title="7. Amministrazione e Dati">
+                 <SubSection title="Import/Export">
+                    <p>È possibile esportare e importare massivamente i dati tramite file Excel. Esistono template specifici per:</p>
                     <ul>
-                        <li><strong>Sicurezza:</strong> Attiva o disattiva la protezione tramite password per l'intera applicazione.</li>
-                        <li><strong>Ordinamento Dashboard:</strong> Trascina e rilascia le card della dashboard per definire l'ordine in cui appaiono. La tua preferenza viene salvata localmente nel browser.</li>
-                        <li><strong>Personalizzazione Notifiche:</strong> Scegli la posizione in cui le notifiche "toast" (es. "Salvataggio completato") appaiono sullo schermo.</li>
-                        <li><strong>Personalizzazione Visualizzazioni:</strong> Tramite degli slider, puoi modificare parametri tecnici dei grafici Sankey e Network (es. forza di repulsione dei nodi, distanza dei link) per ottimizzarne la leggibilità.</li>
-                        <li><strong>Editor Tema Material 3:</strong> Un editor completo che permette di cambiare ogni singolo colore dell'interfaccia utente, sia per il tema chiaro che per quello scuro, per allineare l'aspetto dell'app al tuo brand.</li>
+                        <li><strong>Core Entities:</strong> Risorse, Progetti, Clienti, Ruoli.</li>
+                        <li><strong>Staffing:</strong> La griglia delle allocazioni.</li>
+                        <li><strong>Skills:</strong> Matrice di competenze e associazioni.</li>
                     </ul>
                 </SubSection>
                 <SubSection title="Database Inspector">
-                    <p><strong className="text-red-500">ATTENZIONE:</strong> Questo è uno strumento per sviluppatori e manutenzione. Un uso improprio può corrompere i dati.</p>
-                    <ul>
-                         <li><strong>Accesso Diretto:</strong> Visualizza e modifica i dati grezzi di qualsiasi tabella del database.</li>
-                         <li><strong>Azioni Pericolose:</strong> Include una funzione per svuotare completamente una tabella (`TRUNCATE`).</li>
-                         <li><strong>Export SQL:</strong> Genera uno script `.sql` completo (schema + dati) per l'intero database, con la possibilità di scegliere tra il dialetto PostgreSQL (per Neon/Vercel) e MySQL per migrazioni o backup.</li>
-                    </ul>
-                </SubSection>
-            </Section>
-
-            <Section title="8. Dettaglio Calcoli e Formule">
-                <p>In questa sezione vengono esplicitate le formule matematiche utilizzate dall'applicazione per calcolare metriche, KPI e report. La trasparenza di questi calcoli è fondamentale per una corretta interpretazione dei dati.</p>
-
-                <SubSection title="Concetti Fondamentali">
-                    <p>Prima di procedere con le formule, è importante definire alcuni concetti base:</p>
-                    <ul className="list-disc pl-5 space-y-2">
-                        <li><strong>Giorno Lavorativo (Working Day):</strong> Un giorno dal lunedì al venerdì che non è segnato come festività nel calendario aziendale.</li>
-                        <li><strong>Giorno/Uomo (Person-Day):</strong> Unità di misura che rappresenta il lavoro svolto da una persona in un giorno lavorativo standard (8 ore).</li>
-                        <li><strong>Allocazione Percentuale:</strong> La percentuale di tempo che una risorsa dedica a un progetto in un dato giorno (es. 50% = 4 ore).</li>
-                        <li><strong>Capacità Massima (Max Staffing %):</strong> La percentuale massima di tempo lavorativo disponibile per una risorsa (es. 100% per full-time, 50% per part-time).</li>
-                    </ul>
-                </SubSection>
-
-                <SubSection title="Calcolo Giorni/Uomo (G/U)">
-                    <p>Il calcolo dei giorni/uomo è alla base di quasi tutte le metriche.</p>
-                    <FormulaBox 
-                        title="Giorni/Uomo Allocati (Periodo)" 
-                        formula="Σ (Percentuale Allocazione Giornaliera / 100) per ogni Giorno Lavorativo nel Periodo"
-                        description={
-                            <>
-                                Esempio: Se una risorsa è allocata al 50% su un progetto per 10 giorni lavorativi:<br/>
-                                <code>(50 / 100) * 10 = 5 G/U</code>.
-                            </>
-                        }
-                    />
-                    <FormulaBox 
-                        title="Giorni/Uomo Disponibili (Periodo)" 
-                        formula="Giorni Lavorativi nel Periodo * (Max Staffing % / 100)"
-                        description={
-                            <>
-                                Esempio: In un mese con 20 giorni lavorativi, per una risorsa part-time (50%):<br/>
-                                <code>20 * (50 / 100) = 10 G/U Disponibili</code>.
-                            </>
-                        }
-                    />
-                </SubSection>
-
-                <SubSection title="Metriche di Utilizzo Risorse">
-                    <p>Queste metriche aiutano a capire quanto efficacemente viene impiegato il personale.</p>
-                    <FormulaBox 
-                        title="Percentuale di Utilizzo (Periodo)" 
-                        formula="(Giorni/Uomo Allocati Totali / Giorni/Uomo Disponibili Totali) * 100"
-                        description={
-                            <>
-                                Calcola quanto della capacità disponibile è stata effettivamente pianificata.<br/>
-                                Esempio: 15 G/U Allocati su 20 G/U Disponibili = <code>(15 / 20) * 100 = 75%</code>.
-                            </>
-                        }
-                    />
-                    <FormulaBox 
-                        title="Full-Time Equivalent (FTE)" 
-                        formula="Giorni/Uomo Allocati / Giorni Lavorativi Standard nel Periodo"
-                        description="Normalizza lo sforzo allocato come se fosse svolto da persone a tempo pieno. Un valore di 1.5 FTE significa che il lavoro pianificato equivale a quello di una persona e mezza a tempo pieno."
-                    />
-                </SubSection>
-
-                <SubSection title="Calcoli Economici e di Budget">
-                    <p>Queste formule legano il tempo allocato ai costi finanziari.</p>
-                    <FormulaBox 
-                        title="Costo Giornaliero Risorsa" 
-                        formula="Costo Giornaliero Ruolo"
-                        description="Il costo è determinato dal Ruolo associato alla risorsa (tabella Ruoli). Non viene calcolato sulla singola persona per motivi di privacy e semplificazione."
-                    />
-                    <FormulaBox 
-                        title="Costo Allocato Stimato (Progetto)" 
-                        formula="Σ (G/U Allocati * Costo Giornaliero Ruolo * % Realizzazione Progetto)"
-                        description={
-                            <>
-                                Somma dei costi per ogni assegnazione sul progetto. La <code>% Realizzazione</code> è un fattore correttivo definito sul progetto (default 100%) per simulare inefficienze o margini.<br/>
-                                Esempio: 10 G/U di un Senior (500€/giorno) su un progetto al 90% di realizzazione:<br/>
-                                <code>10 * 500 * 0.90 = 4.500€</code>.
-                            </>
-                        }
-                    />
-                    <FormulaBox 
-                        title="Varianza Budget" 
-                        formula="Budget Progetto - Costo Allocato Stimato"
-                        description="Indica se il progetto è sopra o sotto budget. Un valore negativo indica che i costi stimati superano il budget."
-                    />
-                    <FormulaBox 
-                        title="Backlog Contratto" 
-                        formula="Capienza Contratto - Σ (Budget Progetti Collegati)"
-                        description="Rappresenta la capacità finanziaria residua del contratto quadro. Viene aggiornata ogni volta che si modifica il budget di un progetto collegato."
-                    />
-                </SubSection>
-
-                <SubSection title="Dashboard KPI">
-                    <p>Formule specifiche per le card della Dashboard.</p>
-                    <ul className="list-disc pl-5 space-y-4">
-                        <li>
-                            <strong>Costo Stimato (Mese Corrente):</strong> Somma del <em>Costo Allocato Stimato</em> di tutte le allocazioni che cadono nel mese corrente.
-                        </li>
-                        <li>
-                            <strong>FTE Non Allocati:</strong>
-                            <div className="bg-surface-container p-2 rounded mt-1 text-sm font-mono">
-                                (Σ Max Staffing % di tutte le risorse attive / 100) - FTE Totali Allocati nel Mese
-                            </div>
-                            Rappresenta il "potenziale di fuoco" non utilizzato.
-                        </li>
-                         <li>
-                            <strong>Tariffa Media Giornaliera (Progetto):</strong>
-                            <div className="bg-surface-container p-2 rounded mt-1 text-sm font-mono">
-                                Costo Allocato Totale / Giorni/Uomo Totali
-                            </div>
-                             Indica il costo medio effettivo di una giornata di lavoro sul progetto, pesato in base al mix di seniority delle risorse impiegate.
-                        </li>
-                    </ul>
+                    <p>Strumento tecnico per amministratori che permette di visualizzare i dati grezzi delle tabelle, eseguire query di update puntuali e generare dump SQL completi per backup o migrazione (compatibili con PostgreSQL e MySQL).</p>
                 </SubSection>
             </Section>
 

@@ -1,3 +1,4 @@
+
 /**
  * @file SkillsMapPage.tsx
  * @description Pagina per la visualizzazione, ricerca e gestione delle competenze delle risorse.
@@ -5,7 +6,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { Resource, ComputedSkill } from '../types';
+import { Resource, ComputedSkill, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -51,7 +52,7 @@ const SkillsMapPage: React.FC = () => {
     // Edit Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | null>(null);
-    const [editingSkills, setEditingSkills] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string }[]>([]);
+    const [editingSkills, setEditingSkills] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string, level: number }[]>([]);
     const [tempSkillId, setTempSkillId] = useState<string>('');
 
     // --- Derived Data & Dashboard KPIs ---
@@ -131,6 +132,7 @@ const SkillsMapPage: React.FC = () => {
                 skillId: rs.skillId,
                 acquisitionDate: rs.acquisitionDate ? rs.acquisitionDate.split('T')[0] : '',
                 expirationDate: rs.expirationDate ? rs.expirationDate.split('T')[0] : '',
+                level: rs.level || 1
             }));
         setEditingSkills(currentManualSkills);
         setTempSkillId('');
@@ -160,7 +162,8 @@ const SkillsMapPage: React.FC = () => {
                     resourceId, 
                     skillId: detail.skillId, 
                     acquisitionDate: detail.acquisitionDate || null, 
-                    expirationDate: detail.expirationDate || null 
+                    expirationDate: detail.expirationDate || null,
+                    level: detail.level
                 })),
                 ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
             ]);
@@ -172,7 +175,7 @@ const SkillsMapPage: React.FC = () => {
 
     const handleAddTempSkill = () => {
         if (tempSkillId && !editingSkills.some(s => s.skillId === tempSkillId)) {
-            setEditingSkills([...editingSkills, { skillId: tempSkillId, acquisitionDate: '', expirationDate: '' }]);
+            setEditingSkills([...editingSkills, { skillId: tempSkillId, acquisitionDate: '', expirationDate: '', level: 1 }]);
             setTempSkillId('');
         }
     };
@@ -183,6 +186,10 @@ const SkillsMapPage: React.FC = () => {
 
     const handleSkillDateChange = (skillId: string, field: 'acquisitionDate' | 'expirationDate', value: string) => {
         setEditingSkills(prev => prev.map(s => s.skillId === skillId ? { ...s, [field]: value } : s));
+    };
+
+    const handleSkillLevelChange = (skillId: string, value: string) => {
+        setEditingSkills(prev => prev.map(s => s.skillId === skillId ? { ...s, level: parseInt(value, 10) } : s));
     };
 
     // --- Render Helpers ---
@@ -200,11 +207,19 @@ const SkillsMapPage: React.FC = () => {
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
         { header: 'Competenze Principali', cell: r => (
             <div className="flex flex-wrap gap-1">
-                {r.computedSkills.slice(0, 3).map(cs => (
-                    <span key={cs.skill.id} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cs.manualDetails ? 'bg-primary-container text-on-primary-container' : 'bg-surface-variant text-on-surface-variant border border-outline'}`}>
-                        {cs.skill.name}
-                    </span>
-                ))}
+                {r.computedSkills.slice(0, 3).map(cs => {
+                    const levelName = SKILL_LEVELS[(cs.manualDetails?.level || cs.inferredLevel || 1) as SkillLevelValue];
+                    const isManual = !!cs.manualDetails;
+                    return (
+                        <span 
+                            key={cs.skill.id} 
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isManual ? 'bg-primary-container text-on-primary-container border-transparent' : 'bg-surface-variant text-on-surface-variant border-outline-variant'}`}
+                            title={`Livello: ${levelName} ${!isManual ? '(Inferito)' : ''}`}
+                        >
+                            {cs.skill.name} <span className="ml-1 opacity-70 text-[10px]">({levelName.substring(0,3)})</span>
+                        </span>
+                    );
+                })}
                 {r.computedSkills.length > 3 && <span className="text-xs text-on-surface-variant">+{r.computedSkills.length - 3}</span>}
             </div>
         )},
@@ -260,11 +275,18 @@ const SkillsMapPage: React.FC = () => {
             <div className="mt-2">
                 <p className="text-xs font-medium text-on-surface-variant mb-1">Top Skills:</p>
                 <div className="flex flex-wrap gap-1">
-                    {r.computedSkills.slice(0, 5).map(cs => (
-                        <span key={cs.skill.id} className={`px-2 py-0.5 rounded-full text-[10px] ${cs.manualDetails ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-on-surface-variant'}`}>
-                            {cs.skill.name}
-                        </span>
-                    ))}
+                    {r.computedSkills.slice(0, 5).map(cs => {
+                        const level = cs.manualDetails?.level || cs.inferredLevel || 1;
+                        return (
+                            <span 
+                                key={cs.skill.id} 
+                                className={`px-2 py-0.5 rounded-full text-[10px] ${cs.manualDetails ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-on-surface-variant'}`}
+                                title={SKILL_LEVELS[level as SkillLevelValue]}
+                            >
+                                {cs.skill.name}
+                            </span>
+                        );
+                    })}
                 </div>
             </div>
         </div>
@@ -377,7 +399,19 @@ const SkillsMapPage: React.FC = () => {
                                                     <span className="material-symbols-outlined text-sm">delete</span>
                                                 </button>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <div className="col-span-3 md:col-span-1">
+                                                    <label className="text-xs text-on-surface-variant block">Livello</label>
+                                                    <select 
+                                                        value={detail.level || 1} 
+                                                        onChange={(e) => handleSkillLevelChange(detail.skillId, e.target.value)}
+                                                        className="w-full text-xs p-1 border rounded bg-transparent focus:border-primary outline-none"
+                                                    >
+                                                        {Object.entries(SKILL_LEVELS).map(([val, label]) => (
+                                                            <option key={val} value={val}>{label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 <div>
                                                     <label className="text-xs text-on-surface-variant block">Data Conseguimento</label>
                                                     <input 

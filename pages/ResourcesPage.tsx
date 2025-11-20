@@ -1,3 +1,4 @@
+
 /**
  * @file ResourcesPage.tsx
  * @description Pagina per la gestione delle risorse umane (CRUD e visualizzazione).
@@ -5,7 +6,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource } from '../types';
+import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
@@ -34,7 +35,7 @@ const ResourcesPage: React.FC = () => {
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
     // State for skills management in modal
-    const [selectedSkillDetails, setSelectedSkillDetails] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string }[]>([]);
+    const [selectedSkillDetails, setSelectedSkillDetails] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string, level: number }[]>([]);
     const [tempSelectedSkillId, setTempSelectedSkillId] = useState<string>('');
 
     const [searchParams, setSearchParams] = useSearchParams();
@@ -175,6 +176,7 @@ const ResourcesPage: React.FC = () => {
                 skillId: rs.skillId,
                 acquisitionDate: rs.acquisitionDate ? rs.acquisitionDate.split('T')[0] : '',
                 expirationDate: rs.expirationDate ? rs.expirationDate.split('T')[0] : '',
+                level: rs.level || 1
             }));
         setSelectedSkillDetails(currentSkills);
         setTempSelectedSkillId('');
@@ -209,7 +211,8 @@ const ResourcesPage: React.FC = () => {
                         resourceId, 
                         skillId: detail.skillId, 
                         acquisitionDate: detail.acquisitionDate || null, 
-                        expirationDate: detail.expirationDate || null 
+                        expirationDate: detail.expirationDate || null,
+                        level: detail.level
                     })),
                     ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
                 ]);
@@ -221,7 +224,7 @@ const ResourcesPage: React.FC = () => {
 
     const handleAddSkill = () => {
         if (tempSelectedSkillId && !selectedSkillDetails.some(s => s.skillId === tempSelectedSkillId)) {
-            setSelectedSkillDetails([...selectedSkillDetails, { skillId: tempSelectedSkillId, acquisitionDate: '', expirationDate: '' }]);
+            setSelectedSkillDetails([...selectedSkillDetails, { skillId: tempSelectedSkillId, acquisitionDate: '', expirationDate: '', level: 1 }]);
             setTempSelectedSkillId('');
         }
     };
@@ -232,6 +235,10 @@ const ResourcesPage: React.FC = () => {
 
     const handleSkillDateChange = (skillId: string, field: 'acquisitionDate' | 'expirationDate', value: string) => {
         setSelectedSkillDetails(prev => prev.map(s => s.skillId === skillId ? { ...s, [field]: value } : s));
+    };
+
+    const handleSkillLevelChange = (skillId: string, value: string) => {
+        setSelectedSkillDetails(prev => prev.map(s => s.skillId === skillId ? { ...s, level: parseInt(value, 10) } : s));
     };
 
 
@@ -514,7 +521,19 @@ const ResourcesPage: React.FC = () => {
                                                         <span className="material-symbols-outlined text-sm">close</span>
                                                     </button>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2">
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <div className="col-span-3 md:col-span-1">
+                                                        <label className="text-xs text-on-surface-variant block">Livello</label>
+                                                        <select 
+                                                            value={detail.level || 1} 
+                                                            onChange={(e) => handleSkillLevelChange(detail.skillId, e.target.value)}
+                                                            className="w-full text-xs p-1 border rounded bg-transparent"
+                                                        >
+                                                            {Object.entries(SKILL_LEVELS).map(([val, label]) => (
+                                                                <option key={val} value={val}>{label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                     <div>
                                                         <label className="text-xs text-on-surface-variant block">Data Conseguimento</label>
                                                         <input 

@@ -202,7 +202,6 @@ export interface CalendarEvent {
     location: string | null;
 }
 
-// Fix: Add WbsTask interface
 /**
  * @interface WbsTask
  * @description Rappresenta un incarico professionale (Work Breakdown Structure).
@@ -364,7 +363,7 @@ export interface ResourceSkill {
     resourceId: string;
     /** @property {string} skillId - ID della competenza. */
     skillId: string;
-    /** @property {number} [level] - Livello di competenza (opzionale). */
+    /** @property {number} [level] - Livello di competenza (1-5). */
     level?: number;
     /** @property {string | null} [acquisitionDate] - Data di conseguimento (opzionale). */
     acquisitionDate?: string | null;
@@ -390,13 +389,50 @@ export interface ProjectSkill {
 export interface ComputedSkill {
     /** @property {Skill} skill - L'oggetto Skill completo. */
     skill: Skill;
-    /** @property {ResourceSkill | undefined} manualDetails - Dettagli manuali se presenti (es. date certificazione). */
+    /** @property {ResourceSkill | undefined} manualDetails - Dettagli manuali se presenti (es. date certificazione, livello manuale). */
     manualDetails?: ResourceSkill;
     /** @property {number} inferredDays - Giorni/Uomo totali calcolati dai progetti. */
     inferredDays: number;
+    /** @property {number} inferredLevel - Livello calcolato in base ai giorni lavorati (1-5). */
+    inferredLevel: number;
     /** @property {number} projectCount - Numero di progetti che hanno contribuito a questa competenza. */
     projectCount: number;
 }
+
+/**
+ * Livelli di Competenza
+ */
+export const SKILL_LEVELS = {
+    1: 'Novice',
+    2: 'Junior',
+    3: 'Middle',
+    4: 'Senior',
+    5: 'Expert'
+} as const;
+
+export type SkillLevelValue = keyof typeof SKILL_LEVELS;
+
+/**
+ * Interfaccia per i threshold dei livelli di competenza configurabili.
+ */
+export interface SkillThresholds {
+    NOVICE: number;
+    JUNIOR: number;
+    MIDDLE: number;
+    SENIOR: number;
+    EXPERT: number;
+}
+
+/**
+ * Soglie FTE di DEFAULT per il calcolo automatico del livello.
+ */
+export const DEFAULT_SKILL_LEVEL_THRESHOLDS: SkillThresholds = {
+    NOVICE: 0,
+    JUNIOR: 60,
+    MIDDLE: 150,
+    SENIOR: 350,
+    EXPERT: 700
+};
 
 /**
  * @interface PageVisibility

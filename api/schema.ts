@@ -306,6 +306,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
     `;
     await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS acquisition_date DATE;`;
     await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS expiration_date DATE;`;
+    // Ensure level column exists (Migration)
+    await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS level INT;`;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS project_skills (

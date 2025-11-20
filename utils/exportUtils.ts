@@ -1,4 +1,5 @@
 
+
 /**
  * @file exportUtils.ts
  * @description Funzioni di utilità per esportare dati in formato Excel.
@@ -200,6 +201,7 @@ export const exportSkills = (data: EntitiesContextType) => {
         return {
             'Nome Risorsa': res.name,
             'Nome Competenza': skill.name,
+            'Livello': rs.level || 1,
             'Data Conseguimento': formatDateForExport(rs.acquisitionDate),
             'Data Scadenza': formatDateForExport(rs.expirationDate)
         };
@@ -254,7 +256,7 @@ export const exportTemplate = (type: ExportType) => {
             break;
         case 'skills':
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Categoria"]]), 'Competenze');
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
             break;
     }
 

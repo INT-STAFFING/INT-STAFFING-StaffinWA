@@ -1,3 +1,4 @@
+
 /**
  * @file AdminSettingsPage.tsx
  * @description Pagina per la gestione delle impostazioni riservate agli amministratori.
@@ -14,6 +15,7 @@ import {
   DEFAULT_DASHBOARD_CARD_ORDER,
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
+import { SkillThresholds } from '../types';
 
 const ColorInput: React.FC<{
     label: string;
@@ -479,6 +481,112 @@ const PageVisibilityEditor: React.FC = () => {
     );
 };
 
+const SkillThresholdsEditor: React.FC = () => {
+    const { skillThresholds, updateSkillThresholds, isActionLoading } = useEntitiesContext();
+    const [localThresholds, setLocalThresholds] = useState<SkillThresholds>(skillThresholds);
+    
+    useEffect(() => {
+        setLocalThresholds(skillThresholds);
+    }, [skillThresholds]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setLocalThresholds(prev => ({
+            ...prev,
+            [name]: parseInt(value, 10) || 0
+        }));
+    };
+
+    const handleSave = () => {
+        updateSkillThresholds(localThresholds);
+    };
+
+    const isLoading = isActionLoading('updateSkillThresholds');
+    const isChanged = JSON.stringify(skillThresholds) !== JSON.stringify(localThresholds);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
+            <div className="flex justify-between items-start mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold">Soglie Livelli Competenze (FTE)</h2>
+                    <p className="text-sm text-on-surface-variant mt-1">
+                        Definisci il numero minimo di giorni lavorati (FTE totali) necessari per raggiungere automaticamente ogni livello di competenza inferita.
+                    </p>
+                </div>
+                 <button 
+                    onClick={handleSave}
+                    disabled={!isChanged || isLoading}
+                    className="px-4 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 flex items-center"
+                >
+                    {isLoading ? <SpinnerIcon className="w-4 h-4 mr-2"/> : null}
+                    Salva
+                </button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                 <div className="p-3 border border-outline-variant rounded-xl bg-surface">
+                    <label className="block text-sm font-medium text-on-surface mb-1">Novice (Liv. 1)</label>
+                    <input 
+                        type="number" 
+                        name="NOVICE" 
+                        value={localThresholds.NOVICE} 
+                        onChange={handleChange}
+                        className="w-full form-input"
+                        min="0"
+                    />
+                </div>
+                <div className="p-3 border border-outline-variant rounded-xl bg-surface">
+                    <label className="block text-sm font-medium text-on-surface mb-1">Junior (Liv. 2)</label>
+                    <input 
+                        type="number" 
+                        name="JUNIOR" 
+                        value={localThresholds.JUNIOR} 
+                        onChange={handleChange}
+                        className="w-full form-input"
+                        min="0"
+                    />
+                </div>
+                <div className="p-3 border border-outline-variant rounded-xl bg-surface">
+                    <label className="block text-sm font-medium text-on-surface mb-1">Middle (Liv. 3)</label>
+                    <input 
+                        type="number" 
+                        name="MIDDLE" 
+                        value={localThresholds.MIDDLE} 
+                        onChange={handleChange}
+                        className="w-full form-input"
+                        min="0"
+                    />
+                </div>
+                <div className="p-3 border border-outline-variant rounded-xl bg-surface">
+                    <label className="block text-sm font-medium text-on-surface mb-1">Senior (Liv. 4)</label>
+                    <input 
+                        type="number" 
+                        name="SENIOR" 
+                        value={localThresholds.SENIOR} 
+                        onChange={handleChange}
+                        className="w-full form-input"
+                        min="0"
+                    />
+                </div>
+                <div className="p-3 border border-outline-variant rounded-xl bg-surface">
+                    <label className="block text-sm font-medium text-on-surface mb-1">Expert (Liv. 5)</label>
+                    <input 
+                        type="number" 
+                        name="EXPERT" 
+                        value={localThresholds.EXPERT} 
+                        onChange={handleChange}
+                        className="w-full form-input"
+                        min="0"
+                    />
+                </div>
+            </div>
+            <p className="text-xs text-on-surface-variant mt-3 italic">
+                Nota: I livelli sono calcolati in ordine crescente. Assicurati che Novice &lt; Junior &lt; Middle &lt; Senior &lt; Expert.
+            </p>
+        </div>
+    );
+};
+
 const AdminSettingsPage: React.FC = () => {
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
 
@@ -518,6 +626,7 @@ const AdminSettingsPage: React.FC = () => {
                 </div>
             </div>
             
+            <SkillThresholdsEditor />
             <PageVisibilityEditor />
             <DashboardLayoutEditor />
             <ToastEditor />

@@ -72,7 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             skillsRes,
             resourceSkillsRes,
             projectSkillsRes,
-            pageVisibilityRes
+            pageVisibilityRes,
+            skillThresholdsRes
         ] = await Promise.all([
             db.sql`SELECT * FROM clients;`,
             db.sql`SELECT * FROM roles;`,
@@ -97,7 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             db.sql`SELECT * FROM skills;`,
             db.sql`SELECT * FROM resource_skills;`,
             db.sql`SELECT * FROM project_skills;`,
-            db.sql`SELECT key, value FROM app_config WHERE key LIKE 'page_vis.%';`
+            db.sql`SELECT key, value FROM app_config WHERE key LIKE 'page_vis.%';`,
+            db.sql`SELECT key, value FROM app_config WHERE key LIKE 'skill_threshold.%';`
         ]);
 
         // Trasforma la lista di allocazioni dal formato tabellare del DB
@@ -128,6 +130,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              pageVisibility[path] = row.value === 'true';
         });
 
+        // Mappa soglie skills
+        const skillThresholds: any = {};
+        skillThresholdsRes.rows.forEach(row => {
+            const key = row.key.replace('skill_threshold.', '');
+            skillThresholds[key] = parseFloat(row.value);
+        });
 
         // Assembla l'oggetto dati finale, convertendo i nomi delle colonne in camelCase.
         const data = {
@@ -169,7 +177,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             skills: skillsRes.rows.map(toCamelCase) as Skill[],
             resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
             projectSkills: projectSkillsRes.rows.map(toCamelCase) as ProjectSkill[],
-            pageVisibility
+            pageVisibility,
+            skillThresholds
         };
 
         return res.status(200).json(data);
