@@ -62,6 +62,23 @@ const ResourcesPage: React.FC = () => {
         resigned: false,
         lastDayOfWork: null,
     };
+
+    // KPI Calculations
+    const kpis = useMemo(() => {
+        const activeResources = resources.filter(r => !r.resigned);
+        const totalActive = activeResources.length;
+        
+        const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
+        const benchCount = activeResources.filter(r => !assignedResourceIds.has(r.id!)).length;
+        
+        const totalCost = activeResources.reduce((sum, r) => {
+            const role = roles.find(role => role.id === r.roleId);
+            return sum + (role?.dailyCost || 0);
+        }, 0);
+        const avgCost = totalActive > 0 ? totalCost / totalActive : 0;
+
+        return { totalActive, benchCount, avgCost };
+    }, [resources, assignments, roles]);
     
     const calculateResourceAllocation = useCallback((resource: Resource): number => {
         const now = new Date();
@@ -396,6 +413,22 @@ const ResourcesPage: React.FC = () => {
 
     return (
         <div>
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <p className="text-sm text-on-surface-variant">Risorse Attive</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.totalActive}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error">
+                     <p className="text-sm text-on-surface-variant">Risorse in Bench</p>
+                     <p className="text-2xl font-bold text-on-surface">{kpis.benchCount}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                     <p className="text-sm text-on-surface-variant">Costo Medio Giornaliero</p>
+                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.avgCost)}</p>
+                </div>
+            </div>
+
             <DataTable<EnrichedResource>
                 title="Gestione Risorse"
                 addNewButtonLabel="Aggiungi Risorsa"

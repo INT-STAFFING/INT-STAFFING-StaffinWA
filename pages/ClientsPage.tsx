@@ -17,7 +17,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
  * @returns {React.ReactElement} La pagina di gestione dei clienti.
  */
 const ClientsPage: React.FC = () => {
-    const { clients, clientSectors, addClient, updateClient, deleteClient, isActionLoading, loading } = useEntitiesContext();
+    const { clients, clientSectors, addClient, updateClient, deleteClient, isActionLoading, loading, projects } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', sector: '' });
@@ -27,6 +27,20 @@ const ClientsPage: React.FC = () => {
     const [inlineEditingData, setInlineEditingData] = useState<Client | null>(null);
 
     const emptyClient: Omit<Client, 'id'> = { name: '', sector: clientSectors[0]?.value || '', contactEmail: '' };
+
+    // KPI Calculations
+    const kpis = useMemo(() => {
+        const totalClients = clients.length;
+        
+        const activeProjectClientIds = new Set(
+            projects.filter(p => p.status === 'In corso' && p.clientId).map(p => p.clientId)
+        );
+        const activeClients = clients.filter(c => activeProjectClientIds.has(c.id)).length;
+    
+        const sectors = new Set(clients.map(c => c.sector).filter(Boolean));
+        
+        return { totalClients, activeClients, totalSectors: sectors.size };
+    }, [clients, projects]);
 
     const filteredClients = useMemo(() => {
         return clients.filter(client => {
@@ -176,6 +190,22 @@ const ClientsPage: React.FC = () => {
     
     return (
         <div>
+             {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <p className="text-sm text-on-surface-variant">Totale Clienti</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.totalClients}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                     <p className="text-sm text-on-surface-variant">Clienti Attivi</p>
+                     <p className="text-2xl font-bold text-on-surface">{kpis.activeClients}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                     <p className="text-sm text-on-surface-variant">Settori Coperti</p>
+                     <p className="text-2xl font-bold text-on-surface">{kpis.totalSectors}</p>
+                </div>
+            </div>
+
             <DataTable
                 title="Gestione Clienti"
                 addNewButtonLabel="Aggiungi Cliente"

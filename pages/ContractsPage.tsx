@@ -55,6 +55,16 @@ export const ContractsPage: React.FC = () => {
         backlog: 0,
     };
 
+    // KPI Calculations
+    const kpis = useMemo(() => {
+        const totalContracts = contracts.length;
+        const totalCapienza = contracts.reduce((sum, c) => sum + (c.capienza || 0), 0);
+        const totalBacklog = contracts.reduce((sum, c) => sum + (c.backlog || 0), 0);
+        const backlogPercentage = totalCapienza > 0 ? (totalBacklog / totalCapienza) * 100 : 0;
+    
+        return { totalContracts, totalCapienza, totalBacklog, backlogPercentage };
+    }, [contracts]);
+
     const dataForTable = useMemo<EnrichedContract[]>(() => {
         return contracts
             .filter(c =>
@@ -203,6 +213,22 @@ export const ContractsPage: React.FC = () => {
     
     return (
         <div>
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <p className="text-sm text-on-surface-variant">Contratti Totali</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.totalContracts}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                     <p className="text-sm text-on-surface-variant">Capienza Totale</p>
+                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalCapienza)}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                     <p className="text-sm text-on-surface-variant">Backlog Residuo</p>
+                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalBacklog)} <span className="text-sm font-normal opacity-70">({kpis.backlogPercentage.toFixed(0)}%)</span></p>
+                </div>
+            </div>
+
             <DataTable<EnrichedContract>
                 title="Gestione Contratti"
                 addNewButtonLabel="Aggiungi Contratto"

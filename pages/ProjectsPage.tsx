@@ -63,6 +63,25 @@ const ProjectsPage: React.FC = () => {
         realizationPercentage: 100, projectManager: '', status: projectStatuses[0]?.value || '', notes: '', contractId: null
     };
     
+    // KPI Calculations
+    const kpis = useMemo(() => {
+        const activeProjects = projects.filter(p => p.status === 'In corso');
+        const countActive = activeProjects.length;
+        const totalBudget = activeProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
+        
+        const today = new Date();
+        const nextMonth = new Date();
+        nextMonth.setDate(today.getDate() + 30);
+        
+        const endingSoon = activeProjects.filter(p => {
+            if (!p.endDate) return false;
+            const end = new Date(p.endDate);
+            return end >= today && end <= nextMonth;
+        }).length;
+
+        return { countActive, totalBudget, endingSoon };
+    }, [projects]);
+
     const dataForTable = useMemo<EnrichedProject[]>(() => {
         const staffedProjectIds = new Set(assignments.map(a => a.projectId));
         return projects
@@ -317,6 +336,22 @@ const ProjectsPage: React.FC = () => {
     
     return (
         <div>
+            {/* KPI Summary Cards */}
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <p className="text-sm text-on-surface-variant">Progetti In Corso</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.countActive}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                     <p className="text-sm text-on-surface-variant">Budget Attivo Totale</p>
+                     <p className="text-2xl font-bold text-on-surface">{kpis.totalBudget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-container">
+                     <p className="text-sm text-on-surface-variant">In Scadenza (30gg)</p>
+                     <p className="text-2xl font-bold text-on-surface">{kpis.endingSoon}</p>
+                </div>
+            </div>
+
             <DataTable<EnrichedProject>
                 title="Gestione Progetti"
                 addNewButtonLabel="Aggiungi Progetto"
