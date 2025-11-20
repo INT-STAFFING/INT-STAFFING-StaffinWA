@@ -1,3 +1,4 @@
+
 /**
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 4 visualizzazioni: Network, Heatmap, Chord, Radar.
@@ -27,9 +28,9 @@ const SkillForceGraph: React.FC<{
     links: any[], 
     width: number, 
     height: number,
-    theme: any
-}> = ({ nodes, links, width, height, theme }) => {
-    const svgRef = useRef<SVGSVGElement>(null);
+    theme: any,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ nodes, links, width, height, theme, svgRef }) => {
 
     useEffect(() => {
         if (!svgRef.current || nodes.length === 0) return;
@@ -114,7 +115,7 @@ const SkillForceGraph: React.FC<{
         });
 
         return () => { simulation.stop(); };
-    }, [nodes, links, width, height, theme]);
+    }, [nodes, links, width, height, theme, svgRef]);
 
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
 };
@@ -124,9 +125,9 @@ const SkillHeatmap: React.FC<{
     data: { resource: string; skill: string; value: number }[],
     resources: string[],
     skills: string[],
-    theme: any
-}> = ({ data, resources, skills, theme }) => {
-    const svgRef = useRef<SVGSVGElement>(null);
+    theme: any,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ data, resources, skills, theme, svgRef }) => {
     
     useEffect(() => {
         if (!svgRef.current || data.length === 0) return;
@@ -207,7 +208,7 @@ const SkillHeatmap: React.FC<{
             .on("mouseout", () => tooltip.style("visibility", "hidden"));
 
         return () => { tooltip.remove(); };
-    }, [data, resources, skills, theme]);
+    }, [data, resources, skills, theme, svgRef]);
 
     return (
         <div className="overflow-auto h-[600px] w-full bg-surface-container-low rounded-xl border border-outline-variant">
@@ -222,9 +223,9 @@ const SkillChordDiagram: React.FC<{
     names: string[],
     width: number,
     height: number,
-    theme: any
-}> = ({ matrix, names, width, height, theme }) => {
-    const svgRef = useRef<SVGSVGElement>(null);
+    theme: any,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ matrix, names, width, height, theme, svgRef }) => {
 
     useEffect(() => {
         if (!svgRef.current || matrix.length === 0) return;
@@ -288,7 +289,7 @@ const SkillChordDiagram: React.FC<{
             .attr("fill", (d: any) => color(d.target.index.toString()) as string)
             .attr("stroke", (d: any) => rgb(color(d.target.index.toString()) as string).darker().toString() as string);
 
-    }, [matrix, names, width, height, theme]);
+    }, [matrix, names, width, height, theme, svgRef]);
 
     return <svg ref={svgRef} width={width} height={height} className="bg-surface-container-low rounded-xl border border-outline-variant mx-auto" />;
 };
@@ -298,9 +299,9 @@ const SkillRadarChart: React.FC<{
     data: { axis: string; value: number }[],
     width: number,
     height: number,
-    theme: any
-}> = ({ data, width, height, theme }) => {
-    const svgRef = useRef<SVGSVGElement>(null);
+    theme: any,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ data, width, height, theme, svgRef }) => {
 
     useEffect(() => {
         if (!svgRef.current || data.length === 0) return;
@@ -377,7 +378,7 @@ const SkillRadarChart: React.FC<{
             .style("stroke", theme.primary)
             .style("stroke-width", 2);
 
-    }, [data, width, height, theme]);
+    }, [data, width, height, theme, svgRef]);
 
     return <svg ref={svgRef} width={width} height={height} className="bg-surface-container-low rounded-xl border border-outline-variant mx-auto" />;
 };
@@ -392,6 +393,8 @@ const SkillAnalysisPage: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<'network' | 'heatmap' | 'chord' | 'radar'>('network');
     const [selectedResourceId, setSelectedResourceId] = useState<string>('');
+    
+    const chartRef = useRef<SVGSVGElement>(null);
     
     // --- Data Preparation ---
 
@@ -504,36 +507,92 @@ const SkillAnalysisPage: React.FC = () => {
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
 
+    const handleExportSVG = () => {
+        if (!chartRef.current) return;
+        const svgData = new XMLSerializer().serializeToString(chartRef.current);
+        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `skill_analysis_${activeTab}.svg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportPNG = () => {
+        if (!chartRef.current) return;
+        const svg = chartRef.current;
+        
+        // Ensure dimensions are available
+        const width = parseInt(svg.getAttribute("width") || "0") || svg.getBoundingClientRect().width;
+        const height = parseInt(svg.getAttribute("height") || "0") || svg.getBoundingClientRect().height;
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        img.onload = () => {
+            ctx.fillStyle = theme.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            const pngUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = pngUrl;
+            link.download = `skill_analysis_${activeTab}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    };
+
     return (
         <div className="flex flex-col h-full">
             <h1 className="text-3xl font-bold text-on-surface mb-6">Analisi Grafica Competenze</h1>
 
-            <div className="flex border-b border-outline-variant mb-6">
-                <button onClick={() => setActiveTab('network')} className={`px-6 py-3 font-medium text-sm ${activeTab === 'network' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
-                <button onClick={() => setActiveTab('heatmap')} className={`px-6 py-3 font-medium text-sm ${activeTab === 'heatmap' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
-                <button onClick={() => setActiveTab('chord')} className={`px-6 py-3 font-medium text-sm ${activeTab === 'chord' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Co-Occorrenza</button>
-                <button onClick={() => setActiveTab('radar')} className={`px-6 py-3 font-medium text-sm ${activeTab === 'radar' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar (Profilo)</button>
+            <div className="flex flex-col md:flex-row justify-between items-center border-b border-outline-variant mb-6 gap-4">
+                <div className="flex overflow-x-auto">
+                    <button onClick={() => setActiveTab('network')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'network' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
+                    <button onClick={() => setActiveTab('heatmap')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'heatmap' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
+                    <button onClick={() => setActiveTab('chord')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'chord' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Co-Occorrenza</button>
+                    <button onClick={() => setActiveTab('radar')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'radar' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar (Profilo)</button>
+                </div>
+                <div className="flex items-center gap-2 pr-2 pb-2 md:pb-0">
+                     <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
+                        <span className="material-symbols-outlined mr-2 text-base">download</span>
+                        SVG
+                    </button>
+                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
+                         <span className="material-symbols-outlined mr-2 text-base">download</span>
+                        PNG
+                    </button>
+                </div>
             </div>
 
             <div className="flex-grow">
                 {activeTab === 'network' && (
                     <div className="h-[600px]">
                         <p className="text-sm text-on-surface-variant mb-2">Relazioni tra Risorse (Blu), Competenze (Viola) e Progetti (Arancione). Zoomabile e trascinabile.</p>
-                        <SkillForceGraph nodes={networkData.nodes} links={networkData.links} width={1200} height={600} theme={theme} />
+                        <SkillForceGraph nodes={networkData.nodes} links={networkData.links} width={1200} height={600} theme={theme} svgRef={chartRef} />
                     </div>
                 )}
 
                 {activeTab === 'heatmap' && (
                     <div>
                         <p className="text-sm text-on-surface-variant mb-2">Distribuzione competenze per risorsa (top 30 risorse x top 20 skills).</p>
-                        <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} theme={theme} />
+                        <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} theme={theme} svgRef={chartRef} />
                     </div>
                 )}
 
                 {activeTab === 'chord' && (
                     <div className="flex flex-col items-center">
                          <p className="text-sm text-on-surface-variant mb-4">Quali competenze vengono usate insieme negli stessi progetti?</p>
-                        <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={700} height={700} theme={theme} />
+                        <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={700} height={700} theme={theme} svgRef={chartRef} />
                     </div>
                 )}
 
@@ -546,7 +605,7 @@ const SkillAnalysisPage: React.FC = () => {
                         
                         {selectedResourceId ? (
                             radarData.length > 0 ? (
-                                <SkillRadarChart data={radarData} width={500} height={500} theme={theme} />
+                                <SkillRadarChart data={radarData} width={500} height={500} theme={theme} svgRef={chartRef} />
                             ) : (
                                 <p className="text-on-surface-variant mt-10">Nessuna competenza rilevata per questa risorsa.</p>
                             )
