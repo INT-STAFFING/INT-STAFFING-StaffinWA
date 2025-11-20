@@ -152,7 +152,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            // Phase 1: Metadata (Fast Load)
+            // 1. Metadata (Fast Load)
             const metaData = await apiFetch('/api/data?scope=metadata');
             setClients(metaData.clients);
             setRoles(metaData.roles);
@@ -171,20 +171,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (metaData.skillThresholds && Object.keys(metaData.skillThresholds).length > 0) {
                 setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             }
-            
-            // Initial render can happen here if we structured the app to allow partial data,
-            // but for now we keep loading true until core planning data is also here.
 
-            // Phase 2: Planning Data (Slower)
-            // Calculate date range for initial load (Current Year +/- 6 months to be safe for initial view)
+            // Allow UI to render shell while heavy data loads
+            // We might want to keep loading true if we want to block interaction, 
+            // but for perceived performance, we could set it false here and have a separate 'dataLoading' state.
+            // For now, we follow the 'Load-All' safety but optimized.
+            
+            // 2. Planning Data (Heavy - with Date Filter)
             const today = new Date();
-            const start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0]; // Start of Year
-            const end = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0]; // End of Year
+            // Load current year +/- reasonable buffer to reduce payload
+            const start = new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
+            const end = new Date(today.getFullYear(), 11, 31).toISOString().split('T')[0];
             
             const planningData = await apiFetch(`/api/data?scope=planning&start=${start}&end=${end}`);
             
             setAssignments(planningData.assignments);
-            setAllocations(planningData.allocations); // Optimized map from backend
+            setAllocations(planningData.allocations);
             setWbsTasks(planningData.wbsTasks || []);
             setResourceRequests(planningData.resourceRequests || []);
             setInterviews(planningData.interviews || []);
@@ -205,8 +207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchData();
     }, [fetchData]);
 
-    // ... [CRUD Operations remain mostly the same, assuming endpoints handle specific entities] ...
-    // Insert all CRUD methods here as per original file
+    // ... [CRUD Operations] ...
     
     const addClient = useCallback(async (client: Omit<Client, 'id'>) => {
         const actionKey = 'addClient';
@@ -291,7 +292,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             await apiFetch(`/api/resources?entity=roles&id=${roleId}`, { method: 'DELETE' });
             setRoles(prev => prev.filter(r => r.id !== roleId));
-            // Also filter out history
             setRoleCostHistory(prev => prev.filter(h => h.roleId !== roleId));
             addToast(`Ruolo '${roleName}' eliminato.`, 'success');
         } catch (error) {
@@ -337,8 +337,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
             await apiFetch(`/api/resources?entity=resources&id=${resourceId}`, { method: 'DELETE' });
-            const assignmentsToRemove = assignments.filter(a => a.resourceId === resourceId);
-            const assignmentIdsToRemove = new Set(assignmentsToRemove.map(a => a.id));
+            const assignmentIdsToRemove = new Set(assignments.filter(a => a.resourceId === resourceId).map(a => a.id));
 
             setResources(prev => prev.filter(r => r.id !== resourceId));
             setAssignments(prev => prev.filter(a => a.resourceId !== resourceId));
@@ -391,8 +390,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActionLoading(prev => new Set(prev).add(actionKey));
         try {
             await apiFetch(`/api/resources?entity=projects&id=${projectId}`, { method: 'DELETE' });
-            const assignmentsToRemove = assignments.filter(a => a.projectId === projectId);
-            const assignmentIdsToRemove = new Set(assignmentsToRemove.map(a => a.id));
+            const assignmentIdsToRemove = new Set(assignments.filter(a => a.projectId === projectId).map(a => a.id));
 
             setProjects(prev => prev.filter(p => p.id !== projectId));
             setAssignments(prev => prev.filter(a => a.projectId !== projectId));

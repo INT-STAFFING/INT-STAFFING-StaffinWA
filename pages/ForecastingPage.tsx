@@ -50,6 +50,43 @@ const ForecastingPage: React.FC = () => {
         setFilters({ horizontal: '', clientId: '', projectId: ''});
     };
 
+    // OPTIMIZATION: Pre-calculate holiday lookup map for O(1) access instead of Array.find O(N)
+    // Key: "YYYY-MM-DD:LOCATION" or "YYYY-MM-DD:ALL"
+    const holidayMap = useMemo(() => {
+        const map = new Set<string>();
+        companyCalendar.forEach(event => {
+            const dateStr = new Date(event.date).toISOString().split('T')[0];
+            if (event.type === 'LOCAL_HOLIDAY' && event.location) {
+                map.add(`${dateStr}:${event.location}`);
+            } else {
+                map.add(`${dateStr}:ALL`);
+            }
+        });
+        return map;
+    }, [companyCalendar]);
+
+    // Optimized isHoliday for inner loops
+    const checkIsHolidayOptimized = (date: Date, location: string | null) => {
+        const dateStr = date.toISOString().split('T')[0];
+        if (holidayMap.has(`${dateStr}:ALL`)) return true;
+        if (location && holidayMap.has(`${dateStr}:${location}`)) return true;
+        return false;
+    };
+
+    // Optimized getWorkingDays using the map
+    const getWorkingDaysOptimized = (startDate: Date, endDate: Date, location: string | null): number => {
+        let count = 0;
+        const currentDate = new Date(startDate.getTime());
+        while (currentDate <= endDate) {
+            const dayOfWeek = currentDate.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(currentDate, location)) {
+                count++;
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return count;
+    };
+
     // 1. Pre-calcolo della media storica per ogni assegnazione
     // OPTIMIZATION: Memoized to run only when assignments/allocations change
     const historicalAverages = useMemo(() => {
@@ -138,7 +175,8 @@ const ForecastingPage: React.FC = () => {
 
                 if (effectiveStartDate > effectiveEndDate) return;
                 
-                const workingDays = getWorkingDaysBetween(effectiveStartDate, effectiveEndDate, companyCalendar, resource.location);
+                // Use Optimized Function
+                const workingDays = getWorkingDaysOptimized(effectiveStartDate, effectiveEndDate, resource.location);
                 const staffingFactor = (resource.maxStaffingPercentage || 100) / 100;
                 availablePersonDays += workingDays * staffingFactor;
             });
@@ -177,7 +215,9 @@ const ForecastingPage: React.FC = () => {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
                             if (allocDate >= firstDayOfMonth && allocDate <= lastDayOfMonth) {
-                                if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                                // Check holiday optimized
+                                const dayOfWeek = allocDate.getDay();
+                                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(allocDate, resource.location)) {
                                     allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
                                     hasHardBookingInMonth = true;
                                 }
@@ -192,7 +232,7 @@ const ForecastingPage: React.FC = () => {
                         const avgPercent = historicalAverages[assignment.id!] || 0;
                         
                         if (avgPercent > 0) {
-                            const potentialWorkingDays = getWorkingDaysBetween(activeStart, effectiveEnd, companyCalendar, resource.location);
+                            const potentialWorkingDays = getWorkingDaysOptimized(activeStart, effectiveEnd, resource.location);
                             const projectedLoad = potentialWorkingDays * (avgPercent / 100);
                             allocatedPersonDays += projectedLoad;
                             projectedPersonDays += projectedLoad;
@@ -217,7 +257,7 @@ const ForecastingPage: React.FC = () => {
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, filters, projects, companyCalendar, historicalAverages, enableProjections]);
+    }, [resources, assignments, allocations, forecastHorizon, filters, projects, holidayMap, historicalAverages, enableProjections]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 

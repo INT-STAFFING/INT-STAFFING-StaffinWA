@@ -373,7 +373,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     const task = req.body;
                     const newId = uuidv4();
                      await client.sql`INSERT INTO wbs_tasks (id, elemento_wbs, descrizione_wbe, client_id, periodo, ore, produzione_lorda, ore_network_italia, produzione_lorda_network_italia, perdite, realisation, spese_onorari_esterni, spese_altro, fatture_onorari, fatture_spese, iva, incassi, primo_responsabile_id, secondo_responsabile_id)
-                     VALUES (${newId}, ${task.elementoWbs}, ${task.descrizioneWbe}, ${task.clientId}, ${task.periodo}, ${task.ore}, ${task.produzioneLorda}, ${task.oreNetworkItalia}, ${task.produzioneLordaNetworkItalia}, ${task.perdite}, ${task.realisation}, ${task.speseOnorariEsterni}, ${task.speseAltro}, ${task.fattureOnorari}, ${task.fattureSpese}, ${task.iva}, ${task.incassi}, ${task.primoResponsabileId}, ${task.secondoResponsabileId})`;
+                     VALUES (${newId}, ${task.elementoWbs}, ${task.descrizioneWbe}, ${task.clientId}, ${task.periodo}, ${task.ore}, ${task.produzioneLorda}, ${task.oreNetworkItalia}, ${task.produzioneLordaNetworkItalia}, ${task.perdite}, ${task.realisation}, ${task.speseOnorariEsterni}, ${task.speseAltro}, ${task.fattureOnorari}, ${task.fattureSpese}, ${task.iva}, ${task.incassi}, ${task.primoResponsabile_id}, ${task.secondoResponsabile_id})`;
                      return res.status(201).json({ id: newId, ...task });
                 } else if (method === 'PUT') {
                     const task = req.body;
