@@ -1,6 +1,6 @@
 /**
  * @file ForecastingPage.tsx
- * @description Pagina di forecasting e capacity planning per analizzare il carico di lavoro futuro.
+ * @description Pagina di forecasting e capacity planning per analizzare il carico di lavoro futuro con proiezioni intelligenti.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -18,6 +18,7 @@ const ForecastingPage: React.FC = () => {
     const { allocations } = useAllocationsContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
+    const [enableProjections, setEnableProjections] = useState(true); // Toggle per attivare l'algoritmo predittivo
     
     const availableProjects = useMemo(() => {
         if (!filters.clientId) {
@@ -41,9 +42,48 @@ const ForecastingPage: React.FC = () => {
         setFilters({ horizontal: '', clientId: '', projectId: ''});
     };
 
+    // 1. Pre-calcolo della media storica per ogni assegnazione
+    const historicalAverages = useMemo(() => {
+        const averages: Record<string, number> = {}; // assignmentId -> avgPercentage (0-100)
+        const today = new Date();
+
+        assignments.forEach(assignment => {
+            const assignmentAllocations = allocations[assignment.id!];
+            if (!assignmentAllocations) {
+                averages[assignment.id!] = 0;
+                return;
+            }
+
+            let totalPercentage = 0;
+            let countDays = 0;
+
+            // Analizziamo tutto lo storico fino ad oggi
+            Object.entries(assignmentAllocations).forEach(([dateStr, percentage]) => {
+                const date = new Date(dateStr);
+                if (date <= today) {
+                    totalPercentage += percentage;
+                    countDays++;
+                }
+            });
+
+            // Se abbiamo dati storici, calcoliamo la media
+            if (countDays > 0) {
+                averages[assignment.id!] = totalPercentage / countDays;
+            } else {
+                // Se non c'è storico (es. assegnazione futura), potremmo usare un default
+                // Per ora lasciamo 0, l'algoritmo proietterà solo se c'è una "velocità" storica consolidata
+                averages[assignment.id!] = 0; 
+            }
+        });
+
+        return averages;
+    }, [assignments, allocations]);
+
     const forecastData = useMemo(() => {
         const results = [];
         const today = new Date();
+        // Normalizziamo "oggi" all'inizio della giornata per confronti corretti
+        today.setHours(0,0,0,0);
 
         let filteredResources = resources.filter(r => !r.resigned);
 
@@ -66,16 +106,20 @@ const ForecastingPage: React.FC = () => {
             filteredResources = filteredResources.filter(r => resourceIdsForClient.has(r.id!));
         }
         
+        // Mappa rapida progetti per accesso veloce alle date
+        const projectMap = new Map(projects.map(p => [p.id, p]));
+
         for (let i = 0; i < forecastHorizon; i++) {
             const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
             const monthName = date.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
-            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+            const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
+            // 1. Calcolo Capacità (Available Person Days)
             let availablePersonDays = 0;
             filteredResources.forEach(resource => {
-                const effectiveStartDate = new Date(resource.hireDate) > firstDay ? new Date(resource.hireDate) : firstDay;
-                const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
+                const effectiveStartDate = new Date(resource.hireDate) > firstDayOfMonth ? new Date(resource.hireDate) : firstDayOfMonth;
+                const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDayOfMonth ? new Date(resource.lastDayOfWork) : lastDayOfMonth;
 
                 if (effectiveStartDate > effectiveEndDate) return;
                 
@@ -84,43 +128,94 @@ const ForecastingPage: React.FC = () => {
                 availablePersonDays += workingDays * staffingFactor;
             });
 
+            // 2. Calcolo Allocazioni (Reali + Proiettate)
             let allocatedPersonDays = 0;
+            let projectedPersonDays = 0; // Solo per tracciamento interno
 
             const relevantAssignmentIds = new Set(assignmentsToConsider.map(a => a.id));
 
             filteredResources.forEach(resource => {
                 const resourceAssignments = assignments.filter(a => a.resourceId === resource.id && relevantAssignmentIds.has(a.id!));
+                
                 resourceAssignments.forEach(assignment => {
-                    const assignmentAllocations = allocations[assignment.id];
+                    const project = projectMap.get(assignment.projectId);
+                    if (!project) return;
+
+                    // Date limite del progetto
+                    const projStart = project.startDate ? new Date(project.startDate) : null;
+                    const projEnd = project.endDate ? new Date(project.endDate) : null;
+
+                    // Se il progetto finisce prima di questo mese o inizia dopo, saltalo
+                    if (projEnd && projEnd < firstDayOfMonth) return;
+                    if (projStart && projStart > lastDayOfMonth) return;
+
+                    // Determina l'intervallo effettivo di attività del progetto in questo mese
+                    const activeStart = projStart && projStart > firstDayOfMonth ? projStart : firstDayOfMonth;
+                    const activeEnd = projEnd && projEnd < lastDayOfMonth ? projEnd : lastDayOfMonth;
+
+                    // Se la risorsa termina di lavorare, tronca l'allocazione
+                    const resourceEnd = resource.lastDayOfWork ? new Date(resource.lastDayOfWork) : null;
+                    const effectiveEnd = resourceEnd && resourceEnd < activeEnd ? resourceEnd : activeEnd;
+                    
+                    if (activeStart > effectiveEnd) return;
+
+                    // --- Calcolo Allocazione ---
+                    
+                    const assignmentAllocations = allocations[assignment.id!];
+                    let hasHardBookingInMonth = false;
+                    let hardBookingDays = 0;
+
+                    // Controlliamo se esistono allocazioni "hard" (inserite manualmente) nel DB per questo mese
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
-                            if (resource.lastDayOfWork && dateStr > resource.lastDayOfWork) continue;
-
-                            if (allocDate >= firstDay && allocDate <= lastDay) {
+                            if (allocDate >= firstDayOfMonth && allocDate <= lastDayOfMonth) {
                                 if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
                                     allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
+                                    hardBookingDays++;
+                                    hasHardBookingInMonth = true;
                                 }
                             }
+                        }
+                    }
+
+                    // --- ALGORITMO PREDITTIVO ---
+                    // Se abilitato, il mese è futuro, e NON ci sono allocazioni manuali ("Hard Booking")
+                    // allora usiamo la media storica proiettata.
+                    const isFutureMonth = firstDayOfMonth > today;
+                    
+                    if (enableProjections && isFutureMonth && !hasHardBookingInMonth) {
+                        const avgPercent = historicalAverages[assignment.id!] || 0;
+                        
+                        if (avgPercent > 0) {
+                            // Calcola giorni lavorativi nell'intervallo attivo del progetto/risorsa
+                            const potentialWorkingDays = getWorkingDaysBetween(activeStart, effectiveEnd, companyCalendar, resource.location);
+                            
+                            const projectedLoad = potentialWorkingDays * (avgPercent / 100);
+                            allocatedPersonDays += projectedLoad;
+                            projectedPersonDays += projectedLoad;
                         }
                     }
                 });
             });
 
             const utilization = availablePersonDays > 0 ? (allocatedPersonDays / availablePersonDays) * 100 : 0;
+            const isProjected = projectedPersonDays > 0;
             
             results.push({
                 monthName,
                 availablePersonDays,
                 allocatedPersonDays,
+                projectedPersonDays,
                 utilization,
                 surplusDeficit: availablePersonDays - allocatedPersonDays,
+                isProjected
             });
         }
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, filters, projects, companyCalendar]);
+    }, [resources, assignments, allocations, forecastHorizon, filters, projects, companyCalendar, historicalAverages, enableProjections]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 
@@ -137,7 +232,18 @@ const ForecastingPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-on-background mb-6">Forecasting & Capacity</h1>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-on-background">Forecasting & Capacity</h1>
+                <div className="flex items-center space-x-3 bg-surface-container p-2 rounded-lg mt-4 md:mt-0">
+                    <span className="text-sm font-medium text-on-surface-variant">Includi Proiezioni Future</span>
+                    <button 
+                        onClick={() => setEnableProjections(!enableProjections)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${enableProjections ? 'bg-primary' : 'bg-surface-variant'}`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enableProjections ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+            </div>
 
             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -161,17 +267,23 @@ const ForecastingPage: React.FC = () => {
             {/* Grafico Utilizzo */}
             <div className="bg-surface rounded-2xl shadow p-6 mb-8">
                 <h2 className="text-xl font-semibold mb-4 text-on-surface">Utilizzo Mensile Previsto (%)</h2>
+                {enableProjections && <p className="text-xs text-on-surface-variant mb-4">Il grafico include le proiezioni basate sulla media storica delle allocazioni per i progetti attivi.</p>}
                 <div className="flex space-x-2 md:space-x-4 h-64 overflow-x-auto pb-4">
                     {forecastData.map((data, index) => (
                         <div key={index} className="flex-1 min-w-[50px] text-center flex flex-col">
                             <div className="w-full flex-grow flex items-end justify-center">
                                 <div
-                                    className={`group relative w-full rounded-t-md transition-all duration-300 ${getUtilizationColor(data.utilization)}`}
-                                    style={{ height: `${(data.utilization / maxUtilization) * 100}%` }}
+                                    className={`group relative w-full rounded-t-md transition-all duration-300 ${getUtilizationColor(data.utilization)} ${data.isProjected ? 'opacity-80' : ''}`}
+                                    style={{ 
+                                        height: `${(data.utilization / maxUtilization) * 100}%`,
+                                        backgroundImage: data.isProjected ? 'linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent)' : 'none',
+                                        backgroundSize: '1rem 1rem'
+                                    }}
                                 >
-                                    <div className="absolute bottom-full mb-2 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                    <div className="absolute bottom-full mb-2 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
                                         <div className="bg-inverse-surface text-inverse-on-surface text-xs rounded py-1 px-2 mx-auto w-max">
                                             {data.utilization.toFixed(1)}%
+                                            {data.isProjected && <span className="block text-[10px] opacity-80">(Stimato)</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -186,7 +298,6 @@ const ForecastingPage: React.FC = () => {
 
             
             <div className="bg-surface rounded-2xl shadow">
-              
                 <div
                     className="
                         max-h-[640px]
@@ -221,7 +332,7 @@ const ForecastingPage: React.FC = () => {
                                     className="h-8 hover:bg-surface-container-low"
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
-                                        {data.monthName}
+                                        {data.monthName} {data.isProjected && <span className="text-xs text-primary ml-1">(Proiezione)</span>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
                                         {data.availablePersonDays.toFixed(1)}
