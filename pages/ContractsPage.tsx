@@ -57,8 +57,9 @@ export const ContractsPage: React.FC = () => {
     // KPI Calculations
     const kpis = useMemo(() => {
         const totalContracts = contracts.length;
-        const totalCapienza = contracts.reduce((sum, c) => sum + (c.capienza || 0), 0);
-        const totalBacklog = contracts.reduce((sum, c) => sum + (c.backlog || 0), 0);
+        // Ensure numeric values are parsed correctly to avoid string concatenation
+        const totalCapienza = contracts.reduce((sum, c) => sum + Number(c.capienza || 0), 0);
+        const totalBacklog = contracts.reduce((sum, c) => sum + Number(c.backlog || 0), 0);
         const backlogPercentage = totalCapienza > 0 ? (totalBacklog / totalCapienza) * 100 : 0;
     
         return { totalContracts, totalCapienza, totalBacklog, backlogPercentage };

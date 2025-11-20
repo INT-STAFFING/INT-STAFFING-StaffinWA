@@ -68,7 +68,8 @@ const ProjectsPage: React.FC = () => {
     const kpis = useMemo(() => {
         const activeProjects = projects.filter(p => p.status === 'In corso');
         const countActive = activeProjects.length;
-        const totalBudget = activeProjects.reduce((sum, p) => sum + (p.budget || 0), 0);
+        // Ensure p.budget is treated as a number to prevent string concatenation issues
+        const totalBudget = activeProjects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
         
         const today = new Date();
         const nextMonth = new Date();
