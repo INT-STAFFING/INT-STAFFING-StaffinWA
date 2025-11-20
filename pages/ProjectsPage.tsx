@@ -12,6 +12,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
+import { formatCurrency } from '../utils/formatters';
 
 
 type EnrichedProject = Project & { 
@@ -219,7 +220,7 @@ const ProjectsPage: React.FC = () => {
         { header: 'Risorse Assegnate', sortKey: 'assignedResources', cell: p => <span className="text-sm text-center font-semibold text-on-surface-variant">{p.assignedResources}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
         { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-on-surface-variant">{formatDateForDisplay(p.startDate)}</span> },
-        { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-on-surface-variant">{p.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span> },
+        { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-on-surface-variant">{formatCurrency(p.budget)}</span> },
     ];
     
      const renderRow = (project: EnrichedProject) => {
@@ -303,7 +304,7 @@ const ProjectsPage: React.FC = () => {
                     <div><p className="text-on-surface-variant">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
                     <div><p className="text-on-surface-variant">Risorse Assegnate</p><p className="font-medium text-on-surface">{project.assignedResources}</p></div>
                     <div><p className="text-on-surface-variant">Data Inizio</p><p className="font-medium text-on-surface">{formatDateForDisplay(project.startDate)}</p></div>
-                    <div><p className="text-on-surface-variant">Budget</p><p className="font-medium text-on-surface">{project.budget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</p></div>
+                    <div><p className="text-on-surface-variant">Budget</p><p className="font-medium text-on-surface">{formatCurrency(project.budget)}</p></div>
                 </div>
             </div>
         );
@@ -344,7 +345,7 @@ const ProjectsPage: React.FC = () => {
                 </div>
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
                      <p className="text-sm text-on-surface-variant">Budget Attivo Totale</p>
-                     <p className="text-2xl font-bold text-on-surface">{kpis.totalBudget.toLocaleString('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</p>
+                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalBudget)}</p>
                 </div>
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-container">
                      <p className="text-sm text-on-surface-variant">In Scadenza (30gg)</p>

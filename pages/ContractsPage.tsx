@@ -11,6 +11,7 @@ import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { formatCurrency } from '../utils/formatters';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -26,8 +27,6 @@ const formatDate = (dateStr: string | null) => {
     const date = new Date(dateStr.split('T')[0]);
     return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 };
-
-const formatCurrency = (value: number) => (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
 

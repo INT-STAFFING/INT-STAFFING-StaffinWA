@@ -10,10 +10,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-
-const formatCurrency = (value: number | undefined): string => {
-    return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
-};
+import { formatCurrency } from '../utils/formatters';
 
 const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole, isActionLoading, loading } = useEntitiesContext();

@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { formatCurrency } from '../utils/formatters';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';
@@ -15,7 +16,6 @@ type ResourceUtilizationSortKey = 'resourceName' | 'roleName' | 'availableDays' 
 type SortDirection = 'ascending' | 'descending';
 
 // --- Funzioni di Utilità ---
-const formatCurrency = (value: number) => (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const downloadCSV = (csvContent: string, fileName: string) => {
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
     const link = document.createElement('a');

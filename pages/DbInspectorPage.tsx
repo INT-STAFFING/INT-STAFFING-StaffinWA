@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { formatCurrency } from '../utils/formatters';
 
 interface Column {
     column_name: string;
@@ -230,7 +232,7 @@ const DbInspectorPage: React.FC = () => {
         ];
     
         if (currencyColumns.includes(columnName) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value))))) {
-            return (Number(value) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+            return formatCurrency(Number(value));
         }
         
         if (value === null || value === undefined) return <i className="text-on-surface-variant/70">NULL</i>;

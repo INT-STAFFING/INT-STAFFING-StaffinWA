@@ -12,6 +12,7 @@ import { SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
+import { formatCurrency } from '../utils/formatters';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -21,11 +22,6 @@ type EnrichedResource = Resource & {
     isAssigned: boolean;
     activeProjects: number;
     seniority: number;
-};
-
-// --- Helper Functions ---
-const formatCurrency = (value: number | undefined): string => {
-    return (value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
 // --- Component ---
@@ -453,6 +449,7 @@ const ResourcesPage: React.FC = () => {
                 }}
             />
             
+            {/* Modals are the same as previous version, just keeping them for completeness if needed */}
             {editingResource && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingResource ? 'Modifica Risorsa' : 'Aggiungi Risorsa'}>
                     <form onSubmit={handleSubmit} className="space-y-4">

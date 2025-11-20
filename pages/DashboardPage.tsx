@@ -26,6 +26,7 @@ import { axisBottom, axisLeft } from 'd3-axis';
 import { timeFormat } from 'd3-time-format';
 import { line } from 'd3-shape';
 import { format } from 'd3-format';
+import { formatCurrency } from '../utils/formatters';
 
 // --- Colori Centralizzati per la Dashboard ---
 const DASHBOARD_COLORS = {
@@ -53,12 +54,6 @@ const DASHBOARD_COLORS = {
     secondary: '#50606e',
     threshold: '#ba1a1a',
   },
-};
-
-
-const formatCurrency = (value: number | string): string => {
-  const numValue = Number(value) || 0;
-  return numValue.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 };
 
 const dateCache = new Map<string, Date>();
