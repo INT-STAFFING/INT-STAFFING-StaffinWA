@@ -114,13 +114,13 @@ const RolesPage: React.FC = () => {
         }
         return (
             <tr key={role.id} className="group h-16 hover:bg-surface-container">
-                {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((role as any)[col.sortKey]) : undefined}>{col.cell(role)}</td>)}
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
+                {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((role as any)[col.sortKey] || '') : undefined}>{col.cell(role)}</td>)}
+                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-3">
                         <button onClick={() => openModalForEdit(role)} className="text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
                         <button onClick={() => handleStartInlineEdit(role)} className="text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
                         <button onClick={() => deleteRole(role.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
-                             {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                           {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </td>
@@ -132,13 +132,13 @@ const RolesPage: React.FC = () => {
         const isEditing = inlineEditingId === role.id;
         const isSaving = isActionLoading(`updateRole-${role.id}`);
         if (isEditing) {
-            return (
+             return (
                 <div key={role.id} className="p-4 rounded-lg shadow-md bg-surface-container border border-primary">
                     <div className="space-y-3">
-                        <div><label className="text-xs font-medium text-on-surface-variant">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                        <div><label className="text-xs font-medium text-on-surface-variant">Livello Seniority</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
-                        <div><label className="text-xs font-medium text-on-surface-variant">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                        <div><label className="text-xs font-medium text-on-surface-variant">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Livello</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                         <div className="flex justify-end space-x-2 pt-2">
                              <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
@@ -147,10 +147,10 @@ const RolesPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            );
+             );
         }
         return (
-             <div key={role.id} className="p-4 rounded-lg shadow-md bg-surface-container">
+            <div key={role.id} className="p-4 rounded-lg shadow-md bg-surface-container border-l-4 border-primary">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-on-surface">{role.name}</p>
@@ -165,16 +165,15 @@ const RolesPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
-                     <div><p className="text-on-surface-variant">Costo G.</p><p className="font-medium text-on-surface">{formatCurrency(role.dailyCost)}</p></div>
-                     <div><p className="text-on-surface-variant">Costo Std.</p><p className="font-medium text-on-surface">{formatCurrency(role.standardCost)}</p></div>
-                     <div><p className="text-on-surface-variant">Spese G.</p><p className="font-medium text-on-surface">{formatCurrency(role.dailyExpenses)}</p></div>
+                    <div><p className="text-on-surface-variant">Costo Giornaliero</p><p className="font-medium text-on-surface">{formatCurrency(role.dailyCost)}</p></div>
+                    <div><p className="text-on-surface-variant">Costo Standard</p><p className="font-medium text-on-surface">{formatCurrency(role.standardCost)}</p></div>
                 </div>
             </div>
         );
     };
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <SearchableSelect name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
             <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
@@ -194,7 +193,7 @@ const RolesPage: React.FC = () => {
                 renderMobileCard={renderMobileCard}
                 initialSortKey="name"
                 isLoading={loading}
-                 tableLayout={{
+                tableLayout={{
                     dense: true,
                     striped: true,
                     headerSticky: true,
@@ -206,7 +205,7 @@ const RolesPage: React.FC = () => {
                     base: 'w-full text-sm',
                 }}
             />
-
+            
             {editingRole && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -215,13 +214,13 @@ const RolesPage: React.FC = () => {
                             <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="form-input"/>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Livello Seniority *</label>
-                            <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" required />
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Livello Seniority</label>
+                            <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" />
                         </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Giornaliero (€)</label>
-                                <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="form-input"/>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Giornaliero (€) *</label>
+                                <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="form-input"/>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Standard (€)</label>

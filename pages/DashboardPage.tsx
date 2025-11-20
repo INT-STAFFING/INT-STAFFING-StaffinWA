@@ -74,15 +74,15 @@ const parseISODate = (s: string): Date => {
 
 const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any }> = ({ overallKPIs, currentMonthKPIs }) => (
     <>
-        <div className="bg-surface-container-low rounded-2xl shadow p-5">
+        <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-primary">
             <h3 className="text-sm font-medium text-on-surface-variant">Budget Complessivo</h3>
             <p className="mt-1 text-3xl font-semibold text-on-surface">{formatCurrency(overallKPIs.totalBudget)}</p>
         </div>
-        <div className="bg-surface-container-low rounded-2xl shadow p-5">
+        <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-error">
             <h3 className="text-sm font-medium text-on-surface-variant">Costo Stimato (Mese Corrente)</h3>
             <p className="mt-1 text-3xl font-semibold text-on-surface">{formatCurrency(currentMonthKPIs.totalCost)}</p>
         </div>
-        <div className="bg-surface-container-low rounded-2xl shadow p-5">
+        <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-tertiary">
             <h3 className="text-sm font-medium text-on-surface-variant">Giorni Allocati (Mese Corrente)</h3>
             <p className="mt-1 text-3xl font-semibold text-on-surface">{currentMonthKPIs.totalPersonDays.toLocaleString('it-IT', { maximumFractionDigits: 0 })}</p>
         </div>
@@ -91,7 +91,7 @@ const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any }> = ({
 
 const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ overallKPIs, navigate }) => (
     <>
-        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/resources?filter=unassigned')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px] border-l-4 border-error`} onClick={() => navigate('/resources?filter=unassigned')}>
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Risorse Non Allocate</h3>
@@ -108,7 +108,7 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
                 </div>
             )}
         </div>
-        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px]`} onClick={() => navigate('/projects?filter=unstaffed')}>
+        <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px] border-l-4 border-error`} onClick={() => navigate('/projects?filter=unstaffed')}>
             <div className="flex justify-between items-start w-full">
                 <div>
                     <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Progetti Senza Staff</h3>
@@ -129,7 +129,7 @@ const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ ov
 );
 
 const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
-    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px]`}>
+    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-secondary`}>
         <div className="flex justify-between items-start w-full">
             <div>
                 <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>FTE Non Allocati (Mese Corrente)</h3>
@@ -185,7 +185,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
     );
     
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Allocazione Media</h2>
                 <div className="flex items-center gap-4">
@@ -232,7 +232,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
     );
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">FTE per Progetto</h2>
                 <div className="flex items-center gap-4">
@@ -281,7 +281,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
     );
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Analisi Budget</h2>
                 <div className="flex items-center gap-4">
@@ -330,7 +330,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
     );
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
                  <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
@@ -384,7 +384,7 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
     );
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
@@ -427,7 +427,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
     ];
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2>
                 <div className="flex items-center gap-4">
@@ -464,7 +464,7 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
     ];
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
                  <ViewToggleButton view={view} setView={setView} />
@@ -505,7 +505,7 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
     );
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
                  <ViewToggleButton view={view} setView={setView} />
@@ -542,7 +542,7 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     ];
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col">
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
                 <ViewToggleButton view={view} setView={setView} />
@@ -569,7 +569,7 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
 };
 
 const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, resourceOptions, chartRef }) => (
-  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8">
+  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8 border-l-4 border-primary">
     <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
         <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
@@ -579,7 +579,7 @@ const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, r
 );
 
 const CostForecastCard: React.FC<any> = ({ chartRef }) => (
-  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8">
+  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8 border-l-4 border-primary">
       <h2 className="text-lg font-semibold mb-4">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
       <div className="h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
   </div>

@@ -26,10 +26,10 @@ const NavItem = ({ to, icon, label }: { to: string; icon: string; label: string 
 const BottomNavBar: React.FC<BottomNavBarProps> = ({ onMenuClick }) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-20 bg-surface-container border-t border-outline-variant shadow-lg flex items-stretch justify-around md:hidden z-30">
-      <NavItem to="/staffing" icon="calendar_month" label="Staffing" />
       <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />
-      <NavItem to="/resources" icon="person" label="Risorse" />
-      <NavItem to="/projects" icon="business_center" label="Progetti" />
+      <NavItem to="/gantt" icon="align_horizontal_left" label="Gantt" />
+      <NavItem to="/skills-map" icon="school" label="Skills" />
+      <NavItem to="/workload" icon="groups" label="Carico" />
       <button
         onClick={onMenuClick}
         className="flex flex-col items-center justify-center w-full h-full text-xs text-on-surface-variant"

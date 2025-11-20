@@ -169,7 +169,7 @@ export const ContractsPage: React.FC = () => {
     );
 
     const renderMobileCard = (contract: EnrichedContract) => (
-         <div key={contract.id} className="p-4 rounded-lg shadow-md bg-surface-container">
+         <div key={contract.id} className="p-4 rounded-lg shadow-md bg-surface-container border-l-4 border-primary">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="font-bold text-lg text-on-surface">{contract.name}</p>

@@ -145,7 +145,7 @@ const ClientsPage: React.FC = () => {
             );
         }
         return (
-            <div key={client.id} className="p-4 rounded-lg shadow-md bg-surface-container">
+            <div key={client.id} className="p-4 rounded-lg shadow-md bg-surface-container border-l-4 border-primary">
                 <div className="flex justify-between items-start">
                     <div>
                         <p className="font-bold text-lg text-on-surface">{client.name}</p>

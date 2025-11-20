@@ -60,7 +60,7 @@ const SkillsPage: React.FC = () => {
     });
 
     // Filter State
-    const [filters, setFilters] = useState({ name: '', category: '' });
+    const [filters, setFilters] = useState({ name: '', category: '', unusedOnly: false });
 
     const emptySkill: Omit<Skill, 'id'> = {
         name: '',
@@ -116,7 +116,8 @@ const SkillsPage: React.FC = () => {
         return enrichedSkills.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
             const catMatch = !filters.category || s.category === filters.category;
-            return nameMatch && catMatch;
+            const unusedMatch = !filters.unusedOnly || s.totalUsage === 0;
+            return nameMatch && catMatch && unusedMatch;
         });
     }, [enrichedSkills, filters]);
 
@@ -306,9 +307,18 @@ const SkillsPage: React.FC = () => {
                     <p className="text-sm text-on-surface-variant">Categoria Top</p>
                     <p className="text-xl font-bold text-on-surface truncate" title={kpis.topCategory}>{kpis.topCategory}</p>
                 </div>
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error">
-                    <p className="text-sm text-on-surface-variant">Skills Inutilizzate</p>
-                    <p className="text-3xl font-bold text-on-surface">{kpis.unusedSkills}</p>
+                <div 
+                    className={`bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error cursor-pointer hover:shadow-lg transition-all ${filters.unusedOnly ? 'ring-2 ring-error' : ''}`}
+                    onClick={() => setFilters(prev => ({ ...prev, unusedOnly: !prev.unusedOnly }))}
+                >
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm text-on-surface-variant">Skills Inutilizzate</p>
+                            <p className="text-3xl font-bold text-on-surface">{kpis.unusedSkills}</p>
+                        </div>
+                        {filters.unusedOnly && <span className="material-symbols-outlined text-error">filter_alt</span>}
+                    </div>
+                    {filters.unusedOnly && <p className="text-xs text-error mt-1 font-medium">Filtro attivo</p>}
                 </div>
             </div>
 
@@ -329,7 +339,7 @@ const SkillsPage: React.FC = () => {
                         options={categoryOptions} 
                         placeholder="Tutte le Categorie"
                     />
-                    <button onClick={() => setFilters({ name: '', category: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full md:w-auto">
+                    <button onClick={() => setFilters({ name: '', category: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full md:w-auto">
                         Reset Filtri
                     </button>
                 </div>

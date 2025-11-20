@@ -263,7 +263,7 @@ const ProjectsPage: React.FC = () => {
            );
         }
         return (
-            <div key={project.id} className="p-4 rounded-lg shadow-md bg-surface-container">
+            <div key={project.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${project.status === 'Completato' ? 'border-tertiary' : 'border-primary'}`}>
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="flex items-center gap-2">

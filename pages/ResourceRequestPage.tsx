@@ -224,7 +224,7 @@ export const ResourceRequestPage: React.FC = () => {
     
     // Vista Card per mobile e per la nuova visualizzazione a card
     const renderCard = (request: EnrichedRequest) => (
-        <div key={request.id} className="p-4 rounded-2xl shadow-md bg-surface-container-low flex flex-col md:flex-row gap-4 justify-between">
+        <div key={request.id} className="p-4 rounded-2xl shadow-md bg-surface-container-low flex flex-col md:flex-row gap-4 justify-between border-l-4 border-primary">
             <div className="flex-grow">
                 <div className="flex items-baseline gap-3">
                     <p className="font-bold text-lg text-on-surface">{request.projectName}</p>
@@ -284,7 +284,7 @@ export const ResourceRequestPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-surface-container-low rounded-2xl shadow p-6">
+                <div className="bg-surface-container-low rounded-2xl shadow p-6 border-l-4 border-primary">
                     <h2 className="text-lg font-semibold text-on-surface mb-4">Riepilogo Risorse Richieste (FTE)</h2>
                     {summaryData.fteArray.length > 0 ? (
                         <ul className="space-y-2 max-h-48 overflow-y-auto">
@@ -300,7 +300,7 @@ export const ResourceRequestPage: React.FC = () => {
                     )}
                 </div>
 
-                <div className="bg-surface-container-low rounded-2xl shadow p-6">
+                <div className="bg-surface-container-low rounded-2xl shadow p-6 border-l-4 border-secondary">
                     <h2 className="text-lg font-semibold text-on-surface mb-4">Dettaglio Richieste per Progetto</h2>
                      {summaryData.projectArray.length > 0 ? (
                         <div className="space-y-4 max-h-48 overflow-y-auto">

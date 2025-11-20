@@ -21,7 +21,7 @@ interface ExportCardProps {
 }
 
 const ExportCard: React.FC<ExportCardProps> = ({ title, description, onExport, isExporting, icon }) => (
-    <div className="bg-surface-container-low rounded-2xl shadow p-6 flex flex-col">
+    <div className="bg-surface-container-low rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
         <div className="flex items-start gap-4">
             <div className="flex-shrink-0 text-primary">
                 <span className="material-symbols-outlined text-3xl">{icon}</span>

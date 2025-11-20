@@ -337,7 +337,7 @@ const InterviewsPage: React.FC = () => {
   ];
 
   const renderCard = (interview: EnrichedInterview) => (
-    <div key={interview.id} className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col gap-4">
+    <div key={interview.id} className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col gap-4 border-l-4 border-primary">
       <div className="flex justify-between items-start">
         <div>
           <p className="font-bold text-lg text-on-surface">
@@ -409,7 +409,7 @@ const InterviewsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div
           onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: 'Aperto', hiringStatus: '' })}
-          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px] border-l-4 border-primary"
         >
           <div className="flex items-start justify-between">
             <div>
@@ -422,7 +422,7 @@ const InterviewsPage: React.FC = () => {
         </div>
         <div
           onClick={() => setFilters({ name: '', roleId: '', feedback: 'Positivo', status: '', hiringStatus: '' })}
-          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px] border-l-4 border-tertiary"
         >
           <div className="flex items-start justify-between">
             <div>
@@ -435,7 +435,7 @@ const InterviewsPage: React.FC = () => {
         </div>
         <div
           onClick={() => setFilters({ name: '', roleId: '', feedback: '', status: '', hiringStatus: 'SI' })}
-          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px]"
+          className="bg-surface-container-low p-5 rounded-2xl shadow flex flex-col justify-between cursor-pointer hover:shadow-lg transition-shadow duration-200 min-h-[150px] border-l-4 border-secondary"
         >
           <div className="flex items-start justify-between">
             <div>
@@ -462,7 +462,7 @@ const InterviewsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-surface-container rounded-2xl shadow p-6 mb-6">
+      <div className="bg-surface-container rounded-2xl shadow p-6 mb-6 border-l-4 border-primary">
         <h2 className="text-xl font-semibold text-on-surface mb-4">Pipeline per Richiesta Attiva</h2>
         <div className="overflow-x-auto max-h-60">
           <table className="min-w-full text-sm">
