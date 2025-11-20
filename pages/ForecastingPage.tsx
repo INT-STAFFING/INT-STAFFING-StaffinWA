@@ -3,7 +3,7 @@
  * @description Pagina di forecasting e capacity planning per analizzare il carico di lavoro futuro con proiezioni intelligenti.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -19,6 +19,13 @@ const ForecastingPage: React.FC = () => {
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
     const [enableProjections, setEnableProjections] = useState(true); // Toggle per attivare l'algoritmo predittivo
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     
     const availableProjects = useMemo(() => {
         if (!filters.clientId) {
@@ -229,6 +236,55 @@ const ForecastingPage: React.FC = () => {
     const clientOptions = useMemo(() => clients.sort((a,b) => a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
     const projectOptions = useMemo(() => availableProjects.sort((a,b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id!, label: p.name })), [availableProjects]);
 
+    // --- Mobile Components ---
+    
+    const MobileForecastCard: React.FC<{ data: any }> = ({ data }) => {
+        const getBorderColor = (surplus: number) => {
+            if (surplus < 0) return 'border-error';
+            if (surplus < 10) return 'border-yellow-500';
+            return 'border-primary';
+        };
+
+        return (
+            <div className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${getBorderColor(data.surplusDeficit)} flex flex-col gap-3`}>
+                 <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="font-bold text-lg text-on-surface capitalize">{data.monthName}</h3>
+                        {data.isProjected && <span className="text-xs text-primary font-medium">(Include Proiezione)</span>}
+                    </div>
+                    <div className={`px-2 py-1 rounded text-xs font-bold ${data.utilization > 100 ? 'bg-error text-on-error' : 'bg-surface-variant text-on-surface-variant'}`}>
+                        {data.utilization.toFixed(0)}% Utilizzo
+                    </div>
+                </div>
+
+                {/* Utilization Bar */}
+                <div className="w-full bg-surface-container-highest rounded-full h-2.5 mt-1">
+                     <div 
+                        className={`h-2.5 rounded-full ${getUtilizationColor(data.utilization)}`} 
+                        style={{ width: `${Math.min(data.utilization, 100)}%` }}
+                    ></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
+                    <div className="bg-surface-container-low p-2 rounded border border-outline-variant text-center">
+                        <span className="block text-xs text-on-surface-variant">Disponibili</span>
+                        <span className="font-semibold text-on-surface">{data.availablePersonDays.toFixed(1)} G/U</span>
+                    </div>
+                    <div className="bg-surface-container-low p-2 rounded border border-outline-variant text-center">
+                        <span className="block text-xs text-on-surface-variant">Allocati</span>
+                        <span className="font-semibold text-on-surface">{data.allocatedPersonDays.toFixed(1)} G/U</span>
+                    </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t border-outline-variant">
+                     <span className="text-sm text-on-surface-variant">Surplus/Deficit</span>
+                     <span className={`font-bold text-lg ${data.surplusDeficit < 0 ? 'text-error' : 'text-tertiary'}`}>
+                        {data.surplusDeficit > 0 ? '+' : ''}{data.surplusDeficit.toFixed(1)}
+                     </span>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div>
@@ -265,7 +321,7 @@ const ForecastingPage: React.FC = () => {
 
 
             {/* Grafico Utilizzo */}
-            <div className="bg-surface rounded-2xl shadow p-6 mb-8">
+            <div className="bg-surface rounded-2xl shadow p-6 mb-8 hidden md:block">
                 <h2 className="text-xl font-semibold mb-4 text-on-surface">Utilizzo Mensile Previsto (%)</h2>
                 {enableProjections && <p className="text-xs text-on-surface-variant mb-4">Il grafico include le proiezioni basate sulla media storica delle allocazioni per i progetti attivi.</p>}
                 <div className="flex space-x-2 md:space-x-4 h-64 overflow-x-auto pb-4">
@@ -296,80 +352,65 @@ const ForecastingPage: React.FC = () => {
                 </div>
             </div>
 
-            
-            <div className="bg-surface rounded-2xl shadow">
-                <div
-                    className="
-                        max-h-[640px]
-                        overflow-y-auto
-                        overflow-x-auto
-                    "
-                >
-                    <table className="min-w-full divide-y divide-outline-variant table-fixed">
-                        <thead className="sticky top-0 z-10 bg-surface-container-low">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                    Mese
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                    G/U Disponibili
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                    G/U Allocati
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                    Utilizzo
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                    Surplus/Deficit (G/U)
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-surface divide-y divide-outline-variant">
-                            {forecastData.map((data, index) => (
-                                <tr
-                                    key={index}
-                                    className="h-8 hover:bg-surface-container-low"
-                                >
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
-                                        {data.monthName} {data.isProjected && <span className="text-xs text-primary ml-1">(Proiezione)</span>}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
-                                        {data.availablePersonDays.toFixed(1)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
-                                        {data.allocatedPersonDays.toFixed(1)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
-                                        <span
-                                            className={
-                                                data.utilization > 100
-                                                    ? 'text-error'
-                                                    : data.utilization > 95
-                                                    ? 'text-tertiary'
-                                                    : 'text-yellow-600 dark:text-yellow-400'
-                                            }
-                                        >
-                                            {data.utilization.toFixed(1)}%
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
-                                        <span
-                                            className={
-                                                data.surplusDeficit >= 0
-                                                    ? 'text-tertiary'
-                                                    : 'text-error'
-                                            }
-                                        >
-                                            {data.surplusDeficit.toFixed(1)}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {/* Data View: Table (Desktop) / Cards (Mobile) */}
+            {isMobile ? (
+                <div className="space-y-4">
+                    {forecastData.map((data, index) => (
+                        <MobileForecastCard key={index} data={data} />
+                    ))}
                 </div>
-            </div>
+            ) : (
+                <div className="bg-surface rounded-2xl shadow">
+                    <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
+                        <table className="min-w-full divide-y divide-outline-variant table-fixed">
+                            <thead className="sticky top-0 z-10 bg-surface-container-low">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                        Mese
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                        G/U Disponibili
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                        G/U Allocati
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                        Utilizzo
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                        Surplus/Deficit (G/U)
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-surface divide-y divide-outline-variant">
+                                {forecastData.map((data, index) => (
+                                    <tr key={index} className="h-8 hover:bg-surface-container-low">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">
+                                            {data.monthName} {data.isProjected && <span className="text-xs text-primary ml-1">(Proiezione)</span>}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
+                                            {data.availablePersonDays.toFixed(1)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-on-surface-variant">
+                                            {data.allocatedPersonDays.toFixed(1)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
+                                            <span className={data.utilization > 100 ? 'text-error' : data.utilization > 95 ? 'text-tertiary' : 'text-yellow-600 dark:text-yellow-400'}>
+                                                {data.utilization.toFixed(1)}%
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
+                                            <span className={data.surplusDeficit >= 0 ? 'text-tertiary' : 'text-error'}>
+                                                {data.surplusDeficit.toFixed(1)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,10 +1,9 @@
-
 /**
  * @file ReportsPage.tsx
  * @description Pagina per la visualizzazione di report analitici su costi e utilizzo.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
@@ -67,6 +66,13 @@ const ProjectCostsReport: React.FC = () => {
     const { allocations } = useAllocationsContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
     const { sortConfig, SortableHeader } = useSort<ProjectCostSortKey>();
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const reportData = useMemo(() => {
         return projects
@@ -147,6 +153,36 @@ const ProjectCostsReport: React.FC = () => {
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
 
+    const MobileProjectCostCard: React.FC<{ data: any }> = ({ data }) => (
+        <div className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${data.variance >= 0 ? 'border-tertiary' : 'border-error'} flex flex-col gap-3`}>
+             <div className="flex justify-between items-start">
+                <div>
+                    <h3 className="font-bold text-lg text-on-surface">{data.projectName}</h3>
+                    <p className="text-sm text-on-surface-variant">{data.clientName}</p>
+                </div>
+                 <div className={`px-2 py-1 rounded text-xs font-bold ${data.variance >= 0 ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
+                    {formatCurrency(data.variance)} Var
+                </div>
+            </div>
+
+             <div className="grid grid-cols-2 gap-2 mt-1">
+                 <div className="bg-surface-container-low p-2 rounded">
+                     <span className="text-xs text-on-surface-variant block">Budget</span>
+                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(data.budget)}</span>
+                 </div>
+                 <div className="bg-surface-container-low p-2 rounded">
+                     <span className="text-xs text-on-surface-variant block">Costo Allocato</span>
+                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(data.allocatedCost)}</span>
+                 </div>
+             </div>
+
+             <div className="flex justify-between items-center text-xs text-on-surface-variant pt-2 border-t border-outline-variant">
+                <span>{data.personDays.toFixed(1)} Giorni/Uomo</span>
+                <span>Avg: {formatCurrency(data.avgCostPerDay)} / Giorno</span>
+             </div>
+        </div>
+    );
+
     return (
         <div>
             <div className="p-4 bg-surface-container rounded-2xl mb-6">
@@ -158,71 +194,50 @@ const ProjectCostsReport: React.FC = () => {
                     </button>
                  </div>
             </div>
-             <div
-                className="
-                    max-h-[640px]
-                    overflow-y-auto
-                    overflow-x-auto
-                "
-            >
-                <table className="min-w-full divide-y divide-outline-variant table-fixed">
-                    <thead className="sticky top-0 z-10 bg-surface-container-low">
-                        <tr>
-                            <SortableHeader label="Progetto" sortKey="projectName" />
-                            <SortableHeader label="Cliente" sortKey="clientName" />
-                            <SortableHeader label="Budget" sortKey="budget" />
-                            <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
-                            <SortableHeader label="Varianza" sortKey="variance" />
-                            <SortableHeader label="G/U Allocati" sortKey="personDays" />
-                            <SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" />
-                        </tr>
-                    </thead>
-                    <tbody className="bg-surface divide-y divide-outline-variant">
-                        {sortedData.length > 0 ? (
-                            sortedData.map(d => (
-                                <tr
-                                    key={d.id}
-                                    className="h-8 hover:bg-surface-container-low"
-                                >
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">
-                                        {d.projectName}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {d.clientName}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {formatCurrency(d.budget)}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {formatCurrency(d.allocatedCost)}
-                                    </td>
-                                    <td
-                                        className={`
-                                            px-4 py-3 whitespace-nowrap text-sm font-semibold
-                                            ${d.variance >= 0 ? 'text-tertiary' : 'text-error'}
-                                        `}
-                                    >
-                                        {formatCurrency(d.variance)}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {(d.personDays || 0).toFixed(2)}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {formatCurrency(d.avgCostPerDay)}
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
+            
+            {isMobile ? (
+                <div className="space-y-4">
+                    {sortedData.map(d => <MobileProjectCostCard key={d.id} data={d} />)}
+                    {sortedData.length === 0 && <p className="text-center text-on-surface-variant py-8">Nessun dato trovato.</p>}
+                </div>
+            ) : (
+                 <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
+                    <table className="min-w-full divide-y divide-outline-variant table-fixed">
+                        <thead className="sticky top-0 z-10 bg-surface-container-low">
                             <tr>
-                                <td colSpan={7} className="px-6 py-8 text-center text-sm text-on-surface-variant">
-                                    Nessun dato trovato per i filtri correnti.
-                                </td>
+                                <SortableHeader label="Progetto" sortKey="projectName" />
+                                <SortableHeader label="Cliente" sortKey="clientName" />
+                                <SortableHeader label="Budget" sortKey="budget" />
+                                <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
+                                <SortableHeader label="Varianza" sortKey="variance" />
+                                <SortableHeader label="G/U Allocati" sortKey="personDays" />
+                                <SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" />
                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
+                        </thead>
+                        <tbody className="bg-surface divide-y divide-outline-variant">
+                            {sortedData.length > 0 ? (
+                                sortedData.map(d => (
+                                    <tr key={d.id} className="h-8 hover:bg-surface-container-low">
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">{d.projectName}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{d.clientName}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.budget)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</td>
+                                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.variance >= 0 ? 'text-tertiary' : 'text-error'}`}>
+                                            {formatCurrency(d.variance)}
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{(d.personDays || 0).toFixed(2)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.avgCostPerDay)}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-on-surface-variant">Nessun dato trovato per i filtri correnti.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 };
@@ -234,6 +249,13 @@ const ResourceUtilizationReport: React.FC = () => {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     const [filters, setFilters] = useState({ roleId: '', horizontal: '' });
     const { sortConfig, SortableHeader } = useSort<ResourceUtilizationSortKey>();
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const reportData = useMemo(() => {
         const [year, monthNum] = month.split('-').map(Number);
@@ -323,6 +345,51 @@ const ResourceUtilizationReport: React.FC = () => {
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.map(h => ({ value: h.value, label: h.value })), [horizontals]);
 
+    const MobileResourceUtilCard: React.FC<{ data: any }> = ({ data }) => {
+         const getBarColor = (util: number) => {
+            if (util > 100) return 'bg-error';
+            if (util > 90) return 'bg-tertiary';
+            return 'bg-primary';
+        };
+
+        return (
+            <div className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-secondary flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h3 className="font-bold text-lg text-on-surface">{data.resourceName}</h3>
+                        <p className="text-sm text-on-surface-variant">{data.roleName}</p>
+                    </div>
+                    <div className="text-right">
+                        <span className="block font-bold text-lg text-on-surface">{data.utilization.toFixed(0)}%</span>
+                         <span className="text-xs text-on-surface-variant">Utilizzo</span>
+                    </div>
+                </div>
+
+                 <div className="w-full bg-surface-container-highest rounded-full h-2.5">
+                     <div 
+                        className={`h-2.5 rounded-full ${getBarColor(data.utilization)}`} 
+                        style={{ width: `${Math.min(data.utilization, 100)}%` }}
+                    ></div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-2 text-sm text-center">
+                     <div className="bg-surface-container-low p-1 rounded">
+                         <span className="block text-xs text-on-surface-variant">Disponibili</span>
+                         <span className="font-semibold">{data.availableDays.toFixed(1)}</span>
+                     </div>
+                     <div className="bg-surface-container-low p-1 rounded">
+                         <span className="block text-xs text-on-surface-variant">Allocati</span>
+                         <span className="font-semibold">{data.allocatedDays.toFixed(1)}</span>
+                     </div>
+                      <div className="bg-surface-container-low p-1 rounded">
+                         <span className="block text-xs text-on-surface-variant">Costo</span>
+                         <span className="font-semibold">{formatCurrency(data.allocatedCost)}</span>
+                     </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div>
             <div className="p-4 bg-surface-container rounded-2xl mb-6">
@@ -335,72 +402,48 @@ const ResourceUtilizationReport: React.FC = () => {
                     </button>
                 </div>
             </div>
-             <div
-                className="
-                    max-h-[640px]    // ~20 righe */
-                    overflow-y-auto  // scroll verticale interno */
-                    overflow-x-auto  // scroll orizzontale quando serve */
-                "
-            >
-                <table className="min-w-full divide-y divide-outline-variant table-fixed">
-                    <thead className="sticky top-0 z-10 bg-surface-container-low">
-                        <tr>
-                            <SortableHeader label="Risorsa" sortKey="resourceName" />
-                            <SortableHeader label="Ruolo" sortKey="roleName" />
-                            <SortableHeader label="G/U Disponibili" sortKey="availableDays" />
-                            <SortableHeader label="G/U Allocati" sortKey="allocatedDays" />
-                            <SortableHeader label="Utilizzo" sortKey="utilization" />
-                            <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
-                        </tr>
-                    </thead>
-                    <tbody className="bg-surface divide-y divide-outline-variant">
-                       {sortedData.length > 0 ? (
-                            sortedData.map(d => (
-                                <tr
-                                    key={d.id}
-                                    className="h-8 hover:bg-surface-container-low"
-                                >
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">
-                                        {d.resourceName}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {d.roleName}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {(d.availableDays || 0).toFixed(1)}
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {(d.allocatedDays || 0).toFixed(2)}
-                                    </td>
-                                    <td
-                                        className={`
-                                            px-4 py-3 whitespace-nowrap text-sm font-semibold
-                                            ${
-                                                d.utilization > 100
-                                                    ? 'text-error'
-                                                    : d.utilization > 95
-                                                    ? 'text-tertiary'
-                                                    : 'text-yellow-600 dark:text-yellow-400'
-                                            }
-                                        `}
-                                    >
-                                        {(d.utilization || 0).toFixed(1)}%
-                                    </td>
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                                        {formatCurrency(d.allocatedCost)}
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
+            
+            {isMobile ? (
+                <div className="space-y-4">
+                     {sortedData.map(d => <MobileResourceUtilCard key={d.id} data={d} />)}
+                     {sortedData.length === 0 && <p className="text-center text-on-surface-variant py-8">Nessun dato trovato.</p>}
+                </div>
+            ) : (
+                <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
+                    <table className="min-w-full divide-y divide-outline-variant table-fixed">
+                        <thead className="sticky top-0 z-10 bg-surface-container-low">
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-sm text-on-surface-variant">
-                                    Nessun dato trovato per i filtri correnti.
-                                </td>
+                                <SortableHeader label="Risorsa" sortKey="resourceName" />
+                                <SortableHeader label="Ruolo" sortKey="roleName" />
+                                <SortableHeader label="G/U Disponibili" sortKey="availableDays" />
+                                <SortableHeader label="G/U Allocati" sortKey="allocatedDays" />
+                                <SortableHeader label="Utilizzo" sortKey="utilization" />
+                                <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
                             </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody className="bg-surface divide-y divide-outline-variant">
+                        {sortedData.length > 0 ? (
+                                sortedData.map(d => (
+                                    <tr key={d.id} className="h-8 hover:bg-surface-container-low">
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">{d.resourceName}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{d.roleName}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{(d.availableDays || 0).toFixed(1)}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{(d.allocatedDays || 0).toFixed(2)}</td>
+                                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.utilization > 100 ? 'text-error' : d.utilization > 95 ? 'text-tertiary' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                                            {(d.utilization || 0).toFixed(1)}%
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-on-surface-variant">Nessun dato trovato per i filtri correnti.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 };
