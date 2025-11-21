@@ -7,6 +7,7 @@
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 // WHITELIST per db_inspector per prevenire SQL Injection
 const ALLOWED_TABLES = new Set([
@@ -14,7 +15,7 @@ const ALLOWED_TABLES = new Set([
     'app_config', 'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
     'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 
     'contract_managers', 'allocations', 'skills', 'resource_skills', 'project_skills', 'role_cost_history',
-    'leave_types', 'leave_requests'
+    'leave_types', 'leave_requests', 'app_users', 'role_permissions'
 ]);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -29,6 +30,96 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         switch (entity) {
+            // --- USERS & AUTH ---
+            case 'app-users':
+                if (method === 'GET') {
+                    // List users (securely)
+                    const { rows } = await client.sql`
+                        SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.created_at, r.name as resource_name 
+                        FROM app_users u
+                        LEFT JOIN resources r ON u.resource_id = r.id
+                        ORDER BY u.username ASC
+                    `;
+                    return res.status(200).json(rows);
+                } else if (method === 'POST') {
+                    // Create User
+                    const { username, password, role, resourceId, isActive } = req.body;
+                    if (!username || !password) return res.status(400).json({error: 'Username/Password required'});
+                    
+                    // Check existing
+                    const exists = await client.sql`SELECT id FROM app_users WHERE username=${username}`;
+                    if (exists.rows.length > 0) return res.status(400).json({error: 'Username already exists'});
+
+                    const salt = await bcrypt.genSalt(10);
+                    const hash = await bcrypt.hash(password, salt);
+                    const newId = uuidv4();
+
+                    await client.sql`
+                        INSERT INTO app_users (id, username, password_hash, role, resource_id, is_active)
+                        VALUES (${newId}, ${username}, ${hash}, ${role || 'SIMPLE'}, ${resourceId || null}, ${isActive ?? true})
+                    `;
+                    return res.status(201).json({ id: newId, username, role });
+
+                } else if (method === 'PUT') {
+                    if (action === 'change_password') {
+                        // Self-service or Admin forced password change
+                        const { newPassword } = req.body;
+                        if (!newPassword) return res.status(400).json({error: 'New password required'});
+                        
+                        const salt = await bcrypt.genSalt(10);
+                        const hash = await bcrypt.hash(newPassword, salt);
+                        
+                        await client.sql`UPDATE app_users SET password_hash=${hash} WHERE id=${id as string}`;
+                        return res.status(200).json({ success: true });
+                    } else {
+                        // Update details
+                        const { role, resourceId, isActive, password } = req.body;
+                        
+                        // Build dynamic query updates
+                        // If password provided, hash it
+                        let hash = undefined;
+                        if (password) {
+                            const salt = await bcrypt.genSalt(10);
+                            hash = await bcrypt.hash(password, salt);
+                        }
+
+                        await client.sql`
+                            UPDATE app_users SET 
+                                role = COALESCE(${role}, role),
+                                resource_id = ${resourceId === undefined ? null : resourceId},
+                                is_active = COALESCE(${isActive}, is_active),
+                                password_hash = COALESCE(${hash}, password_hash)
+                            WHERE id = ${id as string}
+                        `;
+                        return res.status(200).json({ id, ...req.body, password: '***' });
+                    }
+                } else if (method === 'DELETE') {
+                    await client.sql`DELETE FROM app_users WHERE id=${id as string}`;
+                    return res.status(204).end();
+                }
+                break;
+
+            case 'role-permissions':
+                if (method === 'GET') {
+                    const { rows } = await client.sql`SELECT * FROM role_permissions`;
+                    return res.status(200).json(rows);
+                } else if (method === 'POST') {
+                    // Bulk update permissions
+                    const { permissions } = req.body; // Array of { role, pagePath, isAllowed }
+                    await client.query('BEGIN');
+                    for (const p of permissions) {
+                        await client.sql`
+                            INSERT INTO role_permissions (role, page_path, is_allowed)
+                            VALUES (${p.role}, ${p.pagePath}, ${p.isAllowed})
+                            ON CONFLICT (role, page_path) 
+                            DO UPDATE SET is_allowed = EXCLUDED.is_allowed
+                        `;
+                    }
+                    await client.query('COMMIT');
+                    return res.status(200).json({ success: true });
+                }
+                break;
+
             // --- CLIENTS ---
             case 'clients':
                 if (method === 'POST') {
@@ -378,7 +469,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      return res.status(201).json({ id: newId, ...task });
                 } else if (method === 'PUT') {
                     const task = req.body;
-                    await client.sql`UPDATE wbs_tasks SET elemento_wbs=${task.elementoWbs}, descrizione_wbe=${task.descrizioneWbe}, client_id=${task.clientId}, periodo=${task.periodo}, ore=${task.ore}, produzione_lorda=${task.produzioneLorda}, ore_network_italia=${task.oreNetworkItalia}, produzione_lorda_network_italia=${task.produzioneLordaNetworkItalia}, perdite=${task.perdite}, realisation=${task.realisation}, spese_onorari_esterni=${task.speseOnorariEsterni}, spese_altro=${task.speseAltro}, fatture_onorari=${task.fattureOnorari}, fatture_spese=${task.fattureSpese}, iva=${task.iva}, incassi=${task.incassi}, primo_responsabile_id=${task.primoResponsabileId}, secondo_responsabile_id=${task.secondoResponsabileId} WHERE id=${id as string}`;
+                    await client.sql`UPDATE wbs_tasks SET elemento_wbs=${task.elementoWbs}, descrizione_wbe=${task.descrizioneWbe}, client_id=${task.clientId}, periodo=${task.periodo}, ore=${task.ore}, produzione_lorda=${task.produzioneLorda}, ore_network_italia=${task.oreNetworkItalia}, produzione_lorda_network_italia=${task.produzioneLordaNetworkItalia}, perdite=${task.perdite}, realisation=${task.realisation}, spese_onorari_esterni=${task.spese_onorari_esterni}, spese_altro=${task.speseAltro}, fatture_onorari=${task.fattureOnorari}, fatture_spese=${task.fattureSpese}, iva=${task.iva}, incassi=${task.incassi}, primo_responsabile_id=${task.primoResponsabileId}, secondo_responsabile_id=${task.secondoResponsabileId} WHERE id=${id as string}`;
                     return res.status(200).json({ id, ...task });
                 } else if (method === 'DELETE') {
                     await client.sql`DELETE FROM wbs_tasks WHERE id=${id as string}`;

@@ -481,3 +481,41 @@ export interface LeaveRequest {
 export interface PageVisibility {
     [path: string]: boolean;
 }
+
+/**
+ * @enum UserRole
+ * @description Ruoli utente per il sistema di autenticazione.
+ */
+export type UserRole = 'SIMPLE' | 'MANAGER' | 'ADMIN';
+
+/**
+ * @interface AppUser
+ * @description Rappresenta un utente che può accedere all'applicazione.
+ */
+export interface AppUser {
+    /** @property {string} id - UUID dell'utente. */
+    id: string;
+    /** @property {string} username - Nome utente per il login. */
+    username: string;
+    /** @property {UserRole} role - Ruolo dell'utente. */
+    role: UserRole;
+    /** @property {string | null} resourceId - ID della risorsa associata (opzionale). */
+    resourceId: string | null;
+    /** @property {boolean} isActive - Se l'utente è attivo (whitelist). */
+    isActive: boolean;
+    /** @property {string[]} permissions - Lista dei percorsi abilitati. */
+    permissions: string[];
+}
+
+/**
+ * @interface RolePermission
+ * @description Definisce i permessi di accesso alle pagine per ruolo.
+ */
+export interface RolePermission {
+    /** @property {UserRole} role - Il ruolo a cui si applica il permesso. */
+    role: UserRole;
+    /** @property {string} pagePath - Il percorso della pagina (es. '/staffing'). */
+    pagePath: string;
+    /** @property {boolean} allowed - Se l'accesso è consentito. */
+    allowed: boolean;
+}

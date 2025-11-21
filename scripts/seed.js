@@ -6,6 +6,7 @@ if (process.env.NEON_POSTGRES_URL && !process.env.POSTGRES_URL) {
 }
 
 import { createPool } from '@vercel/postgres';
+import bcrypt from 'bcryptjs';
  
 const db = createPool({
     connectionString: process.env.POSTGRES_URL,
@@ -326,6 +327,35 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         VALUES ('login_protection_enabled', 'true') 
         ON CONFLICT (key) DO NOTHING;
     `;
+
+    // --- AUTH SEEDING ---
+    await client.sql`
+        CREATE TABLE IF NOT EXISTS app_users (
+            id UUID PRIMARY KEY,
+            username VARCHAR(255) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL DEFAULT 'SIMPLE',
+            resource_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+    
+    // Check if admin exists or seed it
+    const usersCheck = await client.sql`SELECT COUNT(*) FROM app_users;`;
+    if (usersCheck.rows[0].count === '0') {
+        console.log('Seeding default admin user...');
+        // Password default: 'admin'
+        // Use sync hash for script simplicity or async if top-level await supported.
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync('admin', salt);
+        
+        await client.sql`
+            INSERT INTO app_users (id, username, password_hash, role, is_active)
+            VALUES (uuid_generate_v4(), 'admin', ${hash}, 'ADMIN', TRUE);
+        `;
+        console.log('Default admin created (user: admin, pass: admin)');
+    }
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),

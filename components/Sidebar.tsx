@@ -1,14 +1,15 @@
-
 /**
  * @file Sidebar.tsx
  * @description Componente per la barra di navigazione laterale dell'applicazione.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useEntitiesContext } from '../context/AppContext';
+import Modal from './Modal';
+import { SpinnerIcon } from './icons';
 
 /**
  * @interface SidebarProps
@@ -24,11 +25,10 @@ interface SidebarProps {
 const NavItem: React.FC<{ to: string; icon: string; label: string; onClick: () => void; badgeCount?: number }> = ({ to, icon, label, onClick, badgeCount }) => {
     const baseClasses = "flex items-center text-sm font-medium text-on-surface-variant transition-colors duration-200 h-14";
     const activeClasses = "text-on-secondary-container";
-    const { pageVisibility } = useEntitiesContext();
-    const { isAdmin } = useAuth();
+    const { hasPermission, isLoginProtectionEnabled } = useAuth();
 
-    // Check visibility
-    if (pageVisibility[to] && !isAdmin) {
+    // Check RBAC permission
+    if (isLoginProtectionEnabled && !hasPermission(to)) {
         return null;
     }
 
@@ -67,9 +67,12 @@ const NavHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
  * @returns {React.ReactElement} Il componente Sidebar.
  */
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-    const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
+    const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin, user, changePassword } = useAuth();
     const { mode, toggleMode } = useTheme();
     const { leaveRequests } = useEntitiesContext();
+    const [isChangePwdOpen, setIsChangePwdOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [isLoadingPwd, setIsLoadingPwd] = useState(false);
     
     const handleNavLinkClick = () => {
         if (isOpen) {
@@ -89,6 +92,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         md:relative md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     `;
+
+    const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoadingPwd(true);
+        try {
+            await changePassword(newPassword);
+            setIsChangePwdOpen(false);
+            setNewPassword('');
+        } finally {
+            setIsLoadingPwd(false);
+        }
+    };
 
     return (
         <aside className={sidebarClasses}>
@@ -150,27 +165,67 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </>
                     )}
                 </div>
-                <div className="p-4">
+                <div className="p-4 bg-surface-container-low border-t border-outline-variant">
                     {isAuthenticated && isLoginProtectionEnabled ? (
-                        <div className="space-y-2">
-                             <div className="px-4 py-2 text-center text-xs text-on-surface-variant">
-                                Versione V1014
-                            </div>
-                            <button
-                                onClick={logout}
-                                className="flex items-center w-full px-4 py-2 text-error rounded-full hover:bg-error-container hover:text-on-error-container transition-colors duration-200"
-                            >
-                                <span className="material-symbols-outlined mr-3">logout</span>
-                                Logout
-                            </button>
+                        <div className="space-y-3">
+                             <div className="flex items-center gap-3 px-2">
+                                <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold">
+                                    {user?.username.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col overflow-hidden">
+                                    <span className="text-sm font-semibold text-on-surface truncate">{user?.username}</span>
+                                    <span className="text-xs text-on-surface-variant truncate uppercase">{user?.role}</span>
+                                </div>
+                             </div>
+                             <div className="flex gap-2">
+                                <button
+                                    onClick={() => setIsChangePwdOpen(true)}
+                                    className="flex-1 flex items-center justify-center px-2 py-2 text-xs font-medium text-on-surface-variant bg-surface border border-outline-variant rounded-full hover:bg-surface-container transition-colors"
+                                    title="Cambia Password"
+                                >
+                                    <span className="material-symbols-outlined text-sm">key</span>
+                                </button>
+                                <button
+                                    onClick={logout}
+                                    className="flex-[3] flex items-center justify-center px-4 py-2 text-xs font-medium text-error border border-error rounded-full hover:bg-error-container hover:text-on-error-container transition-colors duration-200"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-sm">logout</span>
+                                    Logout
+                                </button>
+                             </div>
                         </div>
                     ) : (
-                        <div className="px-4 py-4 text-center text-xs text-on-surface-variant">
+                        <div className="px-4 py-2 text-center text-xs text-on-surface-variant">
                             Versione V1014
                         </div>
                     )}
                 </div>
             </nav>
+
+            {isChangePwdOpen && (
+                <Modal isOpen={isChangePwdOpen} onClose={() => setIsChangePwdOpen(false)} title="Cambia Password">
+                    <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                        <p className="text-sm text-on-surface-variant">Inserisci la nuova password per il tuo account.</p>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface mb-1">Nuova Password</label>
+                            <input 
+                                type="password" 
+                                value={newPassword} 
+                                onChange={(e) => setNewPassword(e.target.value)} 
+                                required 
+                                className="form-input"
+                                minLength={6}
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                            <button type="button" onClick={() => setIsChangePwdOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary hover:bg-surface-container-low">Annulla</button>
+                            <button type="submit" disabled={isLoadingPwd} className="flex items-center px-4 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">
+                                {isLoadingPwd ? <SpinnerIcon className="w-4 h-4"/> : 'Salva'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
         </aside>
     );
 };

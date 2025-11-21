@@ -1,9 +1,8 @@
-
 /**
  * @file AdminSettingsPage.tsx
  * @description Pagina per la gestione delle impostazioni riservate agli amministratori.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme, Theme, defaultTheme, M3Palette } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
@@ -15,8 +14,24 @@ import {
   DEFAULT_DASHBOARD_CARD_ORDER,
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
-import { SkillThresholds } from '../types';
+import { SkillThresholds, AppUser, UserRole, RolePermission } from '../types';
+import Modal from '../components/Modal';
+import SearchableSelect from '../components/SearchableSelect';
+import ConfirmationModal from '../components/ConfirmationModal';
 
+// --- UTILS ---
+const authFetch = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('authToken');
+    const headers = { 
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+    };
+    const res = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
+    if(!res.ok) throw new Error((await res.json()).error || 'Request failed');
+    return res.json();
+}
+
+// --- Components for Theme Editor (unchanged parts omitted for brevity, kept logic structure) ---
 const ColorInput: React.FC<{
     label: string;
     colorKey: keyof M3Palette;
@@ -98,10 +113,6 @@ const ThemeEditor: React.FC = () => {
     };
 
     const handleSave = async () => {
-        if (!isThemeChanged) {
-            addToast('Nessuna modifica da salvare.', 'success');
-            return;
-        }
         setIsSaving(true);
         try {
             await saveTheme(editedTheme);
@@ -193,14 +204,10 @@ const ThemeEditor: React.FC = () => {
 };
 
 const ToastEditor: React.FC = () => {
-    // This component is now deprecated as toast colors are part of the main theme palettes.
-    // It can be removed or left as-is for future non-color toast customizations.
-    // For now, let's hide it to avoid confusion.
     return null;
 };
 
 const VisualizationEditor: React.FC = () => {
-    // This component is not part of the DB theme feature, so it remains as-is.
     const { theme, saveTheme: setTheme } = useTheme();
     const [settings, setSettings] = useState(theme.visualizationSettings);
 
@@ -219,7 +226,6 @@ const VisualizationEditor: React.FC = () => {
     };
 
     const handleSave = () => {
-        // This only saves to localStorage, not the DB, which is fine for this feature.
         setTheme({ ...theme, visualizationSettings: settings });
     };
 
@@ -230,7 +236,6 @@ const VisualizationEditor: React.FC = () => {
 
     const isChanged = JSON.stringify(theme.visualizationSettings) !== JSON.stringify(settings);
 
-    // Reusable slider component
     const SettingsSlider: React.FC<{
         graph: 'sankey' | 'network';
         param: string;
@@ -258,7 +263,6 @@ const VisualizationEditor: React.FC = () => {
             <h2 className="text-xl font-semibold mb-6">Personalizzazione Visualizzazioni Grafiche</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Sankey Settings */}
                 <div className="space-y-4 p-4 border border-outline-variant rounded-2xl">
                     <h3 className="font-medium text-lg">Diagramma di Flusso (Sankey)</h3>
                     <SettingsSlider graph="sankey" param="nodeWidth" label="Larghezza Nodi" min={5} max={50} step={1} />
@@ -266,7 +270,6 @@ const VisualizationEditor: React.FC = () => {
                     <SettingsSlider graph="sankey" param="linkOpacity" label="Opacità Flussi" min={0.1} max={1} step={0.1} />
                 </div>
                 
-                {/* Network Settings */}
                 <div className="space-y-4 p-4 border border-outline-variant rounded-2xl">
                     <h3 className="font-medium text-lg">Mappa delle Connessioni (Network)</h3>
                     <SettingsSlider graph="network" param="chargeStrength" label="Forza Repulsione" min={-2000} max={-50} step={50} />
@@ -277,19 +280,8 @@ const VisualizationEditor: React.FC = () => {
             </div>
 
             <div className="mt-8 flex justify-end space-x-3">
-                <button 
-                    onClick={handleReset} 
-                    className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary"
-                >
-                    Ripristina Default
-                </button>
-                 <button 
-                    onClick={handleSave}
-                    disabled={!isChanged}
-                    className="px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50"
-                >
-                    Salva Modifiche
-                </button>
+                <button onClick={handleReset} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Ripristina Default</button>
+                 <button onClick={handleSave} disabled={!isChanged} className="px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">Salva Modifiche</button>
             </div>
         </div>
     );
@@ -299,8 +291,6 @@ const DashboardLayoutEditor: React.FC = () => {
     const { addToast } = useToast();
     const [cardOrder, setCardOrder] = useState<DashboardCardId[]>([]);
     const [hasChanges, setHasChanges] = useState(false);
-
-    // For Drag & Drop
     const dragItem = React.useRef<number | null>(null);
     const dragOverItem = React.useRef<number | null>(null);
 
@@ -308,23 +298,11 @@ const DashboardLayoutEditor: React.FC = () => {
         try {
             const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
             const savedOrder: DashboardCardId[] = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
-
             const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
-            const savedIds = new Set(savedOrder);
-
-            // Filter out any stale IDs from the saved order that are no longer in the config
             const validOrder = savedOrder.filter(id => allKnownIds.has(id));
-            
-            // Add any new cards from the config that aren't in the saved order yet
-            allKnownIds.forEach(id => {
-                if (!savedIds.has(id)) {
-                    validOrder.push(id);
-                }
-            });
-
+            allKnownIds.forEach(id => { if (!new Set(savedOrder).has(id)) validOrder.push(id); });
             setCardOrder(validOrder);
         } catch (error) {
-            console.error("Failed to load or parse dashboard card order from localStorage:", error);
             setCardOrder(DEFAULT_DASHBOARD_CARD_ORDER);
         }
     }, []);
@@ -333,36 +311,27 @@ const DashboardLayoutEditor: React.FC = () => {
         dragItem.current = position;
         e.currentTarget.classList.add('dragging');
     };
-
     const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, position: number) => {
         dragOverItem.current = position;
     };
-
     const handleDrop = () => {
         if (dragItem.current === null || dragOverItem.current === null) return;
-
         const newCardOrder = [...cardOrder];
         const dragItemContent = newCardOrder[dragItem.current];
         newCardOrder.splice(dragItem.current, 1);
         newCardOrder.splice(dragOverItem.current, 0, dragItemContent);
-        
-        dragItem.current = null;
-        dragOverItem.current = null;
-        
+        dragItem.current = null; dragOverItem.current = null;
         setCardOrder(newCardOrder);
         setHasChanges(true);
     };
-
     const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
         e.currentTarget.classList.remove('dragging');
     };
-
     const handleSave = () => {
         localStorage.setItem(DASHBOARD_CARD_ORDER_STORAGE_KEY, JSON.stringify(cardOrder));
         setHasChanges(false);
         addToast('Ordine della dashboard salvato.', 'success');
     };
-
     const handleReset = () => {
         setCardOrder(DEFAULT_DASHBOARD_CARD_ORDER);
         setHasChanges(true);
@@ -378,19 +347,9 @@ const DashboardLayoutEditor: React.FC = () => {
                 {cardOrder.map((cardId, index) => {
                     const cardConfig = cardConfigMap.get(cardId);
                     if (!cardConfig) return null;
-
                     return (
-                        <div 
-                            key={cardId} 
-                            className="flex items-center p-4 border border-outline-variant rounded-xl bg-surface cursor-grab active:cursor-grabbing transition-shadow"
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, index)}
-                            onDragEnter={(e) => handleDragEnter(e, index)}
-                            onDragEnd={handleDragEnd}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={handleDrop}
-                        >
-                            <span className="material-symbols-outlined text-on-surface-variant mr-4 cursor-grab" title="Trascina per riordinare">drag_indicator</span>
+                        <div key={cardId} className="flex items-center p-4 border border-outline-variant rounded-xl bg-surface cursor-grab active:cursor-grabbing transition-shadow" draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+                            <span className="material-symbols-outlined text-on-surface-variant mr-4">drag_indicator</span>
                             <span className="text-2xl mr-4">{cardConfig.icon}</span>
                             <div className="flex-grow">
                                 <p className="font-semibold text-on-surface">{cardConfig.label}</p>
@@ -409,74 +368,288 @@ const DashboardLayoutEditor: React.FC = () => {
     );
 };
 
-const PageVisibilityEditor: React.FC = () => {
-    const { pageVisibility, updatePageVisibility, isActionLoading } = useEntitiesContext();
+// --- NEW COMPONENTS ---
+
+const UserManagementSection: React.FC = () => {
+    const { resources } = useEntitiesContext();
+    const { addToast } = useToast();
+    const [users, setUsers] = useState<(AppUser & { resourceName?: string })[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isPwdModalOpen, setIsPwdModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<Partial<AppUser>>({});
+    const [newPassword, setNewPassword] = useState('');
+    
+    const fetchUsers = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await authFetch('/api/resources?entity=app-users');
+            setUsers(data);
+        } catch (error) {
+            addToast('Errore caricamento utenti', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+
+    const handleSaveUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            if (editingUser.id) {
+                // Update
+                await authFetch(`/api/resources?entity=app-users&id=${editingUser.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(editingUser)
+                });
+                addToast('Utente aggiornato.', 'success');
+            } else {
+                // Create
+                if (!newPassword) return addToast('Password richiesta per nuovi utenti', 'error');
+                await authFetch('/api/resources?entity=app-users', {
+                    method: 'POST',
+                    body: JSON.stringify({ ...editingUser, password: newPassword })
+                });
+                addToast('Utente creato.', 'success');
+            }
+            setIsModalOpen(false);
+            fetchUsers();
+        } catch (error) {
+            addToast(`Errore: ${(error as Error).message}`, 'error');
+        }
+    };
+
+    const handlePasswordReset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingUser.id || !newPassword) return;
+        try {
+            await authFetch(`/api/resources?entity=app-users&action=change_password&id=${editingUser.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ newPassword })
+            });
+            addToast('Password aggiornata.', 'success');
+            setIsPwdModalOpen(false);
+            setNewPassword('');
+        } catch (error) {
+            addToast('Errore cambio password.', 'error');
+        }
+    };
+
+    const handleDeleteUser = async (id: string) => {
+        if (!window.confirm('Sei sicuro di voler eliminare questo utente?')) return;
+        try {
+            await authFetch(`/api/resources?entity=app-users&id=${id}`, { method: 'DELETE' });
+            addToast('Utente eliminato.', 'success');
+            fetchUsers();
+        } catch (error) {
+            addToast('Errore eliminazione.', 'error');
+        }
+    };
+
+    const resourceOptions = resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name }));
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Gestione Utenti e Whitelist</h2>
+                <button onClick={() => { setEditingUser({ role: 'SIMPLE', isActive: true }); setNewPassword(''); setIsModalOpen(true); }} className="px-4 py-2 bg-primary text-on-primary rounded-full shadow-sm text-sm font-semibold">Aggiungi Utente</button>
+            </div>
+            
+            {loading ? <div className="p-4 text-center"><SpinnerIcon className="w-6 h-6 mx-auto text-primary"/></div> : (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-surface-container-high border-b border-outline-variant">
+                            <tr>
+                                <th className="px-4 py-3 text-left font-medium text-on-surface-variant">Username</th>
+                                <th className="px-4 py-3 text-left font-medium text-on-surface-variant">Ruolo</th>
+                                <th className="px-4 py-3 text-left font-medium text-on-surface-variant">Risorsa Collegata</th>
+                                <th className="px-4 py-3 text-center font-medium text-on-surface-variant">Stato</th>
+                                <th className="px-4 py-3 text-right font-medium text-on-surface-variant">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant">
+                            {users.map(u => (
+                                <tr key={u.id} className="hover:bg-surface-container">
+                                    <td className="px-4 py-3 font-medium">{u.username}</td>
+                                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-xs font-bold ${u.role === 'ADMIN' ? 'bg-error-container text-on-error-container' : u.role === 'MANAGER' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-surface-variant text-on-surface-variant'}`}>{u.role}</span></td>
+                                    <td className="px-4 py-3 text-on-surface-variant">{u.resourceName || '-'}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        {u.isActive ? 
+                                            <span className="text-green-600 font-bold text-xs">ATTIVO</span> : 
+                                            <span className="text-error font-bold text-xs">BLOCCATO</span>
+                                        }
+                                    </td>
+                                    <td className="px-4 py-3 text-right flex justify-end gap-2">
+                                        <button onClick={() => { setEditingUser(u); setNewPassword(''); setIsPwdModalOpen(true); }} className="p-1 text-on-surface-variant hover:text-primary" title="Cambia Password"><span className="material-symbols-outlined text-lg">key</span></button>
+                                        <button onClick={() => { setEditingUser(u); setNewPassword(''); setIsModalOpen(true); }} className="p-1 text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined text-lg">edit</span></button>
+                                        {u.username !== 'admin' && (
+                                            <button onClick={() => handleDeleteUser(u.id)} className="p-1 text-on-surface-variant hover:text-error" title="Elimina"><span className="material-symbols-outlined text-lg">delete</span></button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* Edit/Create Modal */}
+            {isModalOpen && (
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser.id ? 'Modifica Utente' : 'Nuovo Utente'}>
+                    <form onSubmit={handleSaveUser} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Username</label>
+                            <input type="text" value={editingUser.username || ''} onChange={e => setEditingUser({...editingUser, username: e.target.value})} disabled={!!editingUser.id} className="form-input" required />
+                        </div>
+                        {!editingUser.id && (
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Password</label>
+                                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="form-input" required />
+                            </div>
+                        )}
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ruolo</label>
+                            <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})} className="form-select">
+                                <option value="SIMPLE">Simple User</option>
+                                <option value="MANAGER">Manager</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Collega a Risorsa (Opzionale)</label>
+                            <SearchableSelect name="resourceId" value={editingUser.resourceId || ''} onChange={(_, v) => setEditingUser({...editingUser, resourceId: v})} options={resourceOptions} placeholder="Nessuna" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input type="checkbox" checked={editingUser.isActive} onChange={e => setEditingUser({...editingUser, isActive: e.target.checked})} className="form-checkbox" />
+                            <label className="text-sm text-on-surface">Utente Attivo (Whitelist)</label>
+                        </div>
+                        <div className="flex justify-end pt-4 space-x-2">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full">Annulla</button>
+                            <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full">Salva</button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {/* Password Modal */}
+            {isPwdModalOpen && (
+                <Modal isOpen={isPwdModalOpen} onClose={() => setIsPwdModalOpen(false)} title={`Cambia Password per ${editingUser.username}`}>
+                    <form onSubmit={handlePasswordReset} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nuova Password</label>
+                            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="form-input" required minLength={6} />
+                        </div>
+                        <div className="flex justify-end pt-4 space-x-2">
+                            <button type="button" onClick={() => setIsPwdModalOpen(false)} className="px-4 py-2 border border-outline rounded-full">Annulla</button>
+                            <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full">Salva Password</button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+const PermissionMatrixSection: React.FC = () => {
+    const { addToast } = useToast();
+    const [permissions, setPermissions] = useState<RolePermission[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
 
     const pages = [
-        { path: '/staffing', label: 'Staffing' },
-        { path: '/workload', label: 'Carico Risorse' },
-        { path: '/dashboard', label: 'Dashboard' },
-        { path: '/resource-requests', label: 'Richiesta Risorse' },
-        { path: '/interviews', label: 'Gestione Colloqui' },
-        { path: '/skills-map', label: 'Mappa Competenze' },
-        { path: '/manuale-utente', label: 'Manuale Utente' },
-        { path: '/forecasting', label: 'Forecasting' },
-        { path: '/gantt', label: 'Gantt Progetti' },
-        { path: '/skill-analysis', label: 'Analisi Competenze' },
-        { path: '/reports', label: 'Report' },
-        { path: '/staffing-visualization', label: 'Visualizzazione' },
-        { path: '/resources', label: 'Gestione Risorse' },
-        { path: '/skills', label: 'Gestione Competenze' },
-        { path: '/projects', label: 'Gestione Progetti' },
-        { path: '/contracts', label: 'Gestione Contratti' },
-        { path: '/clients', label: 'Gestione Clienti' },
-        { path: '/roles', label: 'Gestione Ruoli' },
-        { path: '/calendar', label: 'Calendario' },
-        { path: '/config', label: 'Configurazioni' },
-        { path: '/export', label: 'Esporta Dati' },
-        { path: '/import', label: 'Importa Dati' },
-        { path: '/test-staffing', label: 'Test Staffing (Mobile)' },
+        '/staffing', '/workload', '/dashboard', '/resource-requests', '/interviews', 
+        '/skills-map', '/manuale-utente', '/forecasting', '/gantt', '/skill-analysis', 
+        '/reports', '/staffing-visualization', '/resources', '/skills', '/projects', 
+        '/contracts', '/clients', '/roles', '/calendar', '/config', '/export', '/import'
     ];
 
-    const handleToggle = (path: string, currentRestricted: boolean) => {
-        updatePageVisibility(path, !currentRestricted);
+    const fetchPermissions = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await authFetch('/api/resources?entity=role-permissions');
+            setPermissions(data);
+        } catch (error) {
+            addToast('Errore caricamento permessi', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
+    useEffect(() => {
+        fetchPermissions();
+    }, [fetchPermissions]);
+
+    const isAllowed = (role: UserRole, path: string) => {
+        return permissions.some(p => p.role === role && p.pagePath === path && p.allowed);
+    };
+
+    const handleToggle = (role: UserRole, path: string) => {
+        setPermissions(prev => {
+            const exists = prev.find(p => p.role === role && p.pagePath === path);
+            if (exists) {
+                return prev.map(p => p === exists ? { ...p, allowed: !p.allowed } : p);
+            }
+            return [...prev, { role, pagePath: path, allowed: true }];
+        });
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await authFetch('/api/resources?entity=role-permissions', {
+                method: 'POST',
+                body: JSON.stringify({ permissions })
+            });
+            addToast('Permessi salvati.', 'success');
+        } catch (error) {
+            addToast('Errore salvataggio permessi', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
-            <h2 className="text-xl font-semibold mb-4">Configurazione Visibilità Pagine</h2>
-            <p className="text-sm text-on-surface-variant mb-6">
-                Abilita l'opzione "Solo Admin" per rendere una pagina visibile esclusivamente agli amministratori.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {pages.map(page => {
-                    const isRestricted = !!pageVisibility[page.path];
-                    const isLoading = isActionLoading(`updatePageVis-${page.path}`);
-
-                    return (
-                        <div key={page.path} className="flex items-center justify-between p-4 border border-outline-variant rounded-xl bg-surface">
-                            <div className="flex flex-col">
-                                <span className="font-medium text-on-surface">{page.label}</span>
-                                <span className="text-xs text-on-surface-variant font-mono">{page.path}</span>
-                            </div>
-                            <label className="flex items-center cursor-pointer">
-                                <div className="relative">
-                                    <input
-                                        type="checkbox"
-                                        className="sr-only"
-                                        checked={isRestricted}
-                                        onChange={() => handleToggle(page.path, isRestricted)}
-                                        disabled={isLoading}
-                                    />
-                                    <div className={`block w-10 h-6 rounded-full ${isRestricted ? 'bg-primary' : 'bg-surface-variant'}`}></div>
-                                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ease-in-out ${isRestricted ? 'transform translate-x-4' : ''}`}></div>
-                                </div>
-                                {isLoading && <SpinnerIcon className="w-4 h-4 ml-2 text-primary" />}
-                            </label>
-                        </div>
-                    );
-                })}
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Configurazione Permessi Ruoli</h2>
+                <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-primary text-on-primary rounded-full shadow-sm text-sm font-semibold flex items-center">
+                    {saving && <SpinnerIcon className="w-4 h-4 mr-2"/>} Salva Matrice
+                </button>
             </div>
+            
+            {loading ? <SpinnerIcon className="w-8 h-8 mx-auto"/> : (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border-collapse">
+                        <thead>
+                            <tr>
+                                <th className="text-left py-2 px-4 font-medium text-on-surface-variant">Pagina</th>
+                                <th className="text-center py-2 px-4 font-medium text-on-surface-variant w-32">Simple User</th>
+                                <th className="text-center py-2 px-4 font-medium text-on-surface-variant w-32">Manager</th>
+                                <th className="text-center py-2 px-4 font-medium text-on-surface-variant w-32 opacity-50">Admin (Full)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant">
+                            {pages.map(page => (
+                                <tr key={page} className="hover:bg-surface-container">
+                                    <td className="py-2 px-4 font-mono text-xs">{page}</td>
+                                    <td className="py-2 px-4 text-center">
+                                        <input type="checkbox" checked={isAllowed('SIMPLE', page)} onChange={() => handleToggle('SIMPLE', page)} className="form-checkbox"/>
+                                    </td>
+                                    <td className="py-2 px-4 text-center">
+                                        <input type="checkbox" checked={isAllowed('MANAGER', page)} onChange={() => handleToggle('MANAGER', page)} className="form-checkbox"/>
+                                    </td>
+                                    <td className="py-2 px-4 text-center opacity-50">
+                                        <input type="checkbox" checked readOnly className="form-checkbox cursor-not-allowed"/>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 };
@@ -602,12 +775,12 @@ const AdminSettingsPage: React.FC = () => {
         <div>
             <h1 className="text-3xl font-bold text-on-background mb-8">Impostazioni Amministratore</h1>
             <div className="bg-surface-container rounded-2xl shadow p-6 max-w-2xl">
-                <h2 className="text-xl font-semibold mb-4">Sicurezza</h2>
+                <h2 className="text-xl font-semibold mb-4">Sicurezza Globale</h2>
                 <div className="flex items-center justify-between p-4 border border-outline-variant rounded-xl">
                     <div>
-                        <h3 className="font-medium text-on-surface">Protezione con Password</h3>
+                        <h3 className="font-medium text-on-surface">Protezione con Login</h3>
                         <p className="text-sm text-on-surface-variant">
-                            Se attivata, tutti gli utenti dovranno inserire una password per accedere all'applicazione.
+                            Se attivata, l'accesso richiede autenticazione. Se disattivata, l'app è aperta a tutti (modalità dev).
                         </p>
                     </div>
                     <label htmlFor="protection-toggle" className="flex items-center cursor-pointer">
@@ -626,10 +799,10 @@ const AdminSettingsPage: React.FC = () => {
                 </div>
             </div>
             
+            <UserManagementSection />
+            <PermissionMatrixSection />
             <SkillThresholdsEditor />
-            <PageVisibilityEditor />
             <DashboardLayoutEditor />
-            <ToastEditor />
             <VisualizationEditor />
             <ThemeEditor />
         </div>

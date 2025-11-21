@@ -1,3 +1,4 @@
+
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
@@ -155,12 +156,17 @@ interface AppContentProps {
   onToggleSidebar: () => void;
 }
 
-// New Wrapper for dynamic route protection
+// RBAC Protected Route Wrapper
 const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = ({ path, children }) => {
-  const { isAdmin } = useAuth();
-  const { pageVisibility } = useEntitiesContext();
+  const { hasPermission, isLoginProtectionEnabled } = useAuth();
 
-  if (pageVisibility[path] && !isAdmin) {
+  // If protection is off, allow everything (backward compatibility or debug)
+  if (!isLoginProtectionEnabled) {
+      return children;
+  }
+
+  // Check RBAC permission
+  if (!hasPermission(path)) {
     return <Navigate to="/" replace />;
   }
 

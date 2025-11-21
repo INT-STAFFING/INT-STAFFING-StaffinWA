@@ -1,28 +1,40 @@
+
 /**
  * @file AuthContext.tsx
- * @description Provider di contesto React per la gestione dello stato di autenticazione.
+ * @description Provider di contesto React per la gestione dello stato di autenticazione e permessi (RBAC).
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
 import { useToast } from './ToastContext';
+import { AppUser } from '../types';
 
 // --- Tipi ---
 interface AuthContextType {
+    user: AppUser | null;
     isAuthenticated: boolean;
     isAdmin: boolean;
     isLoginProtectionEnabled: boolean;
     isAuthLoading: boolean;
-    login: (password: string) => Promise<void>;
+    login: (password: string, username?: string) => Promise<void>; // Updated signature
     logout: () => void;
     toggleLoginProtection: (enable: boolean) => Promise<void>;
+    hasPermission: (path: string) => boolean;
+    changePassword: (newPassword: string) => Promise<void>;
 }
 
 // --- Contesto ---
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const apiFetch = async (url: string, options: RequestInit = {}) => {
+    // Add JWT header if token exists
+    const token = localStorage.getItem('authToken');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...headers, ...options.headers },
         ...options,
     });
     if (!response.ok) {
@@ -36,34 +48,38 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
  * Provider per lo stato di autenticazione.
  */
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [user, setUser] = useState<AppUser | null>(null);
     const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(true);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const { addToast } = useToast();
 
-    // Controlla lo stato di autenticazione e la configurazione globale all'avvio
+    // Load initial state
     useEffect(() => {
         const checkAuthState = async () => {
             try {
-                // Controlla se la protezione è attiva a livello globale
-                const config = await apiFetch('/api/auth-config');
-                setIsLoginProtectionEnabled(config.isEnabled);
+                // 1. Check Global Protection Config
+                // This is still useful to know if we should enforce login UI, 
+                // though backend should always verify tokens for secure endpoints.
+                try {
+                    const config = await apiFetch('/api/auth-config');
+                    setIsLoginProtectionEnabled(config.isEnabled);
+                } catch (e) {
+                    // Fallback secure default
+                    setIsLoginProtectionEnabled(true);
+                }
 
-                // Controlla se l'utente ha una sessione attiva nel browser
-                const sessionAuth = sessionStorage.getItem('isAuthenticated');
-                const sessionAdmin = sessionStorage.getItem('isAdmin');
+                // 2. Restore Session from LocalStorage
+                const storedToken = localStorage.getItem('authToken');
+                const storedUser = localStorage.getItem('authUser');
 
-                if (sessionAuth === 'true') {
-                    setIsAuthenticated(true);
-                    if (sessionAdmin === 'true') {
-                        setIsAdmin(true);
-                    }
+                if (storedToken && storedUser) {
+                    // Optional: Validate token expiration here or let API call fail 401 later
+                    setUser(JSON.parse(storedUser));
                 }
             } catch (error) {
-                console.error("Failed to check auth state:", error);
-                // Default a uno stato sicuro in caso di errore
-                setIsLoginProtectionEnabled(true);
+                console.error("Failed to restore auth state:", error);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('authUser');
             } finally {
                 setIsAuthLoading(false);
             }
@@ -71,19 +87,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         checkAuthState();
     }, []);
 
-    const login = useCallback(async (password: string) => {
+    const login = useCallback(async (password: string, username: string = 'admin') => {
+        // Default username to 'admin' for backward compatibility if UI only asks for password
+        // But the new UI should ask for username.
         try {
             const data = await apiFetch('/api/login', {
                 method: 'POST',
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ username, password }),
             });
 
-            if (data.success) {
-                setIsAuthenticated(true);
-                setIsAdmin(data.isAdmin);
-                sessionStorage.setItem('isAuthenticated', 'true');
-                sessionStorage.setItem('isAdmin', data.isAdmin ? 'true' : 'false');
-                addToast('Accesso effettuato con successo.', 'success');
+            if (data.success && data.token) {
+                const userObj: AppUser = {
+                    id: data.user.id,
+                    username: data.user.username,
+                    role: data.user.role,
+                    resourceId: data.user.resourceId,
+                    isActive: true,
+                    permissions: data.user.permissions || []
+                };
+
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('authUser', JSON.stringify(userObj));
+                
+                setUser(userObj);
+                addToast(`Benvenuto, ${userObj.username}!`, 'success');
             }
         } catch (error) {
             addToast((error as Error).message, 'error');
@@ -92,12 +119,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [addToast]);
 
     const logout = useCallback(() => {
-        setIsAuthenticated(false);
-        setIsAdmin(false);
-        sessionStorage.removeItem('isAuthenticated');
-        sessionStorage.removeItem('isAdmin');
+        setUser(null);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('authUser');
         addToast('Logout effettuato.', 'success');
-        // Il reindirizzamento verrà gestito dal componente ProtectedRoute
     }, [addToast]);
     
     const toggleLoginProtection = useCallback(async (enable: boolean) => {
@@ -114,14 +139,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [addToast]);
 
+    const changePassword = useCallback(async (newPassword: string) => {
+        if (!user) return;
+        try {
+            await apiFetch(`/api/resources?entity=app-users&action=change_password&id=${user.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ newPassword }),
+            });
+            addToast('Password modificata con successo.', 'success');
+        } catch (error) {
+            addToast(`Errore cambio password: ${(error as Error).message}`, 'error');
+            throw error;
+        }
+    }, [user, addToast]);
+
+    const hasPermission = useCallback((path: string): boolean => {
+        if (!user) return false;
+        if (user.role === 'ADMIN') return true; // Admins see everything
+        
+        // Normalize path (remove trailing slash, query params)
+        const cleanPath = path.split('?')[0].replace(/\/$/, '') || '/';
+        
+        // Check direct permission
+        return user.permissions.includes(cleanPath);
+    }, [user]);
+
     const value = {
-        isAuthenticated,
-        isAdmin,
+        user,
+        isAuthenticated: !!user,
+        isAdmin: user?.role === 'ADMIN',
         isLoginProtectionEnabled,
         isAuthLoading,
         login,
         logout,
         toggleLoginProtection,
+        hasPermission,
+        changePassword
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -10,7 +10,7 @@ import { SpinnerIcon } from '../components/icons';
 
 const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
-    const [username, setUsername] = useState(''); // Campo puramente estetico
+    const [username, setUsername] = useState(''); 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const { login, isAuthenticated, isLoginProtectionEnabled } = useAuth();
@@ -28,7 +28,8 @@ const LoginPage: React.FC = () => {
         setIsLoading(true);
         setError('');
         try {
-            await login(password);
+            // Pass both username and password
+            await login(password, username);
             // Il reindirizzamento avverrà automaticamente tramite il ProtectedRoute
         } catch (err) {
             setError((err as Error).message);
@@ -42,7 +43,7 @@ const LoginPage: React.FC = () => {
             <div className="w-full max-w-md p-8 space-y-8 bg-surface rounded-2xl shadow-lg">
                 <div className="text-center">
                     <h1 className="text-3xl font-bold tracking-wider text-on-surface">Staffing App</h1>
-                    <p className="mt-2 text-sm text-on-surface-variant">Inserisci la password per accedere</p>
+                    <p className="mt-2 text-sm text-on-surface-variant">Accedi al sistema</p>
                 </div>
                 
                 {!isLoginProtectionEnabled && !isAuthenticated && (
@@ -56,17 +57,18 @@ const LoginPage: React.FC = () => {
                 )}
 
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    <div className="rounded-md -space-y-px">
+                    <div className="rounded-md -space-y-px shadow-sm">
                         <div>
-                            <label htmlFor="username" className="sr-only">Utente</label>
+                            <label htmlFor="username" className="sr-only">Username</label>
                             <input
                                 id="username"
                                 name="username"
                                 type="text"
+                                required
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-outline placeholder-on-surface-variant text-on-surface bg-surface-container rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                                placeholder="Utente"
+                                placeholder="Username (es. mario.rossi)"
                             />
                         </div>
                         <div>
@@ -85,7 +87,11 @@ const LoginPage: React.FC = () => {
                         </div>
                     </div>
                     
-                    {error && <p className="text-sm text-error text-center">{error}</p>}
+                    {error && (
+                        <div className="p-2 text-sm text-error bg-error-container rounded text-center">
+                            {error}
+                        </div>
+                    )}
 
                     <div>
                         <button
