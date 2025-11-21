@@ -416,6 +416,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
         ON CONFLICT (key) DO NOTHING;
     `;
 
+    // SEED SIDEBAR SECTIONS
+    const defaultSections = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
+    await db.sql`
+        INSERT INTO app_config (key, value) 
+        VALUES ('sidebar_sections_v1', ${JSON.stringify(defaultSections)}) 
+        ON CONFLICT (key) DO NOTHING;
+    `;
+
     // Backfill for Role Cost History (Seeding history from current roles if empty)
     const historyCheck = await db.sql`SELECT COUNT(*) FROM role_cost_history;`;
     if (historyCheck.rows[0].count === '0') {

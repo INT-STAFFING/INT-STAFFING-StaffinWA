@@ -42,6 +42,8 @@ const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
     { path: "/test-staffing", label: "Test Staffing", icon: "science", section: "Configurazione" }
 ];
 
+const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
+
 export interface AllocationsContextType {
     allocations: Allocation;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
@@ -75,7 +77,8 @@ export interface EntitiesContextType {
     leaveTypes: LeaveType[];
     leaveRequests: LeaveRequest[];
     managerResourceIds: string[];
-    sidebarConfig: SidebarItem[]; // NEW STATE
+    sidebarConfig: SidebarItem[]; 
+    sidebarSections: string[]; // NEW STATE
     loading: boolean;
     isActionLoading: (action: string) => boolean;
     
@@ -127,7 +130,8 @@ export interface EntitiesContextType {
     addLeaveRequest: (req: Omit<LeaveRequest, 'id'>) => Promise<void>;
     updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
     deleteLeaveRequest: (id: string) => Promise<void>;
-    updateSidebarConfig: (config: SidebarItem[]) => Promise<void>; // NEW METHOD
+    updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
+    updateSidebarSections: (sections: string[]) => Promise<void>; // NEW METHOD
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
@@ -179,6 +183,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
+    const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -212,6 +217,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Sidebar Config Loading
             if (metaData.sidebarConfig) {
                 setSidebarConfig(metaData.sidebarConfig);
+            }
+            if (metaData.sidebarSections) {
+                setSidebarSections(metaData.sidebarSections);
             }
 
             // 2. Planning
@@ -726,9 +734,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
+    // NEW: Sidebar Sections Update
+    const updateSidebarSections = async (sections: string[]) => {
+        setActionLoading('updateSidebarSections', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    updates: [{ key: 'sidebar_sections_v1', value: JSON.stringify(sections) }]
+                })
+            });
+            setSidebarSections(sections);
+        } finally {
+            setActionLoading('updateSidebarSections', false);
+        }
+    };
+
     const entitiesValue: EntitiesContextType = {
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, loading, isActionLoading,
-        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, loading, isActionLoading,
+        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections
     };
 
     const allocationsValue: AllocationsContextType = {

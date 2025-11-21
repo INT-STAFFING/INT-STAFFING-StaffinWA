@@ -34,7 +34,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, user, isAdmin, hasPermission } = useAuth();
-    const { sidebarConfig } = useEntitiesContext();
+    const { sidebarConfig, sidebarSections } = useEntitiesContext();
     const location = useLocation();
 
     // Layout fix: Mobile is fixed (overlay/slide), Desktop is relative (flex item taking space)
@@ -53,18 +53,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             groups[item.section].push(item);
         });
         
-        const sectionOrder = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
         const sortedGroups = Object.entries(groups).sort((a, b) => {
-            const idxA = sectionOrder.indexOf(a[0]);
-            const idxB = sectionOrder.indexOf(b[0]);
-            if (idxA === -1 && idxB === -1) return a[0].localeCompare(b[0]);
-            if (idxA === -1) return 1;
-            if (idxB === -1) return -1;
-            return idxA - idxB;
+            const idxA = sidebarSections.indexOf(a[0]);
+            const idxB = sidebarSections.indexOf(b[0]);
+            // If both found in config, sort by index
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            // If one not found, push to end
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            // If neither found, sort alphabetically
+            return a[0].localeCompare(b[0]);
         });
 
         return sortedGroups;
-    }, [sidebarConfig]);
+    }, [sidebarConfig, sidebarSections]);
 
     return (
         <aside className={sidebarClasses}>

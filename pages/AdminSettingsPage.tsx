@@ -117,12 +117,20 @@ const SecuritySection: React.FC = () => {
 };
 
 const MenuConfigurationEditor: React.FC = () => {
-    const { sidebarConfig, updateSidebarConfig, isActionLoading } = useEntitiesContext();
+    const { sidebarConfig, updateSidebarConfig, sidebarSections, updateSidebarSections, isActionLoading } = useEntitiesContext();
     const { addToast } = useToast();
     const [config, setConfig] = useState<SidebarItem[]>(sidebarConfig);
     const [hasChanges, setHasChanges] = useState(false);
+    const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
+    
+    // Sections Management State
+    const [localSections, setLocalSections] = useState<string[]>(sidebarSections);
+    const [newSectionName, setNewSectionName] = useState('');
+    const [editingSectionIndex, setEditingSectionIndex] = useState<number | null>(null);
+    const [editSectionValue, setEditSectionValue] = useState('');
 
     useEffect(() => { setConfig(sidebarConfig); }, [sidebarConfig]);
+    useEffect(() => { setLocalSections(sidebarSections); }, [sidebarSections]);
 
     const handleChange = (index: number, field: keyof SidebarItem, value: string) => {
         const newConfig = [...config];
@@ -152,6 +160,58 @@ const MenuConfigurationEditor: React.FC = () => {
         }
     };
 
+    // Section Management Handlers
+    const handleAddSection = () => {
+        if (newSectionName && !localSections.includes(newSectionName)) {
+            setLocalSections([...localSections, newSectionName]);
+            setNewSectionName('');
+        }
+    };
+
+    const handleMoveSection = (index: number, direction: 'up' | 'down') => {
+        if (direction === 'up' && index === 0) return;
+        if (direction === 'down' && index === localSections.length - 1) return;
+        const newSecs = [...localSections];
+        const target = direction === 'up' ? index - 1 : index + 1;
+        [newSecs[index], newSecs[target]] = [newSecs[target], newSecs[index]];
+        setLocalSections(newSecs);
+    };
+
+    const startEditSection = (index: number) => {
+        setEditingSectionIndex(index);
+        setEditSectionValue(localSections[index]);
+    };
+
+    const saveEditSection = (index: number) => {
+        if (editSectionValue && editSectionValue !== localSections[index]) {
+            const oldName = localSections[index];
+            const newSecs = [...localSections];
+            newSecs[index] = editSectionValue;
+            setLocalSections(newSecs);
+            
+            // Cascade rename to menu items
+            const newConfig = config.map(item => item.section === oldName ? { ...item, section: editSectionValue } : item);
+            setConfig(newConfig);
+            setHasChanges(true);
+        }
+        setEditingSectionIndex(null);
+        setEditSectionValue('');
+    };
+
+    const saveSections = async () => {
+        try {
+            await updateSidebarSections(localSections);
+            if (hasChanges) {
+                await updateSidebarConfig(config);
+                setHasChanges(false);
+            }
+            addToast('Sezioni salvate con successo.', 'success');
+            setIsSectionModalOpen(false);
+        } catch (e) {
+            addToast('Errore salvataggio sezioni.', 'error');
+        }
+    };
+
     return (
         <div className="bg-surface rounded-2xl shadow p-6">
             <div className="flex justify-between items-center mb-4">
@@ -159,11 +219,16 @@ const MenuConfigurationEditor: React.FC = () => {
                     <h2 className="text-xl font-semibold text-on-surface">Configurazione Menu Sidebar</h2>
                     <p className="text-xs text-on-surface-variant">Personalizza nomi, icone e ordine delle voci del menu.</p>
                 </div>
-                {hasChanges && (
-                    <button onClick={handleSave} disabled={isActionLoading('updateSidebarConfig')} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2">
-                        {isActionLoading('updateSidebarConfig') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Modifiche</>}
+                <div className="flex gap-2">
+                    <button onClick={() => setIsSectionModalOpen(true)} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-medium flex items-center gap-2 hover:opacity-90">
+                        <span className="material-symbols-outlined text-sm">category</span> Gestisci Sezioni
                     </button>
-                )}
+                    {hasChanges && (
+                        <button onClick={handleSave} disabled={isActionLoading('updateSidebarConfig')} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 hover:opacity-90">
+                            {isActionLoading('updateSidebarConfig') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Modifiche</>}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="border border-outline-variant rounded-lg overflow-hidden">
@@ -216,13 +281,9 @@ const MenuConfigurationEditor: React.FC = () => {
                                     onChange={(e) => handleChange(index, 'section', e.target.value)}
                                     className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1"
                                 >
-                                    <option value="Principale">Principale</option>
-                                    <option value="Progetti">Progetti</option>
-                                    <option value="Risorse">Risorse</option>
-                                    <option value="Operatività">Operatività</option>
-                                    <option value="Supporto">Supporto</option>
-                                    <option value="Configurazione">Configurazione</option>
-                                    <option value="Dati">Dati</option>
+                                    {localSections.map(sec => (
+                                        <option key={sec} value={sec}>{sec}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="col-span-2 text-right text-xs text-on-surface-variant font-mono truncate" title={item.path}>
@@ -232,6 +293,77 @@ const MenuConfigurationEditor: React.FC = () => {
                     ))}
                 </div>
             </div>
+
+            {/* Modal for Managing Sections */}
+            {isSectionModalOpen && (
+                <Modal isOpen={isSectionModalOpen} onClose={() => setIsSectionModalOpen(false)} title="Gestisci Sezioni Menu">
+                    <div className="space-y-4">
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={newSectionName} 
+                                onChange={(e) => setNewSectionName(e.target.value)} 
+                                placeholder="Nome nuova sezione..."
+                                className="form-input flex-grow"
+                            />
+                            <button 
+                                onClick={handleAddSection} 
+                                disabled={!newSectionName}
+                                className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-bold disabled:opacity-50"
+                            >
+                                Aggiungi
+                            </button>
+                        </div>
+                        
+                        <div className="border border-outline-variant rounded-lg overflow-hidden">
+                            <div className="bg-surface-container-low p-2 text-xs font-bold text-on-surface-variant uppercase border-b border-outline-variant">Ordine Sezioni</div>
+                            <ul className="divide-y divide-outline-variant max-h-60 overflow-y-auto">
+                                {localSections.map((section, idx) => (
+                                    <li key={idx} className="p-3 flex items-center justify-between hover:bg-surface-container-low">
+                                        <div className="flex-grow flex items-center gap-2">
+                                            {editingSectionIndex === idx ? (
+                                                <div className="flex items-center w-full gap-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={editSectionValue} 
+                                                        onChange={(e) => setEditSectionValue(e.target.value)}
+                                                        className="form-input py-1 px-2 h-8 text-sm"
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={() => saveEditSection(idx)} className="text-primary"><span className="material-symbols-outlined">check</span></button>
+                                                    <button onClick={() => setEditingSectionIndex(null)} className="text-on-surface-variant"><span className="material-symbols-outlined">close</span></button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <span className="text-sm font-medium text-on-surface">{section}</span>
+                                                    <button onClick={() => startEditSection(idx)} className="text-on-surface-variant hover:text-primary opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity">
+                                                        <span className="material-symbols-outlined text-sm">edit</span>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => handleMoveSection(idx, 'up')} disabled={idx === 0} className="text-on-surface-variant disabled:opacity-30 hover:bg-surface-container rounded p-1">
+                                                <span className="material-symbols-outlined">arrow_upward</span>
+                                            </button>
+                                            <button onClick={() => handleMoveSection(idx, 'down')} disabled={idx === localSections.length - 1} className="text-on-surface-variant disabled:opacity-30 hover:bg-surface-container rounded p-1">
+                                                <span className="material-symbols-outlined">arrow_downward</span>
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
+                            <button onClick={() => setIsSectionModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold text-sm hover:bg-surface-container-low">Annulla</button>
+                            <button onClick={saveSections} className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold text-sm hover:opacity-90">
+                                {isActionLoading('updateSidebarSections') ? 'Salvataggio...' : 'Salva Ordine & Nomi'}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };

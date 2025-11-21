@@ -72,7 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 projectsRes,
                 leaveTypesRes,
                 managersRes,
-                sidebarConfigRes // New: Fetch sidebar config
+                sidebarConfigRes,
+                sidebarSectionsRes // New: Fetch sidebar sections
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -91,7 +92,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM projects;`,
                 db.sql`SELECT * FROM leave_types;`,
                 db.sql`SELECT DISTINCT resource_id FROM app_users WHERE role IN ('MANAGER', 'ADMIN') AND resource_id IS NOT NULL;`,
-                db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1';`
+                db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1';`,
+                db.sql`SELECT value FROM app_config WHERE key = 'sidebar_sections_v1';`
             ]);
 
              // Formatta le date del calendario
@@ -127,6 +129,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             }
 
+            // Sidebar Sections
+            let sidebarSections = null;
+            if (sidebarSectionsRes.rows.length > 0) {
+                try {
+                    sidebarSections = JSON.parse(sidebarSectionsRes.rows[0].value);
+                } catch (e) {
+                    console.error("Error parsing sidebar sections", e);
+                }
+            }
+
             // Mappa Manager (Resource IDs)
             const managerResourceIds = managersRes.rows.map(r => r.resource_id);
 
@@ -158,7 +170,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 skillThresholds,
                 leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
                 managerResourceIds,
-                sidebarConfig
+                sidebarConfig,
+                sidebarSections
             });
         }
 
