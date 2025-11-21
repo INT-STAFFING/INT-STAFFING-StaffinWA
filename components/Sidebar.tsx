@@ -1,6 +1,9 @@
-import React from 'react';
+
+import React, { useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useEntitiesContext } from '../context/AppContext';
+import { SidebarItem } from '../types';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -30,77 +33,74 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
 );
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-    const { logout, user, isAdmin } = useAuth();
+    const { logout, user, isAdmin, hasPermission } = useAuth();
+    const { sidebarConfig } = useEntitiesContext();
     const location = useLocation();
 
-    const sidebarClasses = `fixed inset-y-0 left-0 z-40 w-64 bg-surface border-r border-outline-variant transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
+    // Layout fix: Mobile is fixed (overlay/slide), Desktop is relative (flex item taking space)
+    const sidebarClasses = `fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-outline-variant transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
     }`;
 
+    // Raggruppa le voci per sezione
+    const groupedItems = useMemo(() => {
+        const groups: Record<string, SidebarItem[]> = {};
+        
+        sidebarConfig.forEach(item => {
+            if (!groups[item.section]) {
+                groups[item.section] = [];
+            }
+            groups[item.section].push(item);
+        });
+        
+        const sectionOrder = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
+        const sortedGroups = Object.entries(groups).sort((a, b) => {
+            const idxA = sectionOrder.indexOf(a[0]);
+            const idxB = sectionOrder.indexOf(b[0]);
+            if (idxA === -1 && idxB === -1) return a[0].localeCompare(b[0]);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+        });
+
+        return sortedGroups;
+    }, [sidebarConfig]);
+
     return (
-        <div className={sidebarClasses}>
+        <aside className={sidebarClasses}>
             <div className="flex flex-col h-full">
-                <div className="flex items-center justify-center h-20 border-b border-outline-variant">
+                <div className="flex items-center justify-center h-20 border-b border-outline-variant flex-shrink-0">
                     <h1 className="text-2xl font-bold text-primary tracking-widest">PLANNER</h1>
                 </div>
 
-                <div className="flex-1 overflow-y-auto py-4">
-                    <div className="pb-4">
-                        <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Principale</p>
-                        <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />
-                        <NavItem to="/staffing" icon="calendar_month" label="Staffing" />
-                        <NavItem to="/workload" icon="groups" label="Carico Risorse" />
-                    </div>
+                <nav className="flex-1 overflow-y-auto py-4">
+                    {groupedItems.map(([sectionName, items]) => {
+                        // Filter items based on permissions
+                        const visibleItems = items.filter(item => hasPermission(item.path));
+                        
+                        if (visibleItems.length === 0) return null;
 
-                    <div className="pb-4">
-                        <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Progetti</p>
-                        <NavItem to="/gantt" icon="align_horizontal_left" label="Gantt" />
-                        <NavItem to="/projects" icon="folder" label="Progetti" />
-                        <NavItem to="/contracts" icon="description" label="Contratti" />
-                        <NavItem to="/clients" icon="domain" label="Clienti" />
-                        <NavItem to="/forecasting" icon="trending_up" label="Forecasting" />
-                    </div>
+                        return (
+                            <div key={sectionName} className="pb-4">
+                                <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{sectionName}</p>
+                                {visibleItems.map(item => (
+                                    <NavItem key={item.path} to={item.path} icon={item.icon} label={item.label} />
+                                ))}
+                            </div>
+                        );
+                    })}
 
-                    <div className="pb-4">
-                        <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Risorse</p>
-                        <NavItem to="/resources" icon="person" label="Risorse" />
-                        <NavItem to="/skills" icon="school" label="Competenze" />
-                        <NavItem to="/skill-analysis" icon="insights" label="Analisi Competenze" />
-                        <NavItem to="/roles" icon="badge" label="Ruoli" />
-                        <NavItem to="/leaves" icon="event_busy" label="Assenze" />
-                    </div>
+                    {/* Admin Section (Hardcoded for safety/separation) */}
+                    {isAdmin && (
+                        <div className="pb-4">
+                            <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Amministrazione</p>
+                            <NavItem to="/admin-settings" icon="admin_panel_settings" label="Impostazioni Admin" />
+                            <NavItem to="/db-inspector" icon="database" label="Database Inspector" />
+                        </div>
+                    )}
+                </nav>
 
-                    <div className="pb-4">
-                        <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Operatività</p>
-                        <NavItem to="/resource-requests" icon="assignment" label="Richieste Risorse" />
-                        <NavItem to="/interviews" icon="groups" label="Colloqui" />
-                        <NavItem to="/skills-map" icon="school" label="Mappa Competenze" />
-                        <NavItem to="/staffing-visualization" icon="hub" label="Visualizzazione Staffing" />
-                    </div>
-
-                    <div className="pb-4">
-                        <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Supporto</p>
-                        <NavItem to="/manuale-utente" icon="menu_book" label="Manuale Utente" />
-                        <NavItem to="/simple-user-manual" icon="help_center" label="Guida Assenze" />
-                        <NavItem to="/reports" icon="bar_chart" label="Report" />
-                    </div>
-
-                    <div className="pb-4">
-                        <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Configurazione</p>
-                        <NavItem to="/calendar" icon="event" label="Calendario Aziendale" />
-                        <NavItem to="/config" icon="settings" label="Opzioni" />
-                        <NavItem to="/import" icon="upload" label="Importa Dati" />
-                        <NavItem to="/export" icon="download" label="Esporta Dati" />
-                        {isAdmin && (
-                            <>
-                                <NavItem to="/admin-settings" icon="admin_panel_settings" label="Admin" />
-                                <NavItem to="/db-inspector" icon="database" label="DB Inspector" />
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                <div className="p-4 border-t border-outline-variant">
+                <div className="p-4 border-t border-outline-variant flex-shrink-0 bg-surface">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
                             {user?.username.charAt(0).toUpperCase()}
@@ -119,7 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </aside>
     );
 };
 

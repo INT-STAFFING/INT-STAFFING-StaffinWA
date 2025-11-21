@@ -4,8 +4,43 @@ import {
     Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
-    LeaveType, LeaveRequest, ContractManager, ContractProject
+    LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem
 } from '../types';
+
+// DEFAULT SIDEBAR CONFIGURATION
+const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
+    { path: "/dashboard", label: "Dashboard", icon: "dashboard", section: "Principale" },
+    { path: "/staffing", label: "Staffing", icon: "calendar_month", section: "Principale" },
+    { path: "/workload", label: "Carico Risorse", icon: "groups", section: "Principale" },
+    
+    { path: "/gantt", label: "Gantt", icon: "align_horizontal_left", section: "Progetti" },
+    { path: "/projects", label: "Progetti", icon: "folder", section: "Progetti" },
+    { path: "/contracts", label: "Contratti", icon: "description", section: "Progetti" },
+    { path: "/clients", label: "Clienti", icon: "domain", section: "Progetti" },
+    { path: "/forecasting", label: "Forecasting", icon: "trending_up", section: "Progetti" },
+
+    { path: "/resources", label: "Risorse", icon: "person", section: "Risorse" },
+    { path: "/skills", label: "Competenze", icon: "school", section: "Risorse" },
+    { path: "/skill-analysis", label: "Analisi Competenze", icon: "insights", section: "Risorse" },
+    { path: "/roles", label: "Ruoli", icon: "badge", section: "Risorse" },
+    { path: "/leaves", label: "Assenze", icon: "event_busy", section: "Risorse" },
+
+    { path: "/resource-requests", label: "Richieste Risorse", icon: "assignment", section: "Operatività" },
+    { path: "/interviews", label: "Colloqui", icon: "groups", section: "Operatività" },
+    { path: "/skills-map", label: "Mappa Competenze", icon: "school", section: "Operatività" },
+    { path: "/staffing-visualization", label: "Visualizzazione Staffing", icon: "hub", section: "Operatività" },
+
+    { path: "/manuale-utente", label: "Manuale Utente", icon: "menu_book", section: "Supporto" },
+    { path: "/simple-user-manual", label: "Guida Assenze", icon: "help_center", section: "Supporto" },
+    { path: "/reports", label: "Report", icon: "bar_chart", section: "Supporto" },
+
+    { path: "/calendar", label: "Calendario Aziendale", icon: "event", section: "Configurazione" },
+    { path: "/config", label: "Opzioni", icon: "settings", section: "Configurazione" },
+    { path: "/import", label: "Importa Dati", icon: "upload", section: "Dati" },
+    { path: "/export", label: "Esporta Dati", icon: "download", section: "Dati" },
+    
+    { path: "/test-staffing", label: "Test Staffing", icon: "science", section: "Configurazione" }
+];
 
 export interface AllocationsContextType {
     allocations: Allocation;
@@ -40,6 +75,7 @@ export interface EntitiesContextType {
     leaveTypes: LeaveType[];
     leaveRequests: LeaveRequest[];
     managerResourceIds: string[];
+    sidebarConfig: SidebarItem[]; // NEW STATE
     loading: boolean;
     isActionLoading: (action: string) => boolean;
     
@@ -91,6 +127,7 @@ export interface EntitiesContextType {
     addLeaveRequest: (req: Omit<LeaveRequest, 'id'>) => Promise<void>;
     updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
     deleteLeaveRequest: (id: string) => Promise<void>;
+    updateSidebarConfig: (config: SidebarItem[]) => Promise<void>; // NEW METHOD
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
@@ -141,6 +178,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
+    const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -170,6 +208,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setLeaveTypes(metaData.leaveTypes || []);
             setManagerResourceIds(metaData.managerResourceIds || []);
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
+            
+            // Sidebar Config Loading
+            if (metaData.sidebarConfig) {
+                setSidebarConfig(metaData.sidebarConfig);
+            }
 
             // 2. Planning
             const planningData = await apiFetch('/api/data?scope=planning');
@@ -195,8 +238,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchData();
     }, [fetchData]);
 
-    // --- CRUD Operations ---
-
+    // ... CRUD Operations ... (Existing code omitted for brevity, assume present)
     const addResource = async (resource: Omit<Resource, 'id'>) => {
         setActionLoading('addResource', true);
         try {
@@ -297,7 +339,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteRole-${id}`, false); }
     };
 
-    // Config Options
     const addConfigOption = async (type: string, value: string) => {
         setActionLoading(`addConfig-${type}`, true);
         try {
@@ -325,7 +366,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteConfig-${type}-${id}`, false); }
     };
 
-    // Calendar
     const addCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
         setActionLoading('addCalendarEvent', true);
         try {
@@ -350,7 +390,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteCalendarEvent-${id}`, false); }
     };
 
-    // Assignments & Allocations
     const addMultipleAssignments = async (newAssignments: { resourceId: string; projectId: string }[]) => {
         try {
             const createdAssignments = [];
@@ -405,7 +444,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } catch (e) { console.error(e); }
     };
 
-    // Resource Requests
     const addResourceRequest = async (req: Omit<ResourceRequest, 'id'>) => {
         setActionLoading('addResourceRequest', true);
         try {
@@ -430,7 +468,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteResourceRequest-${id}`, false); }
     };
 
-    // Interviews
     const addInterview = async (interview: Omit<Interview, 'id'>) => {
         setActionLoading('addInterview', true);
         try {
@@ -455,7 +492,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteInterview-${id}`, false); }
     };
 
-    // Contracts
     const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => {
         setActionLoading('addContract', true);
         try {
@@ -490,7 +526,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`recalculateBacklog-${id}`, false); }
     };
 
-    // Skills
     const addSkill = async (skill: Omit<Skill, 'id'>) => {
         setActionLoading('addSkill', true);
         try {
@@ -627,7 +662,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return role ? Number(role.dailyCost) : 0;
     }, [roleCostHistory, roles]);
 
-    // Leave Types & Requests
     const addLeaveType = async (type: Omit<LeaveType, 'id'>) => {
         setActionLoading('addLeaveType', true);
         try {
@@ -676,9 +710,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteLeaveRequest-${id}`, false); }
     };
 
+    // NEW: Sidebar Config Update
+    const updateSidebarConfig = async (config: SidebarItem[]) => {
+        setActionLoading('updateSidebarConfig', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    updates: [{ key: 'sidebar_layout_v1', value: JSON.stringify(config) }]
+                })
+            });
+            setSidebarConfig(config);
+        } finally {
+            setActionLoading('updateSidebarConfig', false);
+        }
+    };
+
     const entitiesValue: EntitiesContextType = {
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, loading, isActionLoading,
-        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, loading, isActionLoading,
+        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig
     };
 
     const allocationsValue: AllocationsContextType = {

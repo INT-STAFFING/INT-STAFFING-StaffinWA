@@ -33,9 +33,7 @@ const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
 const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = lazy(() => import('./pages/UserManualPage'));
-const SimpleUserManualPage = lazy(() => import('./pages/SimpleUserManualPage')); // NEW IMPORT
-// FIX: The lazy import for InterviewsPage was incorrect for a default export.
-// It has been updated to use the correct syntax for default exports.
+const SimpleUserManualPage = lazy(() => import('./pages/SimpleUserManualPage'));
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
 const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
 const SkillsPage = lazy(() => import('./pages/SkillsPage'));
@@ -53,38 +51,21 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const location = useLocation();
+  const { sidebarConfig } = useEntitiesContext();
 
   const getPageTitle = (pathname: string): string => {
+    // Cerca il titolo nella configurazione dinamica
+    const configItem = sidebarConfig.find(item => item.path === pathname);
+    if (configItem) return configItem.label;
+
+    // Fallback per pagine non nel menu o dinamiche
     const path = pathname.split('/').pop() || 'staffing';
     switch (path) {
-      case 'staffing': return 'Staffing';
-      case 'dashboard': return 'Dashboard';
-      case 'forecasting': return 'Forecasting & Capacity';
-      case 'workload': return 'Carico Risorse';
-      case 'gantt': return 'Gantt Progetti';
-      case 'resources': return 'Gestione Risorse';
-      case 'skills': return 'Gestione Competenze';
-      case 'projects': return 'Gestione Progetti';
-      case 'clients': return 'Gestione Clienti';
-      case 'roles': return 'Gestione Ruoli';
-      case 'contracts': return 'Gestione Contratti';
-      case 'calendar': return 'Calendario Aziendale';
-      case 'config': return 'Configurazioni';
-      case 'export': return 'Esportazione Dati';
-      case 'import': return 'Importazione Massiva';
-      case 'wbs': return 'Incarichi WBS';
-      case 'reports': return 'Report';
+      case 'staffing': return 'Staffing'; // Fallback
       case 'admin-settings': return 'Impostazioni Admin';
-      case 'resource-requests': return 'Richiesta Risorse';
-      case 'interviews': return 'Gestione Colloqui';
       case 'db-inspector': return 'Database Inspector';
-      case 'staffing-visualization': return 'Visualizzazione Staffing';
-      case 'manuale-utente': return 'Manuale Utente';
-      case 'simple-user-manual': return 'Guida Assenze'; // NEW TITLE
-      case 'skills-map': return 'Mappa Competenze';
-      case 'skill-analysis': return 'Analisi Competenze';
+      case 'simple-user-manual': return 'Guida Assenze';
       case 'test-staffing': return 'Test Staffing Mobile';
-      case 'leaves': return 'Gestione Assenze';
       default: return 'Staffing Planner';
     }
   };
@@ -92,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const pageTitle = getPageTitle(location.pathname);
 
   return (
-    <header className="flex-shrink-0 bg-surface border-b border-outline-variant">
+    <header className="flex-shrink-0 bg-surface border-b border-outline-variant sticky top-0 z-30">
       <div className="flex items-center justify-between p-4 h-20">
         <button
           onClick={onToggleSidebar}
@@ -128,7 +109,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   );
 };
 
-// Reusable spinner for loading states (initial data load and route-based code splitting)
+// Reusable spinner
 const loadingSpinner = (
   <div className="flex items-center justify-center w-full h-full bg-background">
     <svg
@@ -154,26 +135,24 @@ const loadingSpinner = (
   </div>
 );
 
-interface AppContentProps {
-  onToggleSidebar: () => void;
-}
-
 // RBAC Protected Route Wrapper
 const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = ({ path, children }) => {
   const { hasPermission, isLoginProtectionEnabled } = useAuth();
 
-  // If protection is off, allow everything (backward compatibility or debug)
   if (!isLoginProtectionEnabled) {
       return children;
   }
 
-  // Check RBAC permission
   if (!hasPermission(path)) {
     return <Navigate to="/" replace />;
   }
 
   return children;
 };
+
+interface AppContentProps {
+  onToggleSidebar: () => void;
+}
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
@@ -183,7 +162,8 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    // Reverted to flex layout without margin-left, as sidebar is now relative on desktop
+    <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
       <Header onToggleSidebar={onToggleSidebar} />
 
       <main className="flex-1 overflow-y-auto bg-background pb-20 md:pb-0">
@@ -240,8 +220,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   );
 };
 
-
-
 const MainLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -249,7 +227,7 @@ const MainLayout: React.FC = () => {
     <>
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-scrim bg-opacity-50 z-30 md:hidden"
+          className="fixed inset-0 bg-scrim bg-opacity-50 z-40 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

@@ -542,3 +542,14 @@ export interface RolePermission {
     /** @property {boolean} allowed - Se l'accesso è consentito. */
     allowed: boolean;
 }
+
+/**
+ * @interface SidebarItem
+ * @description Configurazione per un elemento della sidebar.
+ */
+export interface SidebarItem {
+    path: string;
+    label: string;
+    icon: string;
+    section: string; // 'Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'
+}

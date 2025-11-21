@@ -69,9 +69,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 resourceSkillsRes,
                 pageVisibilityRes,
                 skillThresholdsRes,
-                projectsRes, // Projects are needed in metadata for some filters
+                projectsRes,
                 leaveTypesRes,
-                managersRes // Get resource IDs of users who are MANAGER or ADMIN
+                managersRes,
+                sidebarConfigRes // New: Fetch sidebar config
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -89,7 +90,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'skill_threshold.%';`,
                 db.sql`SELECT * FROM projects;`,
                 db.sql`SELECT * FROM leave_types;`,
-                db.sql`SELECT DISTINCT resource_id FROM app_users WHERE role IN ('MANAGER', 'ADMIN') AND resource_id IS NOT NULL;`
+                db.sql`SELECT DISTINCT resource_id FROM app_users WHERE role IN ('MANAGER', 'ADMIN') AND resource_id IS NOT NULL;`,
+                db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1';`
             ]);
 
              // Formatta le date del calendario
@@ -114,6 +116,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const key = row.key.replace('skill_threshold.', '');
                 skillThresholds[key] = parseFloat(row.value);
             });
+
+            // Sidebar Config
+            let sidebarConfig = null;
+            if (sidebarConfigRes.rows.length > 0) {
+                try {
+                    sidebarConfig = JSON.parse(sidebarConfigRes.rows[0].value);
+                } catch (e) {
+                    console.error("Error parsing sidebar config", e);
+                }
+            }
 
             // Mappa Manager (Resource IDs)
             const managerResourceIds = managersRes.rows.map(r => r.resource_id);
@@ -145,7 +157,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 pageVisibility,
                 skillThresholds,
                 leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
-                managerResourceIds
+                managerResourceIds,
+                sidebarConfig
             });
         }
 

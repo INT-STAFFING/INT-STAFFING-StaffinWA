@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
-import { AppUser, RolePermission } from '../types';
+import { AppUser, RolePermission, SidebarItem } from '../types';
 
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
@@ -13,6 +13,7 @@ const AdminSettingsPage: React.FC = () => {
     const tabs = [
         { id: 'general', label: 'Generale', icon: 'settings' },
         { id: 'users', label: 'Utenti & Sicurezza', icon: 'security' },
+        { id: 'menu', label: 'Menu & Navigazione', icon: 'menu_open' }, // NEW TAB
         { id: 'business', label: 'Logiche di Business', icon: 'domain' },
         { id: 'ui', label: 'Interfaccia & Tema', icon: 'palette' },
     ];
@@ -51,6 +52,12 @@ const AdminSettingsPage: React.FC = () => {
                     <div className="space-y-8">
                         <UserManagementSection />
                         <PermissionMatrixSection />
+                    </div>
+                )}
+
+                {activeTab === 'menu' && (
+                    <div className="space-y-6">
+                        <MenuConfigurationEditor />
                     </div>
                 )}
 
@@ -108,16 +115,132 @@ const SecuritySection: React.FC = () => {
     );
 };
 
-const SkillThresholdsEditor: React.FC = () => {
-    const { skillThresholds, updateSkillThresholds, isActionLoading } = (React.useContext(require('../context/AppContext').default) || {}) as any; // Dynamic import workaround or use hook
-    // Since we are in AdminPage, we assume AppContext is available. 
-    // Correctly importing hook:
-    const { skillThresholds: contextThresholds, updateSkillThresholds: contextUpdate, isActionLoading: contextLoading } = require('../context/AppContext').useEntitiesContext(); 
-    
-    const [localThresholds, setLocalThresholds] = useState(contextThresholds);
+const MenuConfigurationEditor: React.FC = () => {
+    const { sidebarConfig, updateSidebarConfig, isActionLoading } = require('../context/AppContext').useEntitiesContext();
+    const { addToast } = useToast();
+    const [config, setConfig] = useState<SidebarItem[]>(sidebarConfig);
     const [hasChanges, setHasChanges] = useState(false);
 
-    useEffect(() => { setLocalThresholds(contextThresholds); }, [contextThresholds]);
+    useEffect(() => { setConfig(sidebarConfig); }, [sidebarConfig]);
+
+    const handleChange = (index: number, field: keyof SidebarItem, value: string) => {
+        const newConfig = [...config];
+        newConfig[index] = { ...newConfig[index], [field]: value };
+        setConfig(newConfig);
+        setHasChanges(true);
+    };
+
+    const moveItem = (index: number, direction: 'up' | 'down') => {
+        if (direction === 'up' && index === 0) return;
+        if (direction === 'down' && index === config.length - 1) return;
+        
+        const newConfig = [...config];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        [newConfig[index], newConfig[targetIndex]] = [newConfig[targetIndex], newConfig[index]];
+        setConfig(newConfig);
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        try {
+            await updateSidebarConfig(config);
+            addToast('Configurazione menu salvata.', 'success');
+            setHasChanges(false);
+        } catch (error) {
+            addToast('Errore salvataggio menu.', 'error');
+        }
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Configurazione Menu Sidebar</h2>
+                    <p className="text-xs text-on-surface-variant">Personalizza nomi, icone e ordine delle voci del menu.</p>
+                </div>
+                {hasChanges && (
+                    <button onClick={handleSave} disabled={isActionLoading('updateSidebarConfig')} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2">
+                        {isActionLoading('updateSidebarConfig') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Modifiche</>}
+                    </button>
+                )}
+            </div>
+
+            <div className="border border-outline-variant rounded-lg overflow-hidden">
+                <div className="grid grid-cols-12 gap-4 bg-surface-container-low p-3 font-bold text-xs text-on-surface-variant uppercase border-b border-outline-variant">
+                    <div className="col-span-1 text-center">Ordine</div>
+                    <div className="col-span-3">Etichetta</div>
+                    <div className="col-span-3">Icona (Material Symbol)</div>
+                    <div className="col-span-3">Sezione</div>
+                    <div className="col-span-2 text-right">Path (Info)</div>
+                </div>
+                <div className="max-h-[600px] overflow-y-auto divide-y divide-outline-variant bg-surface">
+                    {config.map((item, index) => (
+                        <div key={item.path} className="grid grid-cols-12 gap-4 p-2 items-center hover:bg-surface-container-low transition-colors">
+                            <div className="col-span-1 flex justify-center gap-1">
+                                <button 
+                                    onClick={() => moveItem(index, 'up')} 
+                                    disabled={index === 0}
+                                    className="p-1 rounded hover:bg-surface-container disabled:opacity-30 text-on-surface-variant"
+                                >
+                                    <span className="material-symbols-outlined text-lg">arrow_upward</span>
+                                </button>
+                                <button 
+                                    onClick={() => moveItem(index, 'down')} 
+                                    disabled={index === config.length - 1}
+                                    className="p-1 rounded hover:bg-surface-container disabled:opacity-30 text-on-surface-variant"
+                                >
+                                    <span className="material-symbols-outlined text-lg">arrow_downward</span>
+                                </button>
+                            </div>
+                            <div className="col-span-3">
+                                <input 
+                                    type="text" 
+                                    value={item.label} 
+                                    onChange={(e) => handleChange(index, 'label', e.target.value)}
+                                    className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none px-1"
+                                />
+                            </div>
+                            <div className="col-span-3 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-primary">{item.icon}</span>
+                                <input 
+                                    type="text" 
+                                    value={item.icon} 
+                                    onChange={(e) => handleChange(index, 'icon', e.target.value)}
+                                    className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface-variant outline-none px-1 font-mono"
+                                />
+                            </div>
+                            <div className="col-span-3">
+                                <select 
+                                    value={item.section}
+                                    onChange={(e) => handleChange(index, 'section', e.target.value)}
+                                    className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1"
+                                >
+                                    <option value="Principale">Principale</option>
+                                    <option value="Progetti">Progetti</option>
+                                    <option value="Risorse">Risorse</option>
+                                    <option value="Operatività">Operatività</option>
+                                    <option value="Supporto">Supporto</option>
+                                    <option value="Configurazione">Configurazione</option>
+                                    <option value="Dati">Dati</option>
+                                </select>
+                            </div>
+                            <div className="col-span-2 text-right text-xs text-on-surface-variant font-mono truncate" title={item.path}>
+                                {item.path}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SkillThresholdsEditor: React.FC = () => {
+    const { skillThresholds, updateSkillThresholds, isActionLoading } = require('../context/AppContext').useEntitiesContext();
+    const [localThresholds, setLocalThresholds] = useState(skillThresholds);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    useEffect(() => { setLocalThresholds(skillThresholds); }, [skillThresholds]);
 
     const handleChange = (key: string, val: string) => {
         setLocalThresholds((prev: any) => ({ ...prev, [key]: parseInt(val, 10) || 0 }));
@@ -125,7 +248,7 @@ const SkillThresholdsEditor: React.FC = () => {
     };
 
     const handleSave = async () => {
-        await contextUpdate(localThresholds);
+        await updateSkillThresholds(localThresholds);
         setHasChanges(false);
     };
 
@@ -142,8 +265,8 @@ const SkillThresholdsEditor: React.FC = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-on-surface">Soglie Livelli Competenza (FTE Totali)</h2>
                 {hasChanges && (
-                    <button onClick={handleSave} disabled={contextLoading('updateSkillThresholds')} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium">
-                        {contextLoading('updateSkillThresholds') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Soglie'}
+                    <button onClick={handleSave} disabled={isActionLoading('updateSkillThresholds')} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium">
+                        {isActionLoading('updateSkillThresholds') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Soglie'}
                     </button>
                 )}
             </div>
