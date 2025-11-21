@@ -198,8 +198,8 @@ const SkillsMapPage: React.FC = () => {
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
     const categoryOptions = useMemo(() => {
-        const cats = new Set(skills.map(s => s.category).filter(Boolean));
-        return Array.from(cats).map(c => ({ value: c!, label: c! }));
+        const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
+        return cats.map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
     const columns: ColumnDef<EnrichedSkillResource>[] = [

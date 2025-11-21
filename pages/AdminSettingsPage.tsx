@@ -560,7 +560,7 @@ const PermissionMatrixSection: React.FC = () => {
     const [saving, setSaving] = useState(false);
 
     const pages = [
-        '/staffing', '/workload', '/dashboard', '/resource-requests', '/interviews', 
+        '/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', 
         '/skills-map', '/manuale-utente', '/forecasting', '/gantt', '/skill-analysis', 
         '/reports', '/staffing-visualization', '/resources', '/skills', '/projects', 
         '/contracts', '/clients', '/roles', '/calendar', '/config', '/export', '/import'

@@ -8,7 +8,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment, Role } from '../types';
+import { Resource, Assignment, Role, Project, Client } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -59,13 +59,6 @@ const AllocationCell: React.FC<{
     </td>
   );
 });
-
-// --- Tipi per i dati ---
-type EnrichedAssignment = Assignment & {
-  projectName?: string;
-  clientName?: string;
-  projectManager?: string;
-};
 
 type MobileRowData = {
   resource: Resource;
@@ -252,9 +245,9 @@ const TestStaffingPage: React.FC = () => {
 
   const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
 
-  const projectsById = useMemo(() => new Map(projects.map((p: any) => [p.id, p])), [projects]);
-  const clientsById = useMemo(() => new Map(clients.map((c: any) => [c.id, c])), [clients]);
-  const rolesById = useMemo(() => new Map(roles.map((r: any) => [r.id, r])), [roles]);
+  const projectsById = useMemo(() => new Map(projects.map((p) => [p.id!, p])), [projects]);
+  const clientsById = useMemo(() => new Map(clients.map((c) => [c.id!, c])), [clients]);
+  const rolesById = useMemo(() => new Map(roles.map((r) => [r.id!, r])), [roles]);
 
   // --- Time Calculation ---
   const timeColumns = useMemo(() => {
@@ -405,10 +398,13 @@ const TestStaffingPage: React.FC = () => {
                 ? assignmentLoadSum / timeColumns.filter(c => !c.isNonWorkingDay).length 
                 : 0;
               
+              const project = projectsById.get(assignment.projectId);
+              const client = project && project.clientId ? clientsById.get(project.clientId) : undefined;
+
               return {
                   assignment,
-                  projectName: projectsById.get(assignment.projectId)?.name || 'Unknown',
-                  clientName: clientsById.get(projectsById.get(assignment.projectId)?.clientId)?.name || 'Unknown',
+                  projectName: project?.name || 'Unknown',
+                  clientName: client?.name || 'Unknown',
                   avgLoad
               };
           });
@@ -448,9 +444,9 @@ const TestStaffingPage: React.FC = () => {
   // --- JSX ---
 
   const resourceOptions = useMemo(() => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })), [resources]);
-  const projectOptions = useMemo(() => projects.map((p: any) => ({ value: p.id!, label: p.name })), [projects]);
-  const clientOptions = useMemo(() => clients.map((c: any) => ({ value: c.id!, label: c.name })), [clients]);
-  const projectManagerOptions = useMemo(() => { const managers = [...new Set(projects.map((p: any) => p.projectManager).filter(Boolean) as string[])]; return managers.sort().map((pm) => ({ value: pm, label: pm })); }, [projects]);
+  const projectOptions = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);
+  const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
+  const projectManagerOptions = useMemo(() => { const managers = [...new Set(projects.map((p) => p.projectManager).filter(Boolean) as string[])]; return managers.sort().map((pm) => ({ value: pm, label: pm })); }, [projects]);
 
   return (
     <div className="flex flex-col h-full">
@@ -550,7 +546,7 @@ const TestStaffingPage: React.FC = () => {
                                     {/* Assignment Rows */}
                                     {resourceAssignments.map(assignment => {
                                         const project = projectsById.get(assignment.projectId);
-                                        const client = project ? clientsById.get(project.clientId) : undefined;
+                                        const client = project && project.clientId ? clientsById.get(project.clientId) : undefined;
                                         const isDeleting = isActionLoading(`deleteAssignment-${assignment.id}`);
                                         return (
                                             <tr key={assignment.id} className="group hover:bg-surface-container-low">
@@ -588,7 +584,7 @@ const TestStaffingPage: React.FC = () => {
       {/* Modali Comuni */}
       {assignmentToDelete && <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={() => { if (assignmentToDelete) { deleteAssignment(assignmentToDelete.id!); setAssignmentToDelete(null); } }} title="Conferma Rimozione" message={<>Sei sicuro di voler rimuovere l'assegnazione di <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong> dal progetto <strong>{getProjectById(assignmentToDelete.projectId)?.name}</strong>?</>} isConfirming={isActionLoading(`deleteAssignment-${assignmentToDelete.id}`)} />}
       <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva"><form onSubmit={handleBulkSubmit}><div className="space-y-4"><div><label className="block text-sm font-medium text-on-surface-variant">Data Inizio</label><input type="date" required value={bulkFormData.startDate} onChange={(e) => setBulkFormData(f => ({ ...f, startDate: e.target.value }))} className="mt-1 block w-full form-input"/></div><div><label className="block text-sm font-medium text-on-surface-variant">Data Fine</label><input type="date" required value={bulkFormData.endDate} onChange={(e) => setBulkFormData(f => ({ ...f, endDate: e.target.value }))} className="mt-1 block w-full form-input"/></div><div><label className="block text-sm font-medium text-on-surface-variant">Percentuale ({bulkFormData.percentage}%)</label><input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={(e) => setBulkFormData(f => ({ ...f, percentage: parseInt(e.target.value, 10) }))} className="mt-1 block w-full accent-primary"/></div></div><div className="mt-6 flex justify-end space-x-2"><button type="button" onClick={() => setBulkModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button><button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold">Salva</button></div></form></Modal>
-      <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto"><form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96"><div className="space-y-4 flex-grow"><div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={newAssignmentData.resourceId} onChange={(name, value) => setNewAssignmentData(d => ({ ...d, [name]: value }))} options={resourceOptions} placeholder="Seleziona una risorsa" required/></div><div><label className="block text-sm font-medium text-on-surface-variant">Progetto/i</label><MultiSelectDropdown name="projectIds" selectedValues={newAssignmentData.projectIds} onChange={(name, values) => setNewAssignmentData(d => ({ ...d, [name]: values }))} options={projects.filter((p: any) => p.status !== 'Completato').map((p: any) => ({ value: p.id!, label: p.name }))} placeholder="Seleziona uno o più progetti"/></div></div><div className="mt-6 flex justify-end space-x-2"><button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button><button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold">Aggiungi</button></div></form></Modal>
+      <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto"><form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96"><div className="space-y-4 flex-grow"><div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={newAssignmentData.resourceId} onChange={(name, value) => setNewAssignmentData(d => ({ ...d, [name]: value }))} options={resourceOptions} placeholder="Seleziona una risorsa" required/></div><div><label className="block text-sm font-medium text-on-surface-variant">Progetto/i</label><MultiSelectDropdown name="projectIds" selectedValues={newAssignmentData.projectIds} onChange={(name, values) => setNewAssignmentData(d => ({ ...d, [name]: values }))} options={projects.filter((p) => p.status !== 'Completato').map((p) => ({ value: p.id!, label: p.name }))} placeholder="Seleziona uno o più progetti"/></div></div><div className="mt-6 flex justify-end space-x-2"><button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button><button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold">Aggiungi</button></div></form></Modal>
     </div>
   );
 };

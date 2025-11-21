@@ -70,7 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 pageVisibilityRes,
                 skillThresholdsRes,
                 projectsRes, // Projects are needed in metadata for some filters
-                leaveTypesRes
+                leaveTypesRes,
+                managersRes // Get resource IDs of users who are MANAGER or ADMIN
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -87,7 +88,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'page_vis.%';`,
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'skill_threshold.%';`,
                 db.sql`SELECT * FROM projects;`,
-                db.sql`SELECT * FROM leave_types;`
+                db.sql`SELECT * FROM leave_types;`,
+                db.sql`SELECT DISTINCT resource_id FROM app_users WHERE role IN ('MANAGER', 'ADMIN') AND resource_id IS NOT NULL;`
             ]);
 
              // Formatta le date del calendario
@@ -112,6 +114,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const key = row.key.replace('skill_threshold.', '');
                 skillThresholds[key] = parseFloat(row.value);
             });
+
+            // Mappa Manager (Resource IDs)
+            const managerResourceIds = managersRes.rows.map(r => r.resource_id);
 
             Object.assign(data, {
                 clients: clientsRes.rows.map(toCamelCase) as Client[],
@@ -139,7 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
                 pageVisibility,
                 skillThresholds,
-                leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[]
+                leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
+                managerResourceIds
             });
         }
 

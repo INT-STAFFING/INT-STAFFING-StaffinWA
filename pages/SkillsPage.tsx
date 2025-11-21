@@ -125,8 +125,8 @@ const SkillsPage: React.FC = () => {
     }, [enrichedSkills, filters]);
 
     const categoryOptions = useMemo(() => {
-        const cats = new Set(skills.map(s => s.category).filter(Boolean));
-        return Array.from(cats).sort().map(c => ({ value: c!, label: c! }));
+        const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
+        return cats.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);

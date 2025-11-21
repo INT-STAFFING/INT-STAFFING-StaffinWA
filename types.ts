@@ -149,6 +149,27 @@ export interface Contract {
     backlog: number;
 }
 
+/**
+ * @interface ContractProject
+ * @description Rappresenta l'associazione tra un contratto e un progetto.
+ */
+export interface ContractProject {
+    /** @property {string} contractId - ID del contratto. */
+    contractId: string;
+    /** @property {string} projectId - ID del progetto. */
+    projectId: string;
+}
+
+/**
+ * @interface ContractManager
+ * @description Rappresenta l'associazione tra un contratto e un manager (risorsa).
+ */
+export interface ContractManager {
+    /** @property {string} contractId - ID del contratto. */
+    contractId: string;
+    /** @property {string} resourceId - ID della risorsa (manager). */
+    resourceId: string;
+}
 
 /**
  * @interface Assignment
@@ -468,8 +489,10 @@ export interface LeaveRequest {
     endDate: string;
     /** @property {LeaveStatus} status - Stato dell'approvazione. */
     status: LeaveStatus;
-    /** @property {string | null} [managerId] - Chi ha approvato (opzionale). */
+    /** @property {string | null} [managerId] - Chi ha approvato (effettivo attore). */
     managerId?: string | null;
+    /** @property {string[]} [approverIds] - Lista degli ID risorse che possono approvare questa richiesta. */
+    approverIds?: string[];
     /** @property {string} [notes] - Note aggiuntive. */
     notes?: string;
 }

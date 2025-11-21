@@ -175,22 +175,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // Check if admin exists or seed it
-    // Note: For proper password hashing in a real app, the seed script or an API should be used.
-    // Here we check if the table is empty. If it is, we insert a default admin.
-    // WARNING: Ideally we should use bcrypt here, but we can't easily import it in this file 
-    // without potentially causing issues if the dependency isn't installed in all environments calling this.
-    // However, since the seed script (which HAS bcrypt) calls this, we can rely on the seed script to do the heavy lifting.
-    // This fallback is mainly for clean deployments where seed might not have run yet.
-    
-    // We will insert a placeholder that is a valid bcrypt hash for 'admin'.
-    // Generated with bcrypt.hashSync('admin', 10)
-    const defaultAdminHash = '$2a$10$X7V.j.2...'; // Placeholder - Use seed script for real hash.
-    
-    // Better strategy: We let the seed script handle the data population.
-    // This function focuses on DDL (Structure).
-    // We only seed permissions here to ensure the app is usable structure-wise.
-    
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;
     if (permsCheck.rows[0].count === '0') {
         const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources'];
@@ -215,10 +199,12 @@ export async function ensureDbTablesExist(db: VercelPool) {
             end_date DATE NOT NULL,
             status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
             manager_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+            approver_ids UUID[],
             notes TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
     `;
+    await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS approver_ids UUID[];`;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (
@@ -383,7 +369,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
     `;
     await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS acquisition_date DATE;`;
     await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS expiration_date DATE;`;
-    // Ensure level column exists (Migration)
     await db.sql`ALTER TABLE resource_skills ADD COLUMN IF NOT EXISTS level INT;`;
 
     await db.sql`
@@ -430,18 +415,15 @@ export async function ensureDbTablesExist(db: VercelPool) {
     const backfillClient = await db.connect();
     try {
         await backfillClient.query('BEGIN');
-        // Check if backfill is needed
         const needsBackfillRes = await backfillClient.query(`SELECT id FROM resource_requests WHERE request_code IS NULL LIMIT 1;`);
         if (needsBackfillRes.rows.length > 0) {
             console.log('Backfilling request_code for resource_requests...');
-            // Get the last used code number
             const lastCodeRes = await backfillClient.query(`SELECT request_code FROM resource_requests WHERE request_code IS NOT NULL ORDER BY request_code DESC LIMIT 1;`);
             let lastNumber = 0;
             if (lastCodeRes.rows.length > 0) {
                 lastNumber = parseInt(lastCodeRes.rows[0].request_code.replace('HCR', ''), 10);
             }
 
-            // Get all rows that need a code, ordered by creation time
             const rowsToUpdateRes = await backfillClient.query(`SELECT id, created_at FROM resource_requests WHERE request_code IS NULL ORDER BY created_at ASC;`);
             for (const row of rowsToUpdateRes.rows) {
                 lastNumber++;
@@ -454,7 +436,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
     } catch (error) {
         await backfillClient.query('ROLLBACK');
         console.error('Error during request_code backfill:', error);
-        // Do not re-throw, allow the app to start, but log the error.
     } finally {
         backfillClient.release();
     }
