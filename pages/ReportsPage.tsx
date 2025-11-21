@@ -1,6 +1,6 @@
 /**
  * @file ReportsPage.tsx
- * @description Pagina per la visualizzazione di report analitici su costi e utilizzo.
+ * @description Pagina per la visualizzazione di report analitici su costi e utilizzo utilizzando il componente DataTable.
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -8,12 +8,10 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';
-type ProjectCostSortKey = 'projectName' | 'clientName' | 'budget' | 'allocatedCost' | 'variance' | 'personDays' | 'avgCostPerDay';
-type ResourceUtilizationSortKey = 'resourceName' | 'roleName' | 'availableDays' | 'allocatedDays' | 'utilization' | 'allocatedCost';
-type SortDirection = 'ascending' | 'descending';
 
 // --- Funzioni di Utilità ---
 const downloadCSV = (csvContent: string, fileName: string) => {
@@ -30,49 +28,12 @@ const downloadCSV = (csvContent: string, fileName: string) => {
     }
 };
 
-// --- Componenti di Supporto ---
-
-/**
- * Hook generico per la gestione dell'ordinamento di una tabella.
- * @template T - Il tipo di chiave di ordinamento.
- */
-const useSort = <T extends string>() => {
-    const [sortConfig, setSortConfig] = useState<{ key: T; direction: SortDirection } | null>(null);
-
-    const requestSort = (key: T) => {
-        let direction: SortDirection = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const SortableHeader: React.FC<{ label: string; sortKey: T }> = ({ label, sortKey }) => (
-        <th className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-            <button type="button" onClick={() => requestSort(sortKey)} className="flex items-center space-x-1 hover:text-on-surface">
-                <span className={sortConfig?.key === sortKey ? 'font-bold text-on-surface' : ''}>{label}</span>
-                <span className="material-symbols-outlined text-sm">{sortConfig?.key === sortKey ? (sortConfig.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
-            </button>
-        </th>
-    );
-
-    return { sortConfig, SortableHeader };
-};
-
 // --- Componenti Principali dei Report ---
 
 const ProjectCostsReport: React.FC = () => {
-    const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar, getRoleCost } = useEntitiesContext();
+    const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar, getRoleCost, loading } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
-    const { sortConfig, SortableHeader } = useSort<ProjectCostSortKey>();
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     const reportData = useMemo(() => {
         return projects
@@ -120,24 +81,9 @@ const ProjectCostsReport: React.FC = () => {
             });
     }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations, getRoleCost]);
     
-    const sortedData = useMemo(() => {
-        if (!sortConfig) return reportData;
-        return [...reportData].sort((a, b) => {
-            const valA = a[sortConfig.key];
-            const valB = b[sortConfig.key];
-            if (typeof valA === 'string' && typeof valB === 'string') {
-                return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-            }
-             if (typeof valA === 'number' && typeof valB === 'number') {
-                return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
-            }
-            return 0;
-        });
-    }, [reportData, sortConfig]);
-
     const exportToCSV = () => {
         const headers = ["Progetto", "Cliente", "Budget", "Costo Allocato", "Varianza", "Giorni/Uomo", "Costo Medio G/U"];
-        const rows = sortedData.map(d => [
+        const rows = reportData.map(d => [
             `"${d.projectName || ''}"`,
             `"${d.clientName || ''}"`,
             (d.budget || 0).toFixed(2),
@@ -153,109 +99,88 @@ const ProjectCostsReport: React.FC = () => {
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
     const statusOptions = useMemo(() => projectStatuses.map(s => ({ value: s.value, label: s.value })), [projectStatuses]);
 
-    const MobileProjectCostCard: React.FC<{ data: any }> = ({ data }) => (
-        <div className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${data.variance >= 0 ? 'border-tertiary' : 'border-error'} flex flex-col gap-3`}>
+    // DataTable Config
+    const columns: ColumnDef<typeof reportData[0]>[] = [
+        { header: "Progetto", sortKey: "projectName", cell: d => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{d.projectName}</span> },
+        { header: "Cliente", sortKey: "clientName", cell: d => <span className="text-sm text-on-surface-variant">{d.clientName}</span> },
+        { header: "Budget", sortKey: "budget", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.budget)}</span> },
+        { header: "Costo Allocato", sortKey: "allocatedCost", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</span> },
+        { header: "Varianza", sortKey: "variance", cell: d => <span className={`text-sm font-semibold ${d.variance >= 0 ? 'text-tertiary' : 'text-error'}`}>{formatCurrency(d.variance)}</span> },
+        { header: "G/U Allocati", sortKey: "personDays", cell: d => <span className="text-sm text-on-surface-variant">{d.personDays.toFixed(1)}</span> },
+        { header: "Costo Medio G/U", sortKey: "avgCostPerDay", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.avgCostPerDay)}</span> },
+    ];
+
+    const renderRow = (d: typeof reportData[0]) => (
+        <tr key={d.id} className="h-12 hover:bg-surface-container-low group">
+            {columns.map((col, i) => <td key={i} className="px-6 py-3 whitespace-nowrap text-sm bg-inherit">{col.cell(d)}</td>)}
+            {/* Cella vuota per allineamento azioni se necessario, o rimossa se DataTable gestisce sticky col 0 come azioni */}
+            <td className="bg-inherit"></td> 
+        </tr>
+    );
+
+    const renderMobileCard = (d: typeof reportData[0]) => (
+        <div key={d.id} className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${d.variance >= 0 ? 'border-tertiary' : 'border-error'} flex flex-col gap-3`}>
              <div className="flex justify-between items-start">
                 <div>
-                    <h3 className="font-bold text-lg text-on-surface">{data.projectName}</h3>
-                    <p className="text-sm text-on-surface-variant">{data.clientName}</p>
+                    <h3 className="font-bold text-lg text-on-surface">{d.projectName}</h3>
+                    <p className="text-sm text-on-surface-variant">{d.clientName}</p>
                 </div>
-                 <div className={`px-2 py-1 rounded text-xs font-bold ${data.variance >= 0 ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
-                    {formatCurrency(data.variance)} Var
+                 <div className={`px-2 py-1 rounded text-xs font-bold ${d.variance >= 0 ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
+                    {formatCurrency(d.variance)} Var
                 </div>
             </div>
 
              <div className="grid grid-cols-2 gap-2 mt-1">
                  <div className="bg-surface-container-low p-2 rounded">
                      <span className="text-xs text-on-surface-variant block">Budget</span>
-                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(data.budget)}</span>
+                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(d.budget)}</span>
                  </div>
                  <div className="bg-surface-container-low p-2 rounded">
                      <span className="text-xs text-on-surface-variant block">Costo Allocato</span>
-                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(data.allocatedCost)}</span>
+                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(d.allocatedCost)}</span>
                  </div>
              </div>
 
              <div className="flex justify-between items-center text-xs text-on-surface-variant pt-2 border-t border-outline-variant">
-                <span>{data.personDays.toFixed(1)} Giorni/Uomo</span>
-                <span>Avg: {formatCurrency(data.avgCostPerDay)} / Giorno</span>
+                <span>{d.personDays.toFixed(1)} Giorni/Uomo</span>
+                <span>Avg: {formatCurrency(d.avgCostPerDay)} / Giorno</span>
              </div>
         </div>
     );
 
-    return (
-        <div>
-            <div className="p-4 bg-surface-container rounded-2xl mb-6">
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
-                    <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
-                        <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
-                    </button>
-                 </div>
-            </div>
-            
-            {isMobile ? (
-                <div className="space-y-4">
-                    {sortedData.map(d => <MobileProjectCostCard key={d.id} data={d} />)}
-                    {sortedData.length === 0 && <p className="text-center text-on-surface-variant py-8">Nessun dato trovato.</p>}
-                </div>
-            ) : (
-                 <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
-                    <table className="min-w-full divide-y divide-outline-variant table-fixed">
-                        <thead className="sticky top-0 z-10 bg-surface-container-low">
-                            <tr>
-                                <SortableHeader label="Progetto" sortKey="projectName" />
-                                <SortableHeader label="Cliente" sortKey="clientName" />
-                                <SortableHeader label="Budget" sortKey="budget" />
-                                <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
-                                <SortableHeader label="Varianza" sortKey="variance" />
-                                <SortableHeader label="G/U Allocati" sortKey="personDays" />
-                                <SortableHeader label="Costo Medio G/U" sortKey="avgCostPerDay" />
-                            </tr>
-                        </thead>
-                        <tbody className="bg-surface divide-y divide-outline-variant">
-                            {sortedData.length > 0 ? (
-                                sortedData.map(d => (
-                                    <tr key={d.id} className="h-8 hover:bg-surface-container-low">
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">{d.projectName}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{d.clientName}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.budget)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</td>
-                                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.variance >= 0 ? 'text-tertiary' : 'text-error'}`}>
-                                            {formatCurrency(d.variance)}
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{(d.personDays || 0).toFixed(2)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.avgCostPerDay)}</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-on-surface-variant">Nessun dato trovato per i filtri correnti.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
+            <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
+            <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
+                <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
+            </button>
         </div>
+    );
+
+    return (
+        <DataTable
+            title=""
+            addNewButtonLabel=""
+            onAddNew={() => {}}
+            data={reportData}
+            columns={columns}
+            filtersNode={filtersNode}
+            renderRow={renderRow}
+            renderMobileCard={renderMobileCard}
+            initialSortKey="projectName"
+            isLoading={loading}
+            tableLayout={{ dense: true, striped: true, headerSticky: true }}
+        />
     );
 };
 
 
 const ResourceUtilizationReport: React.FC = () => {
-    const { resources, roles, assignments, companyCalendar, horizontals, getRoleCost } = useEntitiesContext();
+    const { resources, roles, assignments, companyCalendar, horizontals, getRoleCost, loading } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     const [filters, setFilters] = useState({ roleId: '', horizontal: '' });
-    const { sortConfig, SortableHeader } = useSort<ResourceUtilizationSortKey>();
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-    useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     const reportData = useMemo(() => {
         const [year, monthNum] = month.split('-').map(Number);
@@ -310,27 +235,20 @@ const ResourceUtilizationReport: React.FC = () => {
                     utilization,
                     allocatedCost,
                 };
-            }).filter(Boolean) as Exclude<ReturnType<typeof reportData[0]>, null>[];
+            }).filter(Boolean) as {
+                id: string | undefined;
+                resourceName: string;
+                roleName: string;
+                availableDays: number;
+                allocatedDays: number;
+                utilization: number;
+                allocatedCost: number;
+            }[];
     }, [resources, roles, assignments, companyCalendar, month, filters, allocations, getRoleCost]);
-    
-    const sortedData = useMemo(() => {
-        if (!sortConfig) return reportData;
-        return [...reportData].sort((a, b) => {
-            const valA = a[sortConfig.key];
-            const valB = b[sortConfig.key];
-            if (typeof valA === 'string' && typeof valB === 'string') {
-                return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-            }
-             if (typeof valA === 'number' && typeof valB === 'number') {
-                return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
-            }
-            return 0;
-        });
-    }, [reportData, sortConfig]);
     
     const exportToCSV = () => {
         const headers = ["Risorsa", "Ruolo", "Giorni Disponibili", "Giorni Allocati", "Utilizzo (%)", "Costo Allocato"];
-        const rows = sortedData.map(d => [
+        const rows = reportData.map(d => [
             `"${d.resourceName || ''}"`, 
             `"${d.roleName || ''}"`, 
             (d.availableDays || 0).toFixed(1), 
@@ -345,7 +263,24 @@ const ResourceUtilizationReport: React.FC = () => {
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.map(h => ({ value: h.value, label: h.value })), [horizontals]);
 
-    const MobileResourceUtilCard: React.FC<{ data: any }> = ({ data }) => {
+    // DataTable Config
+    const columns: ColumnDef<typeof reportData[0]>[] = [
+        { header: "Risorsa", sortKey: "resourceName", cell: d => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{d.resourceName}</span> },
+        { header: "Ruolo", sortKey: "roleName", cell: d => <span className="text-sm text-on-surface-variant">{d.roleName}</span> },
+        { header: "G/U Disponibili", sortKey: "availableDays", cell: d => <span className="text-sm text-on-surface-variant">{d.availableDays.toFixed(1)}</span> },
+        { header: "G/U Allocati", sortKey: "allocatedDays", cell: d => <span className="text-sm text-on-surface-variant">{d.allocatedDays.toFixed(2)}</span> },
+        { header: "Utilizzo", sortKey: "utilization", cell: d => <span className={`text-sm font-semibold ${d.utilization > 100 ? 'text-error' : d.utilization > 95 ? 'text-tertiary' : 'text-yellow-600 dark:text-yellow-400'}`}>{d.utilization.toFixed(1)}%</span> },
+        { header: "Costo Allocato", sortKey: "allocatedCost", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</span> },
+    ];
+
+    const renderRow = (d: typeof reportData[0]) => (
+        <tr key={d.id} className="h-12 hover:bg-surface-container-low group">
+            {columns.map((col, i) => <td key={i} className="px-6 py-3 whitespace-nowrap text-sm bg-inherit">{col.cell(d)}</td>)}
+            <td className="bg-inherit"></td>
+        </tr>
+    );
+
+    const renderMobileCard = (data: typeof reportData[0]) => {
          const getBarColor = (util: number) => {
             if (util > 100) return 'bg-error';
             if (util > 90) return 'bg-tertiary';
@@ -353,7 +288,7 @@ const ResourceUtilizationReport: React.FC = () => {
         };
 
         return (
-            <div className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-secondary flex flex-col gap-3">
+            <div key={data.id} className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-secondary flex flex-col gap-3">
                 <div className="flex justify-between items-center">
                     <div>
                         <h3 className="font-bold text-lg text-on-surface">{data.resourceName}</h3>
@@ -388,63 +323,33 @@ const ResourceUtilizationReport: React.FC = () => {
                 </div>
             </div>
         )
-    }
+    };
+
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
+            <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
+            <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
+            <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
+                <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
+            </button>
+        </div>
+    );
 
     return (
-        <div>
-            <div className="p-4 bg-surface-container rounded-2xl mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
-                    <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
-                    <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
-                    <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
-                        <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
-                    </button>
-                </div>
-            </div>
-            
-            {isMobile ? (
-                <div className="space-y-4">
-                     {sortedData.map(d => <MobileResourceUtilCard key={d.id} data={d} />)}
-                     {sortedData.length === 0 && <p className="text-center text-on-surface-variant py-8">Nessun dato trovato.</p>}
-                </div>
-            ) : (
-                <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
-                    <table className="min-w-full divide-y divide-outline-variant table-fixed">
-                        <thead className="sticky top-0 z-10 bg-surface-container-low">
-                            <tr>
-                                <SortableHeader label="Risorsa" sortKey="resourceName" />
-                                <SortableHeader label="Ruolo" sortKey="roleName" />
-                                <SortableHeader label="G/U Disponibili" sortKey="availableDays" />
-                                <SortableHeader label="G/U Allocati" sortKey="allocatedDays" />
-                                <SortableHeader label="Utilizzo" sortKey="utilization" />
-                                <SortableHeader label="Costo Allocato" sortKey="allocatedCost" />
-                            </tr>
-                        </thead>
-                        <tbody className="bg-surface divide-y divide-outline-variant">
-                        {sortedData.length > 0 ? (
-                                sortedData.map(d => (
-                                    <tr key={d.id} className="h-8 hover:bg-surface-container-low">
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-on-surface">{d.resourceName}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{d.roleName}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{(d.availableDays || 0).toFixed(1)}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{(d.allocatedDays || 0).toFixed(2)}</td>
-                                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${d.utilization > 100 ? 'text-error' : d.utilization > 95 ? 'text-tertiary' : 'text-yellow-600 dark:text-yellow-400'}`}>
-                                            {(d.utilization || 0).toFixed(1)}%
-                                        </td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-on-surface-variant">Nessun dato trovato per i filtri correnti.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
+        <DataTable
+            title=""
+            addNewButtonLabel=""
+            onAddNew={() => {}}
+            data={reportData}
+            columns={columns}
+            filtersNode={filtersNode}
+            renderRow={renderRow}
+            renderMobileCard={renderMobileCard}
+            initialSortKey="resourceName"
+            isLoading={loading}
+            tableLayout={{ dense: true, striped: true, headerSticky: true }}
+        />
     );
 };
 

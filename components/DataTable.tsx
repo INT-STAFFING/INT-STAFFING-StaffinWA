@@ -23,7 +23,6 @@ interface TableLayoutProps {
     headerSticky?: boolean;
     headerBackground?: boolean;
     headerBorder?: boolean;
-    // width prop rimosso, ora è sempre fixed per supportare il resize e l'overflow
 }
 
 interface TableClassNames {
@@ -42,19 +41,7 @@ interface DataTableProps<T extends { id?: string }> {
     columns: ColumnDef<T>[];
     filtersNode: React.ReactNode;
     onAddNew: () => void;
-    renderRow: (item: T) => React.ReactNode; // Nota: renderRow originale potrebbe non essere compatibile con la nuova struttura a celle separate se ritorna un <tr> intero.
-    // In questa versione aggiornata, preferiamo passare una funzione che renderizza solo le AZIONI, 
-    // oppure adattiamo il renderRow esistente. Per mantenere compatibilità, useremo un approccio ibrido
-    // ma per le feature richieste (sticky cols), è meglio se DataTable controlla il <tr>.
-    // Tuttavia, per non rompere l'esistente che passa renderRow, cercheremo di estrarre i contenuti o useremo un approccio specifico.
-    // **CHANGE**: Per supportare le colonne sticky e il resize, DataTable DEVE controllare la struttura del <tr>.
-    // La prop `renderRow` esistente nelle pagine attuali restituisce un intero <tr>. Questo rompe la logica delle colonne sticky gestita qui.
-    // Per questo refactoring, assumiamo che le pagine usino ancora renderRow, ma qui lo adatteremo o lo ignoreremo parzialmente 
-    // se vogliamo il pieno controllo. 
-    // SOLUZIONE MIGLIORE: Modifichiamo DataTable per renderizzare le celle internamente basandosi su `columns` 
-    // e aggiungiamo una prop `renderActions` per i pulsanti.
-    // Manteniamo `renderRow` come fallback per le righe di edit inline, ma per la vista normale usiamo `columns`.
-    
+    renderRow: (item: T) => React.ReactNode;
     renderMobileCard: (item: T) => React.ReactNode;
     initialSortKey?: string;
     isLoading?: boolean;
@@ -62,14 +49,12 @@ interface DataTableProps<T extends { id?: string }> {
     emptyMessage?: React.ReactNode;
     tableLayout?: TableLayoutProps;
     tableClassNames?: TableClassNames;
+    actionsWidth?: number; // Opzionale: larghezza personalizzata per la colonna azioni
 }
 
 /** Utility per combinare classNames */
 const combineClassNames = (...classes: Array<string | undefined | false>) =>
     classes.filter(Boolean).join(' ');
-
-// Larghezza fissa per la colonna azioni (sticky left 0)
-const ACTIONS_WIDTH = 100; 
 
 export function DataTable<T extends { id?: string }>({
     title,
@@ -78,7 +63,7 @@ export function DataTable<T extends { id?: string }>({
     columns,
     filtersNode,
     onAddNew,
-    renderRow, // Usato principalmente per l'edit inline o custom rows complete
+    renderRow,
     renderMobileCard,
     initialSortKey,
     isLoading,
@@ -86,6 +71,7 @@ export function DataTable<T extends { id?: string }>({
     emptyMessage,
     tableLayout,
     tableClassNames,
+    actionsWidth = 130, // Default aumentato a 130px per accomodare 3 icone
 }: DataTableProps<T>) {
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(
         initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null
@@ -94,14 +80,13 @@ export function DataTable<T extends { id?: string }>({
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const tableRef = useRef<HTMLTableElement>(null);
-    const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
 
     // Inizializza le larghezze delle colonne se non settate
     useEffect(() => {
         if (tableRef.current && Object.keys(columnWidths).length === 0) {
             const initialWidths: Record<string, number> = {};
             // Distribuzione equa iniziale o basata su minWidth
-            const totalWidth = tableRef.current.offsetWidth - ACTIONS_WIDTH; // Sottrai colonna azioni
+            const totalWidth = tableRef.current.offsetWidth - actionsWidth; 
             const defaultWidth = Math.max(150, totalWidth / columns.length);
             
             columns.forEach(col => {
@@ -109,7 +94,7 @@ export function DataTable<T extends { id?: string }>({
             });
             setColumnWidths(initialWidths);
         }
-    }, [columns]);
+    }, [columns, actionsWidth]);
 
     const layout: Required<TableLayoutProps> = {
         dense: tableLayout?.dense ?? false,
@@ -148,7 +133,6 @@ export function DataTable<T extends { id?: string }>({
         const handleMouseUp = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
-            // Rimuovi stile resizing se necessario
         };
 
         document.addEventListener('mousemove', handleMouseMove);
@@ -161,6 +145,13 @@ export function DataTable<T extends { id?: string }>({
             direction = 'descending';
         }
         setSortConfig({ key, direction });
+    };
+
+    const handleColumnFilterChange = (key: string, value: string) => {
+        setFilters(prev => ({
+            ...prev,
+            [key]: value
+        }));
     };
 
     /** 🔍 Filtro client-side */
@@ -198,7 +189,7 @@ export function DataTable<T extends { id?: string }>({
     }, [filteredData, sortConfig]);
 
     const getSortableHeader = (label: string, colKey?: string, index?: number) => {
-        const key = label; // Usa label come chiave per widths
+        const key = label; 
         const isSorted = sortConfig?.key === colKey;
         const sortIcon =
             sortConfig && sortConfig.key === colKey
@@ -210,15 +201,11 @@ export function DataTable<T extends { id?: string }>({
         const width = columnWidths[key];
         
         // Logica Sticky per header
-        // Colonna 0 (Azioni) è gestita separatamente fuori dal map
-        // Qui siamo nelle colonne dati.
-        // La prima colonna dati (index 0 dell'array columns) è sticky a sinistra dopo le azioni.
         const isFirstDataCol = index === 0;
         const stickyClass = isFirstDataCol 
-            ? `sticky left-[${ACTIONS_WIDTH}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
-            : 'relative'; // Le altre sono relative
+            ? `sticky left-[${actionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+            : 'relative'; 
 
-        // Background deve essere settato esplicitamente per sticky
         const bgClass = layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface';
 
         return (
@@ -234,7 +221,7 @@ export function DataTable<T extends { id?: string }>({
                     'text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider',
                     stickyClass,
                     classes.headerCell,
-                    'group' // Per mostrare resizer on hover
+                    'group'
                 )}
             >
                 <div className="flex items-center justify-between h-full w-full truncate">
@@ -267,13 +254,6 @@ export function DataTable<T extends { id?: string }>({
     const desktopEmptyMessage = emptyMessage ?? 'Nessun dato trovato.';
     const loadingLabel = loadingMessage ?? 'Caricamento...';
 
-    // Estrazione della logica di rendering dei pulsanti di azione dalla prop renderRow
-    // Questo è un workaround perché renderRow ritorna un <tr> completo.
-    // Idealmente, si dovrebbe passare una prop `renderActions` separata.
-    // Dato che non possiamo cambiare tutte le chiamate a DataTable immediatamente in modo pulito senza refactoring massivo,
-    // useremo renderRow quando siamo in modalità edit (che restituisce input), 
-    // ma cercheremo di costruire la nostra riga per la visualizzazione standard.
-    
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -298,22 +278,22 @@ export function DataTable<T extends { id?: string }>({
                     <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative">
                         <table
                             ref={tableRef}
-                            className="w-full table-fixed border-collapse" // table-fixed essenziale per resize e overflow
+                            className="w-full table-fixed border-collapse"
                         >
-                            {/* Definisci larghezze colonne se necessario, ma lo stile inline sui th è meglio per dinamico */}
                             <thead className={combineClassNames('bg-surface-container-low', classes.header)}>
+                                {/* RIGA 1: INTESTAZIONI */}
                                 <tr className={classes.headerRow}>
                                     {/* 1. Colonna Azioni (Fissa a Sinistra) */}
                                     <th
                                         className={combineClassNames(
-                                            'sticky left-0 z-40 w-[100px] px-2', // z-40 per stare sopra
+                                            'sticky left-0 z-40 px-2',
                                             layout.headerSticky && 'sticky top-0',
                                             layout.dense ? 'py-2' : 'py-3',
                                             layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface',
                                             layout.headerBorder && 'border-b border-outline-variant',
                                             'text-center text-xs font-medium text-on-surface-variant uppercase tracking-wider border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
                                         )}
-                                        style={{ minWidth: `${ACTIONS_WIDTH}px`, width: `${ACTIONS_WIDTH}px` }}
+                                        style={{ minWidth: `${actionsWidth}px`, width: `${actionsWidth}px` }}
                                     >
                                         Azioni
                                     </th>
@@ -321,9 +301,48 @@ export function DataTable<T extends { id?: string }>({
                                     {/* 2. Colonne Dati */}
                                     {columns.map((col, index) => getSortableHeader(col.header, col.sortKey, index))}
                                 </tr>
-                                
-                                {/* Riga Filtri Inline (Opzionale - nascosta per pulizia se c'è filtersNode sopra) */}
-                                {/* Mantenuta se serve, ma commentata per ora per seguire il design richiesto "handler nell'header" */}
+
+                                {/* RIGA 2: FILTRI COLONNA */}
+                                <tr className="bg-surface-container-low">
+                                    {/* 1. Filtro Azioni (Vuoto ma fisso) */}
+                                    <th
+                                        className={combineClassNames(
+                                            'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
+                                            layout.headerSticky && 'sticky top-[45px]' // Offset approssimativo dell'header sopra
+                                        )}
+                                        style={{ minWidth: `${actionsWidth}px`, width: `${actionsWidth}px` }}
+                                    >
+                                        {/* Placeholder */}
+                                    </th>
+
+                                    {/* 2. Filtri Dati */}
+                                    {columns.map((col, index) => {
+                                        const key = col.sortKey || col.header;
+                                        const isFirstDataCol = index === 0;
+                                        const stickyClass = isFirstDataCol 
+                                            ? `sticky left-[${actionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+                                            : 'relative z-10';
+                                        
+                                        return (
+                                            <th 
+                                                key={`filter-${key}`} 
+                                                className={combineClassNames(
+                                                    "px-2 py-1 bg-surface-container-low border-b border-outline-variant",
+                                                    layout.headerSticky && 'sticky top-[45px]',
+                                                    stickyClass
+                                                )}
+                                            >
+                                                <input
+                                                    type="text"
+                                                    placeholder="Filtra..."
+                                                    className="w-full text-xs form-input py-1 px-2 h-7 bg-surface border-outline-variant focus:border-primary rounded"
+                                                    value={filters[key] || ''}
+                                                    onChange={(e) => handleColumnFilterChange(key, e.target.value)}
+                                                />
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
                             </thead>
 
                             <tbody className={classes.body}>
@@ -363,7 +382,7 @@ export function DataTable<T extends { id?: string }>({
                                                             "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
                                                             "whitespace-nowrap"
                                                         )}
-                                                        style={{ width: `${ACTIONS_WIDTH}px`, minWidth: `${ACTIONS_WIDTH}px` }}
+                                                        style={{ width: `${actionsWidth}px`, minWidth: `${actionsWidth}px` }}
                                                     >
                                                         {actionCell && actionCell.props.children}
                                                     </td>
@@ -372,12 +391,11 @@ export function DataTable<T extends { id?: string }>({
                                                     {dataCells.map((cell, cellIndex) => {
                                                         const isFirstDataCol = cellIndex === 0;
                                                         const stickyClass = isFirstDataCol 
-                                                            ? `sticky left-[${ACTIONS_WIDTH}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
+                                                            ? `sticky left-[${actionsWidth}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
                                                             : '';
                                                         
                                                         const safeCell = cell as React.ReactElement<any>;
 
-                                                        // Sovrascriviamo le classi per garantire l'overflow
                                                         return React.cloneElement(safeCell, {
                                                             className: combineClassNames(
                                                                 safeCell.props.className,

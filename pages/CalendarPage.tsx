@@ -1,6 +1,6 @@
 /**
  * @file CalendarPage.tsx
- * @description Pagina per la gestione del calendario aziendale (festività, chiusure).
+ * @description Pagina per la gestione del calendario aziendale (festività, chiusure) utilizzando DataTable.
  */
 
 import React, { useState, useMemo } from 'react';
@@ -9,11 +9,10 @@ import { CalendarEvent, CalendarEventType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 /**
  * Formatta una data per la visualizzazione.
- * @param {string | null} dateStr - La stringa della data (YYYY-MM-DD).
- * @returns {string} La data formattata (DD/MM/YYYY) o 'N/A'.
  */
 const formatDateForDisplay = (dateStr: string | null): string => {
     if (!dateStr) return 'N/A';
@@ -24,8 +23,6 @@ const formatDateForDisplay = (dateStr: string | null): string => {
 
 /**
  * Traduce il tipo di evento in una stringa leggibile.
- * @param {CalendarEventType} type - Il tipo di evento.
- * @returns {string} La traduzione in italiano.
  */
 const formatEventType = (type: CalendarEventType): string => {
     switch (type) {
@@ -34,12 +31,22 @@ const formatEventType = (type: CalendarEventType): string => {
         case 'LOCAL_HOLIDAY': return 'Festività Locale';
         default: return type;
     }
-}
+};
+
+const getEventTypeBadgeClass = (type: CalendarEventType): string => {
+    switch (type) {
+        case 'NATIONAL_HOLIDAY': return 'bg-primary-container text-on-primary-container';
+        case 'COMPANY_CLOSURE': return 'bg-tertiary-container text-on-tertiary-container';
+        case 'LOCAL_HOLIDAY': return 'bg-secondary-container text-on-secondary-container';
+        default: return 'bg-surface-variant text-on-surface-variant';
+    }
+};
 
 const CalendarPage: React.FC = () => {
-    const { companyCalendar, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, locations, isActionLoading } = useEntitiesContext();
+    const { companyCalendar, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, locations, isActionLoading, loading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<CalendarEvent | Omit<CalendarEvent, 'id'> | null>(null);
+    const [filters, setFilters] = useState({ name: '', type: '' });
 
     const emptyEvent: Omit<CalendarEvent, 'id'> = {
         name: '',
@@ -48,9 +55,21 @@ const CalendarPage: React.FC = () => {
         location: null
     };
 
-    const sortedCalendar = useMemo(() => {
-        return [...companyCalendar].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [companyCalendar]);
+    // --- Data Processing ---
+    const filteredData = useMemo(() => {
+        return companyCalendar
+            .filter(event => {
+                const nameMatch = event.name.toLowerCase().includes(filters.name.toLowerCase());
+                const typeMatch = filters.type ? event.type === filters.type : true;
+                return nameMatch && typeMatch;
+            })
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [companyCalendar, filters]);
+
+    // --- Handlers ---
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
+    const resetFilters = () => setFilters({ name: '', type: '' });
 
     const openModalForNew = () => {
         setEditingEvent(emptyEvent);
@@ -99,6 +118,7 @@ const CalendarPage: React.FC = () => {
         }
     };
 
+    // --- Options ---
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
     const eventTypeOptions: { value: CalendarEventType, label: string }[] = [
         { value: 'NATIONAL_HOLIDAY', label: 'Festività Nazionale' },
@@ -106,54 +126,73 @@ const CalendarPage: React.FC = () => {
         { value: 'LOCAL_HOLIDAY', label: 'Festività Locale' }
     ];
 
-    return (
-        <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-on-surface">Gestione Calendario</h1>
-                <button
-                    onClick={openModalForNew}
-                    className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"
-                >
-                    Aggiungi Evento
-                </button>
-            </div>
-            
-            <div className="bg-surface rounded-2xl shadow overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-outline-variant">
-                        <thead className="bg-surface-container-low">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Nome Evento</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Data</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Tipo</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Sede (se locale)</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-surface divide-y divide-outline-variant">
-                            {sortedCalendar.map((event) => {
-                                const isDeleting = isActionLoading(`deleteCalendarEvent-${event.id}`);
-                                return (
-                                <tr key={event.id} className="hover:bg-surface-container-low">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-on-surface">{event.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">{formatDateForDisplay(event.date)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">{formatEventType(event.type)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant">{event.location || 'N/A'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => openModalForEdit(event)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                                            <button onClick={() => deleteCalendarEvent(event.id!)} className="text-on-surface-variant hover:text-error" title="Elimina" disabled={isDeleting}>
-                                                {isDeleting ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+    // --- DataTable Configuration ---
+    const columns: ColumnDef<CalendarEvent>[] = [
+        { header: 'Data', sortKey: 'date', cell: e => <span className="font-mono text-sm text-on-surface">{formatDateForDisplay(e.date)}</span> },
+        { header: 'Nome Evento', sortKey: 'name', cell: e => <span className="font-medium text-on-surface">{e.name}</span> },
+        { header: 'Tipo', sortKey: 'type', cell: e => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getEventTypeBadgeClass(e.type)}`}>{formatEventType(e.type)}</span> },
+        { header: 'Sede', sortKey: 'location', cell: e => <span className="text-sm text-on-surface-variant">{e.location || '-'}</span> },
+    ];
+
+    const renderRow = (event: CalendarEvent) => (
+        <tr key={event.id} className="group hover:bg-surface-container">
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit" title={col.sortKey ? String((event as any)[col.sortKey]) : undefined}>{col.cell(event)}</td>)}
+            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
+                <div className="flex items-center justify-end space-x-3">
+                    <button onClick={() => openModalForEdit(event)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => deleteCalendarEvent(event.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                        {isActionLoading(`deleteCalendarEvent-${event.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+
+    const renderMobileCard = (event: CalendarEvent) => (
+        <div key={event.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${event.type === 'COMPANY_CLOSURE' ? 'border-tertiary' : 'border-primary'}`}>
+            <div className="flex justify-between items-start">
+                <div>
+                    <p className="font-bold text-lg text-on-surface">{event.name}</p>
+                    <p className="text-sm text-on-surface-variant font-mono">{formatDateForDisplay(event.date)}</p>
+                </div>
+                <div className="flex items-center space-x-1">
+                    <button onClick={() => openModalForEdit(event)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => deleteCalendarEvent(event.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
+                        {isActionLoading(`deleteCalendarEvent-${event.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                    </button>
                 </div>
             </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getEventTypeBadgeClass(event.type)}`}>{formatEventType(event.type)}</span>
+                {event.location && <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-surface-variant text-on-surface-variant">{event.location}</span>}
+            </div>
+        </div>
+    );
+
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca evento..." />
+            <SearchableSelect name="type" value={filters.type} onChange={handleFilterSelectChange} options={eventTypeOptions} placeholder="Tutti i tipi" />
+            <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
+        </div>
+    );
+
+    return (
+        <div>
+            <DataTable<CalendarEvent>
+                title="Gestione Calendario"
+                addNewButtonLabel="Aggiungi Evento"
+                data={filteredData}
+                columns={columns}
+                filtersNode={filtersNode}
+                onAddNew={openModalForNew}
+                renderRow={renderRow}
+                renderMobileCard={renderMobileCard}
+                initialSortKey="date"
+                isLoading={loading}
+                tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                tableClassNames={{ base: 'w-full text-sm' }}
+            />
 
             {editingEvent && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingEvent ? 'Modifica Evento' : 'Aggiungi Evento'}>
