@@ -284,7 +284,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const updated = await apiFetch(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) });
             setRoles(prev => prev.map(r => r.id === role.id ? updated : r));
-            // Refresh role history to keep consistency
             const historyRes = await apiFetch('/api/resources?entity=role_cost_history');
             setRoleCostHistory(historyRes);
         } finally { setActionLoading(`updateRole-${role.id}`, false); }
@@ -357,7 +356,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const createdAssignments = [];
             for (const assignment of newAssignments) {
                 const res = await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(assignment) });
-                if (!assignments.find(a => a.id === res.id)) createdAssignments.push(res); // Avoid duplicates in state
+                if (!assignments.find(a => a.id === res.id)) createdAssignments.push(res);
             }
             setAssignments(prev => [...prev, ...createdAssignments]);
         } catch (e) { console.error(e); }
@@ -462,7 +461,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const newContract = await apiFetch('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify({ ...contract, projectIds, managerIds }) });
             setContracts(prev => [...prev, newContract]);
-            fetchData(); // Refresh linking
+            fetchData();
         } finally { setActionLoading('addContract', false); }
     };
 
@@ -471,7 +470,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const updated = await apiFetch(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify({ ...contract, projectIds, managerIds }) });
             setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
-            fetchData(); // Refresh linking
+            fetchData();
         } finally { setActionLoading(`updateContract-${contract.id}`, false); }
     };
 
@@ -487,8 +486,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActionLoading(`recalculateBacklog-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=contracts&action=recalculate_backlog&id=${id}`, { method: 'POST' });
-            const updatedRes = await apiFetch(`/api/resources?entity=contracts&id=${id}`); // Fetch single if possible or generic
-            // Since backend logic for single fetch might vary, let's reload all contracts or find the updated one from response
             fetchData();
         } finally { setActionLoading(`recalculateBacklog-${id}`, false); }
     };
@@ -594,7 +591,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             }
         });
 
-        // Combine
         const allSkillIds = new Set([...manual.map(m => m.skillId), ...inferredMap.keys()]);
         const computed = [];
 
@@ -606,7 +602,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const infDetails = inferredMap.get(skillId);
             const inferredDays = infDetails ? infDetails.days : 0;
             
-            // Infer level
             let inferredLevel = 1;
             if (inferredDays >= skillThresholds.EXPERT) inferredLevel = 5;
             else if (inferredDays >= skillThresholds.SENIOR) inferredLevel = 4;
@@ -626,10 +621,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const getRoleCost = useCallback((roleId: string, date: Date) => {
         const dateStr = date.toISOString().split('T')[0];
-        // 1. Check history
         const history = roleCostHistory.find(h => h.roleId === roleId && dateStr >= h.startDate && (!h.endDate || dateStr <= h.endDate));
         if (history) return Number(history.dailyCost);
-        // 2. Fallback to current
         const role = roles.find(r => r.id === roleId);
         return role ? Number(role.dailyCost) : 0;
     }, [roleCostHistory, roles]);
@@ -668,7 +661,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const updateLeaveRequest = async (req: LeaveRequest) => {
-        setActionLoading('updateLeaveRequest', true); // simplified key
+        setActionLoading('updateLeaveRequest', true); 
         try {
             const updated = await apiFetch(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setLeaveRequests(prev => prev.map(r => r.id === req.id ? updated : r));
@@ -683,7 +676,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteLeaveRequest-${id}`, false); }
     };
 
-    // --- Context Value ---
     const entitiesValue: EntitiesContextType = {
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, loading, isActionLoading,
         fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest

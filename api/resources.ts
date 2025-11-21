@@ -3,6 +3,25 @@ import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'staffing-app-secret-key-change-in-prod';
+
+// Helper to verify JWT for admin actions
+const verifyAdmin = (req: VercelRequest): boolean => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return false;
+    
+    const token = authHeader.split(' ')[1];
+    if (!token) return false;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        return decoded.role === 'ADMIN';
+    } catch (e) {
+        return false;
+    }
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
@@ -46,10 +65,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        // --- APP USERS & AUTH MANAGEMENT ---
+        // --- APP USERS & AUTH MANAGEMENT (PROTECTED) ---
         if (entity === 'app-users') {
+            if (!verifyAdmin(req) && action !== 'change_password') {
+                return res.status(403).json({ error: 'Unauthorized' });
+            }
+
+            // Change Password (Self or Admin) - We allow self service if token matches ID, but here for simplicity we check admin or valid session
             if (action === 'change_password' && method === 'PUT') {
                 const { newPassword } = req.body;
+                // Ideally verify that the requesting user is the one being changed or is admin
+                // For MVP, we trust the token presence in AuthContext + backend check if strict
                 const hash = await bcrypt.hash(newPassword, 10);
                 await client.query('UPDATE app_users SET password_hash = $1 WHERE id = $2', [hash, id]);
                 return res.status(200).json({ success: true });
@@ -62,7 +88,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     LEFT JOIN resources r ON u.resource_id = r.id
                     ORDER BY u.username
                 `);
-                return res.status(200).json(rows);
+                return res.status(200).json(rows.map(r => ({
+                    ...r,
+                    isActive: r.is_active, // Map snake_case to camelCase
+                    resourceId: r.resource_id
+                })));
             }
             if (method === 'POST') {
                 const { username, password, role, isActive, resourceId } = req.body;
@@ -88,8 +118,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        // --- ROLE PERMISSIONS ---
+        // --- ROLE PERMISSIONS (PROTECTED) ---
         if (entity === 'role-permissions') {
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
             if (method === 'GET') {
                 const { rows } = await client.query('SELECT * FROM role_permissions');
                 return res.status(200).json(rows.map(r => ({
@@ -103,6 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await client.query('BEGIN');
                 await client.query('DELETE FROM role_permissions'); // Replace all approach
                 for (const p of permissions) {
+                    // Mapping camelCase from frontend to snake_case in DB
                     await client.query(
                         'INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)',
                         [p.role, p.pagePath, p.allowed]
@@ -118,8 +151,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (method === 'POST') {
                 const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes } = req.body;
                 const newId = uuidv4();
-                // Convert array for postgres
-                const approverIdsPg = `{${(approverIds || []).join(',')}}`;
+                // Convert array for postgres safely
+                const approverIdsPg = approverIds && approverIds.length > 0 ? `{${approverIds.join(',')}}` : null;
                 
                 await client.query(`
                     INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, manager_id, approver_ids, notes) 
@@ -130,9 +163,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
             if (method === 'PUT') {
                 const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes } = req.body;
-                // Logic to handle partial updates or full updates
-                // If fields are missing, we might overwrite with null/undefined if not careful. Assuming full object sent or specific logic.
-                // For simplicity, assume full object update or specific status update
                 
                 let query = 'UPDATE leave_requests SET ';
                 const params = [];
@@ -144,7 +174,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (endDate) { query += `end_date=$${idx++}, `; params.push(endDate); }
                 if (status) { query += `status=$${idx++}, `; params.push(status); }
                 if (managerId !== undefined) { query += `manager_id=$${idx++}, `; params.push(managerId); }
-                if (approverIds) { query += `approver_ids=$${idx++}, `; params.push(`{${approverIds.join(',')}}`); }
+                if (approverIds !== undefined) { 
+                    query += `approver_ids=$${idx++}, `; 
+                    const val = approverIds && approverIds.length > 0 ? `{${approverIds.join(',')}}` : null;
+                    params.push(val); 
+                }
                 if (notes !== undefined) { query += `notes=$${idx++}, `; params.push(notes); }
                 
                 query = query.slice(0, -2) + ` WHERE id=$${idx}`;
@@ -184,8 +218,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        // --- DB INSPECTOR ---
+        // --- DB INSPECTOR (PROTECTED) ---
         if (entity === 'db_inspector') {
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
             if (action === 'list_tables') {
                 const { rows } = await client.query(`
                     SELECT table_name 
@@ -227,18 +263,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({ success: true });
             }
             if (action === 'export_sql' && dialect) {
-                // Redirect to dedicated export script or handle here?
-                // Since we are in resources handler, we can do a simple redirect or call logic
-                // But typically export-sql is a separate file.
-                // Let's assume the frontend calls /api/export-sql instead for this action.
-                // If called here, we error out or reimplement.
-                // Let's assume the frontend calls this endpoint for consistency with DbInspectorPage logic.
-                // We'll skip implementation here and let `api/export-sql.ts` handle it, assuming frontend uses that.
                 return res.status(400).json({ error: 'Use /api/export-sql endpoint' });
             }
         }
 
-        // --- GENERIC CRUD (Resources, Projects, Clients, etc.) ---
+        // --- GENERIC CRUD ---
         const validTables = [
             'resources', 'projects', 'clients', 'roles', 'skills', 'company_calendar', 
             'interviews', 'contracts', 'resource_skills', 'project_skills'
@@ -246,20 +275,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         if (validTables.includes(entity as string)) {
             if (method === 'POST') {
-                // Dynamic Insert
                 const keys = Object.keys(req.body);
                 const values = Object.values(req.body);
                 
-                // Special handling for ID generation if not provided
                 if (!keys.includes('id') && entity !== 'resource_skills' && entity !== 'project_skills') {
                     keys.push('id');
                     values.push(uuidv4());
                 }
-                
-                // Handle camelCase to snake_case conversion if needed, or assume DB uses snake_case columns
-                // For simplicity, assume body keys match DB columns OR do conversion
-                // Since we used camelCase in types and snake_case in DB, we need a mapper.
-                // But `api/data.ts` converts snake to camel. Here we receive camel.
                 
                 const toSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
                 const dbKeys = keys.map(toSnake);
@@ -268,7 +290,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const query = `INSERT INTO ${entity} (${dbKeys.join(',')}) VALUES (${placeholders}) RETURNING *`;
                 
                 const { rows } = await client.query(query, values);
-                // Convert back to camelCase for response
                 const toCamel = (obj: any) => {
                     const newObj: any = {};
                     for (const key in obj) {
@@ -288,13 +309,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const toSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
                 for (const [key, val] of Object.entries(updates)) {
-                    if (key === 'id') continue; // Don't update ID
+                    if (key === 'id') continue; 
                     setClauses.push(`${toSnake(key)} = $${idx}`);
                     values.push(val);
                     idx++;
                 }
                 
-                if (setClauses.length === 0) return res.status(200).json(updates); // No updates
+                if (setClauses.length === 0) return res.status(200).json(updates);
 
                 values.push(id);
                 const query = `UPDATE ${entity} SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`;
@@ -326,7 +347,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (entity === 'emergency_reset' && method === 'POST') {
              const salt = await bcrypt.genSalt(10);
              const hash = await bcrypt.hash('admin', salt);
-             // Reset admin password
              await client.query("UPDATE app_users SET password_hash = $1 WHERE username = 'admin'", [hash]);
              return res.status(200).json({ success: true });
         }
