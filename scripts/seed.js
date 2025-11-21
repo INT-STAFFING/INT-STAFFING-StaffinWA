@@ -341,21 +341,20 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
     
-    // Check if admin exists or seed it
-    const usersCheck = await client.sql`SELECT COUNT(*) FROM app_users;`;
-    if (usersCheck.rows[0].count === '0') {
-        console.log('Seeding default admin user...');
-        // Password default: 'admin'
-        // Use sync hash for script simplicity or async if top-level await supported.
-        const salt = bcrypt.genSaltSync(10);
-        const hash = bcrypt.hashSync('admin', salt);
-        
-        await client.sql`
-            INSERT INTO app_users (id, username, password_hash, role, is_active)
-            VALUES (uuid_generate_v4(), 'admin', ${hash}, 'ADMIN', TRUE);
-        `;
-        console.log('Default admin created (user: admin, pass: admin)');
-    }
+    // Forced update of default admin user to ensure correct hash
+    console.log('Ensuring default admin user exists and has correct hash...');
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync('admin', salt);
+    
+    // UPSERT Admin User
+    await client.sql`
+        INSERT INTO app_users (id, username, password_hash, role, is_active)
+        VALUES (uuid_generate_v4(), 'admin', ${hash}, 'ADMIN', TRUE)
+        ON CONFLICT (username) 
+        DO UPDATE SET password_hash = ${hash}, role = 'ADMIN', is_active = TRUE;
+    `;
+    console.log('Default admin verified/updated (user: admin, pass: admin)');
+
 
     await Promise.all([
         ...clients.map(c => client.sql`INSERT INTO clients (id, name, sector, contact_email) VALUES (${c.id}, ${c.name}, ${c.sector}, ${c.contactEmail}) ON CONFLICT (id) DO NOTHING;`),
