@@ -57,11 +57,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     return (
         <aside
-            className={`fixed inset-y-0 left-0 z-40 w-72 bg-surface-container-low shadow-xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:shadow-none border-r border-outline-variant ${
+            className={`fixed inset-y-0 left-0 z-40 w-72 bg-surface-container-low shadow-xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:shadow-none border-r border-outline-variant flex flex-col h-full ${
                 isOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
         >
-            <div className="flex items-center justify-between p-6 border-b border-outline-variant h-20">
+            <div className="flex items-center justify-between p-6 border-b border-outline-variant h-20 flex-shrink-0">
                 <h1 className="text-2xl font-bold text-primary tracking-tight">Staffing App</h1>
                 <button onClick={() => setIsOpen(false)} className="md:hidden text-on-surface-variant hover:text-on-surface">
                     <span className="material-symbols-outlined">close</span>
@@ -120,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             </nav>
 
             {isLoginProtectionEnabled && isAuthenticated && (
-                <div className="p-4 border-t border-outline-variant bg-surface-container">
+                <div className="p-4 border-t border-outline-variant bg-surface-container flex-shrink-0">
                     <div className="flex items-center gap-3 mb-3 px-2">
                         <div className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-sm font-bold">
                             {user?.username.substring(0, 2).toUpperCase()}

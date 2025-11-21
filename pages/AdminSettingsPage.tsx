@@ -14,7 +14,7 @@ import {
   DEFAULT_DASHBOARD_CARD_ORDER,
   DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
-import { SkillThresholds, AppUser, UserRole, RolePermission } from '../types';
+import { SkillThresholds, AppUser, UserRole, RolePermission, LeaveType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -31,7 +31,7 @@ const authFetch = async (url: string, options: RequestInit = {}) => {
     return res.json();
 }
 
-// --- Components for Theme Editor (unchanged parts omitted for brevity, kept logic structure) ---
+// --- Components for Theme Editor ---
 const ColorInput: React.FC<{
     label: string;
     colorKey: keyof M3Palette;
@@ -203,10 +203,6 @@ const ThemeEditor: React.FC = () => {
     );
 };
 
-const ToastEditor: React.FC = () => {
-    return null;
-};
-
 const VisualizationEditor: React.FC = () => {
     const { theme, saveTheme: setTheme } = useTheme();
     const [settings, setSettings] = useState(theme.visualizationSettings);
@@ -367,8 +363,6 @@ const DashboardLayoutEditor: React.FC = () => {
         </div>
     );
 };
-
-// --- NEW COMPONENTS ---
 
 const UserManagementSection: React.FC = () => {
     const { resources } = useEntitiesContext();
@@ -563,7 +557,7 @@ const PermissionMatrixSection: React.FC = () => {
         '/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', 
         '/skills-map', '/manuale-utente', '/forecasting', '/gantt', '/skill-analysis', 
         '/reports', '/staffing-visualization', '/resources', '/skills', '/projects', 
-        '/contracts', '/clients', '/roles', '/calendar', '/config', '/export', '/import'
+        '/contracts', '/clients', '/roles', '/calendar', '/config', '/export', '/import', '/test-staffing'
     ];
 
     const fetchPermissions = useCallback(async () => {
@@ -760,51 +754,230 @@ const SkillThresholdsEditor: React.FC = () => {
     );
 };
 
-const AdminSettingsPage: React.FC = () => {
+// New LeaveConfigurationEditor component to handle Leave Types within AdminSettings
+const LeaveConfigurationEditor: React.FC = () => {
+    const { leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType, isActionLoading } = useEntitiesContext();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingType, setEditingType] = useState<LeaveType | Omit<LeaveType, 'id'> | null>(null);
+
+    const emptyType: Omit<LeaveType, 'id'> = {
+        name: '',
+        color: '#FFCC00',
+        requiresApproval: true,
+        affectsCapacity: true
+    };
+
+    const handleOpenModal = (type?: LeaveType) => {
+        setEditingType(type || emptyType);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingType(null);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingType) return;
+        try {
+            if ('id' in editingType) {
+                await updateLeaveType(editingType as LeaveType);
+            } else {
+                await addLeaveType(editingType as Omit<LeaveType, 'id'>);
+            }
+            handleCloseModal();
+        } catch (error) {}
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!editingType) return;
+        const { name, value, type, checked } = e.target;
+        setEditingType(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            };
+        });
+    };
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 mt-8">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-on-surface">Tipologie Assenza (Configurazione)</h2>
+                <button onClick={() => handleOpenModal()} className="px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-full shadow-sm">
+                    Aggiungi
+                </button>
+            </div>
+            <ul className="divide-y divide-outline-variant max-h-60 overflow-y-auto">
+                {leaveTypes.map(type => {
+                    const isDeleting = isActionLoading(`deleteLeaveType-${type.id}`);
+                    return (
+                        <li key={type.id} className="py-2 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: type.color }}></div>
+                                <div>
+                                    <p className="text-sm font-medium text-on-surface">{type.name}</p>
+                                    <p className="text-xs text-on-surface-variant">
+                                        {type.requiresApproval ? 'Richiede Approvazione' : 'Automatico'} • {type.affectsCapacity ? 'Riduce Capacità' : 'Non Riduce Capacità'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <button onClick={() => handleOpenModal(type)} className="text-on-surface-variant hover:text-primary p-2 rounded-full" title="Modifica">
+                                    <span className="material-symbols-outlined">edit</span>
+                                </button>
+                                <button onClick={() => deleteLeaveType(type.id!)} disabled={isDeleting} className="text-on-surface-variant hover:text-error p-2 rounded-full disabled:opacity-50" title="Elimina">
+                                    {isDeleting ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
+
+            {editingType && (
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingType ? 'Modifica Tipologia' : 'Aggiungi Tipologia'}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Tipologia *</label>
+                            <input type="text" name="name" value={editingType.name} onChange={handleChange} required className="form-input" placeholder="es. Ferie, Malattia"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Colore *</label>
+                            <div className="flex items-center gap-2">
+                                <input type="color" name="color" value={editingType.color} onChange={handleChange} className="h-10 w-10 p-0 border-0 rounded cursor-pointer"/>
+                                <input type="text" name="color" value={editingType.color} onChange={handleChange} className="form-input flex-grow" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"/>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="requiresApproval" name="requiresApproval" checked={editingType.requiresApproval} onChange={handleChange} className="form-checkbox"/>
+                            <label htmlFor="requiresApproval" className="text-sm text-on-surface">Richiede Approvazione (Workflow)</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="affectsCapacity" name="affectsCapacity" checked={editingType.affectsCapacity} onChange={handleChange} className="form-checkbox"/>
+                            <label htmlFor="affectsCapacity" className="text-sm text-on-surface">Impatta sulla Capacità (Riduce i giorni disponibili)</label>
+                        </div>
+                        <div className="flex justify-end space-x-2 pt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addLeaveType') || isActionLoading(`updateLeaveType-${'id' in editingType ? editingType.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold">
+                                {(isActionLoading('addLeaveType') || isActionLoading(`updateLeaveType-${'id' in editingType ? editingType.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+// Extracted General Settings Component
+const GeneralSettingsSection: React.FC = () => {
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
 
     const handleToggleProtection = async (e: React.ChangeEvent<HTMLInputElement>) => {
         try {
             await toggleLoginProtection(e.target.checked);
         } catch {
-            // L'errore è già gestito nel contesto e mostrato tramite toast.
+            // Error handled in context
         }
     };
 
     return (
-        <div>
-            <h1 className="text-3xl font-bold text-on-background mb-8">Impostazioni Amministratore</h1>
-            <div className="bg-surface-container rounded-2xl shadow p-6 max-w-2xl">
-                <h2 className="text-xl font-semibold mb-4">Sicurezza Globale</h2>
-                <div className="flex items-center justify-between p-4 border border-outline-variant rounded-xl">
-                    <div>
-                        <h3 className="font-medium text-on-surface">Protezione con Login</h3>
-                        <p className="text-sm text-on-surface-variant">
-                            Se attivata, l'accesso richiede autenticazione. Se disattivata, l'app è aperta a tutti (modalità dev).
-                        </p>
-                    </div>
-                    <label htmlFor="protection-toggle" className="flex items-center cursor-pointer">
-                        <div className="relative">
-                            <input
-                                type="checkbox"
-                                id="protection-toggle"
-                                className="sr-only"
-                                checked={isLoginProtectionEnabled}
-                                onChange={handleToggleProtection}
-                            />
-                            <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
-                            <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
-                        </div>
-                    </label>
+        <div className="bg-surface-container rounded-2xl shadow p-6 max-w-2xl mt-8">
+            <h2 className="text-xl font-semibold mb-4">Sicurezza Globale</h2>
+            <div className="flex items-center justify-between p-4 border border-outline-variant rounded-xl">
+                <div>
+                    <h3 className="font-medium text-on-surface">Protezione con Login</h3>
+                    <p className="text-sm text-on-surface-variant">
+                        Se attivata, l'accesso richiede autenticazione. Se disattivata, l'app è aperta a tutti (modalità dev).
+                    </p>
                 </div>
+                <label htmlFor="protection-toggle" className="flex items-center cursor-pointer">
+                    <div className="relative">
+                        <input
+                            type="checkbox"
+                            id="protection-toggle"
+                            className="sr-only"
+                            checked={isLoginProtectionEnabled}
+                            onChange={handleToggleProtection}
+                        />
+                        <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
+                        <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${isLoginProtectionEnabled ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
+                    </div>
+                </label>
             </div>
+        </div>
+    );
+};
+
+const AdminSettingsPage: React.FC = () => {
+    const [activeTab, setActiveTab] = useState('users');
+
+    const tabs = [
+        { id: 'general', label: 'Generale', icon: 'settings' },
+        { id: 'users', label: 'Utenti & Sicurezza', icon: 'group' },
+        { id: 'business', label: 'Logiche Business', icon: 'tune' },
+        { id: 'ui', label: 'Interfaccia & Tema', icon: 'palette' }
+    ];
+
+    return (
+        <div>
+            <h1 className="text-3xl font-bold text-on-background mb-6">Impostazioni Amministratore</h1>
             
-            <UserManagementSection />
-            <PermissionMatrixSection />
-            <SkillThresholdsEditor />
-            <DashboardLayoutEditor />
-            <VisualizationEditor />
-            <ThemeEditor />
+            {/* Tabs Navigation */}
+            <div className="border-b border-outline-variant mb-6 overflow-x-auto">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`
+                                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors duration-200
+                                ${activeTab === tab.id
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline'
+                                }
+                            `}
+                        >
+                            <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                            {tab.label}
+                        </button>
+                    ))}
+                </nav>
+            </div>
+
+            {/* Content Area */}
+            <div className="animate-fade-in">
+                {activeTab === 'general' && (
+                    <div className="space-y-6">
+                        <GeneralSettingsSection />
+                    </div>
+                )}
+
+                {activeTab === 'users' && (
+                    <div className="space-y-6">
+                        <UserManagementSection />
+                        <PermissionMatrixSection />
+                    </div>
+                )}
+
+                {activeTab === 'business' && (
+                    <div className="space-y-6">
+                        <SkillThresholdsEditor />
+                        <LeaveConfigurationEditor />
+                    </div>
+                )}
+
+                {activeTab === 'ui' && (
+                    <div className="space-y-6">
+                        <DashboardLayoutEditor />
+                        <VisualizationEditor />
+                        <ThemeEditor />
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
