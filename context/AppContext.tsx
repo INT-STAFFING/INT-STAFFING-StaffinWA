@@ -4,7 +4,7 @@ import {
     Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
-    LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem
+    LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors
 } from '../types';
 
 // DEFAULT SIDEBAR CONFIGURATION
@@ -78,7 +78,8 @@ export interface EntitiesContextType {
     leaveRequests: LeaveRequest[];
     managerResourceIds: string[];
     sidebarConfig: SidebarItem[]; 
-    sidebarSections: string[]; // NEW STATE
+    sidebarSections: string[]; 
+    sidebarSectionColors: SidebarSectionColors; // NEW
     loading: boolean;
     isActionLoading: (action: string) => boolean;
     
@@ -131,7 +132,8 @@ export interface EntitiesContextType {
     updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
     deleteLeaveRequest: (id: string) => Promise<void>;
     updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
-    updateSidebarSections: (sections: string[]) => Promise<void>; // NEW METHOD
+    updateSidebarSections: (sections: string[]) => Promise<void>;
+    updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>; // NEW
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
@@ -184,6 +186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
+    const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -221,6 +224,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (metaData.sidebarSections) {
                 setSidebarSections(metaData.sidebarSections);
             }
+            if (metaData.sidebarSectionColors) {
+                setSidebarSectionColors(metaData.sidebarSectionColors);
+            }
 
             // 2. Planning
             const planningData = await apiFetch('/api/data?scope=planning');
@@ -246,7 +252,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         fetchData();
     }, [fetchData]);
 
-    // ... CRUD Operations ... (Existing code omitted for brevity, assume present)
+    // ... (CRUD Operations - Only showing new/modified ones for brevity, keep others as is) ...
+    
     const addResource = async (resource: Omit<Resource, 'id'>) => {
         setActionLoading('addResource', true);
         try {
@@ -256,6 +263,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading('addResource', false); }
     };
 
+    // ... other CRUDs same as before ...
     const updateResource = async (resource: Resource) => {
         setActionLoading(`updateResource-${resource.id}`, true);
         try {
@@ -718,7 +726,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteLeaveRequest-${id}`, false); }
     };
 
-    // NEW: Sidebar Config Update
     const updateSidebarConfig = async (config: SidebarItem[]) => {
         setActionLoading('updateSidebarConfig', true);
         try {
@@ -734,7 +741,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // NEW: Sidebar Sections Update
     const updateSidebarSections = async (sections: string[]) => {
         setActionLoading('updateSidebarSections', true);
         try {
@@ -750,9 +756,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
+    // NEW: Sidebar Section Colors
+    const updateSidebarSectionColors = async (colors: SidebarSectionColors) => {
+        setActionLoading('updateSidebarSectionColors', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    updates: [{ key: 'sidebar_section_colors', value: JSON.stringify(colors) }]
+                })
+            });
+            setSidebarSectionColors(colors);
+        } finally {
+            setActionLoading('updateSidebarSectionColors', false);
+        }
+    };
+
     const entitiesValue: EntitiesContextType = {
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, loading, isActionLoading,
-        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, loading, isActionLoading,
+        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors
     };
 
     const allocationsValue: AllocationsContextType = {

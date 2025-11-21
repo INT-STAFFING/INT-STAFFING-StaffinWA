@@ -14,9 +14,18 @@ interface NavItemProps {
     to: string;
     icon: string;
     label: string;
+    color?: string;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color }) => {
+    // Helper to get dynamic style based on theme color key if present
+    const getColorStyle = (isActive: boolean) => {
+        if (isActive) return {}; // Active overrides color to primary usually
+        if (color) return { color: `var(--color-${color})` };
+        return {};
+    };
+
+    return (
     <NavLink
         to={to}
         className={({ isActive }) =>
@@ -26,15 +35,16 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
                     : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
             }`
         }
+        style={({ isActive }) => getColorStyle(isActive)}
     >
         <span className="material-symbols-outlined mr-3">{icon}</span>
         {label}
     </NavLink>
-);
+)};
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, user, isAdmin, hasPermission } = useAuth();
-    const { sidebarConfig, sidebarSections } = useEntitiesContext();
+    const { sidebarConfig, sidebarSections, sidebarSectionColors } = useEntitiesContext();
     const location = useLocation();
 
     // Layout fix: Mobile is fixed (overlay/slide), Desktop is relative (flex item taking space)
@@ -81,12 +91,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         const visibleItems = items.filter(item => hasPermission(item.path));
                         
                         if (visibleItems.length === 0) return null;
+                        
+                        const sectionColor = sidebarSectionColors[sectionName];
+                        const sectionStyle = sectionColor ? { color: `var(--color-${sectionColor})` } : {};
 
                         return (
                             <div key={sectionName} className="pb-4">
-                                <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{sectionName}</p>
+                                <p 
+                                    className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2"
+                                    style={sectionStyle}
+                                >
+                                    {sectionName}
+                                </p>
                                 {visibleItems.map(item => (
-                                    <NavItem key={item.path} to={item.path} icon={item.icon} label={item.label} />
+                                    <NavItem key={item.path} to={item.path} icon={item.icon} label={item.label} color={item.color} />
                                 ))}
                             </div>
                         );

@@ -552,4 +552,13 @@ export interface SidebarItem {
     label: string;
     icon: string;
     section: string; // 'Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'
+    color?: string; // 'primary', 'secondary', 'tertiary', 'error' etc.
+}
+
+/**
+ * @interface SidebarSectionColors
+ * @description Mappa dei colori personalizzati per le sezioni della sidebar.
+ */
+export interface SidebarSectionColors {
+    [sectionName: string]: string;
 }

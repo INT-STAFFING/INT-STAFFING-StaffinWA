@@ -28,11 +28,15 @@ const DbInspectorPage: React.FC = () => {
     const [isExportingMysql, setIsExportingMysql] = useState(false);
     const { addToast } = useToast();
 
+    const getAuthToken = () => localStorage.getItem('authToken');
+
     useEffect(() => {
         const fetchTables = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch('/api/resources?entity=db_inspector&action=list_tables');
+                const response = await fetch('/api/resources?entity=db_inspector&action=list_tables', {
+                    headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                });
                 if (!response.ok) throw new Error('Failed to fetch table list');
                 const data = await response.json();
                 setTables(data);
@@ -58,7 +62,9 @@ const DbInspectorPage: React.FC = () => {
             setTableData(null);
             setEditingRowId(null);
             try {
-                const response = await fetch(`/api/resources?entity=db_inspector&action=get_table_data&table=${selectedTable}`);
+                const response = await fetch(`/api/resources?entity=db_inspector&action=get_table_data&table=${selectedTable}`, {
+                    headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                });
                 if (!response.ok) throw new Error(`Failed to fetch data for table ${selectedTable}`);
                 const data = await response.json();
                 setTableData(data);
@@ -90,7 +96,10 @@ const DbInspectorPage: React.FC = () => {
 
             const response = await fetch(`/api/resources?entity=db_inspector&action=update_row&table=${selectedTable}&id=${editingRowId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}`
+                },
                 body: JSON.stringify(updates),
             });
             if (!response.ok) {
@@ -119,6 +128,7 @@ const DbInspectorPage: React.FC = () => {
         try {
             const response = await fetch(`/api/resources?entity=db_inspector&action=delete_all_rows&table=${selectedTable}`, {
                 method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${getAuthToken()}` }
             });
             if (!response.ok) {
                 const errorData = await response.json();
@@ -140,7 +150,11 @@ const DbInspectorPage: React.FC = () => {
         else setIsExportingMysql(true);
     
         try {
-            const response = await fetch(`/api/resources?entity=db_inspector&action=export_sql&dialect=${dialect}`);
+            // Point directly to the export-sql endpoint
+            const response = await fetch(`/api/export-sql?dialect=${dialect}`, {
+                headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+            });
+            
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `Failed to export ${dialect} SQL`);

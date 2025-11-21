@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
@@ -7,6 +7,346 @@ import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import { AppUser, RolePermission, SidebarItem } from '../types';
 import { useEntitiesContext } from '../context/AppContext';
+import SearchableSelect from '../components/SearchableSelect';
+
+const UserManagementSection: React.FC = () => {
+    const [users, setUsers] = useState<AppUser[]>([]);
+    const [loading, setLoading] = useState(false);
+    const { addToast } = useToast();
+    const { resources } = useEntitiesContext();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<Partial<AppUser> & { password?: string }>({});
+    const [showPassword, setShowPassword] = useState(false);
+
+    const fetchUsers = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/resources?entity=app-users', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setUsers(data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+
+    const handleSaveUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const isNew = !editingUser.id;
+        const method = isNew ? 'POST' : 'PUT';
+        const url = `/api/resources?entity=app-users${isNew ? '' : `&id=${editingUser.id}`}`;
+        
+        try {
+            const res = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                },
+                body: JSON.stringify(editingUser)
+            });
+            
+            if (!res.ok) throw new Error('Failed to save user');
+            
+            addToast('Utente salvato con successo', 'success');
+            setIsModalOpen(false);
+            fetchUsers();
+        } catch (e) {
+            addToast('Errore nel salvataggio utente', 'error');
+        }
+    };
+
+    const handleDeleteUser = async (id: string) => {
+        if (!confirm('Sei sicuro di voler eliminare questo utente?')) return;
+        try {
+            await fetch(`/api/resources?entity=app-users&id=${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            addToast('Utente eliminato', 'success');
+            fetchUsers();
+        } catch (e) {
+            addToast('Errore eliminazione utente', 'error');
+        }
+    };
+
+    const openModal = (user?: AppUser) => {
+        setEditingUser(user ? { ...user } : { role: 'SIMPLE', isActive: true, username: '' });
+        setShowPassword(false);
+        setIsModalOpen(true);
+    };
+
+    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-on-surface">Gestione Utenti</h2>
+                <button onClick={() => openModal()} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">add</span> Nuovo Utente
+                </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                    <thead className="bg-surface-container-low text-on-surface-variant">
+                        <tr>
+                            <th className="px-4 py-2 text-left">Username</th>
+                            <th className="px-4 py-2 text-left">Ruolo</th>
+                            <th className="px-4 py-2 text-left">Risorsa Collegata</th>
+                            <th className="px-4 py-2 text-center">Stato</th>
+                            <th className="px-4 py-2 text-right">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant">
+                        {users.map(u => {
+                            const resourceName = resources.find(r => r.id === u.resourceId)?.name || '-';
+                            return (
+                                <tr key={u.id} className="hover:bg-surface-container-low">
+                                    <td className="px-4 py-2 font-medium text-on-surface">{u.username}</td>
+                                    <td className="px-4 py-2 text-on-surface-variant">{u.role}</td>
+                                    <td className="px-4 py-2 text-on-surface-variant">{resourceName}</td>
+                                    <td className="px-4 py-2 text-center">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${u.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
+                                            {u.isActive ? 'Attivo' : 'Disabilitato'}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-right">
+                                        <button onClick={() => openModal(u)} className="p-1 text-primary hover:bg-primary-container rounded mr-1">
+                                            <span className="material-symbols-outlined text-sm">edit</span>
+                                        </button>
+                                        {u.username !== 'admin' && (
+                                            <button onClick={() => handleDeleteUser(u.id)} className="p-1 text-error hover:bg-error-container rounded">
+                                                <span className="material-symbols-outlined text-sm">delete</span>
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+
+            {isModalOpen && (
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingUser.id ? 'Modifica Utente' : 'Nuovo Utente'}>
+                    <form onSubmit={handleSaveUser} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Username *</label>
+                            <input 
+                                type="text" 
+                                required 
+                                value={editingUser.username} 
+                                onChange={e => setEditingUser({...editingUser, username: e.target.value})}
+                                className="form-input w-full"
+                            />
+                        </div>
+                        
+                        {(!editingUser.id || showPassword) && (
+                            <div>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Password {editingUser.id && '(Lascia vuoto per non cambiare)'}</label>
+                                <input 
+                                    type="password" 
+                                    required={!editingUser.id}
+                                    value={editingUser.password || ''} 
+                                    onChange={e => setEditingUser({...editingUser, password: e.target.value})}
+                                    className="form-input w-full"
+                                />
+                            </div>
+                        )}
+                        
+                        {editingUser.id && !showPassword && (
+                            <button type="button" onClick={() => setShowPassword(true)} className="text-sm text-primary hover:underline">Cambia Password</button>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo</label>
+                            <select 
+                                value={editingUser.role} 
+                                onChange={e => setEditingUser({...editingUser, role: e.target.value as any})}
+                                className="form-select w-full"
+                            >
+                                <option value="SIMPLE">Simple User</option>
+                                <option value="MANAGER">Manager</option>
+                                <option value="ADMIN">Admin</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Risorsa Collegata (Opzionale)</label>
+                            <SearchableSelect 
+                                name="resourceId" 
+                                value={editingUser.resourceId || ''} 
+                                onChange={(_, v) => setEditingUser({...editingUser, resourceId: v})} 
+                                options={resourceOptions} 
+                                placeholder="Nessuna"
+                            />
+                            <p className="text-xs text-on-surface-variant mt-1">Collega l'utente a una risorsa per funzionalità self-service (es. ferie).</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="checkbox" 
+                                checked={editingUser.isActive} 
+                                onChange={e => setEditingUser({...editingUser, isActive: e.target.checked})}
+                                className="form-checkbox"
+                            />
+                            <label className="text-sm text-on-surface">Utente Attivo</label>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-4">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary hover:bg-surface-container">Annulla</button>
+                            <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full hover:opacity-90">Salva</button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+};
+
+const PermissionMatrixSection: React.FC = () => {
+    const [permissions, setPermissions] = useState<RolePermission[]>([]);
+    const [loading, setLoading] = useState(false);
+    const { addToast } = useToast();
+
+    // Define all protectable paths
+    const allPaths = [
+        '/dashboard', '/staffing', '/workload', '/gantt', '/projects', '/contracts', 
+        '/clients', '/forecasting', '/resources', '/skills', '/skill-analysis', 
+        '/roles', '/leaves', '/resource-requests', '/interviews', '/skills-map', 
+        '/staffing-visualization', '/manuale-utente', '/simple-user-manual', 
+        '/reports', '/calendar', '/config', '/import', '/export', '/test-staffing',
+        '/admin-settings', '/db-inspector'
+    ];
+
+    const fetchPermissions = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/resources?entity=role-permissions', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setPermissions(data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchPermissions();
+    }, [fetchPermissions]);
+
+    const handleToggle = (role: 'SIMPLE' | 'MANAGER', path: string) => {
+        setPermissions(prev => {
+            const existingIndex = prev.findIndex(p => p.role === role && p.pagePath === path);
+            const newPerms = [...prev];
+            if (existingIndex >= 0) {
+                newPerms[existingIndex] = { ...newPerms[existingIndex], allowed: !newPerms[existingIndex].allowed };
+            } else {
+                newPerms.push({ role, pagePath: path, allowed: true });
+            }
+            return newPerms;
+        });
+    };
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch('/api/resources?entity=role-permissions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                },
+                body: JSON.stringify({ permissions })
+            });
+            
+            if (!res.ok) throw new Error('Failed to save permissions');
+            
+            // Update local state with exact response from server to ensure sync
+            const data = await res.json();
+            if (data.permissions) setPermissions(data.permissions);
+
+            addToast('Permessi salvati con successo', 'success');
+        } catch (e) {
+            addToast('Errore nel salvataggio permessi', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const isAllowed = (role: 'SIMPLE' | 'MANAGER', path: string) => {
+        const perm = permissions.find(p => p.role === role && p.pagePath === path);
+        return perm ? perm.allowed : false; // Default false if not set
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6 mt-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Matrice Permessi (RBAC)</h2>
+                    <p className="text-xs text-on-surface-variant">Definisci quali ruoli possono accedere a quali pagine. Admin ha sempre accesso completo.</p>
+                </div>
+                <button onClick={handleSave} disabled={loading} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                    {loading ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Permessi</>}
+                </button>
+            </div>
+
+            <div className="overflow-x-auto border border-outline-variant rounded-lg">
+                <table className="min-w-full text-sm">
+                    <thead className="bg-surface-container-low text-on-surface-variant">
+                        <tr>
+                            <th className="px-4 py-2 text-left">Pagina / Percorso</th>
+                            <th className="px-4 py-2 text-center w-32">Simple User</th>
+                            <th className="px-4 py-2 text-center w-32">Manager</th>
+                            <th className="px-4 py-2 text-center w-32 bg-surface-container text-on-surface/50">Admin</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant">
+                        {allPaths.map(path => (
+                            <tr key={path} className="hover:bg-surface-container-low">
+                                <td className="px-4 py-2 font-mono text-xs text-on-surface">{path}</td>
+                                <td className="px-4 py-2 text-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isAllowed('SIMPLE', path)} 
+                                        onChange={() => handleToggle('SIMPLE', path)}
+                                        className="form-checkbox text-primary rounded focus:ring-primary cursor-pointer"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isAllowed('MANAGER', path)} 
+                                        onChange={() => handleToggle('MANAGER', path)}
+                                        className="form-checkbox text-primary rounded focus:ring-primary cursor-pointer"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-center bg-surface-container text-success font-bold text-xs">
+                                    ALWAYS
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
 
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
@@ -43,37 +383,21 @@ const AdminSettingsPage: React.FC = () => {
 
             {/* Tab Content */}
             <div className="py-4 animate-fade-in">
-                {activeTab === 'general' && (
-                    <div className="space-y-6">
-                        <SecuritySection />
-                    </div>
-                )}
-                
+                {activeTab === 'general' && <SecuritySection />}
                 {activeTab === 'users' && (
                     <div className="space-y-8">
                         <UserManagementSection />
                         <PermissionMatrixSection />
                     </div>
                 )}
-
-                {activeTab === 'menu' && (
-                    <div className="space-y-6">
-                        <MenuConfigurationEditor />
-                    </div>
-                )}
-
+                {activeTab === 'menu' && <MenuConfigurationEditor />}
                 {activeTab === 'business' && (
                     <div className="space-y-6">
                         <SkillThresholdsEditor />
                         <LeaveConfigurationEditor />
                     </div>
                 )}
-
-                {activeTab === 'ui' && (
-                    <div className="space-y-6">
-                        <ThemeSection />
-                    </div>
-                )}
+                {activeTab === 'ui' && <ThemeSection />}
             </div>
         </div>
     );
@@ -117,7 +441,7 @@ const SecuritySection: React.FC = () => {
 };
 
 const MenuConfigurationEditor: React.FC = () => {
-    const { sidebarConfig, updateSidebarConfig, sidebarSections, updateSidebarSections, isActionLoading } = useEntitiesContext();
+    const { sidebarConfig, updateSidebarConfig, sidebarSections, updateSidebarSections, sidebarSectionColors, updateSidebarSectionColors, isActionLoading } = useEntitiesContext();
     const { addToast } = useToast();
     const [config, setConfig] = useState<SidebarItem[]>(sidebarConfig);
     const [hasChanges, setHasChanges] = useState(false);
@@ -125,16 +449,24 @@ const MenuConfigurationEditor: React.FC = () => {
     
     // Sections Management State
     const [localSections, setLocalSections] = useState<string[]>(sidebarSections);
+    const [localSectionColors, setLocalSectionColors] = useState<Record<string, string>>(sidebarSectionColors);
+    
     const [newSectionName, setNewSectionName] = useState('');
     const [editingSectionIndex, setEditingSectionIndex] = useState<number | null>(null);
     const [editSectionValue, setEditSectionValue] = useState('');
 
     useEffect(() => { setConfig(sidebarConfig); }, [sidebarConfig]);
     useEffect(() => { setLocalSections(sidebarSections); }, [sidebarSections]);
+    useEffect(() => { setLocalSectionColors(sidebarSectionColors); }, [sidebarSectionColors]);
 
     const handleChange = (index: number, field: keyof SidebarItem, value: string) => {
         const newConfig = [...config];
-        newConfig[index] = { ...newConfig[index], [field]: value };
+        // If value is empty string for color, make it undefined
+        if (field === 'color' && value === '') {
+             newConfig[index] = { ...newConfig[index], color: undefined };
+        } else {
+             newConfig[index] = { ...newConfig[index], [field]: value };
+        }
         setConfig(newConfig);
         setHasChanges(true);
     };
@@ -189,6 +521,14 @@ const MenuConfigurationEditor: React.FC = () => {
             newSecs[index] = editSectionValue;
             setLocalSections(newSecs);
             
+            // Migrate colors
+            const newColors = { ...localSectionColors };
+            if (newColors[oldName]) {
+                newColors[editSectionValue] = newColors[oldName];
+                delete newColors[oldName];
+                setLocalSectionColors(newColors);
+            }
+            
             // Cascade rename to menu items
             const newConfig = config.map(item => item.section === oldName ? { ...item, section: editSectionValue } : item);
             setConfig(newConfig);
@@ -198,9 +538,17 @@ const MenuConfigurationEditor: React.FC = () => {
         setEditSectionValue('');
     };
 
+    const handleSectionColorChange = (section: string, color: string) => {
+        setLocalSectionColors(prev => ({
+            ...prev,
+            [section]: color
+        }));
+    };
+
     const saveSections = async () => {
         try {
             await updateSidebarSections(localSections);
+            await updateSidebarSectionColors(localSectionColors);
             if (hasChanges) {
                 await updateSidebarConfig(config);
                 setHasChanges(false);
@@ -212,12 +560,20 @@ const MenuConfigurationEditor: React.FC = () => {
         }
     };
 
+    const colorOptions = [
+        { value: '', label: 'Default' },
+        { value: 'primary', label: 'Primary' },
+        { value: 'secondary', label: 'Secondary' },
+        { value: 'tertiary', label: 'Tertiary' },
+        { value: 'error', label: 'Error' },
+    ];
+
     return (
         <div className="bg-surface rounded-2xl shadow p-6">
             <div className="flex justify-between items-center mb-4">
                 <div>
                     <h2 className="text-xl font-semibold text-on-surface">Configurazione Menu Sidebar</h2>
-                    <p className="text-xs text-on-surface-variant">Personalizza nomi, icone e ordine delle voci del menu.</p>
+                    <p className="text-xs text-on-surface-variant">Personalizza nomi, icone, ordine e colori delle voci del menu.</p>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={() => setIsSectionModalOpen(true)} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-medium flex items-center gap-2 hover:opacity-90">
@@ -235,7 +591,7 @@ const MenuConfigurationEditor: React.FC = () => {
                 <div className="grid grid-cols-12 gap-4 bg-surface-container-low p-3 font-bold text-xs text-on-surface-variant uppercase border-b border-outline-variant">
                     <div className="col-span-1 text-center">Ordine</div>
                     <div className="col-span-3">Etichetta</div>
-                    <div className="col-span-3">Icona (Material Symbol)</div>
+                    <div className="col-span-3">Icona & Colore</div>
                     <div className="col-span-3">Sezione</div>
                     <div className="col-span-2 text-right">Path (Info)</div>
                 </div>
@@ -267,13 +623,21 @@ const MenuConfigurationEditor: React.FC = () => {
                                 />
                             </div>
                             <div className="col-span-3 flex items-center gap-2">
-                                <span className="material-symbols-outlined text-primary">{item.icon}</span>
+                                <span className="material-symbols-outlined" style={{ color: item.color ? `var(--color-${item.color})` : 'var(--color-primary)' }}>{item.icon}</span>
                                 <input 
                                     type="text" 
                                     value={item.icon} 
                                     onChange={(e) => handleChange(index, 'icon', e.target.value)}
-                                    className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface-variant outline-none px-1 font-mono"
+                                    className="w-24 bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface-variant outline-none px-1 font-mono"
+                                    placeholder="Icon"
                                 />
+                                <select 
+                                    value={item.color || ''}
+                                    onChange={(e) => handleChange(index, 'color', e.target.value)}
+                                    className="bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-xs text-on-surface-variant outline-none py-1"
+                                >
+                                    {colorOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                </select>
                             </div>
                             <div className="col-span-3">
                                 <select 
@@ -316,11 +680,15 @@ const MenuConfigurationEditor: React.FC = () => {
                         </div>
                         
                         <div className="border border-outline-variant rounded-lg overflow-hidden">
-                            <div className="bg-surface-container-low p-2 text-xs font-bold text-on-surface-variant uppercase border-b border-outline-variant">Ordine Sezioni</div>
+                            <div className="bg-surface-container-low p-2 grid grid-cols-4 text-xs font-bold text-on-surface-variant uppercase border-b border-outline-variant">
+                                <div className="col-span-2">Nome Sezione</div>
+                                <div className="col-span-1">Colore</div>
+                                <div className="col-span-1 text-right">Azioni</div>
+                            </div>
                             <ul className="divide-y divide-outline-variant max-h-60 overflow-y-auto">
                                 {localSections.map((section, idx) => (
-                                    <li key={idx} className="p-3 flex items-center justify-between hover:bg-surface-container-low">
-                                        <div className="flex-grow flex items-center gap-2">
+                                    <li key={idx} className="p-3 grid grid-cols-4 items-center hover:bg-surface-container-low gap-2">
+                                        <div className="col-span-2 flex items-center gap-2">
                                             {editingSectionIndex === idx ? (
                                                 <div className="flex items-center w-full gap-2">
                                                     <input 
@@ -335,14 +703,28 @@ const MenuConfigurationEditor: React.FC = () => {
                                                 </div>
                                             ) : (
                                                 <>
-                                                    <span className="text-sm font-medium text-on-surface">{section}</span>
+                                                    <span 
+                                                        className="text-sm font-medium text-on-surface"
+                                                        style={localSectionColors[section] ? { color: `var(--color-${localSectionColors[section]})` } : {}}
+                                                    >
+                                                        {section}
+                                                    </span>
                                                     <button onClick={() => startEditSection(idx)} className="text-on-surface-variant hover:text-primary opacity-0 hover:opacity-100 group-hover:opacity-100 transition-opacity">
                                                         <span className="material-symbols-outlined text-sm">edit</span>
                                                     </button>
                                                 </>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-1">
+                                        <div className="col-span-1">
+                                            <select
+                                                value={localSectionColors[section] || ''}
+                                                onChange={(e) => handleSectionColorChange(section, e.target.value)}
+                                                className="form-select text-xs py-1 pl-2 pr-6 h-8"
+                                            >
+                                                {colorOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="col-span-1 flex justify-end gap-1">
                                             <button onClick={() => handleMoveSection(idx, 'up')} disabled={idx === 0} className="text-on-surface-variant disabled:opacity-30 hover:bg-surface-container rounded p-1">
                                                 <span className="material-symbols-outlined">arrow_upward</span>
                                             </button>
@@ -626,323 +1008,6 @@ const ThemeSection: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
-
-const PermissionMatrixSection: React.FC = () => {
-    const { addToast } = useToast();
-    const [permissions, setPermissions] = useState<RolePermission[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-
-    // List of ALL known pages that can be controlled
-    const pages = [
-        '/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', 
-        '/skills-map', '/manuale-utente', '/simple-user-manual', '/forecasting', '/gantt', '/skill-analysis', 
-        '/reports', '/staffing-visualization', '/resources', '/skills', '/projects', 
-        '/contracts', '/clients', '/roles', '/calendar', '/config', '/export', '/import', '/test-staffing'
-    ];
-
-    const fetchPermissions = useCallback(async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch('/api/resources?entity=role-permissions', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setPermissions(data);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchPermissions();
-    }, [fetchPermissions]);
-
-    const handleToggle = (role: 'SIMPLE' | 'MANAGER', pagePath: string) => {
-        setPermissions(prev => {
-            const existing = prev.find(p => p.role === role && p.pagePath === pagePath);
-            if (existing) {
-                // Toggle existing
-                return prev.map(p => p.role === role && p.pagePath === pagePath ? { ...p, allowed: !p.allowed } : p);
-            } else {
-                // Add new entry if it didn't exist in local state
-                return [...prev, { role, pagePath, allowed: true }];
-            }
-        });
-    };
-
-    const savePermissions = async () => {
-        setSaving(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            // Prepare payload: We send the full state for known pages to ensure consistency
-            const payload = [];
-            for (const page of pages) {
-                // SIMPLE
-                const simpleAllowed = isAllowed('SIMPLE', page);
-                payload.push({ role: 'SIMPLE', pagePath: page, allowed: simpleAllowed });
-                // MANAGER
-                const managerAllowed = isAllowed('MANAGER', page);
-                payload.push({ role: 'MANAGER', pagePath: page, allowed: managerAllowed });
-            }
-
-            const res = await fetch('/api/resources?entity=role-permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ permissions: payload })
-            });
-
-            if (!res.ok) throw new Error();
-            
-            const responseData = await res.json();
-            
-            // UPDATE STATE WITH REAL SERVER DATA FOR VERIFICATION
-            if (responseData.permissions) {
-                setPermissions(responseData.permissions);
-            }
-
-            addToast('Permessi aggiornati e verificati.', 'success');
-        } catch (e) {
-            addToast('Errore salvataggio permessi.', 'error');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const isAllowed = (role: 'SIMPLE' | 'MANAGER', pagePath: string) => {
-        const perm = permissions.find(p => p.role === role && p.pagePath === pagePath);
-        // If not found in DB state, default to FALSE for safety
-        return perm ? perm.allowed : false;
-    };
-
-    if (loading) return <div className="p-4"><SpinnerIcon className="w-6 h-6 text-primary" /></div>;
-
-    return (
-        <div className="bg-surface rounded-2xl shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h2 className="text-xl font-semibold text-on-surface">Matrice Permessi (RBAC)</h2>
-                    <p className="text-xs text-on-surface-variant mt-1">I permessi salvati vengono verificati automaticamente dal server.</p>
-                </div>
-                <button onClick={savePermissions} disabled={saving} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium disabled:opacity-50 flex items-center gap-2">
-                    {saving ? <SpinnerIcon className="w-4 h-4" /> : <span className="material-symbols-outlined text-lg">save</span>}
-                    Salva & Verifica
-                </button>
-            </div>
-            <div className="overflow-x-auto max-h-[600px] overflow-y-auto border border-outline-variant rounded-lg">
-                <table className="min-w-full text-sm">
-                    <thead className="bg-surface-container sticky top-0 z-10">
-                        <tr className="border-b border-outline-variant">
-                            <th className="text-left py-3 px-4 font-medium text-on-surface-variant">Pagina</th>
-                            <th className="text-center py-3 px-4 font-medium text-on-surface-variant w-32">Simple User</th>
-                            <th className="text-center py-3 px-4 font-medium text-on-surface-variant w-32">Manager</th>
-                            <th className="text-center py-3 px-4 font-medium text-on-surface-variant w-32 opacity-50">Admin (Full)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-outline-variant bg-surface">
-                        {pages.map(page => (
-                            <tr key={page} className="hover:bg-surface-container-low transition-colors">
-                                <td className="py-2 px-4 text-on-surface font-mono text-xs">{page}</td>
-                                <td className="text-center py-2">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={isAllowed('SIMPLE', page)} 
-                                        onChange={() => handleToggle('SIMPLE', page)} 
-                                        className="form-checkbox text-primary rounded cursor-pointer w-5 h-5" 
-                                    />
-                                </td>
-                                <td className="text-center py-2">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={isAllowed('MANAGER', page)} 
-                                        onChange={() => handleToggle('MANAGER', page)} 
-                                        className="form-checkbox text-primary rounded cursor-pointer w-5 h-5" 
-                                    />
-                                </td>
-                                <td className="text-center py-2">
-                                    <input type="checkbox" checked disabled className="form-checkbox text-gray-400 rounded opacity-30 w-5 h-5" />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
-
-const UserManagementSection: React.FC = () => {
-    const { addToast } = useToast();
-    const [users, setUsers] = useState<AppUser[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    // Editing State
-    const [formData, setFormData] = useState({
-        id: '',
-        username: '',
-        password: '',
-        role: 'SIMPLE' as 'SIMPLE' | 'MANAGER' | 'ADMIN',
-        isActive: true,
-        resourceId: ''
-    });
-
-    const fetchUsers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch('/api/resources?entity=app-users', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setUsers(data);
-            }
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
-    }, []);
-
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
-
-    const handleSaveUser = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const token = localStorage.getItem('authToken');
-            const method = formData.id ? 'PUT' : 'POST';
-            const url = formData.id 
-                ? `/api/resources?entity=app-users&id=${formData.id}`
-                : '/api/resources?entity=app-users';
-            
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(formData)
-            });
-
-            if (!res.ok) throw new Error();
-            addToast('Utente salvato.', 'success');
-            setIsModalOpen(false);
-            fetchUsers();
-        } catch {
-            addToast('Errore salvataggio utente.', 'error');
-        }
-    };
-
-    const handleDeleteUser = async (id: string) => {
-        if(!window.confirm('Eliminare utente?')) return;
-        try {
-            const token = localStorage.getItem('authToken');
-            await fetch(`/api/resources?entity=app-users&id=${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            addToast('Utente eliminato.', 'success');
-            fetchUsers();
-        } catch {
-            addToast('Errore eliminazione.', 'error');
-        }
-    };
-
-    const openNew = () => {
-        setFormData({ id: '', username: '', password: '', role: 'SIMPLE', isActive: true, resourceId: '' });
-        setIsModalOpen(true);
-    };
-
-    const openEdit = (user: AppUser) => {
-        setFormData({
-            id: user.id,
-            username: user.username,
-            password: '', // Leave blank to not change
-            role: user.role,
-            isActive: user.isActive,
-            resourceId: user.resourceId || ''
-        });
-        setIsModalOpen(true);
-    };
-
-    return (
-        <div className="bg-surface rounded-2xl shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-on-surface">Gestione Utenti</h2>
-                <button onClick={openNew} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium">Nuovo Utente</button>
-            </div>
-            
-            {loading ? <SpinnerIcon className="w-6 h-6 text-primary mx-auto" /> : (
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead>
-                            <tr className="border-b border-outline-variant">
-                                <th className="text-left py-2 px-4 font-medium text-on-surface-variant">Username</th>
-                                <th className="text-left py-2 px-4 font-medium text-on-surface-variant">Ruolo</th>
-                                <th className="text-center py-2 px-4 font-medium text-on-surface-variant">Attivo</th>
-                                <th className="text-right py-2 px-4 font-medium text-on-surface-variant">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-outline-variant">
-                            {users.map(u => (
-                                <tr key={u.id}>
-                                    <td className="py-2 px-4 text-on-surface">{u.username}</td>
-                                    <td className="py-2 px-4 text-on-surface-variant">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${u.role === 'ADMIN' ? 'bg-error-container text-on-error-container' : u.role === 'MANAGER' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface'}`}>
-                                            {u.role}
-                                        </span>
-                                    </td>
-                                    <td className="py-2 px-4 text-center">
-                                        {u.isActive ? <span className="text-green-600 material-symbols-outlined text-sm">check_circle</span> : <span className="text-gray-400 material-symbols-outlined text-sm">cancel</span>}
-                                    </td>
-                                    <td className="py-2 px-4 text-right space-x-2">
-                                        <button onClick={() => openEdit(u)} className="text-primary hover:underline">Modifica</button>
-                                        {u.username !== 'admin' && <button onClick={() => handleDeleteUser(u.id)} className="text-error hover:underline">Elimina</button>}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-
-            {isModalOpen && (
-                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={formData.id ? 'Modifica Utente' : 'Nuovo Utente'}>
-                    <form onSubmit={handleSaveUser} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Username</label>
-                            <input type="text" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} className="form-input" required />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Password {formData.id && '(Lascia vuoto per non cambiare)'}</label>
-                            <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="form-input" required={!formData.id} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo</label>
-                            <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as any})} className="form-select">
-                                <option value="SIMPLE">Simple User</option>
-                                <option value="MANAGER">Manager</option>
-                                <option value="ADMIN">Admin</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Collega a Risorsa (Opzionale)</label>
-                            <input type="text" value={formData.resourceId} onChange={e => setFormData({...formData, resourceId: e.target.value})} className="form-input" placeholder="UUID Risorsa (per My Requests)" />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({...formData, isActive: e.target.checked})} className="form-checkbox" />
-                            <label className="text-sm text-on-surface">Utente Attivo</label>
-                        </div>
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary">Annulla</button>
-                            <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full">Salva</button>
-                        </div>
-                    </form>
-                </Modal>
-            )}
         </div>
     );
 };
