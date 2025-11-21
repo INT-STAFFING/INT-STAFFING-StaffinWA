@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import { AppUser, RolePermission, SidebarItem } from '../types';
+import { useEntitiesContext } from '../context/AppContext';
 
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
@@ -13,7 +14,7 @@ const AdminSettingsPage: React.FC = () => {
     const tabs = [
         { id: 'general', label: 'Generale', icon: 'settings' },
         { id: 'users', label: 'Utenti & Sicurezza', icon: 'security' },
-        { id: 'menu', label: 'Menu & Navigazione', icon: 'menu_open' }, // NEW TAB
+        { id: 'menu', label: 'Menu & Navigazione', icon: 'menu_open' },
         { id: 'business', label: 'Logiche di Business', icon: 'domain' },
         { id: 'ui', label: 'Interfaccia & Tema', icon: 'palette' },
     ];
@@ -116,7 +117,7 @@ const SecuritySection: React.FC = () => {
 };
 
 const MenuConfigurationEditor: React.FC = () => {
-    const { sidebarConfig, updateSidebarConfig, isActionLoading } = require('../context/AppContext').useEntitiesContext();
+    const { sidebarConfig, updateSidebarConfig, isActionLoading } = useEntitiesContext();
     const { addToast } = useToast();
     const [config, setConfig] = useState<SidebarItem[]>(sidebarConfig);
     const [hasChanges, setHasChanges] = useState(false);
@@ -236,7 +237,7 @@ const MenuConfigurationEditor: React.FC = () => {
 };
 
 const SkillThresholdsEditor: React.FC = () => {
-    const { skillThresholds, updateSkillThresholds, isActionLoading } = require('../context/AppContext').useEntitiesContext();
+    const { skillThresholds, updateSkillThresholds, isActionLoading } = useEntitiesContext();
     const [localThresholds, setLocalThresholds] = useState(skillThresholds);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -294,7 +295,7 @@ const SkillThresholdsEditor: React.FC = () => {
 };
 
 const LeaveConfigurationEditor: React.FC = () => {
-    const { leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType, isActionLoading } = require('../context/AppContext').useEntitiesContext();
+    const { leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType, isActionLoading } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingType, setEditingType] = useState<any>(null);
 
@@ -472,22 +473,22 @@ const ThemeSection: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h3 className="font-medium text-on-surface mb-3">Colori Chiari (Light Mode)</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(localTheme.light).slice(0, 8).map(([key, val]) => (
-                            <div key={key} className="flex items-center gap-2">
-                                <input type="color" value={val as string} onChange={(e) => handleColorChange('light', key, e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0"/>
-                                <span className="text-xs text-on-surface-variant truncate">{key}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[600px] overflow-y-auto pr-2">
+                        {Object.entries(localTheme.light).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-2 p-1 hover:bg-surface-container rounded">
+                                <input type="color" value={val as string} onChange={(e) => handleColorChange('light', key, e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0 flex-shrink-0"/>
+                                <span className="text-xs text-on-surface-variant truncate" title={key}>{key}</span>
                             </div>
                         ))}
                     </div>
                 </div>
                 <div>
                     <h3 className="font-medium text-on-surface mb-3">Colori Scuri (Dark Mode)</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        {Object.entries(localTheme.dark).slice(0, 8).map(([key, val]) => (
-                            <div key={key} className="flex items-center gap-2">
-                                <input type="color" value={val as string} onChange={(e) => handleColorChange('dark', key, e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0"/>
-                                <span className="text-xs text-on-surface-variant truncate">{key}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[600px] overflow-y-auto pr-2">
+                        {Object.entries(localTheme.dark).map(([key, val]) => (
+                            <div key={key} className="flex items-center gap-2 p-1 hover:bg-surface-container rounded">
+                                <input type="color" value={val as string} onChange={(e) => handleColorChange('dark', key, e.target.value)} className="h-8 w-8 rounded cursor-pointer border-0 p-0 flex-shrink-0"/>
+                                <span className="text-xs text-on-surface-variant truncate" title={key}>{key}</span>
                             </div>
                         ))}
                     </div>
