@@ -7,6 +7,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useToast } from '../context/ToastContext';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -15,9 +16,6 @@ type EnrichedInterview = Interview & {
   interviewersNames: string[];
   age: number | null;
 };
-
-type SortDirection = 'ascending' | 'descending';
-type SortConfig = { key: keyof EnrichedInterview | string; direction: SortDirection } | null;
 
 // --- Helper Functions ---
 const calculateAge = (birthDate: string | null): number | null => {
@@ -83,7 +81,8 @@ const InterviewsPage: React.FC = () => {
     deleteInterview,
     isActionLoading,
     addResource,
-    locations
+    locations,
+    loading
   } = useEntitiesContext();
   const { addToast } = useToast();
 
@@ -91,11 +90,12 @@ const InterviewsPage: React.FC = () => {
   const [editingInterview, setEditingInterview] = useState<Interview | Omit<Interview, 'id'> | null>(null);
   const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
   const [filters, setFilters] = useState({ name: '', roleId: '', feedback: '', status: '', hiringStatus: '' });
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'interviewDate', direction: 'descending' });
-  const [view, setView] = useState<'table' | 'card'>('table');
-
+  
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [resourceDraft, setResourceDraft] = useState<Omit<Resource, 'id'> | null>(null);
+
+  // Inline editing state (can be expanded later if needed, currently unused but good for DataTable pattern)
+  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
 
   const emptyInterview: Omit<Interview, 'id'> = {
     resourceRequestId: null,
@@ -153,8 +153,8 @@ const InterviewsPage: React.FC = () => {
     });
   }, [interviews, resources, roles, resourceRequests, projects]);
 
-  const sortedAndFilteredData = useMemo(() => {
-    const filtered = enrichedData.filter(
+  const filteredData = useMemo(() => {
+    return enrichedData.filter(
       (i) =>
         (i.candidateName + ' ' + i.candidateSurname).toLowerCase().includes(filters.name.toLowerCase()) &&
         (!filters.roleId || i.roleId === filters.roleId) &&
@@ -162,28 +162,7 @@ const InterviewsPage: React.FC = () => {
         (!filters.status || i.status === filters.status) &&
         (!filters.hiringStatus || i.hiringStatus === filters.hiringStatus)
     );
-
-    if (!sortConfig) return filtered;
-
-    return [...filtered].sort((a, b) => {
-      const aValue = (a as any)[sortConfig.key];
-      const bValue = (b as any)[sortConfig.key];
-
-      if (aValue == null) return 1;
-      if (bValue == null) return -1;
-
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-      }
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortConfig.direction === 'ascending' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-      if (aValue instanceof Date && bValue instanceof Date) {
-        return sortConfig.direction === 'ascending' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
-      }
-      return 0;
-    });
-  }, [enrichedData, filters, sortConfig]);
+  }, [enrichedData, filters]);
 
   const summaryCards = useMemo(() => {
     const dataToSummarize = enrichedData;
@@ -255,14 +234,6 @@ const InterviewsPage: React.FC = () => {
     { value: 'Non Contattabile', label: 'Non Contattabile' }
   ];
 
-  const requestSort = (key: string) => {
-    let direction: SortDirection = 'ascending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
-
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   const handleFilterSelectChange = (name: string, value: string) => setFilters((prev) => ({ ...prev, [name]: value }));
@@ -324,20 +295,48 @@ const InterviewsPage: React.FC = () => {
     }
   };
 
-  const columns = [
-    { header: 'Candidato', sortKey: 'candidateSurname' },
-    { header: 'Ruolo Proposto', sortKey: 'roleName' },
-    { header: 'Richiesta Collegata', sortKey: 'resourceRequestLabel' },
-    { header: 'Colloquiato Da' },
-    { header: 'Data Colloquio', sortKey: 'interviewDate' },
-    { header: 'Feedback', sortKey: 'feedback' },
-    { header: 'Stato Assunzione', sortKey: 'hiringStatus' },
-    { header: 'Data Ingresso', sortKey: 'entryDate' },
-    { header: 'Stato Processo', sortKey: 'status' }
+  const columns: ColumnDef<EnrichedInterview>[] = [
+    { 
+        header: 'Candidato', 
+        sortKey: 'candidateSurname',
+        cell: (interview) => (
+            <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">
+                {interview.candidateName} {interview.candidateSurname}{' '}
+                <span className="text-on-surface-variant font-normal text-sm">({interview.age ?? 'N/A'})</span>
+            </div>
+        )
+    },
+    { header: 'Ruolo Proposto', sortKey: 'roleName', cell: i => <span className="text-sm text-on-surface-variant">{i.roleName || 'N/A'}</span> },
+    { header: 'Richiesta', sortKey: 'resourceRequestLabel', cell: i => <span className="text-xs text-on-surface-variant">{i.resourceRequestLabel || 'Nessuna'}</span> },
+    { header: 'Colloquiato Da', cell: i => <span className="text-xs text-on-surface-variant">{i.interviewersNames.join(', ')}</span> },
+    { header: 'Data', sortKey: 'interviewDate', cell: i => <span className="text-sm text-on-surface-variant">{formatDate(i.interviewDate)}</span> },
+    { header: 'Feedback', sortKey: 'feedback', cell: i => <span className="text-sm text-on-surface-variant">{i.feedback || 'N/A'}</span> },
+    { header: 'Stato Assunzione', sortKey: 'hiringStatus', cell: i => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(i.hiringStatus)}`}>{i.hiringStatus || 'N/A'}</span> },
+    { header: 'Stato Processo', sortKey: 'status', cell: i => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(i.status)}`}>{i.status}</span> },
   ];
 
-  const renderCard = (interview: EnrichedInterview) => (
-    <div key={interview.id} className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col gap-4 border-l-4 border-primary">
+  const renderRow = (interview: EnrichedInterview) => (
+    <tr key={interview.id} className="h-16 hover:bg-surface-container group">
+        {columns.map((col, i) => (
+            <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit" title={col.sortKey ? String((interview as any)[col.sortKey]) : undefined}>
+                {col.cell(interview)}
+            </td>
+        ))}
+        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
+            <div className="flex items-center justify-end space-x-3">
+                <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica">
+                    <span className="material-symbols-outlined">edit</span>
+                </button>
+                <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                    {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
+                </button>
+            </div>
+        </td>
+    </tr>
+  );
+
+  const renderMobileCard = (interview: EnrichedInterview) => (
+    <div key={interview.id} className="bg-surface-container-low rounded-lg shadow p-4 mb-4 flex flex-col gap-3 border-l-4 border-primary">
       <div className="flex justify-between items-start">
         <div>
           <p className="font-bold text-lg text-on-surface">
@@ -401,6 +400,18 @@ const InterviewsPage: React.FC = () => {
           </p>
         )}
       </div>
+    </div>
+  );
+
+  const filtersNode = (
+    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca candidato..." />
+        <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
+        <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback" />
+        <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione" />
+        <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">
+        Reset
+        </button>
     </div>
   );
 
@@ -491,127 +502,20 @@ const InterviewsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-on-surface self-start">Gestione Colloqui</h1>
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-            <button
-              onClick={() => setView('table')}
-              className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
-                view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'
-              }`}
-            >
-              Tabella
-            </button>
-            <button
-              onClick={() => setView('card')}
-              className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
-                view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'
-              }`}
-            >
-              Card
-            </button>
-          </div>
-          <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">
-            Aggiungi Colloquio
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-6 p-4 bg-surface-container rounded-2xl shadow relative z-20">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-          <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input md:col-span-2" placeholder="Cerca candidato..." />
-          <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
-          <SearchableSelect name="feedback" value={filters.feedback} onChange={handleFilterSelectChange} options={feedbackOptions} placeholder="Tutti i feedback" />
-          <SearchableSelect name="hiringStatus" value={filters.hiringStatus} onChange={handleFilterSelectChange} options={hiringStatusOptions} placeholder="Tutti gli stati assunzione" />
-          <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">
-            Reset
-          </button>
-        </div>
-      </div>
-
-      {view === 'table' ? (
-        <div className="bg-surface-container rounded-2xl shadow">
-          <div className="max-h-[640px] overflow-y-auto overflow-x-auto">
-            <table className="min-w-full table-fixed">
-              <thead className="sticky top-0 z-10 bg-surface-container-high border-b border-outline-variant">
-                <tr>
-                  {columns.map((col) => (
-                    <th key={col.header} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                      {col.sortKey ? (
-                        <button
-                          type="button"
-                          onClick={() => requestSort(col.sortKey!)}
-                          className="flex items-center space-x-1 hover:text-on-surface"
-                        >
-                          <span className={sortConfig?.key === col.sortKey ? 'font-bold text-on-surface' : ''}>{col.header}</span>
-                          <span className="material-symbols-outlined text-sm">{sortConfig?.key === col.sortKey ? (sortConfig.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}</span>
-                        </button>
-                      ) : (
-                        <span>{col.header}</span>
-                      )}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-outline-variant">
-                {sortedAndFilteredData.map((interview) => (
-                  <tr key={interview.id} className="h-8 hover:bg-surface-container-low">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <div className="font-medium text-on-surface">
-                        {interview.candidateName} {interview.candidateSurname}{' '}
-                        <span className="text-on-surface-variant">({interview.age ?? 'N/A'})</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{interview.roleName || 'N/A'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                      <span className="text-xs">{interview.resourceRequestLabel || 'Nessuna'}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                      <span className="text-xs">{interview.interviewersNames.join(', ')}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatDate(interview.interviewDate)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{interview.feedback || 'N/A'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(interview.hiringStatus)}`}>
-                        {interview.hiringStatus || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">{formatDate(interview.entryDate)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(interview.status)}`}>{interview.status}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica">
-                          <span className="material-symbols-outlined">edit</span>
-                        </button>
-                        <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
-                          {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {sortedAndFilteredData.length === 0 && <p className="text-center py-8 text-on-surface-variant">Nessun dato trovato.</p>}
-        </div>
-      ) : (
-        <div className="p-4 grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-          {sortedAndFilteredData.length > 0 ? (
-            sortedAndFilteredData.map(renderCard)
-          ) : (
-            <div className="col-span-full text-center py-8 text-on-surface-variant bg-surface-container rounded-2xl shadow">
-              Nessun colloquio trovato con i filtri correnti.
-            </div>
-          )}
-        </div>
-      )}
+      <DataTable<EnrichedInterview>
+        title="Gestione Colloqui"
+        addNewButtonLabel="Aggiungi Colloquio"
+        data={filteredData}
+        columns={columns}
+        filtersNode={filtersNode}
+        onAddNew={openModalForNew}
+        renderRow={renderRow}
+        renderMobileCard={renderMobileCard}
+        initialSortKey="interviewDate"
+        isLoading={loading}
+        tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+        tableClassNames={{ base: 'w-full text-sm' }}
+      />
 
       {/* Modale INTERVIEW */}
       {editingInterview && (

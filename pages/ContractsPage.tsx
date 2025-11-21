@@ -240,7 +240,7 @@ export const ContractsPage: React.FC = () => {
                 renderMobileCard={renderMobileCard}
                 initialSortKey="name"
                 isLoading={loading}
-                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true, width: 'fixed' }}
+                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
                 tableClassNames={{ base: 'w-full text-sm' }}
             />
             {editingContract && (

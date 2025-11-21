@@ -371,7 +371,6 @@ const ProjectsPage: React.FC = () => {
                     headerSticky: true,
                     headerBackground: true,
                     headerBorder: true,
-                    width: 'fixed',
                 }}
                 tableClassNames={{
                     base: 'w-full text-sm',

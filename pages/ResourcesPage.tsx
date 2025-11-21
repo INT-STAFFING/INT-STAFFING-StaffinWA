@@ -1,4 +1,3 @@
-
 /**
  * @file ResourcesPage.tsx
  * @description Pagina per la gestione delle risorse umane (CRUD e visualizzazione).
@@ -449,7 +448,6 @@ const ResourcesPage: React.FC = () => {
                     headerSticky: true,
                     headerBackground: true,
                     headerBorder: true,
-                    width: 'fixed',
                 }}
                 tableClassNames={{
                     base: 'w-full text-sm',

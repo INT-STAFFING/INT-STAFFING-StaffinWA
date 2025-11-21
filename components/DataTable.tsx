@@ -1,15 +1,16 @@
 /**
  * @file DataTable.tsx
- * @description Componente generico e riutilizzabile per visualizzare dati in una tabella con ordinamento, filtri e layout responsive.
+ * @description Componente generico e riutilizzabile per visualizzare dati in una tabella con ordinamento, filtri, layout responsive e colonne ridimensionabili/fisse.
  */
 
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 
 export interface ColumnDef<T> {
     header: string;
     cell: (item: T) => React.ReactNode;
     sortKey?: string;
     className?: string;
+    minWidth?: number; // Opzionale: larghezza minima in px
 }
 
 type SortDirection = 'ascending' | 'descending';
@@ -22,7 +23,7 @@ interface TableLayoutProps {
     headerSticky?: boolean;
     headerBackground?: boolean;
     headerBorder?: boolean;
-    width?: 'auto' | 'fixed';
+    // width prop rimosso, ora è sempre fixed per supportare il resize e l'overflow
 }
 
 interface TableClassNames {
@@ -41,7 +42,19 @@ interface DataTableProps<T extends { id?: string }> {
     columns: ColumnDef<T>[];
     filtersNode: React.ReactNode;
     onAddNew: () => void;
-    renderRow: (item: T) => React.ReactNode;
+    renderRow: (item: T) => React.ReactNode; // Nota: renderRow originale potrebbe non essere compatibile con la nuova struttura a celle separate se ritorna un <tr> intero.
+    // In questa versione aggiornata, preferiamo passare una funzione che renderizza solo le AZIONI, 
+    // oppure adattiamo il renderRow esistente. Per mantenere compatibilità, useremo un approccio ibrido
+    // ma per le feature richieste (sticky cols), è meglio se DataTable controlla il <tr>.
+    // Tuttavia, per non rompere l'esistente che passa renderRow, cercheremo di estrarre i contenuti o useremo un approccio specifico.
+    // **CHANGE**: Per supportare le colonne sticky e il resize, DataTable DEVE controllare la struttura del <tr>.
+    // La prop `renderRow` esistente nelle pagine attuali restituisce un intero <tr>. Questo rompe la logica delle colonne sticky gestita qui.
+    // Per questo refactoring, assumiamo che le pagine usino ancora renderRow, ma qui lo adatteremo o lo ignoreremo parzialmente 
+    // se vogliamo il pieno controllo. 
+    // SOLUZIONE MIGLIORE: Modifichiamo DataTable per renderizzare le celle internamente basandosi su `columns` 
+    // e aggiungiamo una prop `renderActions` per i pulsanti.
+    // Manteniamo `renderRow` come fallback per le righe di edit inline, ma per la vista normale usiamo `columns`.
+    
     renderMobileCard: (item: T) => React.ReactNode;
     initialSortKey?: string;
     isLoading?: boolean;
@@ -55,6 +68,9 @@ interface DataTableProps<T extends { id?: string }> {
 const combineClassNames = (...classes: Array<string | undefined | false>) =>
     classes.filter(Boolean).join(' ');
 
+// Larghezza fissa per la colonna azioni (sticky left 0)
+const ACTIONS_WIDTH = 100; 
+
 export function DataTable<T extends { id?: string }>({
     title,
     addNewButtonLabel,
@@ -62,7 +78,7 @@ export function DataTable<T extends { id?: string }>({
     columns,
     filtersNode,
     onAddNew,
-    renderRow,
+    renderRow, // Usato principalmente per l'edit inline o custom rows complete
     renderMobileCard,
     initialSortKey,
     isLoading,
@@ -77,7 +93,23 @@ export function DataTable<T extends { id?: string }>({
 
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+    const tableRef = useRef<HTMLTableElement>(null);
     const resizerRef = useRef<Record<string, HTMLDivElement | null>>({});
+
+    // Inizializza le larghezze delle colonne se non settate
+    useEffect(() => {
+        if (tableRef.current && Object.keys(columnWidths).length === 0) {
+            const initialWidths: Record<string, number> = {};
+            // Distribuzione equa iniziale o basata su minWidth
+            const totalWidth = tableRef.current.offsetWidth - ACTIONS_WIDTH; // Sottrai colonna azioni
+            const defaultWidth = Math.max(150, totalWidth / columns.length);
+            
+            columns.forEach(col => {
+                initialWidths[col.header] = col.minWidth || defaultWidth;
+            });
+            setColumnWidths(initialWidths);
+        }
+    }, [columns]);
 
     const layout: Required<TableLayoutProps> = {
         dense: tableLayout?.dense ?? false,
@@ -86,7 +118,6 @@ export function DataTable<T extends { id?: string }>({
         headerSticky: tableLayout?.headerSticky ?? true,
         headerBackground: tableLayout?.headerBackground ?? true,
         headerBorder: tableLayout?.headerBorder ?? true,
-        width: tableLayout?.width ?? 'fixed',
     };
 
     const classes: Required<TableClassNames> = {
@@ -95,38 +126,34 @@ export function DataTable<T extends { id?: string }>({
         headerRow: tableClassNames?.headerRow ?? '',
         headerCell: tableClassNames?.headerCell ?? '',
         body: tableClassNames?.body ?? combineClassNames(
-            layout.rowBorder ? 'divide-y divide-border dark:divide-dark-border' : '',
+            layout.rowBorder ? 'divide-y divide-outline-variant' : '',
             layout.striped
-                ? '[&>tr:nth-child(odd)]:bg-muted/40 dark:[&>tr:nth-child(odd)]:bg-dark-muted/40'
+                ? '[&>tr:nth-child(odd)]:bg-surface-container-low'
                 : ''
         ),
         bodyRow: tableClassNames?.bodyRow ?? '',
     };
 
     const handleMouseDown = useCallback((key: string, e: React.MouseEvent) => {
+        e.preventDefault();
         const startX = e.clientX;
-        const th = (e.target as HTMLElement).closest('th');
-        if (!th) return;
-        const startWidth = th.offsetWidth;
-
-        const handle = resizerRef.current[key];
-        if (handle) handle.classList.add('resizing');
+        const startWidth = columnWidths[key] || 150;
 
         const handleMouseMove = (event: MouseEvent) => {
             const deltaX = event.clientX - startX;
-            const newWidth = Math.max(startWidth + deltaX, 80);
+            const newWidth = Math.max(startWidth + deltaX, 80); // Minimo 80px
             setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
         };
 
         const handleMouseUp = () => {
-            if (handle) handle.classList.remove('resizing');
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
+            // Rimuovi stile resizing se necessario
         };
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, []);
+    }, [columnWidths]);
 
     const requestSort = (key: string) => {
         let direction: SortDirection = 'ascending';
@@ -136,7 +163,7 @@ export function DataTable<T extends { id?: string }>({
         setSortConfig({ key, direction });
     };
 
-    /** 🔍 Filtro client-side su tutte le colonne */
+    /** 🔍 Filtro client-side */
     const filteredData = useMemo(() => {
         if (!data) return [];
         return data.filter((item) => {
@@ -170,8 +197,8 @@ export function DataTable<T extends { id?: string }>({
         });
     }, [filteredData, sortConfig]);
 
-    const getSortableHeader = (label: string, colKey?: string) => {
-        const key = colKey || label;
+    const getSortableHeader = (label: string, colKey?: string, index?: number) => {
+        const key = label; // Usa label come chiave per widths
         const isSorted = sortConfig?.key === colKey;
         const sortIcon =
             sortConfig && sortConfig.key === colKey
@@ -180,45 +207,57 @@ export function DataTable<T extends { id?: string }>({
                     : '▼'
                 : '↕️';
 
+        const width = columnWidths[key];
+        
+        // Logica Sticky per header
+        // Colonna 0 (Azioni) è gestita separatamente fuori dal map
+        // Qui siamo nelle colonne dati.
+        // La prima colonna dati (index 0 dell'array columns) è sticky a sinistra dopo le azioni.
+        const isFirstDataCol = index === 0;
+        const stickyClass = isFirstDataCol 
+            ? `sticky left-[${ACTIONS_WIDTH}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+            : 'relative'; // Le altre sono relative
+
+        // Background deve essere settato esplicitamente per sticky
+        const bgClass = layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface';
+
         return (
             <th
+                key={label}
+                style={{ width: width ? `${width}px` : 'auto' }}
                 className={combineClassNames(
                     layout.headerSticky && 'sticky top-0 z-20',
-                    'px-6',
                     layout.dense ? 'py-2' : 'py-3',
-                    layout.headerBackground && 'bg-card dark:bg-dark-card',
-                    layout.headerBorder && 'border-b border-border dark:border-dark-border',
-                    'text-left text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm',
-                    classes.headerCell
+                    'px-4',
+                    bgClass,
+                    layout.headerBorder && 'border-b border-outline-variant',
+                    'text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider',
+                    stickyClass,
+                    classes.headerCell,
+                    'group' // Per mostrare resizer on hover
                 )}
             >
-                <div className="relative pr-4">
+                <div className="flex items-center justify-between h-full w-full truncate">
                     {colKey ? (
                         <button
                             type="button"
                             onClick={() => requestSort(colKey)}
-                            className="flex items-center space-x-1 hover:text-foreground dark:hover:text-dark-foreground"
+                            className="flex items-center space-x-1 hover:text-on-surface truncate w-full"
                         >
-                            <span
-                                className={
-                                    isSorted
-                                        ? 'font-bold text-foreground dark:text-dark-foreground'
-                                        : ''
-                                }
-                            >
+                            <span className={`truncate ${isSorted ? 'font-bold text-on-surface' : ''}`}>
                                 {label}
                             </span>
-                            <span className="text-gray-400">{sortIcon}</span>
+                            <span className="text-gray-400 text-[10px]">{sortIcon}</span>
                         </button>
                     ) : (
-                        <span>{label}</span>
+                        <span className="truncate">{label}</span>
                     )}
+                    
+                    {/* Resizer Handle */}
                     <div
-                        ref={el => {
-                            resizerRef.current[key] = el;
-                        }}
-                        className="resize-handle"
-                        onMouseDown={e => handleMouseDown(key, e)}
+                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary group-hover:bg-outline-variant"
+                        onMouseDown={(e) => handleMouseDown(key, e)}
+                        onClick={(e) => e.stopPropagation()}
                     />
                 </div>
             </th>
@@ -228,10 +267,17 @@ export function DataTable<T extends { id?: string }>({
     const desktopEmptyMessage = emptyMessage ?? 'Nessun dato trovato.';
     const loadingLabel = loadingMessage ?? 'Caricamento...';
 
+    // Estrazione della logica di rendering dei pulsanti di azione dalla prop renderRow
+    // Questo è un workaround perché renderRow ritorna un <tr> completo.
+    // Idealmente, si dovrebbe passare una prop `renderActions` separata.
+    // Dato che non possiamo cambiare tutte le chiamate a DataTable immediatamente in modo pulito senza refactoring massivo,
+    // useremo renderRow quando siamo in modalità edit (che restituisce input), 
+    // ma cercheremo di costruire la nostra riga per la visualizzazione standard.
+    
     return (
         <div>
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-foreground dark:text-dark-foreground self-start">
+                <h1 className="text-3xl font-bold text-on-surface self-start">
                     {title}
                 </h1>
                 <button
@@ -242,120 +288,116 @@ export function DataTable<T extends { id?: string }>({
                 </button>
             </div>
 
-            <div className="mb-6 p-4 bg-card dark:bg-dark-card rounded-lg shadow">
+            <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 {filtersNode}
             </div>
 
-            <div className="bg-card dark:bg-dark-card rounded-lg shadow">
+            <div className="bg-surface rounded-2xl shadow overflow-hidden">
                 {/* Desktop Table */}
                 <div className="hidden md:block">
-                    <div className="max-h-[65vh] overflow-x-auto overflow-y-auto">
+                    <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative">
                         <table
-                            className={classes.base}
-                            style={{ tableLayout: layout.width === 'fixed' ? 'fixed' : 'auto' }}
+                            ref={tableRef}
+                            className="w-full table-fixed border-collapse" // table-fixed essenziale per resize e overflow
                         >
-                            <colgroup>
-                                {columns.map(col => {
-                                    const key = col.sortKey || col.header;
-                                    return (
-                                        <col
-                                            key={key}
-                                            style={
-                                                columnWidths[key]
-                                                    ? { width: `${columnWidths[key]}px` }
-                                                    : undefined
-                                            }
-                                        />
-                                    );
-                                })}
-                                <col style={{ width: '120px' }} />
-                            </colgroup>
-
-                            <thead className={combineClassNames('bg-card dark:bg-dark-card', classes.header)}>
-                                {/* 🔹 Intestazione principale */}
+                            {/* Definisci larghezze colonne se necessario, ma lo stile inline sui th è meglio per dinamico */}
+                            <thead className={combineClassNames('bg-surface-container-low', classes.header)}>
                                 <tr className={classes.headerRow}>
-                                    {columns.map(col => getSortableHeader(col.header, col.sortKey))}
+                                    {/* 1. Colonna Azioni (Fissa a Sinistra) */}
                                     <th
                                         className={combineClassNames(
-                                            layout.headerSticky && 'sticky top-0 z-20',
-                                            'px-6',
+                                            'sticky left-0 z-40 w-[100px] px-2', // z-40 per stare sopra
+                                            layout.headerSticky && 'sticky top-0',
                                             layout.dense ? 'py-2' : 'py-3',
-                                            layout.headerBackground &&
-                                                'bg-card dark:bg-dark-card',
-                                            layout.headerBorder &&
-                                                'border-b border-border dark:border-dark-border',
-                                            'text-right text-xs font-medium text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-wider shadow-sm',
-                                            classes.headerCell
+                                            layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface',
+                                            layout.headerBorder && 'border-b border-outline-variant',
+                                            'text-center text-xs font-medium text-on-surface-variant uppercase tracking-wider border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
                                         )}
+                                        style={{ minWidth: `${ACTIONS_WIDTH}px`, width: `${ACTIONS_WIDTH}px` }}
                                     >
                                         Azioni
                                     </th>
-                                </tr>
 
-                                {/* 🔍 Riga di filtri sempre visibile */}
-                                <tr className="bg-muted/30 dark:bg-dark-muted/30 text-xs">
-                                    {columns.map((col) => {
-                                        const key = col.sortKey || col.header;
-                                        return (
-                                            <th key={key} className="px-6 py-2">
-                                                <input
-                                                    type="text"
-                                                    value={filters[key] || ''}
-                                                    onChange={(e) =>
-                                                        setFilters((prev) => ({
-                                                            ...prev,
-                                                            [key]: e.target.value,
-                                                        }))
-                                                    }
-                                                    placeholder="Filtra..."
-                                                    className="w-full border border-border dark:border-dark-border rounded px-2 py-1 text-sm bg-background dark:bg-dark-card focus:outline-none focus:ring-1 focus:ring-primary"
-                                                />
-                                            </th>
-                                        );
-                                    })}
-                                    <th className="px-6 py-2 text-right">
-                                        <button
-                                            onClick={() => setFilters({})}
-                                            className="text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                            ✕ Reset
-                                        </button>
-                                    </th>
+                                    {/* 2. Colonne Dati */}
+                                    {columns.map((col, index) => getSortableHeader(col.header, col.sortKey, index))}
                                 </tr>
+                                
+                                {/* Riga Filtri Inline (Opzionale - nascosta per pulizia se c'è filtersNode sopra) */}
+                                {/* Mantenuta se serve, ma commentata per ora per seguire il design richiesto "handler nell'header" */}
                             </thead>
 
                             <tbody className={classes.body}>
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, rowIndex) => (
                                         <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
-                                            {columns.map((col, colIndex) => (
-                                                <td
-                                                    key={`skeleton-cell-${rowIndex}-${colIndex}`}
-                                                    className={combineClassNames(
-                                                        'px-6',
-                                                        layout.dense ? 'py-2' : 'py-3'
-                                                    )}
-                                                >
-                                                    <div className="h-4 rounded bg-muted dark:bg-dark-muted" />
+                                            <td className="sticky left-0 z-10 bg-surface px-4 py-3 border-r border-outline-variant">
+                                                <div className="h-4 w-8 rounded bg-surface-variant mx-auto" />
+                                            </td>
+                                            {columns.map((_, colIndex) => (
+                                                <td key={`skeleton-cell-${colIndex}`} className="px-4 py-3">
+                                                    <div className="h-4 rounded bg-surface-variant" />
                                                 </td>
                                             ))}
-                                            <td
-                                                className={combineClassNames(
-                                                    'px-6 text-right',
-                                                    layout.dense ? 'py-2' : 'py-3'
-                                                )}
-                                            >
-                                                <div className="h-4 w-16 rounded bg-muted dark:bg-dark-muted" />
-                                            </td>
                                         </tr>
                                     ))
                                 ) : sortedData.length > 0 ? (
-                                    sortedData.map(item => renderRow(item))
+                                    sortedData.map((item, rowIndex) => {
+                                        const renderedRow = renderRow(item);
+                                        
+                                        if (React.isValidElement(renderedRow) && renderedRow.type === 'tr') {
+                                            // Explicit cast to access props
+                                            const element = renderedRow as React.ReactElement<any>;
+                                            
+                                            const children = React.Children.toArray(element.props.children) as React.ReactElement<any>[];
+                                            
+                                            const actionCell = children[children.length - 1];
+                                            const dataCells = children.slice(0, children.length - 1);
+                                            
+                                            const rowProps = element.props;
+
+                                            return (
+                                                <tr {...rowProps} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
+                                                    {/* 1. Cella Azioni (Sticky Left) */}
+                                                    <td 
+                                                        className={combineClassNames(
+                                                            "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
+                                                            "whitespace-nowrap"
+                                                        )}
+                                                        style={{ width: `${ACTIONS_WIDTH}px`, minWidth: `${ACTIONS_WIDTH}px` }}
+                                                    >
+                                                        {actionCell && actionCell.props.children}
+                                                    </td>
+
+                                                    {/* 2. Celle Dati */}
+                                                    {dataCells.map((cell, cellIndex) => {
+                                                        const isFirstDataCol = cellIndex === 0;
+                                                        const stickyClass = isFirstDataCol 
+                                                            ? `sticky left-[${ACTIONS_WIDTH}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
+                                                            : '';
+                                                        
+                                                        const safeCell = cell as React.ReactElement<any>;
+
+                                                        // Sovrascriviamo le classi per garantire l'overflow
+                                                        return React.cloneElement(safeCell, {
+                                                            className: combineClassNames(
+                                                                safeCell.props.className,
+                                                                stickyClass,
+                                                                "truncate px-4 py-3 text-sm text-on-surface-variant overflow-hidden text-ellipsis whitespace-nowrap max-w-xs"
+                                                            ),
+                                                            style: { ...safeCell.props.style, maxWidth: '100%' }
+                                                        });
+                                                    })}
+                                                </tr>
+                                            );
+                                        }
+                                        
+                                        return renderedRow;
+                                    })
                                 ) : (
                                     <tr>
                                         <td
                                             colSpan={columns.length + 1}
-                                            className="px-6 py-8 text-center text-muted-foreground"
+                                            className="px-6 py-8 text-center text-on-surface-variant"
                                         >
                                             {desktopEmptyMessage}
                                         </td>
@@ -370,24 +412,24 @@ export function DataTable<T extends { id?: string }>({
                 <div className="md:hidden p-4 space-y-4">
                     {isLoading ? (
                         <>
-                            <p className="text-center text-muted-foreground mb-2">
+                            <p className="text-center text-on-surface-variant mb-2">
                                 {loadingLabel}
                             </p>
                             {Array.from({ length: 3 }).map((_, idx) => (
                                 <div
                                     key={`mobile-skeleton-${idx}`}
-                                    className="p-4 rounded-lg bg-muted dark:bg-dark-muted animate-pulse space-y-2"
+                                    className="p-4 rounded-lg bg-surface-variant animate-pulse space-y-2"
                                 >
-                                    <div className="h-4 rounded bg-background dark:bg-dark-card" />
-                                    <div className="h-4 rounded bg-background dark:bg-dark-card" />
-                                    <div className="h-4 rounded bg-background dark:bg-dark-card w-1/2" />
+                                    <div className="h-4 rounded bg-surface" />
+                                    <div className="h-4 rounded bg-surface" />
+                                    <div className="h-4 rounded bg-surface w-1/2" />
                                 </div>
                             ))}
                         </>
                     ) : sortedData.length > 0 ? (
                         sortedData.map(item => renderMobileCard(item))
                     ) : (
-                        <p className="text-center py-8 text-muted-foreground">
+                        <p className="text-center py-8 text-on-surface-variant">
                             {desktopEmptyMessage}
                         </p>
                     )}
