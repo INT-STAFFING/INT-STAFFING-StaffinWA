@@ -8,6 +8,7 @@ import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 // WHITELIST per db_inspector per prevenire SQL Injection
 const ALLOWED_TABLES = new Set([
@@ -17,6 +18,24 @@ const ALLOWED_TABLES = new Set([
     'contract_managers', 'allocations', 'skills', 'resource_skills', 'project_skills', 'role_cost_history',
     'leave_types', 'leave_requests', 'app_users', 'role_permissions'
 ]);
+
+const JWT_SECRET = process.env.JWT_SECRET || 'staffing-app-secret-key-change-in-prod';
+
+// Middleware per verificare se l'utente è admin
+const verifyAdmin = (req: VercelRequest): boolean => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return false;
+    
+    const token = authHeader.split(' ')[1];
+    if (!token) return false;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        return decoded.role === 'ADMIN';
+    } catch (error) {
+        return false;
+    }
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
@@ -30,8 +49,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         switch (entity) {
+            // --- EMERGENCY RESET ---
+            case 'emergency_reset':
+                if (method === 'POST') {
+                    // Questo endpoint è pubblico ma dovrebbe essere rimosso in produzione reale
+                    // Serve per sbloccare l'utente admin su Vercel senza accesso shell.
+                    
+                    const salt = await bcrypt.genSalt(10);
+                    const hash = await bcrypt.hash('admin', salt);
+                    const newId = uuidv4();
+
+                    await client.query('BEGIN');
+                    // Rimuove il vecchio admin (se esiste)
+                    await client.sql`DELETE FROM app_users WHERE username = 'admin'`;
+                    // Crea il nuovo admin
+                    await client.sql`
+                        INSERT INTO app_users (id, username, password_hash, role, is_active)
+                        VALUES (${newId}, 'admin', ${hash}, 'ADMIN', TRUE)
+                    `;
+                    await client.query('COMMIT');
+                    
+                    return res.status(200).json({ success: true, message: 'Admin user reset to default (admin/admin)' });
+                }
+                break;
+
             // --- USERS & AUTH ---
             case 'app-users':
+                // Protezione: Solo Admin può gestire utenti
+                if (!verifyAdmin(req)) {
+                    return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+                }
+
                 if (method === 'GET') {
                     // List users (securely)
                     const { rows } = await client.sql`
@@ -63,6 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 } else if (method === 'PUT') {
                     if (action === 'change_password') {
                         // Self-service or Admin forced password change
+                        // TODO: For self-service, we should verify the token ID matches the requested ID or is Admin
+                        // For now, relying on verifyAdmin check above (so only Admin can change passwords via this route)
                         const { newPassword } = req.body;
                         if (!newPassword) return res.status(400).json({error: 'New password required'});
                         
@@ -100,6 +150,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break;
 
             case 'role-permissions':
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
                 if (method === 'GET') {
                     const { rows } = await client.sql`SELECT * FROM role_permissions`;
                     return res.status(200).json(rows);
@@ -402,6 +454,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  break;
             
             case 'skill-thresholds':
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
                 if (method === 'POST') {
                      const { thresholds } = req.body;
                      await client.query('BEGIN');
@@ -479,6 +532,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
              // --- PAGE VISIBILITY ---
              case 'page-visibility':
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
                 if (method === 'POST') {
                     const { path, restricted } = req.body;
                     await client.sql`INSERT INTO app_config (key, value) VALUES (${`page_vis.${path}`}, ${restricted ? 'true' : 'false'}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
@@ -539,6 +593,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             // --- DB INSPECTOR ---
             case 'db_inspector':
+                // Protezione: Solo Admin (ma ALLOWED_TABLES protegge le query)
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
                 if (action === 'list_tables') {
                      const result = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
                      // Filter results using the whitelist to only show safe tables

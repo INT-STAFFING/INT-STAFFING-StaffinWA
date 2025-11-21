@@ -7,6 +7,7 @@ if (process.env.NEON_POSTGRES_URL && !process.env.POSTGRES_URL) {
 
 import { createPool } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
  
 const db = createPool({
     connectionString: process.env.POSTGRES_URL,
@@ -341,19 +342,21 @@ async function seedMainTables(client, clients, roles, resources, projects, assig
         );
     `;
     
-    // Forced update of default admin user to ensure correct hash
-    console.log('Ensuring default admin user exists and has correct hash...');
+    // Forced re-creation of default admin user
+    console.log('Resetting default admin user...');
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync('admin', salt);
+    const adminId = uuidv4();
     
-    // UPSERT Admin User
+    // Delete existing admin to ensure clean state
+    await client.sql`DELETE FROM app_users WHERE username = 'admin'`;
+    
+    // Insert fresh admin
     await client.sql`
         INSERT INTO app_users (id, username, password_hash, role, is_active)
-        VALUES (uuid_generate_v4(), 'admin', ${hash}, 'ADMIN', TRUE)
-        ON CONFLICT (username) 
-        DO UPDATE SET password_hash = ${hash}, role = 'ADMIN', is_active = TRUE;
+        VALUES (${adminId}, 'admin', ${hash}, 'ADMIN', TRUE);
     `;
-    console.log('Default admin verified/updated (user: admin, pass: admin)');
+    console.log('Default admin reset successful (user: admin, pass: admin)');
 
 
     await Promise.all([

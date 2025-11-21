@@ -16,11 +16,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 
-    const { username, password } = req.body;
+    let { username, password } = req.body;
 
     if (!username || !password) {
         return res.status(400).json({ error: 'Username e password richiesti.' });
     }
+    
+    // Sanitize input
+    username = username.trim();
+    password = password.trim();
 
     try {
         // 1. Fetch User

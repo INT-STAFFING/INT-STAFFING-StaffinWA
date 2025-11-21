@@ -1,3 +1,4 @@
+
 /**
  * @file LoginPage.tsx
  * @description Pagina di login per l'applicazione.
@@ -33,6 +34,28 @@ const LoginPage: React.FC = () => {
             // Il reindirizzamento avverrà automaticamente tramite il ProtectedRoute
         } catch (err) {
             setError((err as Error).message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleEmergencyReset = async () => {
+        if (!window.confirm("ATTENZIONE: Questo resetterà la password dell'utente 'admin' a 'admin'.\n\nUtilizza questa funzione solo se sei bloccato fuori dal sistema.")) {
+            return;
+        }
+        
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/resources?entity=emergency_reset', { method: 'POST' });
+            if (res.ok) {
+                alert("Reset completato.\n\nUsername: admin\nPassword: admin\n\nEffettua il login ora.");
+                setUsername('admin');
+                setPassword('');
+            } else {
+                alert("Errore durante il reset.");
+            }
+        } catch (e) {
+            alert("Errore di connessione.");
         } finally {
             setIsLoading(false);
         }
@@ -103,6 +126,15 @@ const LoginPage: React.FC = () => {
                         </button>
                     </div>
                 </form>
+                
+                <div className="text-center pt-4 border-t border-outline-variant">
+                    <button 
+                        onClick={handleEmergencyReset}
+                        className="text-xs text-error hover:underline opacity-70 hover:opacity-100"
+                    >
+                        Password dimenticata? (Reset Admin)
+                    </button>
+                </div>
             </div>
         </div>
     );
