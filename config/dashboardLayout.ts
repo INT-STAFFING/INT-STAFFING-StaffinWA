@@ -18,7 +18,8 @@ export type DashboardCardId =
   | 'locationAnalysis'
   | 'saturationTrend'
   | 'costForecast'
-  | 'averageDailyRate'; // Aggiunta la nuova card
+  | 'averageDailyRate'
+  | 'leavesOverview'; // Aggiunta card assenze
 
 // Interface defining the metadata for each dashboard card.
 export interface DashboardCardConfig {
@@ -35,6 +36,7 @@ export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
   { id: 'kpiHeader', label: 'KPI Principali', description: 'Mostra i totali di budget, costo stimato e giorni allocati.', icon: '🏆', group: 'kpi' },
   { id: 'attentionCards', label: 'Card di Attenzione', description: 'Evidenzia risorse non allocate e progetti senza staff.', icon: '⚠️', group: 'kpi' },
   { id: 'unallocatedFte', label: 'FTE Non Allocati', description: 'Mostra gli FTE non allocati sul totale disponibile per il mese corrente.', icon: 'person_search', group: 'kpi' },
+  { id: 'leavesOverview', label: 'Panoramica Assenze', description: 'Mostra assenze odierne, prossime e richieste in attesa.', icon: 'event_busy', group: 'kpi' },
   { id: 'averageAllocation', label: 'Allocazione Media Risorse', description: 'Analizza il carico di lavoro medio per risorsa nel tempo.', icon: '📊', group: 'main' },
   { id: 'ftePerProject', label: 'FTE per Progetto', description: 'Calcola l\'equivalente a tempo pieno delle risorse per progetto.', icon: '👥', group: 'main' },
   { id: 'budgetAnalysis', label: 'Analisi Budget', description: 'Confronta budget, costi stimati totali e varianza per progetto.', icon: '💰', group: 'main' },
@@ -53,12 +55,13 @@ export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
 export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
   'kpiHeader',
   'attentionCards',
+  'leavesOverview', // Aggiunta all'ordine di default
   'unallocatedFte',
   'averageAllocation',
   'ftePerProject',
   'budgetAnalysis',
   'temporalBudgetAnalysis',
-  'averageDailyRate', // Aggiunta la nuova card all'ordine di default
+  'averageDailyRate',
   'underutilizedResources',
   'monthlyClientCost',
   'effortByHorizontal',

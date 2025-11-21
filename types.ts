@@ -99,10 +99,7 @@ export interface Resource {
 
 /**
  * @interface Project
- * @description Rappresenta un progetto aziendale. La definizione è flessibile per rispecchiare
- * lo schema del database, dove molte colonne possono essere NULL. Questo previene errori di tipo
- * e bug nel frontend, specialmente nei form, garantendo che i campi opzionali siano gestiti
- * correttamente come 'string | null'.
+ * @description Rappresenta un progetto aziendale.
  */
 export interface Project {
     /** @property {string} [id] - L'identificatore univoco, generato dal database. */
@@ -169,9 +166,6 @@ export interface Assignment {
 /**
  * @interface Allocation
  * @description Struttura dati che mappa le allocazioni giornaliere.
- * La chiave esterna è l'ID dell'assegnazione (`assignmentId`).
- * La chiave interna è la data in formato YYYY-MM-DD.
- * Il valore è la percentuale di allocazione (da 0 a 100).
  */
 export interface Allocation {
     [assignmentId: string]: {
@@ -433,6 +427,52 @@ export const DEFAULT_SKILL_LEVEL_THRESHOLDS: SkillThresholds = {
     SENIOR: 350,
     EXPERT: 700
 };
+
+/**
+ * @interface LeaveType
+ * @description Rappresenta una tipologia di assenza (es. Ferie, Malattia).
+ */
+export interface LeaveType {
+    /** @property {string} [id] - L'identificatore univoco. */
+    id?: string;
+    /** @property {string} name - Nome della tipologia. */
+    name: string;
+    /** @property {string} color - Colore per la visualizzazione (HEX). */
+    color: string;
+    /** @property {boolean} requiresApproval - Se richiede approvazione. */
+    requiresApproval: boolean;
+    /** @property {boolean} affectsCapacity - Se impatta sulla capacità lavorativa. */
+    affectsCapacity: boolean;
+}
+
+/**
+ * @enum LeaveStatus
+ * @description Stati possibili di una richiesta di assenza.
+ */
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/**
+ * @interface LeaveRequest
+ * @description Rappresenta una richiesta di assenza o ferie.
+ */
+export interface LeaveRequest {
+    /** @property {string} [id] - L'identificatore univoco. */
+    id?: string;
+    /** @property {string} resourceId - La risorsa che richiede l'assenza. */
+    resourceId: string;
+    /** @property {string} typeId - L'ID della tipologia di assenza. */
+    typeId: string;
+    /** @property {string} startDate - Data inizio (YYYY-MM-DD). */
+    startDate: string;
+    /** @property {string} endDate - Data fine (YYYY-MM-DD). */
+    endDate: string;
+    /** @property {LeaveStatus} status - Stato dell'approvazione. */
+    status: LeaveStatus;
+    /** @property {string | null} [managerId] - Chi ha approvato (opzionale). */
+    managerId?: string | null;
+    /** @property {string} [notes] - Note aggiuntive. */
+    notes?: string;
+}
 
 /**
  * @interface PageVisibility

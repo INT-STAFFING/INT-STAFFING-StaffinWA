@@ -1,3 +1,4 @@
+
 /**
  * @file StaffingPage.tsx
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
@@ -5,7 +6,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment } from '../types';
+import { Resource, Assignment, LeaveRequest, LeaveType } from '../types';
 import {
   getCalendarDays,
   formatDate,
@@ -26,6 +27,27 @@ type ViewMode = 'day' | 'week' | 'month';
  */
 const PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5);
 
+// Helper per trovare l'assenza in una data specifica
+const getActiveLeave = (resourceId: string, dateStr: string, leaves: LeaveRequest[]) => {
+    return leaves.find(l => {
+        return l.resourceId === resourceId && 
+               l.status === 'APPROVED' &&
+               dateStr >= l.startDate && 
+               dateStr <= l.endDate;
+    });
+};
+
+// Helper per icona
+const getLeaveIcon = (typeName: string) => {
+    const lower = typeName.toLowerCase();
+    if (lower.includes('ferie')) return 'beach_access';
+    if (lower.includes('malattia')) return 'medical_services';
+    if (lower.includes('permesso')) return 'schedule';
+    if (lower.includes('studio')) return 'school';
+    if (lower.includes('smart')) return 'home_work'; // Smart working might not affect capacity, but if it does...
+    return 'block'; 
+};
+
 /**
  * Celle di allocazione giornaliera modificabile (per singola assegnazione).
  */
@@ -33,12 +55,28 @@ interface AllocationCellProps {
   assignment: Assignment;
   date: string; // YYYY-MM-DD
   isNonWorkingDay: boolean;
+  activeLeave?: LeaveRequest;
+  leaveType?: LeaveType;
 }
 
 const AllocationCell: React.FC<AllocationCellProps> = React.memo(
-  ({ assignment, date, isNonWorkingDay }) => {
+  ({ assignment, date, isNonWorkingDay, activeLeave, leaveType }) => {
     const { allocations, updateAllocation } = useAllocationsContext();
     const percentage = allocations[assignment.id!]?.[date] || 0;
+
+    if (activeLeave && leaveType) {
+         return (
+            <td 
+                className="border-t border-outline-variant p-0 text-center relative cursor-not-allowed opacity-70"
+                style={{ backgroundColor: `${leaveType.color}20` }} 
+                title={`${leaveType.name}: ${activeLeave.notes || ''}`}
+            >
+                <span className="material-symbols-outlined text-base align-middle" style={{ color: leaveType.color }}>
+                    {getLeaveIcon(leaveType.name)}
+                </span>
+            </td>
+        );
+    }
 
     if (isNonWorkingDay) {
       return (
@@ -149,10 +187,12 @@ interface DailyTotalCellProps {
   date: string;
   isNonWorkingDay: boolean;
   resourceAssignments: Assignment[];
+  activeLeave?: LeaveRequest;
+  leaveType?: LeaveType;
 }
 
 const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
-  ({ resource, date, isNonWorkingDay, resourceAssignments }) => {
+  ({ resource, date, isNonWorkingDay, resourceAssignments, activeLeave, leaveType }) => {
     const { allocations } = useAllocationsContext();
 
     const total = useMemo(() => {
@@ -160,6 +200,20 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
         return sum + (allocations[a.id!]?.[date] || 0);
       }, 0);
     }, [resourceAssignments, allocations, date]);
+
+    if (activeLeave && leaveType) {
+         return (
+            <td 
+                className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold"
+                style={{ backgroundColor: `${leaveType.color}40`, color: leaveType.color }} 
+                title={leaveType.name}
+            >
+                <span className="material-symbols-outlined text-lg align-middle">
+                    {getLeaveIcon(leaveType.name)}
+                </span>
+            </td>
+        );
+    }
 
     let effectiveNonWorking = isNonWorkingDay;
     if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
@@ -486,6 +540,8 @@ const StaffingPage: React.FC = () => {
     deleteAssignment,
     companyCalendar,
     isActionLoading,
+    leaveRequests,
+    leaveTypes
   } = useEntitiesContext();
   const { allocations, bulkUpdateAllocations } = useAllocationsContext();
 
@@ -540,6 +596,14 @@ const StaffingPage: React.FC = () => {
     });
     return map;
   }, [roles]);
+
+  const leaveTypeMap = useMemo(() => {
+      const map = new Map<string, LeaveType>();
+      leaveTypes.forEach(t => {
+          if (t.id) map.set(t.id, t);
+      });
+      return map;
+  }, [leaveTypes]);
 
   /**
    * Colonne temporali in base alla view (day/week/month).
@@ -1020,6 +1084,9 @@ const StaffingPage: React.FC = () => {
                               resource.location,
                               companyCalendar
                             );
+                            const activeLeave = getActiveLeave(resource.id!, col.dateIso!, leaveRequests);
+                            const leaveType = activeLeave ? leaveTypeMap.get(activeLeave.typeId) : undefined;
+
                             return (
                               <DailyTotalCell
                                 key={index}
@@ -1027,6 +1094,8 @@ const StaffingPage: React.FC = () => {
                                 date={col.dateIso!}
                                 isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday}
                                 resourceAssignments={resourceAssignments}
+                                activeLeave={activeLeave}
+                                leaveType={leaveType}
                               />
                             );
                           }
@@ -1107,6 +1176,9 @@ const StaffingPage: React.FC = () => {
                                     resource.location,
                                     companyCalendar
                                   );
+                                  const activeLeave = getActiveLeave(resource.id!, col.dateIso!, leaveRequests);
+                                  const leaveType = activeLeave ? leaveTypeMap.get(activeLeave.typeId) : undefined;
+
                                   return (
                                     <AllocationCell
                                       key={index}
@@ -1115,6 +1187,8 @@ const StaffingPage: React.FC = () => {
                                       isNonWorkingDay={
                                         !!col.isNonWorkingDay || isDayHoliday
                                       }
+                                      activeLeave={activeLeave}
+                                      leaveType={leaveType}
                                     />
                                   );
                                 }

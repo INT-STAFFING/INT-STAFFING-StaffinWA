@@ -4,7 +4,7 @@
  * @description Componente per la barra di navigazione laterale dell'applicazione.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -21,7 +21,7 @@ interface SidebarProps {
     setIsOpen: (isOpen: boolean) => void;
 }
 
-const NavItem: React.FC<{ to: string; icon: string; label: string; onClick: () => void }> = ({ to, icon, label, onClick }) => {
+const NavItem: React.FC<{ to: string; icon: string; label: string; onClick: () => void; badgeCount?: number }> = ({ to, icon, label, onClick, badgeCount }) => {
     const baseClasses = "flex items-center text-sm font-medium text-on-surface-variant transition-colors duration-200 h-14";
     const activeClasses = "text-on-secondary-container";
     const { pageVisibility } = useEntitiesContext();
@@ -36,9 +36,16 @@ const NavItem: React.FC<{ to: string; icon: string; label: string; onClick: () =
         <NavLink to={to} onClick={onClick}>
             {({ isActive }) => (
                  <div className={`${baseClasses} ${isActive ? activeClasses : 'hover:bg-surface-container-low'}`}>
-                    <div className={`w-full mx-4 flex items-center gap-3 py-2 px-3 rounded-full ${isActive ? 'bg-secondary-container' : ''}`}>
-                       <span className="material-symbols-outlined w-6 text-center">{icon}</span>
-                       <span>{label}</span>
+                    <div className={`w-full mx-4 flex items-center justify-between py-2 px-3 rounded-full ${isActive ? 'bg-secondary-container' : ''}`}>
+                       <div className="flex items-center gap-3">
+                           <span className="material-symbols-outlined w-6 text-center">{icon}</span>
+                           <span>{label}</span>
+                       </div>
+                       {badgeCount !== undefined && badgeCount > 0 && (
+                           <span className="bg-error text-on-error text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
+                               {badgeCount > 99 ? '99+' : badgeCount}
+                           </span>
+                       )}
                     </div>
                 </div>
             )}
@@ -62,12 +69,18 @@ const NavHeader: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, isAuthenticated, isLoginProtectionEnabled, isAdmin } = useAuth();
     const { mode, toggleMode } = useTheme();
+    const { leaveRequests } = useEntitiesContext();
     
     const handleNavLinkClick = () => {
         if (isOpen) {
             setIsOpen(false);
         }
     }
+
+    const pendingLeavesCount = useMemo(() => {
+        if (!isAdmin) return 0;
+        return leaveRequests.filter(l => l.status === 'PENDING').length;
+    }, [leaveRequests, isAdmin]);
 
     const sidebarClasses = `
         flex flex-col w-72 bg-surface text-on-surface transition-transform duration-300 ease-in-out
@@ -101,6 +114,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     <NavItem to="/staffing" icon="calendar_month" label="Staffing" onClick={handleNavLinkClick} />
                     <NavItem to="/workload" icon="groups" label="Carico Risorse" onClick={handleNavLinkClick} />
                     <NavItem to="/dashboard" icon="dashboard" label="Dashboard" onClick={handleNavLinkClick} />
+                    <NavItem to="/leaves" icon="event_busy" label="Gestione Assenze" onClick={handleNavLinkClick} badgeCount={pendingLeavesCount} />
                     <NavItem to="/resource-requests" icon="assignment_add" label="Richiesta Risorse" onClick={handleNavLinkClick} />
                     <NavItem to="/interviews" icon="chat" label="Gestione Colloqui" onClick={handleNavLinkClick} />
                     <NavItem to="/skills-map" icon="school" label="Mappa Competenze" onClick={handleNavLinkClick} />
@@ -140,7 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     {isAuthenticated && isLoginProtectionEnabled ? (
                         <div className="space-y-2">
                              <div className="px-4 py-2 text-center text-xs text-on-surface-variant">
-                                Versione V1012
+                                Versione V1014
                             </div>
                             <button
                                 onClick={logout}
@@ -152,7 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </div>
                     ) : (
                         <div className="px-4 py-4 text-center text-xs text-on-surface-variant">
-                            Versione V1012
+                            Versione V1014
                         </div>
                     )}
                 </div>

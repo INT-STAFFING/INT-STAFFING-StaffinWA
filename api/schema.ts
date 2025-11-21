@@ -89,6 +89,17 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
+    // Leave Management Tables
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS leave_types (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            color VARCHAR(50) NOT NULL,
+            requires_approval BOOLEAN DEFAULT TRUE,
+            affects_capacity BOOLEAN DEFAULT TRUE
+        );
+    `;
+
     // Core Data Tables
     await db.sql`
         CREATE TABLE IF NOT EXISTS clients (
@@ -142,6 +153,20 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
 
+    // Leave Requests Table (Needs Resources)
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS leave_requests (
+            id UUID PRIMARY KEY,
+            resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            type_id UUID REFERENCES leave_types(id) ON DELETE RESTRICT,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+            manager_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+            notes TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (
@@ -323,6 +348,11 @@ export async function ensureDbTablesExist(db: VercelPool) {
             key VARCHAR(255) PRIMARY KEY,
             value VARCHAR(255) NOT NULL
         );
+    `;
+     await db.sql`
+        INSERT INTO app_config (key, value) 
+        VALUES ('login_protection_enabled', 'true') 
+        ON CONFLICT (key) DO NOTHING;
     `;
 
     // Backfill for Role Cost History (Seeding history from current roles if empty)

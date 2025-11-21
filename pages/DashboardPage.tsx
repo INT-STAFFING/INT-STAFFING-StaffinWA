@@ -7,7 +7,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 // Fix: Import useAllocationsContext.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { getWorkingDaysBetween, isHoliday, formatDate } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate, Link } from 'react-router-dom';
 import { DashboardDataTable } from '../components/DashboardDataTable';
@@ -28,6 +28,7 @@ import { timeFormat } from 'd3-time-format';
 import { line } from 'd3-shape';
 import { format } from 'd3-format';
 import { formatCurrency } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 
 // --- Colori Centralizzati per la Dashboard ---
 const DASHBOARD_COLORS = {
@@ -141,6 +142,79 @@ const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
         </div>
     </div>
 );
+
+const LeavesOverviewCard: React.FC<{ navigate: Function }> = ({ navigate }) => {
+    const { leaveRequests, resources, leaveTypes } = useEntitiesContext();
+    const { isAdmin } = useAuth();
+    
+    const today = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+    const absentToday = useMemo(() => {
+        return leaveRequests.filter(l => 
+            l.status === 'APPROVED' && 
+            today >= l.startDate && 
+            today <= l.endDate
+        ).map(l => ({
+            resourceName: resources.find(r => r.id === l.resourceId)?.name || 'Sconosciuto',
+            typeName: leaveTypes.find(t => t.id === l.typeId)?.name || 'Assenza',
+            color: leaveTypes.find(t => t.id === l.typeId)?.color || '#ccc'
+        }));
+    }, [leaveRequests, resources, leaveTypes, today]);
+
+    const upcomingLeaves = useMemo(() => {
+        return leaveRequests.filter(l => 
+            l.status === 'APPROVED' && 
+            l.startDate > today && 
+            l.startDate <= nextWeekStr
+        ).map(l => ({
+            resourceName: resources.find(r => r.id === l.resourceId)?.name || 'Sconosciuto',
+            date: formatDate(new Date(l.startDate), 'short'),
+            typeName: leaveTypes.find(t => t.id === l.typeId)?.name || 'Assenza'
+        }));
+    }, [leaveRequests, resources, leaveTypes, today, nextWeekStr]);
+
+    const pendingCount = useMemo(() => {
+        return leaveRequests.filter(l => l.status === 'PENDING').length;
+    }, [leaveRequests]);
+
+    return (
+        <div className="bg-surface-container-low rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-tertiary cursor-pointer hover:bg-surface-container" onClick={() => navigate('/leaves')}>
+            <div className="flex justify-between items-start w-full mb-3">
+                <h3 className="text-sm font-medium text-on-surface-variant">Panoramica Assenze</h3>
+                <span className="material-symbols-outlined text-3xl opacity-50 text-tertiary">event_busy</span>
+            </div>
+            
+            <div className="flex-1 space-y-3">
+                <div>
+                    <p className="text-xs font-bold text-on-surface mb-1">Assenti Oggi ({absentToday.length})</p>
+                    {absentToday.length > 0 ? (
+                        <ul className="text-xs text-on-surface space-y-1">
+                            {absentToday.slice(0, 3).map((a, i) => (
+                                <li key={i} className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full" style={{backgroundColor: a.color}}></span>
+                                    <span className="truncate">{a.resourceName}</span>
+                                </li>
+                            ))}
+                            {absentToday.length > 3 && <li className="text-on-surface-variant italic">e altri {absentToday.length - 3}...</li>}
+                        </ul>
+                    ) : (
+                        <p className="text-xs text-on-surface-variant italic">Nessuna assenza oggi.</p>
+                    )}
+                </div>
+
+                {isAdmin && pendingCount > 0 && (
+                    <div className="flex items-center gap-2 bg-yellow-container/50 p-2 rounded text-xs">
+                        <span className="material-symbols-outlined text-sm text-yellow-700">notifications_active</span>
+                        <span className="font-bold text-yellow-900">{pendingCount} richieste in attesa</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 
 const getAvgAllocationColor = (avg: number): string => {
@@ -1209,6 +1283,8 @@ const DashboardPage: React.FC = () => {
                 return <AttentionCards key={id} overallKPIs={overallKPIs} navigate={navigate} />;
             case 'unallocatedFte':
                 return <UnallocatedFteCard key={id} kpis={currentMonthKPIs} />;
+            case 'leavesOverview':
+                return <LeavesOverviewCard key={id} navigate={navigate} />;
             case 'averageAllocation': 
                 return <AverageAllocationCard key={id} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} totals={avgAllocationTotals} isLoading={loading} />;
             case 'ftePerProject':
@@ -1244,7 +1320,7 @@ const DashboardPage: React.FC = () => {
         <div>
             <h1 className="text-3xl font-bold text-on-background mb-8">Dashboard</h1>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {kpiGroupCards.map(id => renderCardById(id))}
             </div>
 

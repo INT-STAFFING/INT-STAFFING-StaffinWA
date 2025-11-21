@@ -2,7 +2,7 @@
  * @file dateUtils.ts
  * @description Funzioni di utilità per la manipolazione e formattazione delle date.
  */
-import { CalendarEvent } from '../types';
+import { CalendarEvent, LeaveRequest, LeaveType } from '../types';
 
 /**
  * Aggiunge o sottrae un numero specificato di giorni a una data.
@@ -61,16 +61,51 @@ export const isHoliday = (date: Date, resourceLocation: string | null, companyCa
 export const getWorkingDaysBetween = (startDate: Date, endDate: Date, companyCalendar: CalendarEvent[], resourceLocation: string | null = null): number => {
     let count = 0;
     const currentDate = new Date(startDate.getTime());
-    while (currentDate <= endDate) {
+    // Ensure we don't mutate the original dates or enter infinite loops if dates are invalid
+    if (isNaN(currentDate.getTime()) || isNaN(endDate.getTime())) return 0;
+    
+    // Safety break for extremely long ranges
+    let safetyCounter = 0;
+    
+    while (currentDate <= endDate && safetyCounter < 10000) {
         const dayOfWeek = currentDate.getDay();
         const isNonWorkingDay = dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(currentDate, resourceLocation, companyCalendar);
         if (!isNonWorkingDay) {
             count++;
         }
         currentDate.setDate(currentDate.getDate() + 1);
+        safetyCounter++;
     }
     return count;
 }
+
+/**
+ * Calcola quanti giorni lavorativi sono consumati da un'assenza in un determinato periodo.
+ * Interseca il periodo dell'assenza con il periodo richiesto e sottrae weekend/festivi.
+ */
+export const getLeaveDurationInWorkingDays = (
+    periodStart: Date,
+    periodEnd: Date,
+    leave: LeaveRequest,
+    leaveType: LeaveType | undefined,
+    companyCalendar: CalendarEvent[],
+    resourceLocation: string | null
+): number => {
+    if (!leaveType?.affectsCapacity || leave.status !== 'APPROVED') return 0;
+
+    const leaveStart = new Date(leave.startDate);
+    const leaveEnd = new Date(leave.endDate);
+
+    // Calcola l'intersezione tra il periodo richiesto e il periodo di ferie
+    const start = new Date(Math.max(periodStart.getTime(), leaveStart.getTime()));
+    const end = new Date(Math.min(periodEnd.getTime(), leaveEnd.getTime()));
+
+    // Se non c'è sovrapposizione
+    if (start > end) return 0;
+
+    // Conta i giorni lavorativi nel periodo di sovrapposizione
+    return getWorkingDaysBetween(start, end, companyCalendar, resourceLocation);
+};
 
 /**
  * Formatta un oggetto Date in una stringa secondo il formato specificato.

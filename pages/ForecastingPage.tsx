@@ -6,7 +6,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { LeaveRequest } from '../types';
+import { getWorkingDaysBetween, isHoliday, getLeaveDurationInWorkingDays } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
 /**
@@ -15,7 +16,7 @@ import SearchableSelect from '../components/SearchableSelect';
  * @returns {React.ReactElement} La pagina di Forecasting.
  */
 const ForecastingPage: React.FC = () => {
-    const { resources, assignments, horizontals, clients, projects, companyCalendar } = useEntitiesContext();
+    const { resources, assignments, horizontals, clients, projects, companyCalendar, leaveRequests, leaveTypes } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
@@ -160,6 +161,15 @@ const ForecastingPage: React.FC = () => {
              assignmentsByResource.get(a.resourceId)?.push(a);
         });
 
+        // Group Leaves by Resource for faster access
+        const leavesByResource = new Map<string, LeaveRequest[]>();
+        leaveRequests.forEach(l => {
+            if (l.status === 'APPROVED') {
+                if (!leavesByResource.has(l.resourceId)) leavesByResource.set(l.resourceId, []);
+                leavesByResource.get(l.resourceId)?.push(l);
+            }
+        });
+
 
         for (let i = 0; i < forecastHorizon; i++) {
             const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
@@ -175,10 +185,21 @@ const ForecastingPage: React.FC = () => {
 
                 if (effectiveStartDate > effectiveEndDate) return;
                 
-                // Use Optimized Function
+                // Standard capacity based on contract
                 const workingDays = getWorkingDaysOptimized(effectiveStartDate, effectiveEndDate, resource.location);
+                
+                // Subtract LEAVES impact
+                const resourceLeaves = leavesByResource.get(resource.id!) || [];
+                let leaveDaysLost = 0;
+                resourceLeaves.forEach(leave => {
+                    const type = leaveTypes.find(t => t.id === leave.typeId);
+                    // Use utility to calculate overlap in working days
+                    leaveDaysLost += getLeaveDurationInWorkingDays(firstDayOfMonth, lastDayOfMonth, leave, type, companyCalendar, resource.location);
+                });
+
                 const staffingFactor = (resource.maxStaffingPercentage || 100) / 100;
-                availablePersonDays += workingDays * staffingFactor;
+                // Ensure capacity doesn't go negative
+                availablePersonDays += Math.max(0, workingDays - leaveDaysLost) * staffingFactor;
             });
 
             // 2. Calcolo Allocazioni (Reali + Proiettate)
@@ -233,6 +254,13 @@ const ForecastingPage: React.FC = () => {
                         
                         if (avgPercent > 0) {
                             const potentialWorkingDays = getWorkingDaysOptimized(activeStart, effectiveEnd, resource.location);
+                            // Subtract leaves from projection base too? Usually projections assume availability unless hard booked.
+                            // For accuracy, we SHOULD reduce projection if we know they are on leave.
+                            // But calculating leave overlap for every project assignment projection is heavy.
+                            // Approximation: Reduce by % of capacity lost.
+                            // Let's keep it simple for now: Projections use working days. 
+                            // If capacity drops (due to leave), Utilization % will skyrocket (Allocated / Available), which correctly signals overbooking risk.
+                            
                             const projectedLoad = potentialWorkingDays * (avgPercent / 100);
                             allocatedPersonDays += projectedLoad;
                             projectedPersonDays += projectedLoad;
@@ -257,7 +285,7 @@ const ForecastingPage: React.FC = () => {
 
         return results;
 
-    }, [resources, assignments, allocations, forecastHorizon, filters, projects, holidayMap, historicalAverages, enableProjections]);
+    }, [resources, assignments, allocations, forecastHorizon, filters, projects, holidayMap, historicalAverages, enableProjections, leaveRequests, leaveTypes, companyCalendar]);
 
     const maxUtilization = Math.max(...forecastData.map(d => d.utilization), 100);
 

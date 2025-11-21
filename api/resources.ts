@@ -13,7 +13,8 @@ const ALLOWED_TABLES = new Set([
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 
     'app_config', 'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests',
     'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 
-    'contract_managers', 'allocations', 'skills', 'resource_skills', 'project_skills', 'role_cost_history'
+    'contract_managers', 'allocations', 'skills', 'resource_skills', 'project_skills', 'role_cost_history',
+    'leave_types', 'leave_requests'
 ]);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -409,6 +410,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      return res.status(200).json({ success: true });
                  }
                  break;
+
+            // --- LEAVE TYPES ---
+            case 'leave-types':
+                if (method === 'POST') {
+                    const { name, color, requiresApproval, affectsCapacity } = req.body;
+                    const newId = uuidv4();
+                    await client.sql`INSERT INTO leave_types (id, name, color, requires_approval, affects_capacity) VALUES (${newId}, ${name}, ${color}, ${requiresApproval}, ${affectsCapacity})`;
+                    return res.status(201).json({ id: newId, ...req.body });
+                } else if (method === 'PUT') {
+                    const { name, color, requiresApproval, affectsCapacity } = req.body;
+                    await client.sql`UPDATE leave_types SET name=${name}, color=${color}, requires_approval=${requiresApproval}, affects_capacity=${affectsCapacity} WHERE id=${id as string}`;
+                    return res.status(200).json({ id, ...req.body });
+                } else if (method === 'DELETE') {
+                    await client.sql`DELETE FROM leave_types WHERE id=${id as string}`;
+                    return res.status(204).end();
+                }
+                break;
+
+            // --- LEAVE REQUESTS ---
+            case 'leaves':
+                if (method === 'POST') {
+                    const { resourceId, typeId, startDate, endDate, status, managerId, notes } = req.body;
+                    const newId = uuidv4();
+                    await client.sql`INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, manager_id, notes) 
+                                     VALUES (${newId}, ${resourceId}, ${typeId}, ${startDate}, ${endDate}, ${status}, ${managerId}, ${notes})`;
+                    return res.status(201).json({ id: newId, ...req.body });
+                } else if (method === 'PUT') {
+                    const { resourceId, typeId, startDate, endDate, status, managerId, notes } = req.body;
+                    await client.sql`UPDATE leave_requests SET resource_id=${resourceId}, type_id=${typeId}, start_date=${startDate}, end_date=${endDate}, status=${status}, manager_id=${managerId}, notes=${notes} WHERE id=${id as string}`;
+                    return res.status(200).json({ id, ...req.body });
+                } else if (method === 'DELETE') {
+                    await client.sql`DELETE FROM leave_requests WHERE id=${id as string}`;
+                    return res.status(204).end();
+                }
+                break;
             
             // --- DB INSPECTOR ---
             case 'db_inspector':

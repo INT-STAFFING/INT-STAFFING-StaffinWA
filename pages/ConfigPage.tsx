@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { ConfigOption } from '../types';
+import { ConfigOption, LeaveType } from '../types';
 import Modal from '../components/Modal';
 import { SpinnerIcon } from '../components/icons';
 
@@ -127,6 +127,123 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
     );
 };
 
+const LeaveTypeSection: React.FC = () => {
+    const { leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType, isActionLoading } = useEntitiesContext();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingType, setEditingType] = useState<LeaveType | Omit<LeaveType, 'id'> | null>(null);
+
+    const emptyType: Omit<LeaveType, 'id'> = {
+        name: '',
+        color: '#FFCC00',
+        requiresApproval: true,
+        affectsCapacity: true
+    };
+
+    const handleOpenModal = (type?: LeaveType) => {
+        setEditingType(type || emptyType);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingType(null);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingType) return;
+        try {
+            if ('id' in editingType) {
+                await updateLeaveType(editingType as LeaveType);
+            } else {
+                await addLeaveType(editingType as Omit<LeaveType, 'id'>);
+            }
+            handleCloseModal();
+        } catch (error) {}
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!editingType) return;
+        const { name, value, type, checked } = e.target;
+        setEditingType(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value
+            };
+        });
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-on-surface">Tipologie Assenza</h2>
+                <button onClick={() => handleOpenModal()} className="px-4 py-2 bg-primary text-on-primary text-sm font-semibold rounded-full shadow-sm">
+                    Aggiungi
+                </button>
+            </div>
+            <ul className="divide-y divide-outline-variant max-h-60 overflow-y-auto">
+                {leaveTypes.map(type => {
+                    const isDeleting = isActionLoading(`deleteLeaveType-${type.id}`);
+                    return (
+                        <li key={type.id} className="py-2 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: type.color }}></div>
+                                <div>
+                                    <p className="text-sm font-medium text-on-surface">{type.name}</p>
+                                    <p className="text-xs text-on-surface-variant">
+                                        {type.requiresApproval ? 'Richiede Approvazione' : 'Automatico'} • {type.affectsCapacity ? 'Riduce Capacità' : 'Non Riduce Capacità'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <button onClick={() => handleOpenModal(type)} className="text-on-surface-variant hover:text-primary p-2 rounded-full" title="Modifica">
+                                    <span className="material-symbols-outlined">edit</span>
+                                </button>
+                                <button onClick={() => deleteLeaveType(type.id!)} disabled={isDeleting} className="text-on-surface-variant hover:text-error p-2 rounded-full disabled:opacity-50" title="Elimina">
+                                    {isDeleting ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">delete</span>}
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
+
+            {editingType && (
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingType ? 'Modifica Tipologia' : 'Aggiungi Tipologia'}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Tipologia *</label>
+                            <input type="text" name="name" value={editingType.name} onChange={handleChange} required className="form-input" placeholder="es. Ferie, Malattia"/>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Colore *</label>
+                            <div className="flex items-center gap-2">
+                                <input type="color" name="color" value={editingType.color} onChange={handleChange} className="h-10 w-10 p-0 border-0 rounded cursor-pointer"/>
+                                <input type="text" name="color" value={editingType.color} onChange={handleChange} className="form-input flex-grow" pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"/>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="requiresApproval" name="requiresApproval" checked={editingType.requiresApproval} onChange={handleChange} className="form-checkbox"/>
+                            <label htmlFor="requiresApproval" className="text-sm text-on-surface">Richiede Approvazione (Workflow)</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="affectsCapacity" name="affectsCapacity" checked={editingType.affectsCapacity} onChange={handleChange} className="form-checkbox"/>
+                            <label htmlFor="affectsCapacity" className="text-sm text-on-surface">Impatta sulla Capacità (Riduce i giorni disponibili)</label>
+                        </div>
+                        <div className="flex justify-end space-x-2 pt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addLeaveType') || isActionLoading(`updateLeaveType-${'id' in editingType ? editingType.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold">
+                                {(isActionLoading('addLeaveType') || isActionLoading(`updateLeaveType-${'id' in editingType ? editingType.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+};
+
 /**
  * Componente principale della pagina di Configurazione.
  * Raggruppa diverse sezioni di configurazione in un layout a griglia.
@@ -145,6 +262,7 @@ const ConfigPage: React.FC = () => {
                 <ConfigSection title="Stati (Progetti)" configType="projectStatuses" options={projectStatuses} />
                 <ConfigSection title="Settori (Clienti)" configType="clientSectors" options={clientSectors} />
                 <ConfigSection title="Sedi di Lavoro (Risorse)" configType="locations" options={locations} />
+                <LeaveTypeSection />
             </div>
         </div>
     );

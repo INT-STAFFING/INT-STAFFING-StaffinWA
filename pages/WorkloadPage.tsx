@@ -6,7 +6,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, getLeaveDurationInWorkingDays } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useSearchParams } from 'react-router-dom';
@@ -33,11 +33,36 @@ interface DailyTotalCellProps {
  * @returns {React.ReactElement} L'elemento `<td>` della cella.
  */
 const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
-  const { assignments } = useEntitiesContext();
+  const { assignments, leaveRequests, leaveTypes } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
+
+  // Check if there is an approved leave for this date
+  const activeLeave = useMemo(() => {
+      return leaveRequests.find(l => 
+          l.resourceId === resource.id && 
+          l.status === 'APPROVED' && 
+          date >= l.startDate && 
+          date <= l.endDate
+      );
+  }, [leaveRequests, resource.id, date]);
+
+  const leaveType = useMemo(() => {
+      return activeLeave ? leaveTypes.find(t => t.id === activeLeave.typeId) : undefined;
+  }, [activeLeave, leaveTypes]);
 
   if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
     isNonWorkingDay = true;
+  }
+
+  if (activeLeave && leaveType) {
+      return (
+        <td 
+            className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold"
+            style={{ backgroundColor: `${leaveType.color}40`, color: leaveType.color }}
+        >
+            {leaveType.name.substring(0, 3)}
+        </td>
+      );
   }
 
   if (isNonWorkingDay) {
@@ -93,7 +118,7 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
   startDate,
   endDate,
 }) => {
-  const { assignments, companyCalendar } = useEntitiesContext();
+  const { assignments, companyCalendar, leaveRequests, leaveTypes } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
   const averageAllocation = useMemo(() => {
@@ -104,7 +129,18 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     if (startDate > effectiveEndDate) return 0;
 
     const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
-    if (workingDays === 0) return 0;
+    
+    // Subtract Leave Days from Working Days to get "Available Days"
+    const resourceLeaves = leaveRequests.filter(l => l.resourceId === resource.id && l.status === 'APPROVED');
+    let leaveDaysLost = 0;
+    resourceLeaves.forEach(leave => {
+        const type = leaveTypes.find(t => t.id === leave.typeId);
+        leaveDaysLost += getLeaveDurationInWorkingDays(startDate, effectiveEndDate, leave, type, companyCalendar, resource.location);
+    });
+
+    const availableDays = Math.max(0, workingDays - leaveDaysLost);
+
+    if (availableDays === 0) return 0;
 
     const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     let totalPersonDays = 0;
@@ -129,8 +165,8 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
       }
     });
 
-    return (totalPersonDays / workingDays) * 100;
-  }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
+    return (totalPersonDays / availableDays) * 100;
+  }, [resource, startDate, endDate, assignments, allocations, companyCalendar, leaveRequests, leaveTypes]);
 
   // Logica colori unificata con arrotondamento
   const cellColor = useMemo(() => {
@@ -280,7 +316,7 @@ const WorkloadPage: React.FC = () => {
       }
   }, [isMobile]);
 
-  const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
+  const { resources, projects, assignments, clients, companyCalendar, roles, leaveRequests, leaveTypes } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
   const [filters, setFilters] = useState({

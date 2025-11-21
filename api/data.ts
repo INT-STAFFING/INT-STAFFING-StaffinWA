@@ -8,7 +8,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -69,7 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 resourceSkillsRes,
                 pageVisibilityRes,
                 skillThresholdsRes,
-                projectsRes // Projects are needed in metadata for some filters
+                projectsRes, // Projects are needed in metadata for some filters
+                leaveTypesRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -85,7 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM resource_skills;`,
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'page_vis.%';`,
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'skill_threshold.%';`,
-                db.sql`SELECT * FROM projects;`
+                db.sql`SELECT * FROM projects;`,
+                db.sql`SELECT * FROM leave_types;`
             ]);
 
              // Formatta le date del calendario
@@ -136,7 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 skills: skillsRes.rows.map(toCamelCase) as Skill[],
                 resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
                 pageVisibility,
-                skillThresholds
+                skillThresholds,
+                leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[]
             });
         }
 
@@ -145,12 +148,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (scope === 'planning' || scope === 'all') {
             // Allocations Query Logic
             let allocationsQuery;
+            let leaveRequestsQuery;
             if (start && end) {
                 // Filtered query
                 allocationsQuery = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
+                leaveRequestsQuery = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
             } else {
                 // Full load (legacy support)
                 allocationsQuery = db.sql`SELECT * FROM allocations;`;
+                leaveRequestsQuery = db.sql`SELECT * FROM leave_requests;`;
             }
 
             const [
@@ -162,7 +168,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 contractsRes,
                 contractProjectsRes,
                 contractManagersRes,
-                projectSkillsRes
+                projectSkillsRes,
+                leaveRequestsRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM assignments;`,
                 allocationsQuery,
@@ -172,7 +179,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM contracts;`,
                 db.sql`SELECT * FROM contract_projects;`,
                 db.sql`SELECT * FROM contract_managers;`,
-                db.sql`SELECT * FROM project_skills;`
+                db.sql`SELECT * FROM project_skills;`,
+                leaveRequestsQuery
             ]);
 
             const allocations: Allocation = {};
@@ -200,6 +208,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 contractProjects: contractProjectsRes.rows.map(toCamelCase),
                 contractManagers: contractManagersRes.rows.map(toCamelCase),
                 projectSkills: projectSkillsRes.rows.map(toCamelCase) as ProjectSkill[],
+                leaveRequests: leaveRequestsRes.rows.map(row => {
+                    const req = toCamelCase(row);
+                    if (req.startDate) req.startDate = new Date(req.startDate).toISOString().split('T')[0];
+                    if (req.endDate) req.endDate = new Date(req.endDate).toISOString().split('T')[0];
+                    return req;
+                }) as LeaveRequest[]
             });
         }
 

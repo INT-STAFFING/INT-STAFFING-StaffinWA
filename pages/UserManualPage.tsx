@@ -202,6 +202,34 @@ const UserManualPage: React.FC = () => {
                 </SubSection>
             </Section>
 
+            <Section title="8. Gestione Assenze (Ferie & Permessi)">
+                <p>Il modulo di gestione delle assenze permette di tracciare ferie, malattie e altri tipi di permessi, integrando queste informazioni direttamente nella pianificazione della capacità produttiva.</p>
+                
+                <SubSection title="Flusso di Approvazione">
+                    <ul>
+                        <li>Le richieste inserite nascono in stato <strong>In Attesa</strong>.</li>
+                        <li>Gli utenti Admin possono <strong>Approvare</strong> o <strong>Rifiutare</strong> le richieste dalla pagina "Gestione Assenze".</li>
+                        <li>Un badge nella Sidebar notifica agli admin la presenza di richieste pendenti.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Impatto sul Sistema">
+                    <p>Le assenze approvate modificano automaticamente i calcoli in tutto il sistema:</p>
+                    <ul>
+                        <li><strong>Staffing Grid:</strong> I giorni di assenza vengono colorati e bloccati, impedendo l'allocazione.</li>
+                        <li><strong>Forecasting:</strong> La "Capacità Disponibile" nel grafico di previsione viene ridotta proporzionalmente ai giorni di assenza.</li>
+                        <li><strong>Workload:</strong> L'utilizzo percentuale viene calcolato su una base di giorni disponibili ridotta (es. se lavori 10 giorni su 20 disponibili = 50%; se prendi 10 giorni di ferie, la disponibilità scende a 10, quindi 10/10 = 100% utilizzo).</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Rilevamento Conflitti">
+                    <p>Quando si approva una richiesta, il sistema esegue un controllo automatico:</p>
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-2 text-sm text-yellow-800">
+                        Se la risorsa ha già delle allocazioni sui progetti nel periodo di ferie richiesto, il sistema mostrerà un avviso di <strong>Conflitto</strong>. L'admin può decidere di procedere comunque (sovrascrivendo visivamente l'allocazione) o di rifiutare la richiesta.
+                    </div>
+                </SubSection>
+            </Section>
+
             <style>{`
                 .prose ul > li::before {
                     background-color: #2563eb;
