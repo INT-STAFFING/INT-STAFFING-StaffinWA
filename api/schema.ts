@@ -1,6 +1,7 @@
 
 import type { VercelPool } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 const defaultThemeForSeed = {
     light: {
@@ -187,6 +188,26 @@ export async function ensureDbTablesExist(db: VercelPool) {
             await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ('MANAGER', ${page}, TRUE) ON CONFLICT DO NOTHING;`;
         }
     }
+
+    // --- PERMISSION HARDENING MIGRATION ---
+    // Fix for issue where SIMPLE users see manager pages due to old permissive seeds.
+    // This forces restricted pages to FALSE for SIMPLE role.
+    const restrictedPagesForSimple = [
+        '/staffing', '/resources', '/skills', '/projects', '/contracts',
+        '/clients', '/roles', '/config', '/calendar', '/import', '/export',
+        '/test-staffing', '/forecasting', '/gantt', '/reports',
+        '/skill-analysis', '/staffing-visualization', '/resource-requests',
+        '/interviews', '/skills-map', '/admin-settings', '/db-inspector'
+    ];
+
+    await Promise.all(restrictedPagesForSimple.map(path => 
+        db.sql`
+            INSERT INTO role_permissions (role, page_path, is_allowed)
+            VALUES ('SIMPLE', ${path}, FALSE)
+            ON CONFLICT (role, page_path)
+            DO UPDATE SET is_allowed = FALSE;
+        `
+    ));
 
 
     // Leave Requests Table (Needs Resources)

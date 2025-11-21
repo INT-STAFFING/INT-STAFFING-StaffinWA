@@ -33,6 +33,7 @@ const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
 const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = lazy(() => import('./pages/UserManualPage'));
+const SimpleUserManualPage = lazy(() => import('./pages/SimpleUserManualPage')); // NEW IMPORT
 // FIX: The lazy import for InterviewsPage was incorrect for a default export.
 // It has been updated to use the correct syntax for default exports.
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
@@ -79,6 +80,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'db-inspector': return 'Database Inspector';
       case 'staffing-visualization': return 'Visualizzazione Staffing';
       case 'manuale-utente': return 'Manuale Utente';
+      case 'simple-user-manual': return 'Guida Assenze'; // NEW TITLE
       case 'skills-map': return 'Mappa Competenze';
       case 'skill-analysis': return 'Analisi Competenze';
       case 'test-staffing': return 'Test Staffing Mobile';
@@ -211,6 +213,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/skill-analysis" element={<DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>} />
               <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
               <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
+              <Route path="/simple-user-manual" element={<DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>} /> 
               <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
               <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
               <Route

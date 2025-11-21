@@ -131,18 +131,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 })));
             }
             if (method === 'POST') {
-                const { permissions } = req.body;
+                const { permissions } = req.body; // Expects array of { role, pagePath, allowed }
+                
                 await client.query('BEGIN');
-                await client.query('DELETE FROM role_permissions'); // Replace all approach
+                
                 for (const p of permissions) {
-                    // Mapping camelCase from frontend to snake_case in DB
-                    await client.query(
-                        'INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)',
-                        [p.role, p.pagePath, p.allowed]
-                    );
+                    // Use UPSERT (Insert or Update) to be safe and efficient
+                    await client.query(`
+                        INSERT INTO role_permissions (role, page_path, is_allowed) 
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (role, page_path) 
+                        DO UPDATE SET is_allowed = EXCLUDED.is_allowed;
+                    `, [p.role, p.pagePath, p.allowed]);
                 }
+                
                 await client.query('COMMIT');
-                return res.status(200).json({ success: true });
+
+                // Return the FRESH state from DB to ensure frontend is in sync
+                const { rows } = await client.query('SELECT * FROM role_permissions');
+                const updatedPermissions = rows.map(r => ({
+                    role: r.role,
+                    pagePath: r.page_path,
+                    allowed: r.is_allowed
+                }));
+
+                return res.status(200).json({ success: true, permissions: updatedPermissions });
             }
         }
 
