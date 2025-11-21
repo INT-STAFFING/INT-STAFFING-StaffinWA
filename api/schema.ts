@@ -407,6 +407,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
             value VARCHAR(255) NOT NULL
         );
     `;
+    // MIGRATION: Change value column type to TEXT to support large JSON payloads (e.g. sidebar config)
+    await db.sql`ALTER TABLE app_config ALTER COLUMN value TYPE TEXT;`;
+
      await db.sql`
         INSERT INTO app_config (key, value) 
         VALUES ('login_protection_enabled', 'true') 

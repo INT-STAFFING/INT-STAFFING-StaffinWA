@@ -31,6 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         // --- CONFIG BATCH UPDATE ---
         if (entity === 'app-config-batch' && method === 'POST') {
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
             const { updates } = req.body; // [{ key, value }]
             if (!Array.isArray(updates)) throw new Error('Invalid updates format');
             
