@@ -154,15 +154,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 if (method === 'GET') {
                     const { rows } = await client.sql`SELECT * FROM role_permissions`;
-                    return res.status(200).json(rows);
+                    // Map snake_case DB columns to camelCase required by frontend interface
+                    const mappedRows = rows.map(r => ({
+                        role: r.role,
+                        pagePath: r.page_path,
+                        allowed: r.is_allowed
+                    }));
+                    return res.status(200).json(mappedRows);
                 } else if (method === 'POST') {
                     // Bulk update permissions
-                    const { permissions } = req.body; // Array of { role, pagePath, isAllowed }
+                    const { permissions } = req.body; // Array of { role, pagePath, allowed }
+                    
                     await client.query('BEGIN');
                     for (const p of permissions) {
+                        // Map camelCase payload to snake_case DB columns
                         await client.sql`
                             INSERT INTO role_permissions (role, page_path, is_allowed)
-                            VALUES (${p.role}, ${p.pagePath}, ${p.isAllowed})
+                            VALUES (${p.role}, ${p.pagePath}, ${p.allowed})
                             ON CONFLICT (role, page_path) 
                             DO UPDATE SET is_allowed = EXCLUDED.is_allowed
                         `;
