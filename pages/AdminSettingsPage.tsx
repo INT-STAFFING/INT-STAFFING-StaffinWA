@@ -2,15 +2,18 @@
 
 
 
+
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
-import { AppUser, RolePermission, SidebarItem } from '../types';
+import { AppUser, RolePermission, SidebarItem, AuditLogEntry } from '../types';
 import { useEntitiesContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const UserManagementSection: React.FC = () => {
     const [users, setUsers] = useState<AppUser[]>([]);
@@ -385,12 +388,202 @@ const PermissionMatrixSection: React.FC = () => {
     );
 };
 
+const AuditLogSection: React.FC = () => {
+    const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [cleanupModalOpen, setCleanupModalOpen] = useState(false);
+    const [cleanupStrategy, setCleanupStrategy] = useState<'30' | '60' | '90' | 'all'>('90');
+    const { addToast } = useToast();
+
+    // Filters
+    const [filterUser, setFilterUser] = useState('');
+    const [filterAction, setFilterAction] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    const fetchLogs = useCallback(async () => {
+        setLoading(true);
+        try {
+            const queryParams = new URLSearchParams();
+            if (filterUser) queryParams.append('username', filterUser);
+            if (filterAction) queryParams.append('actionType', filterAction);
+            if (startDate) queryParams.append('startDate', startDate);
+            if (endDate) queryParams.append('endDate', endDate);
+            queryParams.append('limit', '200');
+
+            const res = await fetch(`/api/resources?entity=audit_logs&${queryParams.toString()}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setLogs(data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    }, [filterUser, filterAction, startDate, endDate]);
+
+    useEffect(() => {
+        fetchLogs();
+    }, []);
+
+    const handleCleanup = async () => {
+        try {
+            const res = await fetch(`/api/resources?entity=audit_logs&action=cleanup&olderThanDays=${cleanupStrategy}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            
+            if (!res.ok) throw new Error('Cleanup failed');
+            const data = await res.json();
+            
+            addToast(`Pulizia completata. ${data.deletedCount} record eliminati.`, 'success');
+            setCleanupModalOpen(false);
+            fetchLogs();
+        } catch (e) {
+            addToast('Errore durante la pulizia dei log.', 'error');
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-surface rounded-2xl shadow p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-on-surface">Audit Log (Attività Utenti)</h2>
+                    <button 
+                        onClick={() => setCleanupModalOpen(true)} 
+                        className="px-4 py-2 bg-error-container text-on-error-container rounded-full text-sm font-medium flex items-center gap-2 hover:opacity-80"
+                    >
+                        <span className="material-symbols-outlined text-sm">delete_sweep</span> Manutenzione Log
+                    </button>
+                </div>
+
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 bg-surface-container-low p-4 rounded-lg">
+                    <input 
+                        type="text" 
+                        placeholder="Filtra per Username" 
+                        value={filterUser} 
+                        onChange={e => setFilterUser(e.target.value)}
+                        className="form-input text-sm"
+                    />
+                    <input 
+                        type="text" 
+                        placeholder="Filtra per Azione (es. LOGIN, CREATE)" 
+                        value={filterAction} 
+                        onChange={e => setFilterAction(e.target.value)}
+                        className="form-input text-sm"
+                    />
+                    <input 
+                        type="date" 
+                        value={startDate} 
+                        onChange={e => setStartDate(e.target.value)}
+                        className="form-input text-sm"
+                    />
+                    <input 
+                        type="date" 
+                        value={endDate} 
+                        onChange={e => setEndDate(e.target.value)}
+                        className="form-input text-sm"
+                    />
+                    <button onClick={fetchLogs} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-md text-sm font-medium hover:opacity-90">
+                        Filtra
+                    </button>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto border border-outline-variant rounded-lg max-h-[600px]">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-surface-container sticky top-0 z-10">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase">Data/Ora</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase">Utente</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase">Azione</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase">Entità</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase">Dettagli</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase">IP</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant bg-surface">
+                            {loading ? (
+                                <tr><td colSpan={6} className="p-8 text-center"><SpinnerIcon className="w-6 h-6 mx-auto text-primary"/></td></tr>
+                            ) : logs.length === 0 ? (
+                                <tr><td colSpan={6} className="p-8 text-center text-on-surface-variant">Nessun log trovato con i filtri correnti.</td></tr>
+                            ) : (
+                                logs.map(log => (
+                                    <tr key={log.id} className="hover:bg-surface-container-low">
+                                        <td className="px-4 py-2 whitespace-nowrap text-xs text-on-surface-variant">
+                                            {new Date(log.createdAt).toLocaleString()}
+                                        </td>
+                                        <td className="px-4 py-2 font-medium text-primary">
+                                            {log.username || 'System'}
+                                        </td>
+                                        <td className="px-4 py-2 font-mono text-xs">
+                                            <span className={`px-2 py-0.5 rounded ${log.action.includes('DELETE') ? 'bg-error-container text-on-error-container' : log.action.includes('CREATE') ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-surface-container text-on-surface'}`}>
+                                                {log.action}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2 text-xs text-on-surface-variant">
+                                            {log.entity} {log.entityId ? `(${log.entityId.substring(0,8)}...)` : ''}
+                                        </td>
+                                        <td className="px-4 py-2 text-xs font-mono text-on-surface-variant max-w-xs truncate" title={JSON.stringify(log.details, null, 2)}>
+                                            {JSON.stringify(log.details)}
+                                        </td>
+                                        <td className="px-4 py-2 text-xs text-on-surface-variant">
+                                            {log.ipAddress}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Cleanup Modal */}
+            <ConfirmationModal
+                isOpen={cleanupModalOpen}
+                onClose={() => setCleanupModalOpen(false)}
+                onConfirm={handleCleanup}
+                title="Manutenzione Audit Log"
+                confirmButtonText="Esegui Pulizia"
+                message={
+                    <div className="space-y-4">
+                        <p>Seleziona i criteri per la pulizia dei log. Questa operazione è irreversibile.</p>
+                        <div>
+                            <label className="block text-sm font-medium mb-2">Criterio di Cancellazione:</label>
+                            <select 
+                                value={cleanupStrategy} 
+                                onChange={(e) => setCleanupStrategy(e.target.value as any)}
+                                className="form-select w-full"
+                            >
+                                <option value="30">Più vecchi di 30 giorni</option>
+                                <option value="60">Più vecchi di 60 giorni</option>
+                                <option value="90">Più vecchi di 90 giorni</option>
+                                <option value="all">Elimina TUTTI i log (Attenzione!)</option>
+                            </select>
+                        </div>
+                        {cleanupStrategy === 'all' && (
+                            <p className="text-error text-xs font-bold bg-error-container p-2 rounded">
+                                Attenzione: Stai per cancellare l'intera storia delle azioni.
+                            </p>
+                        )}
+                    </div>
+                }
+            />
+        </div>
+    );
+};
+
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
 
     const tabs = [
         { id: 'general', label: 'Generale', icon: 'settings' },
         { id: 'users', label: 'Utenti & Sicurezza', icon: 'security' },
+        { id: 'audit', label: 'Audit Log', icon: 'history' },
         { id: 'menu', label: 'Menu & Navigazione', icon: 'menu_open' },
         { id: 'business', label: 'Logiche di Business', icon: 'domain' },
         { id: 'ui', label: 'Interfaccia & Tema', icon: 'palette' },
@@ -427,6 +620,7 @@ const AdminSettingsPage: React.FC = () => {
                         <PermissionMatrixSection />
                     </div>
                 )}
+                {activeTab === 'audit' && <AuditLogSection />}
                 {activeTab === 'menu' && <MenuConfigurationEditor />}
                 {activeTab === 'business' && (
                     <div className="space-y-6">

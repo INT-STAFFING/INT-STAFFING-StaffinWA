@@ -579,3 +579,19 @@ export interface Notification {
     isRead: boolean;
     createdAt: string;
 }
+
+/**
+ * @interface AuditLogEntry
+ * @description Rappresenta un evento di log del sistema.
+ */
+export interface AuditLogEntry {
+    id: string;
+    userId: string | null;
+    username: string | null;
+    action: string;
+    entity: string | null;
+    entityId: string | null;
+    details: any;
+    ipAddress: string | null;
+    createdAt: string;
+}

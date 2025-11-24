@@ -2,6 +2,8 @@
 
 
 
+
+
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,20 +41,32 @@ const getUserFromRequest = (req: VercelRequest) => {
             id: decoded.userId,
             username: decoded.username,
             role: decoded.role,
-            // This assumes the token contains resourceId, if not we might need to fetch it or include it during login generation
-            // We updated api/login.ts to allow this, but let's be safe:
-            // Actually, `api/login.ts` DOES NOT currently put resourceId in token payload in the provided code.
-            // We need to fetch the user from DB to be sure.
         };
     } catch (e) {
         return null;
     }
 };
 
+// --- AUDIT LOG UTILITY ---
+const logAction = async (client: any, user: any, action: string, entity: string, entityId: string | null, details: any, req: VercelRequest) => {
+    try {
+        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+        await client.query(
+            `INSERT INTO action_logs (user_id, username, action, entity, entity_id, details, ip_address) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [user?.id || null, user?.username || 'system', action, entity, entityId, JSON.stringify(details), ip]
+        );
+    } catch (e) {
+        console.error("Failed to write audit log:", e);
+        // Don't throw, logging should not break main flow
+    }
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
-    const { entity, id, action, table, dialect } = req.query;
+    const { entity, id, action, table, dialect, olderThanDays } = req.query;
     const client = await db.connect();
+    const currentUser = getUserFromRequest(req);
 
     try {
         // --- CONFIG BATCH UPDATE ---
@@ -90,6 +104,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
                 await client.query('COMMIT');
                 return res.status(200).json({ success: true });
+            }
+        }
+
+        // --- AUDIT LOGS HANDLER ---
+        if (entity === 'audit_logs') {
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
+            if (method === 'GET') {
+                const { limit = 1000, username, actionType, startDate, endDate } = req.query;
+                let query = `SELECT * FROM action_logs`;
+                const params: any[] = [];
+                const conditions: string[] = [];
+
+                if (username) {
+                    conditions.push(`username ILIKE $${params.length + 1}`);
+                    params.push(`%${username}%`);
+                }
+                if (actionType) {
+                    conditions.push(`action = $${params.length + 1}`);
+                    params.push(actionType);
+                }
+                if (startDate) {
+                    conditions.push(`created_at >= $${params.length + 1}`);
+                    params.push(startDate);
+                }
+                if (endDate) {
+                    conditions.push(`created_at <= $${params.length + 1}`);
+                    params.push(endDate);
+                }
+
+                if (conditions.length > 0) {
+                    query += ` WHERE ${conditions.join(' AND ')}`;
+                }
+
+                query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+                params.push(limit);
+
+                const { rows } = await client.query(query, params);
+                
+                // Format for frontend
+                const logs = rows.map(r => ({
+                    id: r.id,
+                    userId: r.user_id,
+                    username: r.username,
+                    action: r.action,
+                    entity: r.entity,
+                    entityId: r.entity_id,
+                    details: r.details,
+                    ipAddress: r.ip_address,
+                    createdAt: r.created_at
+                }));
+
+                return res.status(200).json(logs);
+            }
+
+            if (method === 'DELETE') {
+                // Advanced Cleanup
+                if (action === 'cleanup') {
+                    const days = parseInt(olderThanDays as string, 10);
+                    
+                    if (isNaN(days) && olderThanDays !== 'all') {
+                        return res.status(400).json({ error: 'Invalid olderThanDays parameter' });
+                    }
+
+                    let query = '';
+                    let params: any[] = [];
+
+                    if (olderThanDays === 'all') {
+                        query = 'DELETE FROM action_logs';
+                    } else {
+                        query = 'DELETE FROM action_logs WHERE created_at < NOW() - INTERVAL \'1 day\' * $1';
+                        params.push(days);
+                    }
+
+                    const result = await client.query(query, params);
+                    
+                    await logAction(client, currentUser, 'CLEANUP_LOGS', 'audit_logs', null, { deletedCount: result.rowCount, strategy: olderThanDays }, req);
+
+                    return res.status(200).json({ success: true, deletedCount: result.rowCount });
+                }
             }
         }
 
@@ -160,6 +254,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 // Reset the must_change_password flag upon successful change
                 await client.query('UPDATE app_users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [hash, id]);
+                
+                await logAction(client, user, 'CHANGE_PASSWORD', 'app_users', id as string, { targetUser: id }, req);
+
                 return res.status(200).json({ success: true });
             }
 
@@ -188,6 +285,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     'INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7)',
                     [newId, username, hash, role, isActive, resourceId || null, mustChangePassword || false]
                 );
+                await logAction(client, currentUser, 'CREATE_USER', 'app_users', newId, { username, role }, req);
                 return res.status(201).json({ id: newId });
             }
             if (method === 'PUT') {
@@ -196,10 +294,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     'UPDATE app_users SET username=$1, role=$2, is_active=$3, resource_id=$4, must_change_password=$5 WHERE id=$6',
                     [username, role, isActive, resourceId || null, mustChangePassword || false, id]
                 );
+                await logAction(client, currentUser, 'UPDATE_USER', 'app_users', id as string, { username, role, isActive }, req);
                 return res.status(200).json({ success: true });
             }
             if (method === 'DELETE') {
                 await client.query('DELETE FROM app_users WHERE id=$1', [id]);
+                await logAction(client, currentUser, 'DELETE_USER', 'app_users', id as string, {}, req);
                 return res.status(204).end();
             }
         }
@@ -232,6 +332,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
                 
                 await client.query('COMMIT');
+                await logAction(client, currentUser, 'UPDATE_PERMISSIONS', 'role_permissions', null, { count: permissions.length }, req);
 
                 // Return the FRESH state from DB to ensure frontend is in sync
                 const { rows } = await client.query('SELECT * FROM role_permissions');
@@ -275,7 +376,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         `, [notifId, approverId, notifTitle, notifMsg, notifLink]);
                     }
                 }
-
+                await logAction(client, currentUser, 'CREATE_LEAVE', 'leave_requests', newId, { resourceId, typeId, status }, req);
                 return res.status(201).json({ id: newId, ...req.body });
             }
             if (method === 'PUT') {
@@ -321,11 +422,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         VALUES ($1, $2, $3, $4, $5)
                     `, [notifId, requestOwnerId, notifTitle, notifMsg, "/leaves"]);
                 }
-
+                await logAction(client, currentUser, 'UPDATE_LEAVE', 'leave_requests', id as string, { status, oldStatus }, req);
                 return res.status(200).json({ id, ...req.body });
             }
             if (method === 'DELETE') {
                 await client.query('DELETE FROM leave_requests WHERE id=$1', [id]);
+                await logAction(client, currentUser, 'DELETE_LEAVE', 'leave_requests', id as string, {}, req);
                 return res.status(204).end();
             }
         }
@@ -393,10 +495,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 values.push(id);
                 
                 await client.query(`UPDATE ${table} SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+                await logAction(client, currentUser, 'DB_INSPECTOR_UPDATE', table as string, id as string, { updates }, req);
                 return res.status(200).json({ success: true });
             }
             if (action === 'delete_all_rows' && table) {
                 await client.query(`DELETE FROM ${table}`);
+                await logAction(client, currentUser, 'DB_INSPECTOR_TRUNCATE', table as string, null, {}, req);
                 return res.status(200).json({ success: true });
             }
             if (action === 'export_sql' && dialect) {
@@ -427,6 +531,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const query = `INSERT INTO ${entity} (${dbKeys.join(',')}) VALUES (${placeholders}) RETURNING *`;
                 
                 const { rows } = await client.query(query, values);
+                
+                // Determine ID for logging
+                let entityIdLog = null;
+                if (rows[0]?.id) entityIdLog = rows[0].id;
+                else if (entity === 'resource_skills') entityIdLog = `${req.body.resourceId}:${req.body.skillId}`;
+                else if (entity === 'project_skills') entityIdLog = `${req.body.projectId}:${req.body.skillId}`;
+
+                await logAction(client, currentUser, `CREATE_${(entity as string).toUpperCase()}`, entity as string, entityIdLog, req.body, req);
+
                 const toCamel = (obj: any) => {
                     const newObj: any = {};
                     for (const key in obj) {
@@ -458,6 +571,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const query = `UPDATE ${entity} SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`;
                 
                 const { rows } = await client.query(query, values);
+                await logAction(client, currentUser, `UPDATE_${(entity as string).toUpperCase()}`, entity as string, id as string, updates, req);
+
                 const toCamel = (obj: any) => {
                     const newObj: any = {};
                     for (const key in obj) {
@@ -469,13 +584,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             if (method === 'DELETE') {
+                let logId = id as string;
                 if (id) {
                     await client.query(`DELETE FROM ${entity} WHERE id = $1`, [id]);
                 } else if (entity === 'resource_skills' && req.query.resourceId && req.query.skillId) {
                     await client.query(`DELETE FROM resource_skills WHERE resource_id = $1 AND skill_id = $2`, [req.query.resourceId, req.query.skillId]);
+                    logId = `${req.query.resourceId}:${req.query.skillId}`;
                 } else if (entity === 'project_skills' && req.query.projectId && req.query.skillId) {
                     await client.query(`DELETE FROM project_skills WHERE project_id = $1 AND skill_id = $2`, [req.query.projectId, req.query.skillId]);
+                    logId = `${req.query.projectId}:${req.query.skillId}`;
                 }
+                await logAction(client, currentUser, `DELETE_${(entity as string).toUpperCase()}`, entity as string, logId, {}, req);
                 return res.status(204).end();
             }
         }
@@ -485,6 +604,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              const salt = await bcrypt.genSalt(10);
              const hash = await bcrypt.hash('admin', salt);
              await client.query("UPDATE app_users SET password_hash = $1 WHERE username = 'admin'", [hash]);
+             await logAction(client, null, 'EMERGENCY_RESET', 'app_users', null, {}, req);
              return res.status(200).json({ success: true });
         }
 

@@ -1,5 +1,7 @@
 
 
+
+
 import type { VercelPool } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -178,6 +180,25 @@ export async function ensureDbTablesExist(db: VercelPool) {
             PRIMARY KEY (role, page_path)
         );
     `;
+
+    // --- AUDIT LOG TABLE (New) ---
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS action_logs (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            user_id UUID REFERENCES app_users(id) ON DELETE SET NULL,
+            username VARCHAR(255),
+            action VARCHAR(100) NOT NULL,
+            entity VARCHAR(100),
+            entity_id VARCHAR(255),
+            details JSONB,
+            ip_address VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+    // Index for performance
+    await db.sql`CREATE INDEX IF NOT EXISTS idx_action_logs_created_at ON action_logs(created_at);`;
+    await db.sql`CREATE INDEX IF NOT EXISTS idx_action_logs_user_id ON action_logs(user_id);`;
+
 
     const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
     const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/projects', '/clients', '/contracts'];

@@ -1,5 +1,7 @@
 
 
+
+
 /**
  * @file api/login.ts
  * @description Endpoint API per la verifica delle credenziali di accesso tramite DB.
@@ -28,23 +30,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     username = username.trim();
     password = password.trim();
 
+    const client = await db.connect();
+
     try {
         // 1. Fetch User
-        const { rows } = await db.sql`SELECT * FROM app_users WHERE username = ${username}`;
+        const { rows } = await client.sql`SELECT * FROM app_users WHERE username = ${username}`;
         const user = rows[0];
 
         if (!user) {
+            const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            await client.sql`INSERT INTO action_logs (username, action, details, ip_address) VALUES (${username}, 'LOGIN_FAILED', '{"reason": "User not found"}', ${ip})`;
             return res.status(401).json({ success: false, error: "Credenziali non valide." });
         }
 
         // 2. Check Whitelist
         if (!user.is_active) {
+            const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN_FAILED', '{"reason": "User inactive"}', ${ip})`;
             return res.status(403).json({ success: false, error: "Utente disabilitato dall'amministratore." });
         }
 
         // 3. Verify Password
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) {
+            const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN_FAILED', '{"reason": "Invalid password"}', ${ip})`;
             return res.status(401).json({ success: false, error: "Credenziali non valide." });
         }
 
@@ -56,10 +66,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
 
         // 5. Fetch Permissions
-        const permRes = await db.sql`SELECT page_path FROM role_permissions WHERE role = ${user.role} AND is_allowed = TRUE`;
+        const permRes = await client.sql`SELECT page_path FROM role_permissions WHERE role = ${user.role} AND is_allowed = TRUE`;
         const permissions = permRes.rows.map(r => r.page_path);
 
-        // 6. Respond
+        // 6. LOG SUCCESS
+        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+        await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN', '{}', ${ip})`;
+
+        // 7. Respond
         return res.status(200).json({
             success: true,
             token,
@@ -77,5 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
         console.error('Login error:', error);
         return res.status(500).json({ error: "Errore del server durante il login." });
+    } finally {
+        client.release();
     }
 }
