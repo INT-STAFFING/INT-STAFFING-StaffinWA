@@ -1,4 +1,5 @@
 
+
 /**
  * @file StaffingPage.tsx
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
@@ -64,7 +65,8 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
     const { allocations, updateAllocation } = useAllocationsContext();
     const percentage = allocations[assignment.id!]?.[date] || 0;
 
-    if (activeLeave && leaveType) {
+    // Logic: If full day leave, block interaction. If half day, show icon but allow edit.
+    if (activeLeave && leaveType && !activeLeave.isHalfDay) {
          return (
             <td 
                 className="border-t border-outline-variant p-0 text-center relative cursor-not-allowed opacity-70"
@@ -91,7 +93,14 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
     };
 
     return (
-      <td className="border-t border-outline-variant p-0 text-center">
+      <td className="border-t border-outline-variant p-0 text-center relative">
+        {activeLeave && activeLeave.isHalfDay && leaveType && (
+            <div 
+                className="absolute top-0 right-0 w-3 h-3 rounded-bl bg-opacity-50 pointer-events-none z-10"
+                style={{ backgroundColor: leaveType.color }}
+                title="Mezza giornata di assenza"
+            />
+        )}
         <select
           value={percentage}
           onChange={handleChange}
@@ -116,7 +125,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
   startDate: Date;
   endDate: Date;
 }> = React.memo(({ assignment, startDate, endDate }) => {
-  const { companyCalendar, resources } = useEntitiesContext();
+  const { companyCalendar, resources, leaveRequests, leaveTypes } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
   const resource = resources.find((r) => r.id === assignment.resourceId);
 
@@ -136,6 +145,13 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
       resource.location
     );
     if (workingDays === 0) return 0;
+
+    // Subtract Leave Impact from WORKING DAYS to get "Available Capacity Days" 
+    // (Note: this calculation depends on business logic. 
+    // If Avg = Allocated / Available, leaves increase %. 
+    // If Avg = Allocated / Total Working, leaves decrease total possible output but utilization is same).
+    // Usually for staffing grid avg, we want: TotalAllocated / TotalWorkingDays.
+    // Leaves affect capacity, not the allocation itself.
 
     let totalPersonDays = 0;
     const assignmentAllocations = allocations[assignment.id!];
@@ -201,7 +217,8 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
       }, 0);
     }, [resourceAssignments, allocations, date]);
 
-    if (activeLeave && leaveType) {
+    // If full day leave, show leave icon only
+    if (activeLeave && leaveType && !activeLeave.isHalfDay) {
          return (
             <td 
                 className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold"
@@ -221,16 +238,25 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
     }
 
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
+    
+    // Calculate capacity impact for coloring
+    let capacityUsed = total;
+    if (activeLeave && activeLeave.isHalfDay && leaveType?.affectsCapacity) {
+        capacityUsed += 50; // Add 50% load for half day leave
+    }
+
     let cellColor: string;
 
     if (effectiveNonWorking) {
       cellColor = 'bg-surface-container text-on-surface-variant';
-    } else if (total > maxPercentage) {
+    } else if (capacityUsed > maxPercentage) {
       cellColor = 'bg-error-container text-on-error-container';
-    } else if (total === maxPercentage) {
+    } else if (capacityUsed === maxPercentage) {
       cellColor = 'bg-tertiary-container text-on-tertiary-container';
-    } else if (total > 0 && total < maxPercentage) {
+    } else if (total > 0) {
       cellColor = 'bg-yellow-container text-on-yellow-container';
+    } else if (activeLeave && activeLeave.isHalfDay) {
+        cellColor = 'bg-surface-container-high'; // Half day leave but no work allocation
     } else {
       cellColor = 'bg-surface-container-low';
     }
@@ -249,7 +275,10 @@ const DailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(
       <td
         className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
       >
-        {total > 0 ? `${total}%` : '-'}
+        {activeLeave && activeLeave.isHalfDay && (
+            <span className="material-symbols-outlined text-xs mr-1 align-middle opacity-50">schedule</span>
+        )}
+        {total > 0 ? `${total}%` : (activeLeave && activeLeave.isHalfDay ? '1/2' : '-')}
       </td>
     );
   }

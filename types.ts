@@ -1,5 +1,7 @@
 
 
+
+
 /**
  * @file types.ts
  * @description Definizioni dei tipi e delle interfacce TypeScript utilizzate in tutta l'applicazione.
@@ -496,6 +498,8 @@ export interface LeaveRequest {
     approverIds?: string[];
     /** @property {string} [notes] - Note aggiuntive. */
     notes?: string;
+    /** @property {boolean} [isHalfDay] - Se è una mezza giornata (0.5). */
+    isHalfDay?: boolean;
 }
 
 /**

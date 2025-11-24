@@ -1,3 +1,4 @@
+
 /**
  * @file dateUtils.ts
  * @description Funzioni di utilità per la manipolazione e formattazione delle date.
@@ -102,6 +103,13 @@ export const getLeaveDurationInWorkingDays = (
 
     // Se non c'è sovrapposizione
     if (start > end) return 0;
+
+    // Se è una mezza giornata, conta sempre 0.5, indipendentemente dall'intervallo (dato che start == end per definizione)
+    // Ma solo se il giorno stesso è lavorativo.
+    if (leave.isHalfDay) {
+        const workingDays = getWorkingDaysBetween(start, end, companyCalendar, resourceLocation);
+        return workingDays > 0 ? 0.5 : 0;
+    }
 
     // Conta i giorni lavorativi nel periodo di sovrapposizione
     return getWorkingDaysBetween(start, end, companyCalendar, resourceLocation);

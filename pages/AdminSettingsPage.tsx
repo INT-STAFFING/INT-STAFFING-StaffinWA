@@ -1,16 +1,10 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
-import { AppUser, RolePermission, SidebarItem, AuditLogEntry } from '../types';
+import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole } from '../types';
 import { useEntitiesContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -23,6 +17,10 @@ const UserManagementSection: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<Partial<AppUser> & { password?: string }>({});
     const [showPassword, setShowPassword] = useState(false);
+    
+    // Bulk Action State
+    const [selectedBulkRole, setSelectedBulkRole] = useState<UserRole | ''>('');
+    const [isBulkLoading, setIsBulkLoading] = useState(false);
 
     const fetchUsers = useCallback(async () => {
         setLoading(true);
@@ -85,6 +83,38 @@ const UserManagementSection: React.FC = () => {
         }
     };
 
+    const handleBulkStatusUpdate = async (isActive: boolean) => {
+        if (!selectedBulkRole) {
+            addToast('Seleziona un ruolo per eseguire l\'azione massiva.', 'error');
+            return;
+        }
+        
+        const actionLabel = isActive ? 'ABILITARE' : 'DISABILITARE';
+        if (!confirm(`Sei sicuro di voler ${actionLabel} tutti gli utenti con ruolo ${selectedBulkRole}?`)) return;
+
+        setIsBulkLoading(true);
+        try {
+            const res = await fetch(`/api/resources?entity=app-users&action=bulk_status_update`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                },
+                body: JSON.stringify({ role: selectedBulkRole, isActive })
+            });
+
+            if (!res.ok) throw new Error('Failed bulk update');
+            const data = await res.json();
+            
+            addToast(`Operazione completata. ${data.updatedCount} utenti aggiornati.`, 'success');
+            fetchUsers();
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento massivo.', 'error');
+        } finally {
+            setIsBulkLoading(false);
+        }
+    };
+
     const openModal = (user?: AppUser) => {
         setEditingUser(user ? { ...user } : { role: 'SIMPLE', isActive: true, username: '', mustChangePassword: false });
         setShowPassword(false);
@@ -100,6 +130,41 @@ const UserManagementSection: React.FC = () => {
                 <button onClick={() => openModal()} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2">
                     <span className="material-symbols-outlined text-sm">add</span> Nuovo Utente
                 </button>
+            </div>
+            
+            {/* Bulk Actions Toolbar */}
+            <div className="mb-6 p-3 bg-surface-container-low rounded-lg border border-outline-variant flex flex-wrap items-center gap-4">
+                <span className="text-sm font-bold text-on-surface-variant flex items-center gap-1">
+                    <span className="material-symbols-outlined text-lg">groups</span> Azioni di Gruppo:
+                </span>
+                <select 
+                    value={selectedBulkRole} 
+                    onChange={(e) => setSelectedBulkRole(e.target.value as UserRole)}
+                    className="form-select text-sm py-1 w-48"
+                >
+                    <option value="">Seleziona Ruolo...</option>
+                    <option value="SIMPLE">Simple User</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="SENIOR MANAGER">Senior Manager</option>
+                    <option value="MANAGING DIRECTOR">Managing Director</option>
+                </select>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => handleBulkStatusUpdate(true)} 
+                        disabled={!selectedBulkRole || isBulkLoading}
+                        className="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded text-xs font-bold hover:opacity-80 disabled:opacity-50 transition-opacity"
+                    >
+                        Abilita Tutti
+                    </button>
+                    <button 
+                        onClick={() => handleBulkStatusUpdate(false)} 
+                        disabled={!selectedBulkRole || isBulkLoading}
+                        className="px-3 py-1 bg-error-container text-on-error-container rounded text-xs font-bold hover:opacity-80 disabled:opacity-50 transition-opacity"
+                    >
+                        Disabilita Tutti
+                    </button>
+                </div>
+                {isBulkLoading && <SpinnerIcon className="w-4 h-4 text-primary ml-2" />}
             </div>
             
             <div className="overflow-x-auto">

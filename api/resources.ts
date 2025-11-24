@@ -1,9 +1,5 @@
 
 
-
-
-
-
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -263,6 +259,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // --- BELOW THIS POINT ONLY ADMIN ---
             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
             
+            // BULK STATUS UPDATE
+            if (action === 'bulk_status_update' && method === 'PUT') {
+                const { role, isActive } = req.body;
+                
+                if (!role) return res.status(400).json({ error: 'Role is required' });
+
+                // Perform bulk update, ensuring 'admin' user is never disabled even if role matches
+                const result = await client.query(
+                    `UPDATE app_users SET is_active = $1 WHERE role = $2 AND username != 'admin'`,
+                    [isActive, role]
+                );
+
+                await logAction(client, currentUser, 'BULK_UPDATE_USER_STATUS', 'app_users', null, { role, isActive, count: result.rowCount }, req);
+                return res.status(200).json({ success: true, updatedCount: result.rowCount });
+            }
+
             if (method === 'GET') {
                 const { rows } = await client.query(`
                     SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName"
@@ -349,15 +361,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // --- LEAVE REQUESTS ---
         if (entity === 'leaves') {
             if (method === 'POST') {
-                const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes } = req.body;
+                const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes, isHalfDay } = req.body;
                 const newId = uuidv4();
                 // Convert array for postgres safely
                 const approverIdsPg = approverIds && approverIds.length > 0 ? `{${approverIds.join(',')}}` : null;
                 
                 await client.query(`
-                    INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, manager_id, approver_ids, notes) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                `, [newId, resourceId, typeId, startDate, endDate, status, managerId || null, approverIdsPg, notes]);
+                    INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, manager_id, approver_ids, notes, is_half_day) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                `, [newId, resourceId, typeId, startDate, endDate, status, managerId || null, approverIdsPg, notes, isHalfDay || false]);
                 
                 // --- TRIGGER NOTIFICATIONS FOR APPROVERS ---
                 if (approverIds && approverIds.length > 0) {
@@ -380,7 +392,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(201).json({ id: newId, ...req.body });
             }
             if (method === 'PUT') {
-                const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes } = req.body;
+                const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes, isHalfDay } = req.body;
                 
                 // Get old status to check for changes
                 const oldReqRes = await client.query('SELECT status, resource_id FROM leave_requests WHERE id = $1', [id]);
@@ -403,6 +415,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     params.push(val); 
                 }
                 if (notes !== undefined) { query += `notes=$${idx++}, `; params.push(notes); }
+                if (isHalfDay !== undefined) { query += `is_half_day=$${idx++}, `; params.push(isHalfDay); }
                 
                 query = query.slice(0, -2) + ` WHERE id=$${idx}`;
                 params.push(id);

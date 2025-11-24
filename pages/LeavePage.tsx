@@ -1,4 +1,5 @@
 
+
 /**
  * @file LeavePage.tsx
  * @description Pagina per la gestione delle assenze con workflow di approvazione multipla.
@@ -64,7 +65,8 @@ const LeavePage: React.FC = () => {
         endDate: new Date().toISOString().split('T')[0],
         status: 'PENDING',
         notes: '',
-        approverIds: []
+        approverIds: [],
+        isHalfDay: false
     };
 
     // Auto-populate resource if user is linked
@@ -171,7 +173,8 @@ const LeavePage: React.FC = () => {
             ...req,
             startDate: req.startDate.split('T')[0],
             endDate: req.endDate.split('T')[0],
-            approverIds: req.approverIds || []
+            approverIds: req.approverIds || [],
+            isHalfDay: req.isHalfDay || false
         });
         setIsModalOpen(true);
     };
@@ -184,7 +187,7 @@ const LeavePage: React.FC = () => {
     // --- Helper for Assignments Access ---
     const { assignments, projects } = useEntitiesContext();
 
-    const performConflictCheck = (resourceId: string, start: string, end: string): string[] => {
+    const performConflictCheck = (resourceId: string, start: string, end: string, isHalfDay: boolean = false): string[] => {
         const conflicts: string[] = [];
         const startDate = new Date(start);
         const endDate = new Date(end);
@@ -194,17 +197,23 @@ const LeavePage: React.FC = () => {
         userAssignments.forEach(assignment => {
             const assignmentAllocations = allocations[assignment.id!];
             if (assignmentAllocations) {
-                let hasAllocation = false;
+                let hasConflict = false;
                 for (const dateStr in assignmentAllocations) {
                     const date = new Date(dateStr);
-                    if (date >= startDate && date <= endDate && assignmentAllocations[dateStr] > 0) {
-                        hasAllocation = true;
-                        break;
+                    if (date >= startDate && date <= endDate) {
+                        const allocation = assignmentAllocations[dateStr] || 0;
+                        const leaveImpact = isHalfDay ? 50 : 100;
+                        
+                        // Conflitto se la somma supera il 100%
+                        if ((allocation + leaveImpact) > 100) {
+                            hasConflict = true;
+                            break;
+                        }
                     }
                 }
-                if (hasAllocation) {
+                if (hasConflict) {
                     const project = projects.find(p => p.id === assignment.projectId);
-                    conflicts.push(`Progetto: ${project?.name || 'Sconosciuto'}`);
+                    conflicts.push(`Progetto: ${project?.name || 'Sconosciuto'} (Sovraccarico)`);
                 }
             }
         });
@@ -235,7 +244,12 @@ const LeavePage: React.FC = () => {
         }
 
         // Check conflicts
-        const conflicts = performConflictCheck(editingRequest.resourceId, editingRequest.startDate, editingRequest.endDate);
+        const conflicts = performConflictCheck(
+            editingRequest.resourceId, 
+            editingRequest.startDate, 
+            editingRequest.endDate,
+            editingRequest.isHalfDay
+        );
         
         if (conflicts.length > 0) {
             const resourceName = resources.find(r => r.id === editingRequest.resourceId)?.name || 'Risorsa';
@@ -248,7 +262,7 @@ const LeavePage: React.FC = () => {
     };
 
     const handleApprove = async (req: LeaveRequest) => {
-        const conflicts = performConflictCheck(req.resourceId, req.startDate, req.endDate);
+        const conflicts = performConflictCheck(req.resourceId, req.startDate, req.endDate, req.isHalfDay);
         const action = async () => {
             // Track WHO approved it (managerId) but keep approverIds list intact
             await updateLeaveRequest({ ...req, status: 'APPROVED', managerId: user?.resourceId || null });
@@ -291,12 +305,14 @@ const LeavePage: React.FC = () => {
             <span className="inline-flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full" style={{ backgroundColor: r.typeColor }}></span>
                 {r.typeName}
+                {r.isHalfDay && <span className="text-xs bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
             </span>
         )},
         { header: 'Periodo', sortKey: 'startDate', cell: r => <span className="text-sm text-on-surface-variant">{formatDate(new Date(r.startDate), 'short')} - {formatDate(new Date(r.endDate), 'short')}</span> },
         { header: 'Giorni', cell: r => {
             const diff = Math.ceil((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-            return <span className="text-sm">{diff} gg</span>;
+            const effectiveDays = r.isHalfDay ? diff * 0.5 : diff;
+            return <span className="text-sm">{effectiveDays} gg</span>;
         }},
         { header: 'Richiesto A', cell: r => <span className="text-xs text-on-surface-variant truncate max-w-xs block" title={r.approverNames}>{r.approverNames}</span> },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
@@ -340,7 +356,10 @@ const LeavePage: React.FC = () => {
                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(req.status)}`}>{req.status}</span>
             </div>
             <div className="flex justify-between text-sm">
-                <span className="font-medium">{req.typeName}</span>
+                <span className="font-medium flex items-center gap-1">
+                    {req.typeName}
+                    {req.isHalfDay && <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
+                </span>
                 <span className="text-on-surface-variant">{formatDate(new Date(req.startDate), 'short')} - {formatDate(new Date(req.endDate), 'short')}</span>
             </div>
             <p className="text-xs text-on-surface-variant">Approvatori: {req.approverNames}</p>
@@ -439,13 +458,57 @@ const LeavePage: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
-                                    <input type="date" value={editingRequest.startDate} onChange={e => setEditingRequest(prev => prev ? ({...prev, startDate: e.target.value}) : null)} className="form-input" required />
+                                    <input 
+                                        type="date" 
+                                        value={editingRequest.startDate} 
+                                        onChange={e => {
+                                            const newVal = e.target.value;
+                                            setEditingRequest(prev => prev ? ({
+                                                ...prev, 
+                                                startDate: newVal,
+                                                // Auto disable half day if dates differ
+                                                isHalfDay: newVal !== prev.endDate ? false : prev.isHalfDay
+                                            }) : null);
+                                        }} 
+                                        className="form-input" 
+                                        required 
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
-                                    <input type="date" value={editingRequest.endDate} onChange={e => setEditingRequest(prev => prev ? ({...prev, endDate: e.target.value}) : null)} className="form-input" required />
+                                    <input 
+                                        type="date" 
+                                        value={editingRequest.endDate} 
+                                        onChange={e => {
+                                            const newVal = e.target.value;
+                                            setEditingRequest(prev => prev ? ({
+                                                ...prev, 
+                                                endDate: newVal,
+                                                // Auto disable half day if dates differ
+                                                isHalfDay: prev.startDate !== newVal ? false : prev.isHalfDay
+                                            }) : null);
+                                        }} 
+                                        className="form-input" 
+                                        required 
+                                    />
                                 </div>
                             </div>
+
+                            {editingRequest.startDate && editingRequest.endDate && editingRequest.startDate === editingRequest.endDate && (
+                                <div className="flex items-center gap-2 p-2 bg-secondary-container/30 rounded border border-secondary-container">
+                                    <input 
+                                        type="checkbox" 
+                                        id="isHalfDay"
+                                        checked={editingRequest.isHalfDay} 
+                                        onChange={e => setEditingRequest(prev => prev ? ({...prev, isHalfDay: e.target.checked}) : null)}
+                                        className="form-checkbox text-primary rounded"
+                                    />
+                                    <label htmlFor="isHalfDay" className="text-sm font-medium text-on-surface cursor-pointer">
+                                        Richiedi solo mezza giornata
+                                    </label>
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato</label>
                                 <select value={editingRequest.status} onChange={e => setEditingRequest(prev => prev ? ({...prev, status: e.target.value as LeaveStatus}) : null)} className="form-select">
@@ -475,7 +538,7 @@ const LeavePage: React.FC = () => {
                 title="Rilevato Conflitto di Allocazione"
                 message={
                     <div>
-                        <p className="mb-2">Attenzione: <strong>{conflictData?.resourceName}</strong> risulta avere allocazioni attive sui seguenti progetti nel periodo selezionato:</p>
+                        <p className="mb-2">Attenzione: <strong>{conflictData?.resourceName}</strong> risulta avere allocazioni attive che superano il 100% di capacità considerando l'assenza richiesta:</p>
                         <ul className="list-disc list-inside mb-4 text-sm text-on-surface">
                             {conflictData?.conflicts.map(c => <li key={c}>{c}</li>)}
                         </ul>

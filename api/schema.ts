@@ -2,6 +2,7 @@
 
 
 
+
 import type { VercelPool } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -278,10 +279,13 @@ export async function ensureDbTablesExist(db: VercelPool) {
             manager_id UUID REFERENCES resources(id) ON DELETE SET NULL,
             approver_ids UUID[],
             notes TEXT,
+            is_half_day BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
     `;
     await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS approver_ids UUID[];`;
+    // Migration for half day support
+    await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS is_half_day BOOLEAN DEFAULT FALSE;`;
 
     // --- NOTIFICATIONS TABLE ---
     await db.sql`

@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
 import { 
     Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
@@ -8,6 +6,7 @@ import {
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
     Notification
 } from '../types';
+import { useToast } from './ToastContext';
 
 // DEFAULT SIDEBAR CONFIGURATION
 const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
@@ -151,6 +150,13 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
     if (token) headers['Authorization'] = `Bearer ${token}`;
     
     const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
+    
+    // FIX: Handle 204 No Content response correctly to avoid JSON parse error
+    // Quando un'API di eliminazione restituisce 204, non c'è corpo JSON da parsare.
+    if (response.status === 204) {
+        return null;
+    }
+
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody.error || `API request failed: ${response.status}`);
@@ -161,6 +167,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [actionLoadingState, setActionLoadingState] = useState<Record<string, boolean>>({});
+    const { addToast } = useToast();
 
     // Data States
     const [clients, setClients] = useState<Client[]>([]);
@@ -419,6 +426,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await apiFetch(`/api/config?type=${type}&id=${id}`, { method: 'DELETE' });
             const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations;
             setter(prev => prev.filter(o => o.id !== id));
+            // FIX: Added toast feedback for successful deletion
+            addToast('Opzione eliminata con successo', 'success');
+        } catch (error) {
+            console.error("Failed to delete config option:", error);
+            // FIX: Added error handling feedback (e.g. integrity constraints)
+            addToast((error as Error).message || 'Errore durante l\'eliminazione (possibile vincolo di integrità)', 'error');
         } finally { setActionLoading(`deleteConfig-${type}-${id}`, false); }
     };
 

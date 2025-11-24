@@ -1,3 +1,4 @@
+
 /**
  * @file WorkloadPage.tsx
  * @description Pagina di visualizzazione del carico totale per risorsa (sola lettura).
@@ -54,7 +55,8 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     isNonWorkingDay = true;
   }
 
-  if (activeLeave && leaveType) {
+  // If full day leave, show full block
+  if (activeLeave && leaveType && !activeLeave.isHalfDay) {
       return (
         <td 
             className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold"
@@ -80,20 +82,29 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     }, 0);
   }, [assignments, allocations, resource.id, date]);
 
+  // Calcolo capacità utilizzata considerando le mezze giornate di ferie
+  let capacityUsed = total;
+  if (activeLeave && activeLeave.isHalfDay && leaveType?.affectsCapacity) {
+      capacityUsed += 50;
+  }
+
   // Logica colori unificata
-  const cellColor = useMemo(() => {
-    const maxPercentage = resource.maxStaffingPercentage ?? 100;
-    if (total > maxPercentage) return 'bg-error-container text-on-error-container';
-    if (total === maxPercentage) return 'bg-tertiary-container text-on-tertiary-container';
-    if (total > 0 && total < maxPercentage) return 'bg-yellow-container text-on-yellow-container';
-    return 'bg-transparent';
-  }, [total, resource.maxStaffingPercentage]);
+  const maxPercentage = resource.maxStaffingPercentage ?? 100;
+  let cellColor = 'bg-transparent';
+
+  if (capacityUsed > maxPercentage) cellColor = 'bg-error-container text-on-error-container';
+  else if (capacityUsed === maxPercentage) cellColor = 'bg-tertiary-container text-on-tertiary-container';
+  else if (total > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
+  else if (activeLeave && activeLeave.isHalfDay) cellColor = 'bg-surface-container-high'; // Half leave, no work
 
   return (
     <td
       className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
     >
-      {total > 0 ? `${total}%` : '-'}
+      {activeLeave && activeLeave.isHalfDay && (
+          <span className="text-xs opacity-50 mr-1">1/2</span>
+      )}
+      {total > 0 ? `${total}%` : (activeLeave && activeLeave.isHalfDay ? '' : '-')}
     </td>
   );
 };
@@ -131,6 +142,7 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
     const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
     
     // Subtract Leave Days from Working Days to get "Available Days"
+    // Note: getLeaveDurationInWorkingDays handles 0.5 for half days
     const resourceLeaves = leaveRequests.filter(l => l.resourceId === resource.id && l.status === 'APPROVED');
     let leaveDaysLost = 0;
     resourceLeaves.forEach(leave => {
