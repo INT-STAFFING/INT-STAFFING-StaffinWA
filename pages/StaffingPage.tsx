@@ -25,11 +25,6 @@ import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-/**
- * Opzioni percentuali per le celle di allocazione (0–100% step 5).
- */
-const PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5);
-
 // Helper per trovare l'assenza in una data specifica
 const getActiveLeave = (resourceId: string, dateStr: string, leaves: LeaveRequest[]) => {
     return leaves.find(l => {
@@ -53,6 +48,7 @@ const getLeaveIcon = (typeName: string) => {
 
 /**
  * Celle di allocazione giornaliera modificabile (per singola assegnazione).
+ * Ottimizzato usando Input invece di Select per ridurre i nodi DOM (performance).
  */
 interface AllocationCellProps {
   assignment: Assignment;
@@ -90,12 +86,20 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
       );
     }
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      updateAllocation(assignment.id!, date, parseInt(e.target.value, 10));
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      let val = parseInt(e.target.value, 10);
+      if (isNaN(val)) val = 0;
+      if (val > 100) val = 100;
+      if (val < 0) val = 0;
+      updateAllocation(assignment.id!, date, val);
+    };
+
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+        e.target.select();
     };
 
     return (
-      <td className="border-t border-outline-variant p-0 text-center relative">
+      <td className="border-t border-outline-variant p-0 text-center relative h-10">
         {activeLeave && activeLeave.isHalfDay && leaveType && (
             <div 
                 className="absolute top-0 right-0 w-3 h-3 rounded-bl bg-opacity-50 pointer-events-none z-10"
@@ -103,17 +107,17 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
                 title="Mezza giornata di assenza"
             />
         )}
-        <select
-          value={percentage}
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="5"
+          value={percentage === 0 ? '' : percentage} // Show empty if 0 for cleaner look
+          placeholder={percentage === 0 ? '-' : ''}
           onChange={handleChange}
-          className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none text-on-surface"
-        >
-          {PERCENTAGE_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-              {p > 0 ? `${p}%` : '-'}
-            </option>
-          ))}
-        </select>
+          onFocus={handleFocus}
+          className="w-full h-full bg-transparent border-0 text-center text-sm focus:ring-2 focus:ring-inset focus:ring-primary text-on-surface p-0 m-0 appearance-none"
+        />
       </td>
     );
   }
