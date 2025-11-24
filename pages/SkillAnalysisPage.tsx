@@ -19,6 +19,7 @@ import { chord as d3Chord, ribbon as d3Ribbon } from 'd3-chord';
 import { arc as d3Arc, lineRadial, curveLinearClosed } from 'd3-shape';
 import { rgb } from 'd3-color';
 import SearchableSelect from '../components/SearchableSelect';
+import 'd3-transition'; // Import transition to avoid crashes on interactions
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar';
 
@@ -235,6 +236,10 @@ const SkillChordDiagram: React.FC<{
         const svg = select(svgRef.current);
         svg.selectAll("*").remove();
 
+        // Append the Main Group that will be Zoomed/Panned
+        // IMPORTANT: Create g BEFORE setting up zoom that references it.
+        const g = svg.append("g");
+
         // Zoom Behavior Setup
         const zoomBehavior = d3Zoom()
             .scaleExtent([0.5, 5]) // Limit zoom scale
@@ -263,9 +268,6 @@ const SkillChordDiagram: React.FC<{
             .radius(innerRadius);
 
         const color = scaleOrdinal(schemeCategory10);
-
-        // Append the Main Group that will be Zoomed/Panned
-        const g = svg.append("g");
 
         const chords = chordGenerator(matrix);
 
@@ -324,6 +326,9 @@ const SkillRadarChart: React.FC<{
         const svg = select(svgRef.current);
         svg.selectAll("*").remove();
 
+        // Append the Main Group that will be Zoomed/Panned
+        const g = svg.append("g");
+
         // Zoom Behavior Setup
         const zoomBehavior = d3Zoom()
             .scaleExtent([0.5, 5])
@@ -353,9 +358,6 @@ const SkillRadarChart: React.FC<{
         const rScale = scaleLinear()
             .range([0, radius])
             .domain([0, cfg.maxValue]);
-
-        // Append the Main Group that will be Zoomed/Panned
-        const g = svg.append("g");
 
         // Circular grid
         const axisGrid = g.append("g").attr("class", "axisWrapper");
