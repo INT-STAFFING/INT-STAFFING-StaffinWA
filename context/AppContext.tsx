@@ -1,15 +1,18 @@
 
+
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
 import { 
     Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
-    LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors
+    LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
+    Notification
 } from '../types';
 
 // DEFAULT SIDEBAR CONFIGURATION
 const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
     { path: "/dashboard", label: "Dashboard", icon: "dashboard", section: "Principale" },
+    { path: "/notifications", label: "Notifiche", icon: "notifications", section: "Principale" }, // Added Notifications
     { path: "/staffing", label: "Staffing", icon: "calendar_month", section: "Principale" },
     { path: "/workload", label: "Carico Risorse", icon: "groups", section: "Principale" },
     
@@ -79,12 +82,15 @@ export interface EntitiesContextType {
     managerResourceIds: string[];
     sidebarConfig: SidebarItem[]; 
     sidebarSections: string[]; 
-    sidebarSectionColors: SidebarSectionColors; // NEW
+    sidebarSectionColors: SidebarSectionColors; 
+    notifications: Notification[]; // Added
     loading: boolean;
     isActionLoading: (action: string) => boolean;
     
     // Methods
     fetchData: () => Promise<void>;
+    fetchNotifications: () => Promise<void>; // Added
+    markNotificationAsRead: (id?: string) => Promise<void>; // Added
     addResource: (resource: Omit<Resource, 'id'>) => Promise<Resource>;
     updateResource: (resource: Resource) => Promise<void>;
     deleteResource: (id: string) => Promise<void>;
@@ -133,7 +139,7 @@ export interface EntitiesContextType {
     deleteLeaveRequest: (id: string) => Promise<void>;
     updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
     updateSidebarSections: (sections: string[]) => Promise<void>;
-    updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>; // NEW
+    updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
@@ -187,6 +193,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
+    const [notifications, setNotifications] = useState<Notification[]>([]); // Added
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -248,9 +255,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
+    const fetchNotifications = useCallback(async () => {
+        try {
+            const notifs = await apiFetch('/api/resources?entity=notifications');
+            setNotifications(notifs);
+        } catch (error) {
+            console.error("Failed to fetch notifications", error);
+        }
+    }, []);
+
+    const markNotificationAsRead = useCallback(async (id?: string) => {
+        try {
+            const url = id 
+                ? `/api/resources?entity=notifications&action=mark_read&id=${id}`
+                : `/api/resources?entity=notifications&action=mark_read`;
+            
+            await apiFetch(url, { method: 'PUT' });
+            
+            // Update local state
+            setNotifications(prev => prev.map(n => {
+                if (id) {
+                    return n.id === id ? { ...n, isRead: true } : n;
+                }
+                return { ...n, isRead: true };
+            }));
+        } catch (error) {
+            console.error("Failed to mark notification as read", error);
+        }
+    }, []);
+
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+        fetchNotifications();
+        // Poll notifications every 60s
+        const interval = setInterval(fetchNotifications, 60000);
+        return () => clearInterval(interval);
+    }, [fetchData, fetchNotifications]);
 
     // ... (CRUD Operations - Only showing new/modified ones for brevity, keep others as is) ...
     
@@ -707,6 +747,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const newReq = await apiFetch('/api/resources?entity=leaves', { method: 'POST', body: JSON.stringify(req) });
             setLeaveRequests(prev => [...prev, newReq]);
+            await fetchNotifications(); // Refresh notifications after action
         } finally { setActionLoading('addLeaveRequest', false); }
     };
 
@@ -715,6 +756,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const updated = await apiFetch(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setLeaveRequests(prev => prev.map(r => r.id === req.id ? updated : r));
+            await fetchNotifications(); // Refresh notifications after action
         } finally { setActionLoading('updateLeaveRequest', false); }
     };
 
@@ -756,7 +798,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
-    // NEW: Sidebar Section Colors
     const updateSidebarSectionColors = async (colors: SidebarSectionColors) => {
         setActionLoading('updateSidebarSectionColors', true);
         try {
@@ -773,8 +814,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     const entitiesValue: EntitiesContextType = {
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, loading, isActionLoading,
-        fetchData, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, notifications, loading, isActionLoading,
+        fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors
     };
 
     const allocationsValue: AllocationsContextType = {

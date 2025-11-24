@@ -1,21 +1,21 @@
 
-
-
 import React, { useState, useCallback, useRef } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 import * as XLSX from 'xlsx';
+import { useAuth } from '../context/AuthContext';
 
-type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves';
+type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions';
 
-const importOptions: { value: ImportType; label: string; sheetName: string }[] = [
+const importOptions: { value: ImportType; label: string; sheetName: string; adminOnly?: boolean }[] = [
     { value: 'core_entities', label: 'Entità Principali (Risorse, Progetti, etc.)', sheetName: 'Multiple' },
     { value: 'staffing', label: 'Staffing (Allocazioni)', sheetName: 'Staffing' },
     { value: 'resource_requests', label: 'Richieste Risorse', sheetName: 'Richieste_Risorse' },
     { value: 'interviews', label: 'Colloqui', sheetName: 'Colloqui' },
     { value: 'skills', label: 'Competenze e Associazioni', sheetName: 'Competenze' },
     { value: 'leaves', label: 'Assenze (Leaves)', sheetName: 'Assenze' },
+    { value: 'users_permissions', label: 'Utenti e Permessi (Admin)', sheetName: 'Utenti', adminOnly: true },
 ];
 
 const ImportPage: React.FC = () => {
@@ -28,6 +28,7 @@ const ImportPage: React.FC = () => {
         details?: string[];
     } | null>(null);
     const { fetchData } = useEntitiesContext(); 
+    const { isAdmin } = useAuth();
     
     // Ref per l'input file
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +92,12 @@ const ImportPage: React.FC = () => {
                     case 'leaves':
                         body = { leaves: XLSX.utils.sheet_to_json(workbook.Sheets['Assenze'] || {}) };
                         break;
+                    case 'users_permissions':
+                        body = {
+                            users: XLSX.utils.sheet_to_json(workbook.Sheets['Utenti'] || {}),
+                            permissions: XLSX.utils.sheet_to_json(workbook.Sheets['Permessi'] || {})
+                        };
+                        break;
                 }
 
                 const response = await fetch(`/api/import?type=${importType}`, {
@@ -138,7 +145,9 @@ const ImportPage: React.FC = () => {
                         }}
                         className="form-select w-full md:w-1/2"
                     >
-                        {importOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        {importOptions.filter(opt => !opt.adminOnly || isAdmin).map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
                     </select>
                 </div>
                 

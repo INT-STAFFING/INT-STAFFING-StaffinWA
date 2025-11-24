@@ -1,6 +1,4 @@
 
-
-
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -9,6 +7,7 @@
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 
 /**
  * Esegue il parsing di un valore data proveniente da Excel, gestendo sia i numeri seriali
@@ -529,6 +528,77 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     }
 };
 
+const importUsersPermissions = async (client: any, body: any, warnings: string[]) => {
+    const { users, permissions } = body;
+    
+    // 1. Import Users
+    if (Array.isArray(users)) {
+        // Load existing users map
+        const existingUsers = await client.query('SELECT id, username FROM app_users');
+        const userMap = new Map<string, string>(existingUsers.rows.map((u: any) => [u.username, u.id]));
+        
+        // Load resources to link by email
+        const resources = await client.query('SELECT id, email FROM resources');
+        const resourceMap = new Map<string, string>(resources.rows.map((r: any) => [normalize(r.email), r.id]));
+
+        // Generate default password hash for new users: "Staffing2024!"
+        const defaultHash = await bcrypt.hash("Staffing2024!", 10);
+
+        for (const u of users) {
+            const { Username, Ruolo, 'Email Risorsa': resourceEmail, 'Stato Attivo': isActive } = u;
+            
+            if (!Username || !Ruolo) {
+                warnings.push(`Utente saltato: username o ruolo mancante.`);
+                continue;
+            }
+
+            const role = ['ADMIN', 'MANAGER', 'SIMPLE'].includes(Ruolo) ? Ruolo : 'SIMPLE';
+            const active = String(isActive).toUpperCase() === 'SI';
+            const resourceId = resourceEmail ? resourceMap.get(normalize(resourceEmail)) : null;
+
+            if (resourceEmail && !resourceId) {
+                warnings.push(`Avviso: Risorsa con email '${resourceEmail}' non trovata per l'utente '${Username}'.`);
+            }
+
+            if (userMap.has(Username)) {
+                // Update existing user (DO NOT update password)
+                const id = userMap.get(Username);
+                await client.query(`
+                    UPDATE app_users 
+                    SET role = $1, is_active = $2, resource_id = $3 
+                    WHERE id = $4
+                `, [role, active, resourceId, id]);
+            } else {
+                // Create new user with default password
+                const newId = uuidv4();
+                await client.query(`
+                    INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id) 
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                `, [newId, Username, defaultHash, role, active, resourceId]);
+                warnings.push(`Nuovo utente '${Username}' creato con password di default: Staffing2024!`);
+            }
+        }
+    }
+
+    // 2. Import Permissions
+    if (Array.isArray(permissions)) {
+        for (const p of permissions) {
+            const { Ruolo, Pagina, 'Accesso Consentito': allowed } = p;
+            
+            if (!Ruolo || !Pagina) continue;
+            
+            const isAllowed = String(allowed).toUpperCase() === 'SI';
+            
+            await client.query(`
+                INSERT INTO role_permissions (role, page_path, is_allowed)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (role, page_path) 
+                DO UPDATE SET is_allowed = EXCLUDED.is_allowed
+            `, [Ruolo, Pagina, isAllowed]);
+        }
+    }
+};
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -563,6 +633,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break;
             case 'leaves':
                 await importLeaves(client, req.body, warnings);
+                break;
+            case 'users_permissions':
+                await importUsersPermissions(client, req.body, warnings);
                 break;
             default:
                 throw new Error('Tipo di importazione non valido.');

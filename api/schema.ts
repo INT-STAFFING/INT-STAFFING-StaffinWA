@@ -1,4 +1,5 @@
 
+
 import type { VercelPool } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -178,7 +179,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
 
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;
     if (permsCheck.rows[0].count === '0') {
-        const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources'];
+        const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
         const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/projects', '/clients', '/contracts'];
         
         for (const page of simplePages) {
@@ -226,6 +227,19 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
     await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS approver_ids UUID[];`;
+
+    // --- NOTIFICATIONS TABLE ---
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS notifications (
+            id UUID PRIMARY KEY,
+            recipient_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
+            title VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            link VARCHAR(255),
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS projects (

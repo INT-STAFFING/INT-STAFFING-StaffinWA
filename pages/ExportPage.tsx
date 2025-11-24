@@ -1,18 +1,17 @@
 
-
-
 /**
  * @file ExportPage.tsx
  * @description Pagina dedicata all'esportazione dei dati dell'applicazione in file Excel separati.
  */
 
 import React, { useState } from 'react';
-// Fix: Import useAllocationsContext to get allocations data.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves } from '../utils/exportUtils';
+import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves, exportUsersPermissions } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
+import { useAuth } from '../context/AuthContext';
+import { AppUser, RolePermission } from '../types';
 
-type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves';
+type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users';
 
 interface ExportCardProps {
     title: string;
@@ -58,8 +57,8 @@ const ExportCard: React.FC<ExportCardProps> = ({ title, description, onExport, i
 
 const ExportPage: React.FC = () => {
     const allData = useEntitiesContext();
-    // Fix: Get allocations from context.
     const { allocations } = useAllocationsContext();
+    const { isAdmin } = useAuth();
     const [exportingType, setExportingType] = useState<ExportType | null>(null);
 
     const handleExport = async (type: ExportType) => {
@@ -70,7 +69,6 @@ const ExportPage: React.FC = () => {
                     await exportCoreEntities(allData);
                     break;
                 case 'staffing':
-                    // Fix: Pass allocations data to the export function.
                     await exportStaffing({ ...allData, allocations });
                     break;
                 case 'requests':
@@ -85,13 +83,39 @@ const ExportPage: React.FC = () => {
                 case 'leaves':
                     await exportLeaves(allData);
                     break;
+                case 'users':
+                    await handleExportUsers();
+                    break;
             }
         } catch (error) {
             console.error(`Failed to export ${type}:`, error);
-            // In un'app reale, useremmo un sistema di notifiche (toast)
             alert(`Errore durante l'esportazione di ${type}. Controlla la console.`);
         } finally {
             setExportingType(null);
+        }
+    };
+
+    const handleExportUsers = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+            // Fetch Users
+            const usersRes = await fetch('/api/resources?entity=app-users', { headers });
+            if (!usersRes.ok) throw new Error('Failed to fetch users');
+            const users: AppUser[] = await usersRes.json();
+
+            // Fetch Permissions
+            const permsRes = await fetch('/api/resources?entity=role-permissions', { headers });
+            if (!permsRes.ok) throw new Error('Failed to fetch permissions');
+            const permissions: RolePermission[] = await permsRes.json();
+
+            // Export
+            exportUsersPermissions(users, permissions, allData.resources);
+
+        } catch (e) {
+            console.error(e);
+            throw e;
         }
     };
 
@@ -142,6 +166,15 @@ const ExportPage: React.FC = () => {
                     isExporting={exportingType === 'leaves'}
                     icon="event_busy"
                 />
+                {isAdmin && (
+                    <ExportCard
+                        title="Utenti e Sicurezza"
+                        description="Esporta l'elenco degli utenti di sistema e la matrice dei permessi (RBAC). Le password NON vengono esportate."
+                        onExport={() => handleExport('users')}
+                        isExporting={exportingType === 'users'}
+                        icon="security"
+                    />
+                )}
             </div>
         </div>
     );

@@ -1,4 +1,5 @@
 
+
 /**
  * @file types.ts
  * @description Definizioni dei tipi e delle interfacce TypeScript utilizzate in tutta l'applicazione.
@@ -561,4 +562,18 @@ export interface SidebarItem {
  */
 export interface SidebarSectionColors {
     [sectionName: string]: string;
+}
+
+/**
+ * @interface Notification
+ * @description Rappresenta una notifica di sistema.
+ */
+export interface Notification {
+    id: string;
+    recipientResourceId: string;
+    title: string;
+    message: string;
+    link?: string;
+    isRead: boolean;
+    createdAt: string;
 }

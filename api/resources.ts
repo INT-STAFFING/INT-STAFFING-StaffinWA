@@ -1,4 +1,5 @@
 
+
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +21,29 @@ const verifyAdmin = (req: VercelRequest): boolean => {
         return decoded.role === 'ADMIN';
     } catch (e) {
         return false;
+    }
+};
+
+const getUserFromRequest = (req: VercelRequest) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return null;
+    
+    const token = authHeader.split(' ')[1];
+    if (!token) return null;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        return {
+            id: decoded.userId,
+            username: decoded.username,
+            role: decoded.role,
+            // This assumes the token contains resourceId, if not we might need to fetch it or include it during login generation
+            // We updated api/login.ts to allow this, but let's be safe:
+            // Actually, `api/login.ts` DOES NOT currently put resourceId in token payload in the provided code.
+            // We need to fetch the user from DB to be sure.
+        };
+    } catch (e) {
+        return null;
     }
 };
 
@@ -63,6 +87,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     `, [key, value]);
                 }
                 await client.query('COMMIT');
+                return res.status(200).json({ success: true });
+            }
+        }
+
+        // --- NOTIFICATIONS HANDLER ---
+        if (entity === 'notifications') {
+            const tokenUser = getUserFromRequest(req);
+            if (!tokenUser) return res.status(401).json({ error: 'Unauthorized' });
+
+            // Fetch full user details to get resource_id
+            const userRes = await client.query('SELECT role, resource_id FROM app_users WHERE id = $1', [tokenUser.id]);
+            const user = userRes.rows[0];
+            if (!user) return res.status(401).json({ error: 'User not found' });
+
+            if (method === 'GET') {
+                let query = 'SELECT * FROM notifications';
+                const params = [];
+                
+                if (user.role !== 'ADMIN') {
+                    // If not admin, only show notifications for this resource
+                    if (!user.resource_id) return res.status(200).json([]); // No resource linked, no notifications
+                    query += ' WHERE recipient_resource_id = $1';
+                    params.push(user.resource_id);
+                }
+                
+                query += ' ORDER BY created_at DESC';
+                const { rows } = await client.query(query, params);
+                
+                return res.status(200).json(rows.map(r => ({
+                    id: r.id,
+                    recipientResourceId: r.recipient_resource_id,
+                    title: r.title,
+                    message: r.message,
+                    link: r.link,
+                    isRead: r.is_read,
+                    createdAt: r.created_at
+                })));
+            }
+
+            if (method === 'PUT' && action === 'mark_read') {
+                // Mark specific notification or all as read
+                if (id) {
+                    await client.query('UPDATE notifications SET is_read = TRUE WHERE id = $1', [id]);
+                } else {
+                    // Mark all for this user
+                    if (user.resource_id) {
+                        await client.query('UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = $1', [user.resource_id]);
+                    }
+                }
                 return res.status(200).json({ success: true });
             }
         }
@@ -174,11 +247,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 `, [newId, resourceId, typeId, startDate, endDate, status, managerId || null, approverIdsPg, notes]);
                 
+                // --- TRIGGER NOTIFICATIONS FOR APPROVERS ---
+                if (approverIds && approverIds.length > 0) {
+                    const requestorRes = await client.query('SELECT name FROM resources WHERE id = $1', [resourceId]);
+                    const requestorName = requestorRes.rows[0]?.name || 'Una risorsa';
+                    
+                    const notifTitle = "Nuova Richiesta Ferie";
+                    const notifMsg = `${requestorName} ha inserito una nuova richiesta di assenza.`;
+                    const notifLink = "/leaves";
+
+                    for (const approverId of approverIds) {
+                        const notifId = uuidv4();
+                        await client.query(`
+                            INSERT INTO notifications (id, recipient_resource_id, title, message, link)
+                            VALUES ($1, $2, $3, $4, $5)
+                        `, [notifId, approverId, notifTitle, notifMsg, notifLink]);
+                    }
+                }
+
                 return res.status(201).json({ id: newId, ...req.body });
             }
             if (method === 'PUT') {
                 const { resourceId, typeId, startDate, endDate, status, managerId, approverIds, notes } = req.body;
                 
+                // Get old status to check for changes
+                const oldReqRes = await client.query('SELECT status, resource_id FROM leave_requests WHERE id = $1', [id]);
+                const oldStatus = oldReqRes.rows[0]?.status;
+                const requestOwnerId = oldReqRes.rows[0]?.resource_id;
+
                 let query = 'UPDATE leave_requests SET ';
                 const params = [];
                 let idx = 1;
@@ -200,6 +296,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 params.push(id);
                 
                 await client.query(query, params);
+
+                // --- TRIGGER NOTIFICATION FOR REQUESTOR ---
+                if (status && status !== oldStatus && requestOwnerId) {
+                    const notifTitle = "Aggiornamento Richiesta Ferie";
+                    let notifMsg = `Lo stato della tua richiesta è cambiato in: ${status}.`;
+                    if (status === 'APPROVED') notifMsg = "La tua richiesta di ferie è stata APPROVATA.";
+                    if (status === 'REJECTED') notifMsg = "La tua richiesta di ferie è stata RIFIUTATA.";
+                    
+                    const notifId = uuidv4();
+                    await client.query(`
+                        INSERT INTO notifications (id, recipient_resource_id, title, message, link)
+                        VALUES ($1, $2, $3, $4, $5)
+                    `, [notifId, requestOwnerId, notifTitle, notifMsg, "/leaves"]);
+                }
+
                 return res.status(200).json({ id, ...req.body });
             }
             if (method === 'DELETE') {

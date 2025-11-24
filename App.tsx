@@ -1,4 +1,5 @@
 
+
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
@@ -40,6 +41,7 @@ const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
 const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 const LeavePage = lazy(() => import('./pages/LeavePage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage')); // Added
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -66,6 +68,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'db-inspector': return 'Database Inspector';
       case 'simple-user-manual': return 'Guida Assenze';
       case 'test-staffing': return 'Test Staffing Mobile';
+      case 'notifications': return 'Notifiche';
       default: return 'Staffing Planner';
     }
   };
@@ -196,6 +199,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/simple-user-manual" element={<DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>} /> 
               <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
               <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
+              <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
               <Route
                 path="/admin-settings"
                 element={

@@ -1,4 +1,5 @@
 
+
 import React, { useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -15,9 +16,10 @@ interface NavItemProps {
     icon: string;
     label: string;
     color?: string;
+    badgeCount?: number;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color }) => {
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount }) => {
     // Helper to get dynamic style based on theme color key if present
     const getColorStyle = (isActive: boolean) => {
         if (isActive) return {}; // Active overrides color to primary usually
@@ -29,7 +31,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color }) => {
     <NavLink
         to={to}
         className={({ isActive }) =>
-            `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
+            `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 justify-between ${
                 isActive
                     ? 'text-primary bg-secondary-container border-r-4 border-primary'
                     : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
@@ -37,20 +39,32 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color }) => {
         }
         style={({ isActive }) => getColorStyle(isActive)}
     >
-        <span className="material-symbols-outlined mr-3">{icon}</span>
-        {label}
+        <div className="flex items-center">
+            <span className="material-symbols-outlined mr-3">{icon}</span>
+            {label}
+        </div>
+        {badgeCount !== undefined && badgeCount > 0 && (
+            <span className="bg-error text-on-error text-xs font-bold px-2 py-0.5 rounded-full">
+                {badgeCount}
+            </span>
+        )}
     </NavLink>
 )};
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, user, isAdmin, hasPermission } = useAuth();
-    const { sidebarConfig, sidebarSections, sidebarSectionColors } = useEntitiesContext();
+    const { sidebarConfig, sidebarSections, sidebarSectionColors, notifications } = useEntitiesContext();
     const location = useLocation();
 
     // Layout fix: Mobile is fixed (overlay/slide), Desktop is relative (flex item taking space)
     const sidebarClasses = `fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-outline-variant transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
     }`;
+
+    // Calcolo notifiche non lette
+    const unreadNotifications = useMemo(() => {
+        return notifications.filter(n => !n.isRead).length;
+    }, [notifications]);
 
     // Raggruppa le voci per sezione
     const groupedItems = useMemo(() => {
@@ -104,7 +118,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                     {sectionName}
                                 </p>
                                 {visibleItems.map(item => (
-                                    <NavItem key={item.path} to={item.path} icon={item.icon} label={item.label} color={item.color} />
+                                    <NavItem 
+                                        key={item.path} 
+                                        to={item.path} 
+                                        icon={item.icon} 
+                                        label={item.label} 
+                                        color={item.color} 
+                                        badgeCount={item.path === '/notifications' ? unreadNotifications : undefined}
+                                    />
                                 ))}
                             </div>
                         );

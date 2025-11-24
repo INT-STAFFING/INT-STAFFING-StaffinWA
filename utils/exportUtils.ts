@@ -4,11 +4,11 @@
  * @description Funzioni di utilità per esportare dati in formato Excel.
  */
 
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType, AppUser, RolePermission } from '../types';
 import { EntitiesContextType } from '../context/AppContext';
 import * as XLSX from 'xlsx';
 
-type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves';
+type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions';
 
 const formatDateForExport = (date: Date | string | null | undefined): string => {
     if (!date) return '';
@@ -234,6 +234,36 @@ export const exportLeaves = (data: EntitiesContextType) => {
     XLSX.writeFile(wb, `Staffing_Export_Assenze_${formatDateForExport(new Date())}.xlsx`);
 };
 
+/**
+ * Esporta gli utenti e la matrice dei permessi.
+ * NOTA: Le password NON vengono esportate per sicurezza.
+ */
+export const exportUsersPermissions = (users: AppUser[], permissions: RolePermission[], resources: Resource[]) => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Utenti
+    const usersData = users.map(u => {
+        const resource = resources.find(r => r.id === u.resourceId);
+        return {
+            'Username': u.username,
+            'Ruolo': u.role,
+            'Email Risorsa': resource?.email || '', // Use email for linking on import
+            'Stato Attivo': u.isActive ? 'SI' : 'NO'
+        };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(usersData), 'Utenti');
+
+    // Sheet 2: Permessi
+    const permissionsData = permissions.map(p => ({
+        'Ruolo': p.role,
+        'Pagina': p.pagePath,
+        'Accesso Consentito': p.allowed ? 'SI' : 'NO'
+    }));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(permissionsData), 'Permessi');
+
+    XLSX.writeFile(wb, `Staffing_Export_Utenti_Permessi_${formatDateForExport(new Date())}.xlsx`);
+};
+
 
 /**
  * Genera e avvia il download di un template Excel vuoto basato sul tipo di importazione.
@@ -247,7 +277,7 @@ export const exportTemplate = (type: ExportType) => {
         [],
         ["- Non modificare i nomi dei fogli o i nomi delle colonne."],
         ["- Compila il foglio con i dati richiesti."],
-        ["- I dati esistenti (con lo stesso nome/email/valore) verranno saltati per evitare duplicati."],
+        ["- I dati esistenti (con lo stesso nome/email/valore) verranno saltati o aggiornati."],
         ["- Per le date, usa il formato AAAA-MM-GG (es. 2024-12-31)."],
     ];
     const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
@@ -283,6 +313,10 @@ export const exportTemplate = (type: ExportType) => {
             break;
         case 'leaves':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Tipologia Assenza", "Data Inizio", "Data Fine", "Stato", "Note"]]), 'Assenze');
+            break;
+        case 'users_permissions':
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Username", "Ruolo", "Email Risorsa", "Stato Attivo"]]), 'Utenti');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Ruolo", "Pagina", "Accesso Consentito"]]), 'Permessi');
             break;
     }
 
