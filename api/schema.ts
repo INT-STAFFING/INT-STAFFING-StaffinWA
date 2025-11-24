@@ -210,6 +210,18 @@ export async function ensureDbTablesExist(db: VercelPool) {
         `
     ));
 
+    // --- MIGRATION: Ensure Notification permissions exist ---
+    await db.sql`
+        INSERT INTO role_permissions (role, page_path, is_allowed)
+        VALUES ('SIMPLE', '/notifications', TRUE)
+        ON CONFLICT (role, page_path) DO NOTHING;
+    `;
+    await db.sql`
+        INSERT INTO role_permissions (role, page_path, is_allowed)
+        VALUES ('MANAGER', '/notifications', TRUE)
+        ON CONFLICT (role, page_path) DO NOTHING;
+    `;
+
 
     // Leave Requests Table (Needs Resources)
     await db.sql`
@@ -437,6 +449,32 @@ export async function ensureDbTablesExist(db: VercelPool) {
         VALUES ('sidebar_sections_v1', ${JSON.stringify(defaultSections)}) 
         ON CONFLICT (key) DO NOTHING;
     `;
+
+    // --- MIGRATION: Ensure Sidebar Config has Notifications (if custom config exists) ---
+    try {
+        const sidebarConfigRes = await db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1'`;
+        if (sidebarConfigRes.rows.length > 0) {
+            const currentConfig = JSON.parse(sidebarConfigRes.rows[0].value);
+            const hasNotifications = currentConfig.some((item: any) => item.path === '/notifications');
+            if (!hasNotifications) {
+                const newConfig = [...currentConfig];
+                // Insert after Dashboard if exists, else at start
+                const dashboardIdx = newConfig.findIndex((item: any) => item.path === '/dashboard');
+                const insertIdx = dashboardIdx >= 0 ? dashboardIdx + 1 : 0;
+                newConfig.splice(insertIdx, 0, { 
+                    path: "/notifications", 
+                    label: "Notifiche", 
+                    icon: "notifications", 
+                    section: "Principale" 
+                });
+                
+                await db.sql`UPDATE app_config SET value = ${JSON.stringify(newConfig)} WHERE key = 'sidebar_layout_v1'`;
+            }
+        }
+    } catch (e) {
+        console.error("Migration sidebar error (non-blocking):", e);
+    }
+
 
     // Backfill for Role Cost History (Seeding history from current roles if empty)
     const historyCheck = await db.sql`SELECT COUNT(*) FROM role_cost_history;`;

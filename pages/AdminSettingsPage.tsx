@@ -221,7 +221,7 @@ const PermissionMatrixSection: React.FC = () => {
 
     // Define all protectable paths
     const allPaths = [
-        '/dashboard', '/staffing', '/workload', '/gantt', '/projects', '/contracts', 
+        '/dashboard', '/notifications', '/staffing', '/workload', '/gantt', '/projects', '/contracts', 
         '/clients', '/forecasting', '/resources', '/skills', '/skill-analysis', 
         '/roles', '/leaves', '/resource-requests', '/interviews', '/skills-map', 
         '/staffing-visualization', '/manuale-utente', '/simple-user-manual', 
