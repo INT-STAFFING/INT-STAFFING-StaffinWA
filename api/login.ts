@@ -1,3 +1,5 @@
+
+
 /**
  * @file api/login.ts
  * @description Endpoint API per la verifica delle credenziali di accesso tramite DB.
@@ -66,7 +68,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 username: user.username,
                 role: user.role,
                 resourceId: user.resource_id,
-                permissions
+                permissions,
+                mustChangePassword: user.must_change_password // Return the flag
             },
             isAdmin: user.role === 'ADMIN' // Backward compatibility for frontend check
         });

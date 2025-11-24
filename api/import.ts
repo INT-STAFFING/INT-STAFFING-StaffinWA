@@ -1,4 +1,5 @@
 
+
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -552,7 +553,7 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
                 continue;
             }
 
-            const role = ['ADMIN', 'MANAGER', 'SIMPLE'].includes(Ruolo) ? Ruolo : 'SIMPLE';
+            const role = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR', 'SIMPLE'].includes(Ruolo) ? Ruolo : 'SIMPLE';
             const active = String(isActive).toUpperCase() === 'SI';
             const resourceId = resourceEmail ? resourceMap.get(normalize(resourceEmail)) : null;
 
@@ -561,7 +562,7 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
             }
 
             if (userMap.has(Username)) {
-                // Update existing user (DO NOT update password)
+                // Update existing user (DO NOT update password or flag)
                 const id = userMap.get(Username);
                 await client.query(`
                     UPDATE app_users 
@@ -569,11 +570,11 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
                     WHERE id = $4
                 `, [role, active, resourceId, id]);
             } else {
-                // Create new user with default password
+                // Create new user with default password AND set must_change_password = TRUE
                 const newId = uuidv4();
                 await client.query(`
-                    INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id) 
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id, must_change_password) 
+                    VALUES ($1, $2, $3, $4, $5, $6, TRUE)
                 `, [newId, Username, defaultHash, role, active, resourceId]);
                 warnings.push(`Nuovo utente '${Username}' creato con password di default: Staffing2024!`);
             }

@@ -1,4 +1,7 @@
 
+
+
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -80,7 +83,7 @@ const UserManagementSection: React.FC = () => {
     };
 
     const openModal = (user?: AppUser) => {
-        setEditingUser(user ? { ...user } : { role: 'SIMPLE', isActive: true, username: '' });
+        setEditingUser(user ? { ...user } : { role: 'SIMPLE', isActive: true, username: '', mustChangePassword: false });
         setShowPassword(false);
         setIsModalOpen(true);
     };
@@ -112,7 +115,10 @@ const UserManagementSection: React.FC = () => {
                             const resourceName = resources.find(r => r.id === u.resourceId)?.name || '-';
                             return (
                                 <tr key={u.id} className="hover:bg-surface-container-low">
-                                    <td className="px-4 py-2 font-medium text-on-surface">{u.username}</td>
+                                    <td className="px-4 py-2 font-medium text-on-surface">
+                                        {u.username}
+                                        {u.mustChangePassword && <span className="ml-2 text-xs text-yellow-600 bg-yellow-100 px-1 rounded">Reset richiesto</span>}
+                                    </td>
                                     <td className="px-4 py-2 text-on-surface-variant">{u.role}</td>
                                     <td className="px-4 py-2 text-on-surface-variant">{resourceName}</td>
                                     <td className="px-4 py-2 text-center">
@@ -177,6 +183,8 @@ const UserManagementSection: React.FC = () => {
                             >
                                 <option value="SIMPLE">Simple User</option>
                                 <option value="MANAGER">Manager</option>
+                                <option value="SENIOR MANAGER">Senior Manager</option>
+                                <option value="MANAGING DIRECTOR">Managing Director</option>
                                 <option value="ADMIN">Admin</option>
                             </select>
                         </div>
@@ -193,14 +201,25 @@ const UserManagementSection: React.FC = () => {
                             <p className="text-xs text-on-surface-variant mt-1">Collega l'utente a una risorsa per funzionalità self-service (es. ferie).</p>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <input 
-                                type="checkbox" 
-                                checked={editingUser.isActive} 
-                                onChange={e => setEditingUser({...editingUser, isActive: e.target.checked})}
-                                className="form-checkbox"
-                            />
-                            <label className="text-sm text-on-surface">Utente Attivo</label>
+                        <div className="space-y-2 bg-surface-container-low p-3 rounded">
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="checkbox" 
+                                    checked={editingUser.isActive} 
+                                    onChange={e => setEditingUser({...editingUser, isActive: e.target.checked})}
+                                    className="form-checkbox"
+                                />
+                                <label className="text-sm text-on-surface">Utente Attivo</label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="checkbox" 
+                                    checked={editingUser.mustChangePassword} 
+                                    onChange={e => setEditingUser({...editingUser, mustChangePassword: e.target.checked})}
+                                    className="form-checkbox"
+                                />
+                                <label className="text-sm text-on-surface">Forza cambio password al prossimo login</label>
+                            </div>
                         </div>
 
                         <div className="flex justify-end gap-2 pt-4">
@@ -250,7 +269,7 @@ const PermissionMatrixSection: React.FC = () => {
         fetchPermissions();
     }, [fetchPermissions]);
 
-    const handleToggle = (role: 'SIMPLE' | 'MANAGER', path: string) => {
+    const handleToggle = (role: 'SIMPLE' | 'MANAGER' | 'SENIOR MANAGER' | 'MANAGING DIRECTOR', path: string) => {
         setPermissions(prev => {
             const existingIndex = prev.findIndex(p => p.role === role && p.pagePath === path);
             const newPerms = [...prev];
@@ -289,7 +308,7 @@ const PermissionMatrixSection: React.FC = () => {
         }
     };
 
-    const isAllowed = (role: 'SIMPLE' | 'MANAGER', path: string) => {
+    const isAllowed = (role: 'SIMPLE' | 'MANAGER' | 'SENIOR MANAGER' | 'MANAGING DIRECTOR', path: string) => {
         const perm = permissions.find(p => p.role === role && p.pagePath === path);
         return perm ? perm.allowed : false; // Default false if not set
     };
@@ -311,9 +330,11 @@ const PermissionMatrixSection: React.FC = () => {
                     <thead className="bg-surface-container-low text-on-surface-variant">
                         <tr>
                             <th className="px-4 py-2 text-left">Pagina / Percorso</th>
-                            <th className="px-4 py-2 text-center w-32">Simple User</th>
-                            <th className="px-4 py-2 text-center w-32">Manager</th>
-                            <th className="px-4 py-2 text-center w-32 bg-surface-container text-on-surface/50">Admin</th>
+                            <th className="px-4 py-2 text-center w-24">Simple</th>
+                            <th className="px-4 py-2 text-center w-24">Manager</th>
+                            <th className="px-4 py-2 text-center w-24">Senior Mgr</th>
+                            <th className="px-4 py-2 text-center w-24">Man. Dir</th>
+                            <th className="px-4 py-2 text-center w-24 bg-surface-container text-on-surface/50">Admin</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant">
@@ -333,6 +354,22 @@ const PermissionMatrixSection: React.FC = () => {
                                         type="checkbox" 
                                         checked={isAllowed('MANAGER', path)} 
                                         onChange={() => handleToggle('MANAGER', path)}
+                                        className="form-checkbox text-primary rounded focus:ring-primary cursor-pointer"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isAllowed('SENIOR MANAGER', path)} 
+                                        onChange={() => handleToggle('SENIOR MANAGER', path)}
+                                        className="form-checkbox text-primary rounded focus:ring-primary cursor-pointer"
+                                    />
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isAllowed('MANAGING DIRECTOR', path)} 
+                                        onChange={() => handleToggle('MANAGING DIRECTOR', path)}
                                         className="form-checkbox text-primary rounded focus:ring-primary cursor-pointer"
                                     />
                                 </td>

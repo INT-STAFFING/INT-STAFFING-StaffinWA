@@ -167,6 +167,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
+    // MIGRATION: Add must_change_password column
+    await db.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;`;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS role_permissions (
@@ -177,16 +179,28 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
+    const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
+    const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/projects', '/clients', '/contracts'];
+
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;
     if (permsCheck.rows[0].count === '0') {
-        const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
-        const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/projects', '/clients', '/contracts'];
-        
         for (const page of simplePages) {
             await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ('SIMPLE', ${page}, TRUE) ON CONFLICT DO NOTHING;`;
         }
         for (const page of managerPages) {
             await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ('MANAGER', ${page}, TRUE) ON CONFLICT DO NOTHING;`;
+        }
+    }
+
+    // --- NEW ROLES MIGRATION ---
+    // Ensures SENIOR MANAGER and MANAGING DIRECTOR have permissions
+    for (const role of ['SENIOR MANAGER', 'MANAGING DIRECTOR']) {
+        for (const page of managerPages) {
+             await db.sql`
+                INSERT INTO role_permissions (role, page_path, is_allowed) 
+                VALUES (${role}, ${page}, TRUE) 
+                ON CONFLICT (role, page_path) DO NOTHING;
+            `;
         }
     }
 
@@ -221,6 +235,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
         VALUES ('MANAGER', '/notifications', TRUE)
         ON CONFLICT (role, page_path) DO NOTHING;
     `;
+    // Add notifications for new roles as well
+    for (const role of ['SENIOR MANAGER', 'MANAGING DIRECTOR']) {
+        await db.sql`
+            INSERT INTO role_permissions (role, page_path, is_allowed)
+            VALUES (${role}, '/notifications', TRUE)
+            ON CONFLICT (role, page_path) DO NOTHING;
+        `;
+    }
 
 
     // Leave Requests Table (Needs Resources)

@@ -1,5 +1,7 @@
 
 
+
+
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -142,23 +144,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- APP USERS & AUTH MANAGEMENT (PROTECTED) ---
         if (entity === 'app-users') {
-            if (!verifyAdmin(req) && action !== 'change_password') {
-                return res.status(403).json({ error: 'Unauthorized' });
-            }
-
-            // Change Password (Self or Admin) - We allow self service if token matches ID, but here for simplicity we check admin or valid session
+            // Change Password (Self or Admin)
             if (action === 'change_password' && method === 'PUT') {
+                // Verify user is authenticated
+                const user = getUserFromRequest(req);
+                if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+                // Allow if admin OR if changing own password
+                if (!verifyAdmin(req) && user.id !== id) {
+                    return res.status(403).json({ error: 'Forbidden' });
+                }
+
                 const { newPassword } = req.body;
-                // Ideally verify that the requesting user is the one being changed or is admin
-                // For MVP, we trust the token presence in AuthContext + backend check if strict
                 const hash = await bcrypt.hash(newPassword, 10);
-                await client.query('UPDATE app_users SET password_hash = $1 WHERE id = $2', [hash, id]);
+                
+                // Reset the must_change_password flag upon successful change
+                await client.query('UPDATE app_users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [hash, id]);
                 return res.status(200).json({ success: true });
             }
+
+            // --- BELOW THIS POINT ONLY ADMIN ---
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
             
             if (method === 'GET') {
                 const { rows } = await client.query(`
-                    SELECT u.id, u.username, u.role, u.is_active, u.resource_id, r.name as "resourceName"
+                    SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName"
                     FROM app_users u
                     LEFT JOIN resources r ON u.resource_id = r.id
                     ORDER BY u.username
@@ -166,24 +176,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json(rows.map(r => ({
                     ...r,
                     isActive: r.is_active, // Map snake_case to camelCase
-                    resourceId: r.resource_id
+                    resourceId: r.resource_id,
+                    mustChangePassword: r.must_change_password
                 })));
             }
             if (method === 'POST') {
-                const { username, password, role, isActive, resourceId } = req.body;
+                const { username, password, role, isActive, resourceId, mustChangePassword } = req.body;
                 const hash = await bcrypt.hash(password, 10);
                 const newId = uuidv4();
                 await client.query(
-                    'INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id) VALUES ($1, $2, $3, $4, $5, $6)',
-                    [newId, username, hash, role, isActive, resourceId || null]
+                    'INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                    [newId, username, hash, role, isActive, resourceId || null, mustChangePassword || false]
                 );
                 return res.status(201).json({ id: newId });
             }
             if (method === 'PUT') {
-                const { username, role, isActive, resourceId } = req.body;
+                const { username, role, isActive, resourceId, mustChangePassword } = req.body;
                 await client.query(
-                    'UPDATE app_users SET username=$1, role=$2, is_active=$3, resource_id=$4 WHERE id=$5',
-                    [username, role, isActive, resourceId || null, id]
+                    'UPDATE app_users SET username=$1, role=$2, is_active=$3, resource_id=$4, must_change_password=$5 WHERE id=$6',
+                    [username, role, isActive, resourceId || null, mustChangePassword || false, id]
                 );
                 return res.status(200).json({ success: true });
             }

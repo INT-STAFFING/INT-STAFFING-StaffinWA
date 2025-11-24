@@ -1,18 +1,21 @@
 
 
+
+
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
  */
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
+import { SpinnerIcon } from './components/icons';
 
 // Lazy load all page components for code splitting
 const StaffingPage = lazy(() => import('./pages/StaffingPage'));
@@ -41,7 +44,7 @@ const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
 const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 const LeavePage = lazy(() => import('./pages/LeavePage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage')); // Added
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -224,8 +227,102 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   );
 };
 
+const ForcePasswordChange: React.FC = () => {
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const { changePassword, logout } = useAuth();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        
+        if (newPassword.length < 8) {
+            setError('La password deve essere di almeno 8 caratteri.');
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setError('Le password non coincidono.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await changePassword(newPassword);
+            // Once changed, the context will update (or we should force a reload/logout if needed, 
+            // but ideally AuthContext updates the user state locally).
+            // Actually, context state update is needed. We'll reload for simplicity if context doesn't auto-update.
+            window.location.reload();
+        } catch (e) {
+            setError('Errore durante il cambio password.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+            <div className="w-full max-w-md p-8 bg-surface rounded-2xl shadow-lg border border-outline-variant">
+                <div className="text-center mb-6">
+                    <span className="material-symbols-outlined text-5xl text-primary mb-2">lock_reset</span>
+                    <h1 className="text-2xl font-bold text-on-surface">Cambio Password Obbligatorio</h1>
+                    <p className="text-sm text-on-surface-variant mt-2">
+                        Per motivi di sicurezza, devi cambiare la tua password al primo accesso.
+                    </p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Nuova Password</label>
+                        <input 
+                            type="password" 
+                            required 
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="form-input w-full"
+                            placeholder="Minimo 8 caratteri"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Conferma Password</label>
+                        <input 
+                            type="password" 
+                            required 
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="form-input w-full"
+                            placeholder="Ripeti password"
+                        />
+                    </div>
+
+                    {error && <div className="text-error text-sm text-center font-medium">{error}</div>}
+
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full py-2 px-4 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 disabled:opacity-50 flex justify-center items-center"
+                    >
+                        {loading ? <SpinnerIcon className="w-5 h-5" /> : 'Cambia Password e Accedi'}
+                    </button>
+                </form>
+                
+                <button onClick={logout} className="mt-4 text-sm text-on-surface-variant hover:text-on-surface w-full text-center">
+                    Torna al Login
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const MainLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user } = useAuth();
+
+  // If user must change password, block standard layout
+  if (user?.mustChangePassword) {
+      return <ForcePasswordChange />;
+  }
 
   return (
     <>

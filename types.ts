@@ -510,7 +510,7 @@ export interface PageVisibility {
  * @enum UserRole
  * @description Ruoli utente per il sistema di autenticazione.
  */
-export type UserRole = 'SIMPLE' | 'MANAGER' | 'ADMIN';
+export type UserRole = 'SIMPLE' | 'MANAGER' | 'SENIOR MANAGER' | 'MANAGING DIRECTOR' | 'ADMIN';
 
 /**
  * @interface AppUser
@@ -529,6 +529,8 @@ export interface AppUser {
     isActive: boolean;
     /** @property {string[]} permissions - Lista dei percorsi abilitati. */
     permissions: string[];
+    /** @property {boolean} mustChangePassword - Se l'utente deve cambiare password al prossimo login. */
+    mustChangePassword?: boolean;
 }
 
 /**
