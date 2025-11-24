@@ -1,4 +1,3 @@
-
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -480,8 +479,8 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     const { leaves: importedLeaves } = body;
     if (!Array.isArray(importedLeaves)) return;
 
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const leaveTypeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), t.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), String(r.id)]));
+    const leaveTypeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), String(t.id)]));
 
     for (const leave of importedLeaves) {
         const { 'Nome Risorsa': resName, 'Tipologia Assenza': typeName, 'Data Inizio': startDate, 'Data Fine': endDate, 'Approvatori': approverNames, 'Stato': status, 'Note': notes } = leave;
@@ -561,7 +560,7 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     if (Array.isArray(users)) {
         // Load existing users map
         const existingUsers = await client.query('SELECT id, username FROM app_users');
-        const userMap = new Map<string, string>(existingUsers.rows.map((u: any) => [u.username, String(u.id)]));
+        const userMap = new Map<string, string>(existingUsers.rows.map((u: any) => [String(u.username), String(u.id)]));
         
         // Load resources to link by email
         const resources = await client.query('SELECT id, email FROM resources');
@@ -586,9 +585,9 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
                 warnings.push(`Avviso: Risorsa con email '${resourceEmail}' non trovata per l'utente '${Username}'.`);
             }
 
-            if (userMap.has(Username)) {
+            if (userMap.has(String(Username))) {
                 // Update existing user (DO NOT update password or flag)
-                const id = userMap.get(Username);
+                const id = userMap.get(String(Username));
                 await client.query(`
                     UPDATE app_users 
                     SET role = $1, is_active = $2, resource_id = $3 
