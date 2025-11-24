@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
@@ -6,6 +7,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { formatDateFull } from '../utils/dateUtils';
 
 // --- Types ---
 type EnrichedRequest = ResourceRequest & {
@@ -13,15 +15,6 @@ type EnrichedRequest = ResourceRequest & {
     roleName: string;
     requestorName: string | null;
 };
-
-// --- Helper Functions ---
-const formatDate = (dateStr: string) => {
-    if (!dateStr) return 'N/A';
-    // Le date dal DB possono avere l'orario, lo togliamo per sicurezza
-    const date = new Date(dateStr.split('T')[0]);
-    return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
-}
-
 
 const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     switch (status) {
@@ -32,7 +25,6 @@ const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     }
 };
 
-// FIX: Changed to a named export.
 export const ResourceRequestPage: React.FC = () => {
     const { 
         resourceRequests, projects, roles, resources, 
@@ -125,7 +117,6 @@ export const ResourceRequestPage: React.FC = () => {
     };
 
     const openModalForEdit = (request: ResourceRequest) => {
-        // Fix: Format dates to YYYY-MM-DD for the date input
         const formattedRequest = {
             ...request,
             startDate: request.startDate ? request.startDate.split('T')[0] : '',
@@ -202,7 +193,7 @@ export const ResourceRequestPage: React.FC = () => {
         { header: 'Progetto', sortKey: 'projectName', cell: r => <span className="font-medium text-on-surface">{r.projectName}</span> },
         { header: 'Ruolo Richiesto', sortKey: 'roleName', cell: r => r.roleName },
         { header: 'Richiedente', sortKey: 'requestorName', cell: r => r.requestorName || 'N/A' },
-        { header: 'Periodo', sortKey: 'startDate', cell: r => `${formatDate(r.startDate)} - ${formatDate(r.endDate)}` },
+        { header: 'Periodo', sortKey: 'startDate', cell: r => `${formatDateFull(r.startDate)} - ${formatDateFull(r.endDate)}` },
         { header: 'Impegno', sortKey: 'commitmentPercentage', cell: r => `${r.commitmentPercentage}%` },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
         { header: 'Urgenza', sortKey: 'isUrgent', cell: r => r.isUrgent ? <span className="text-error font-bold">Sì</span> : 'No' },
@@ -222,7 +213,6 @@ export const ResourceRequestPage: React.FC = () => {
         </tr>
     );
     
-    // Vista Card per mobile e per la nuova visualizzazione a card
     const renderCard = (request: EnrichedRequest) => (
         <div key={request.id} className="p-4 rounded-2xl shadow-md bg-surface-container-low flex flex-col md:flex-row gap-4 justify-between border-l-4 border-primary">
             <div className="flex-grow">
@@ -232,7 +222,7 @@ export const ResourceRequestPage: React.FC = () => {
                 </div>
                 <p className="text-sm text-on-surface-variant">{request.roleName}</p>
                 <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDate(request.startDate)} - {formatDate(request.endDate)}</p></div>
+                    <div><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDateFull(request.startDate)} - {formatDateFull(request.endDate)}</p></div>
                     <div><p className="text-on-surface-variant">Impegno</p><p className="font-medium text-on-surface">{request.commitmentPercentage}%</p></div>
                     <div className="col-span-2"><p className="text-on-surface-variant">Richiedente</p><p className="font-medium text-on-surface">{request.requestorName || 'N/A'}</p></div>
                 </div>

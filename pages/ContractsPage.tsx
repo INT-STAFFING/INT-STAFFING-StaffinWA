@@ -155,9 +155,8 @@ export const ContractsPage: React.FC = () => {
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
         { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={c.backlog < 0 ? 'text-error font-semibold' : ''}>{formatCurrency(c.backlog)}</span> },
         { header: 'Progetti Collegati', sortKey: 'projectCount', cell: c => c.projectCount },
-        // Updated Date Format in Tooltip or similar context if needed, here mostly columns. 
-        // Adding dates if requested but usually Contract table is crowded. 
-        // The request said "ovunque". Let's assume for now contracts view is fine unless dates are shown.
+        { header: 'Data Inizio', sortKey: 'startDate', cell: c => <span className="text-sm text-on-surface-variant">{formatDateFull(c.startDate)}</span> },
+        { header: 'Data Fine', sortKey: 'endDate', cell: c => <span className="text-sm text-on-surface-variant">{formatDateFull(c.endDate)}</span> },
     ];
 
     const renderRow = (contract: EnrichedContract) => (

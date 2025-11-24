@@ -1,4 +1,3 @@
-
 /**
  * @file LeavePage.tsx
  * @description Pagina per la gestione delle assenze con workflow di approvazione multipla.
@@ -136,7 +135,6 @@ const LeavePage: React.FC = () => {
     const resourceOptions = useMemo(() => {
         let list = resources.filter(r => !r.resigned);
         // Se l'utente è SIMPLE, restringiamo le opzioni di filtro alla sola sua risorsa
-        // per evitare confusione nella UI (visto che la tabella è già filtrata).
         if (user?.role === 'SIMPLE' && user.resourceId) {
             list = list.filter(r => r.id === user.resourceId);
         }
@@ -184,7 +182,7 @@ const LeavePage: React.FC = () => {
     };
 
     // --- Helper for Assignments Access ---
-    const { assignments, projects } = useEntitiesContext();
+    const { projects, assignments } = useEntitiesContext();
 
     const performConflictCheck = (resourceId: string, start: string, end: string, isHalfDay: boolean = false): string[] => {
         const conflicts: string[] = [];
@@ -324,13 +322,13 @@ const LeavePage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
-                    {/* Quick Action: Approve directly in table */}
+                    {/* Quick Action: Approve directly in table with visible styling */}
                     {canApprove(req) && (
                         <>
-                            <button onClick={() => handleApprove(req)} className="text-tertiary hover:bg-tertiary-container p-1 rounded" title="Approva">
+                            <button onClick={() => handleApprove(req)} className="text-green-600 hover:bg-green-100 p-1 rounded transition-colors" title="Approva">
                                 <span className="material-symbols-outlined">check_circle</span>
                             </button>
-                            <button onClick={() => handleReject(req)} className="text-error hover:bg-error-container p-1 rounded" title="Rifiuta">
+                            <button onClick={() => handleReject(req)} className="text-red-600 hover:bg-red-100 p-1 rounded transition-colors" title="Rifiuta">
                                 <span className="material-symbols-outlined">cancel</span>
                             </button>
                         </>

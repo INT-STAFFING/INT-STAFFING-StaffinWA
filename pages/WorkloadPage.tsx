@@ -4,40 +4,26 @@
  * @description Pagina di visualizzazione del carico totale per risorsa (sola lettura).
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, getLeaveDurationInWorkingDays } from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateFull } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
-import { useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-/**
- * @interface DailyTotalCellProps
- * @description Prop per il componente DailyTotalCell.
- */
 interface DailyTotalCellProps {
-  /** @property {Resource} resource - La risorsa per cui calcolare il totale. */
   resource: Resource;
-  /** @property {string} date - La data (YYYY-MM-DD) per cui calcolare il totale. */
   date: string;
-  /** @property {boolean} isNonWorkingDay - Indica se la data corrisponde a un giorno non lavorativo. */
   isNonWorkingDay: boolean;
 }
 
-/**
- * Componente per la cella che mostra il carico totale giornaliero di una risorsa (sola lettura).
- * Cambia colore in base al livello di carico.
- * @param {DailyTotalCellProps} props - Le prop del componente.
- * @returns {React.ReactElement} L'elemento `<td>` della cella.
- */
 const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
   const { assignments, leaveRequests, leaveTypes } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
-  // Check if there is an approved leave for this date
   const activeLeave = useMemo(() => {
       return leaveRequests.find(l => 
           l.resourceId === resource.id && 
@@ -55,12 +41,12 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     isNonWorkingDay = true;
   }
 
-  // If full day leave, show full block
   if (activeLeave && leaveType && !activeLeave.isHalfDay) {
       return (
         <td 
             className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold"
             style={{ backgroundColor: `${leaveType.color}40`, color: leaveType.color }}
+            title={leaveType.name}
         >
             {leaveType.name.substring(0, 3)}
         </td>
@@ -82,54 +68,29 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     }, 0);
   }, [assignments, allocations, resource.id, date]);
 
-  // Calcolo capacità utilizzata considerando le mezze giornate di ferie
   let capacityUsed = total;
   if (activeLeave && activeLeave.isHalfDay && leaveType?.affectsCapacity) {
       capacityUsed += 50;
   }
 
-  // Logica colori unificata
   const maxPercentage = resource.maxStaffingPercentage ?? 100;
   let cellColor = 'bg-transparent';
 
   if (capacityUsed > maxPercentage) cellColor = 'bg-error-container text-on-error-container';
   else if (capacityUsed === maxPercentage) cellColor = 'bg-tertiary-container text-on-tertiary-container';
   else if (total > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
-  else if (activeLeave && activeLeave.isHalfDay) cellColor = 'bg-surface-container-high'; // Half leave, no work
+  else if (activeLeave && activeLeave.isHalfDay) cellColor = 'bg-surface-container-high'; 
 
   return (
-    <td
-      className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
-    >
-      {activeLeave && activeLeave.isHalfDay && (
-          <span className="text-xs opacity-50 mr-1">1/2</span>
-      )}
+    <td className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
+      {activeLeave && activeLeave.isHalfDay && <span className="text-xs opacity-50 mr-1">1/2</span>}
       {total > 0 ? `${total}%` : (activeLeave && activeLeave.isHalfDay ? '' : '-')}
     </td>
   );
 };
 
-/**
- * @interface AggregatedWorkloadCellProps
- * @description Prop per la cella di carico aggregato (settimana/mese).
- */
-interface AggregatedWorkloadCellProps {
-  resource: Resource;
-  startDate: Date;
-  endDate: Date;
-}
-
-/**
- * Componente cella per visualizzare il carico di lavoro medio aggregato su un periodo (settimana o mese).
- * @param {AggregatedWorkloadCellProps} props - Le prop del componente.
- * @returns {React.ReactElement} L'elemento `<td>` della cella.
- */
-const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
-  resource,
-  startDate,
-  endDate,
-}) => {
-  const { assignments, companyCalendar, leaveRequests, leaveTypes } = useEntitiesContext();
+const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Date; endDate: Date }> = React.memo(({ resource, startDate, endDate }) => {
+  const { assignments, companyCalendar } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
   const averageAllocation = useMemo(() => {
@@ -139,20 +100,13 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
         : endDate;
     if (startDate > effectiveEndDate) return 0;
 
-    const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
-    
-    // Subtract Leave Days from Working Days to get "Available Days"
-    // Note: getLeaveDurationInWorkingDays handles 0.5 for half days
-    const resourceLeaves = leaveRequests.filter(l => l.resourceId === resource.id && l.status === 'APPROVED');
-    let leaveDaysLost = 0;
-    resourceLeaves.forEach(leave => {
-        const type = leaveTypes.find(t => t.id === leave.typeId);
-        leaveDaysLost += getLeaveDurationInWorkingDays(startDate, effectiveEndDate, leave, type, companyCalendar, resource.location);
-    });
-
-    const availableDays = Math.max(0, workingDays - leaveDaysLost);
-
-    if (availableDays === 0) return 0;
+    const workingDays = getWorkingDaysBetween(
+      startDate,
+      effectiveEndDate,
+      companyCalendar,
+      resource.location
+    );
+    if (workingDays === 0) return 0;
 
     const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     let totalPersonDays = 0;
@@ -172,15 +126,14 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
               totalPersonDays += assignmentAllocations[dateStr] / 100;
             }
           }
-          currentDate.setDate(currentDate.getDate() + 1);
+          currentDate = addDays(currentDate, 1);
         }
       }
     });
 
-    return (totalPersonDays / availableDays) * 100;
-  }, [resource, startDate, endDate, assignments, allocations, companyCalendar, leaveRequests, leaveTypes]);
+    return (totalPersonDays / workingDays) * 100;
+  }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
 
-  // Logica colori unificata con arrotondamento
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
     const roundedAverage = Math.round(averageAllocation);
@@ -190,440 +143,173 @@ const ReadonlyAggregatedWorkloadCell: React.FC<AggregatedWorkloadCellProps> = ({
       return 'bg-tertiary-container text-on-tertiary-container';
     if (roundedAverage > 0 && roundedAverage < maxPercentage)
       return 'bg-yellow-container text-on-yellow-container';
-    return 'bg-transparent';
+    return 'bg-surface-container-low';
   }, [averageAllocation, resource.maxStaffingPercentage]);
 
   return (
-    <td
-      className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}
-    >
+    <td className={`border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold ${cellColor}`}>
       {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
     </td>
   );
-};
+});
 
-// --- Mobile Component (Read Only) ---
-
-const MobileWorkloadCard: React.FC<{
-    resource: Resource;
-    roleName: string;
-    timeColumns: any[];
-    assignments: Assignment[];
-    allocations: any;
-    projects: any[];
-    clients: any[];
-}> = React.memo(({ resource, roleName, timeColumns, assignments, allocations, projects, clients }) => {
+const WorkloadPage: React.FC = () => {
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [viewMode, setViewMode] = useState<ViewMode>('week');
+    const { resources, roles, companyCalendar, assignments } = useEntitiesContext();
     
-    let totalLoadSum = 0;
-    let workingDaysCount = 0;
+    const [filters, setFilters] = useState({ resourceId: '', roleId: '', horizontal: '' });
 
-    // Calculate aggregates for current period
-    const assignmentDetails = assignments.map(assignment => {
-        const project = projects.find(p => p.id === assignment.projectId);
-        const client = clients.find(c => c.id === project?.clientId);
-        
-        let assignmentLoadSum = 0;
-        let validDays = 0;
-
-        timeColumns.forEach(col => {
-             if (!col.isNonWorkingDay && col.dateIso) {
-                 assignmentLoadSum += allocations[assignment.id!]?.[col.dateIso] || 0;
-                 validDays++;
-             }
+    const handlePrev = useCallback(() => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
+            else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
+            else newDate.setDate(newDate.getDate() - 1);
+            return newDate;
         });
-        const avgLoad = validDays > 0 ? assignmentLoadSum / validDays : 0;
-        
-        return {
-            projectName: project?.name || 'Unknown',
-            clientName: client?.name || 'Unknown',
-            avgLoad
-        };
-    });
+    }, [viewMode]);
 
-    // Total Load calculation
-    timeColumns.forEach(col => {
-        if (!col.isNonWorkingDay && col.dateIso) {
-            workingDaysCount++;
-            assignments.forEach(a => {
-                totalLoadSum += allocations[a.id!]?.[col.dateIso] || 0;
+    const handleNext = useCallback(() => {
+        setCurrentDate(prev => {
+            const newDate = new Date(prev);
+            if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
+            else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
+            else newDate.setDate(newDate.getDate() + 1);
+            return newDate;
+        });
+    }, [viewMode]);
+
+    const handleToday = useCallback(() => setCurrentDate(new Date()), []);
+
+    const timeColumns = useMemo(() => {
+        const cols = [];
+        let d = new Date(currentDate);
+
+        if (viewMode === 'day') {
+            return getCalendarDays(d, 14).map((day) => {
+                const dayOfWeek = day.getDay();
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const dateIso = formatDate(day, 'iso');
+                const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
+                return {
+                    label: formatDateFull(day),
+                    subLabel: formatDate(day, 'day'),
+                    startDate: day,
+                    endDate: day,
+                    isNonWorkingDay: isWeekend || !!holiday,
+                    dateIso,
+                };
             });
         }
-    });
-    const totalAvgLoad = workingDaysCount > 0 ? totalLoadSum / workingDaysCount : 0;
 
-    const getLoadColor = (load: number) => {
-        const max = resource.maxStaffingPercentage;
-        if (load > max) return 'bg-error text-on-error';
-        if (load === max) return 'bg-tertiary text-on-tertiary';
-        if (load > 0) return 'bg-yellow-container text-on-yellow-container';
-        return 'bg-surface-variant text-on-surface-variant';
-    };
+        if (viewMode === 'week') {
+            d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+            for (let i = 0; i < 12; i++) {
+                const startOfWeek = new Date(d);
+                const endOfWeek = addDays(new Date(d), 6);
+                cols.push({
+                    label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
+                    subLabel: '',
+                    startDate: startOfWeek,
+                    endDate: endOfWeek,
+                    isNonWorkingDay: false,
+                    dateIso: ''
+                });
+                d.setDate(d.getDate() + 7);
+            }
+        } else {
+            d.setDate(1);
+            for (let i = 0; i < 12; i++) {
+                const startOfMonth = new Date(d);
+                const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+                cols.push({
+                    label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }),
+                    subLabel: '',
+                    startDate: startOfMonth,
+                    endDate: endOfMonth,
+                    isNonWorkingDay: false,
+                    dateIso: ''
+                });
+                d.setMonth(d.getMonth() + 1);
+            }
+        }
+        return cols;
+    }, [currentDate, viewMode, companyCalendar]);
+
+    const displayData = useMemo(() => {
+        let visibleResources = resources.filter((r) => !r.resigned);
+        if (filters.resourceId) visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
+        if (filters.roleId) visibleResources = visibleResources.filter(r => r.roleId === filters.roleId);
+        if (filters.horizontal) visibleResources = visibleResources.filter(r => r.horizontal === filters.horizontal);
+        
+        return visibleResources.sort((a, b) => a.name.localeCompare(b.name));
+    }, [resources, filters]);
+
+    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
-    const getBarColor = (load: number) => {
-        const max = resource.maxStaffingPercentage;
-        if (load > max) return 'bg-error';
-        if (load >= max * 0.9) return 'bg-tertiary'; 
-        return 'bg-primary';
-    };
-
     return (
-        <div className="bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 border-primary flex flex-col gap-3">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h3 className="font-bold text-lg text-on-surface">{resource.name}</h3>
-                    <p className="text-sm text-on-surface-variant">{roleName}</p>
+        <div className="flex flex-col h-full">
+            <div className="flex-shrink-0 space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center space-x-2">
+                        <button onClick={handlePrev} className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full text-sm">← Prec.</button>
+                        <button onClick={handleToday} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full font-semibold">Oggi</button>
+                        <button onClick={handleNext} className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full text-sm">Succ. →</button>
+                    </div>
+                    <div className="flex items-center bg-surface-container p-1 rounded-full">
+                        {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
+                            <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>{level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}</button>
+                        ))}
+                    </div>
                 </div>
-                <div className={`px-2 py-1 rounded text-xs font-bold ${getLoadColor(totalAvgLoad)}`}>
-                    {totalAvgLoad.toFixed(0)}% Avg
+
+                <div className="p-4 bg-surface rounded-2xl shadow">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={(n, v) => setFilters(p => ({...p, [n]: v}))} options={resourceOptions} placeholder="Tutte"/></div>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><SearchableSelect name="roleId" value={filters.roleId} onChange={(n, v) => setFilters(p => ({...p, [n]: v}))} options={roleOptions} placeholder="Tutti"/></div>
+                        <button onClick={() => setFilters({ resourceId: '', roleId: '', horizontal: '' })} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
+                    </div>
                 </div>
             </div>
 
-            <div className="w-full bg-surface-container-highest rounded-full h-2.5">
-                <div 
-                    className={`h-2.5 rounded-full ${getBarColor(totalAvgLoad)}`} 
-                    style={{ width: `${Math.min(totalAvgLoad, 100)}%` }}
-                ></div>
-            </div>
-
-            <div className="space-y-2 mt-1">
-                {assignmentDetails.length > 0 ? (
-                    assignmentDetails.map((d, i) => (
-                        <div key={i} className="flex justify-between items-center p-3 bg-surface-container-low rounded-lg border border-transparent">
-                            <div className="flex flex-col truncate pr-2">
-                                <span className="font-medium text-sm text-on-surface truncate">{d.projectName}</span>
-                                <span className="text-xs text-on-surface-variant truncate">{d.clientName}</span>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="text-sm font-semibold text-primary">{d.avgLoad.toFixed(0)}%</span>
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    <p className="text-sm text-on-surface-variant italic text-center py-2">Nessuna assegnazione nel periodo.</p>
-                )}
+            <div className="flex-grow mt-4 bg-surface rounded-2xl shadow overflow-x-auto">
+                <div className="max-h-[660px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-outline-variant">
+                        <thead className="bg-surface-container-low sticky top-0 z-10">
+                            <tr>
+                                <th className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-20" style={{ minWidth: '200px' }}>Risorsa</th>
+                                {timeColumns.map((col, index) => (
+                                    <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 ${col.isNonWorkingDay ? 'bg-surface-container' : ''}`}>
+                                        <div className="flex flex-col items-center">
+                                            <span className={col.isNonWorkingDay ? 'text-on-surface-variant' : 'text-on-surface'}>{col.label}</span>
+                                            {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
+                                        </div>
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant">
+                            {displayData.map(resource => (
+                                <tr key={resource.id} className="hover:bg-surface-container-low">
+                                    <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9">
+                                        <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
+                                    </td>
+                                    {timeColumns.map((col, index) => {
+                                        if (viewMode === 'day') {
+                                            return <ReadonlyDailyTotalCell key={index} resource={resource} date={col.dateIso} isNonWorkingDay={col.isNonWorkingDay} />;
+                                        }
+                                        return <ReadonlyAggregatedTotalCell key={index} resource={resource} startDate={col.startDate} endDate={col.endDate} />;
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
-});
-
-
-/**
- * Componente principale della pagina Carico Risorse.
- * Gestisce la navigazione temporale, i filtri e il rendering della griglia di carico.
- */
-const WorkloadPage: React.FC = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('day');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  useEffect(() => {
-      const handleResize = () => setIsMobile(window.innerWidth < 768);
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-      if (isMobile && viewMode === 'day') {
-          setViewMode('week');
-      }
-  }, [isMobile]);
-
-  const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
-  const { allocations } = useAllocationsContext();
-
-  const [filters, setFilters] = useState({
-    resourceId: '',
-    projectId: '',
-    clientId: '',
-    roleIds: [] as string[],
-  });
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  useEffect(() => {
-    const resourceId = searchParams.get('resourceId');
-    if (resourceId) {
-      setFilters((prev) => ({ ...prev, resourceId }));
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
-  const timeColumns = useMemo(() => {
-    const cols: {
-      label: string;
-      subLabel: string;
-      startDate: Date;
-      endDate: Date;
-      isNonWorkingDay?: boolean;
-      dateIso?: string;
-    }[] = [];
-    let d = new Date(currentDate);
-
-    if (isMobile) {
-         let daysToGenerate = 1;
-         if (viewMode === 'week') {
-              d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
-              daysToGenerate = 7;
-         } else if (viewMode === 'month') {
-              d.setDate(1);
-              daysToGenerate = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-         } else {
-             daysToGenerate = 7;
-         }
-
-         for (let i = 0; i < daysToGenerate; i++) {
-             const day = new Date(d);
-             day.setDate(d.getDate() + i);
-             const dayOfWeek = day.getDay();
-             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-             const dateIso = formatDate(day, 'iso');
-             const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
-             cols.push({ 
-                 label: formatDate(day, 'day') + ' ' + formatDate(day, 'short'), 
-                 subLabel: '', 
-                 startDate: day, 
-                 endDate: day, 
-                 isNonWorkingDay: isWeekend || !!holiday, 
-                 dateIso 
-             });
-         }
-         return cols;
-    }
-
-    // Desktop Logic
-    if (viewMode === 'day') {
-      return getCalendarDays(d, 14).map((day) => {
-        const dayOfWeek = day.getDay();
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const dateIso = formatDate(day, 'iso');
-        const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
-        return {
-          label: formatDate(day, 'short'),
-          subLabel: formatDate(day, 'day'),
-          startDate: day,
-          endDate: day,
-          isNonWorkingDay: isWeekend || !!holiday,
-          dateIso,
-        };
-      });
-    }
-
-    if (viewMode === 'week') {
-      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
-      for (let i = 0; i < 12; i++) {
-        const startOfWeek = new Date(d);
-        const endOfWeek = addDays(new Date(d), 6);
-        cols.push({
-          label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
-          subLabel: '',
-          startDate: startOfWeek,
-          endDate: endOfWeek,
-        });
-        d.setDate(d.getDate() + 7);
-      }
-    } else {
-      d.setDate(1);
-      for (let i = 0; i < 12; i++) {
-        const startOfMonth = new Date(d);
-        const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        cols.push({
-          label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }),
-          subLabel: '',
-          startDate: startOfMonth,
-          endDate: endOfMonth,
-        });
-        d.setMonth(d.getMonth() + 1);
-      }
-    }
-
-    return cols;
-  }, [currentDate, viewMode, companyCalendar, isMobile]);
-
-  const handlePrev = useCallback(() => setCurrentDate(prev => {
-    const newDate = new Date(prev);
-    if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
-    else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
-    else newDate.setDate(newDate.getDate() - 1);
-    return newDate;
-  }), [viewMode]);
-
-  const handleNext = useCallback(() => setCurrentDate(prev => {
-    const newDate = new Date(prev);
-    if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
-    else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    else newDate.setDate(newDate.getDate() + 1);
-    return newDate;
-  }), [viewMode]);
-
-  const handleToday = useCallback(() => setCurrentDate(new Date()), []);
-
-  const handleFilterChange = useCallback((name: string, value: string) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
-  }, []);
-
-  const handleMultiSelectChange = useCallback((name: string, values: string[]) => {
-    setFilters(prev => ({ ...prev, [name]: values }));
-  }, []);
-
-  const clearFilters = useCallback(() => {
-    setFilters({ resourceId: '', projectId: '', clientId: '', roleIds: [] });
-  }, []);
-
-  // Data Filtering and Preparation
-  const displayData = useMemo(() => {
-    // First filter resources based on criteria
-    let filteredResources = resources.filter(r => !r.resigned);
-
-    if (filters.resourceId) {
-        filteredResources = filteredResources.filter(r => r.id === filters.resourceId);
-    }
-    if (filters.roleIds.length > 0) {
-        filteredResources = filteredResources.filter(r => filters.roleIds.includes(r.roleId));
-    }
-
-    // Then filter by project/client implication (if a resource works on selected project/client)
-    if (filters.projectId || filters.clientId) {
-        filteredResources = filteredResources.filter(r => {
-            const userAssignments = assignments.filter(a => a.resourceId === r.id);
-            return userAssignments.some(a => {
-                if (filters.projectId && a.projectId !== filters.projectId) return false;
-                if (filters.clientId) {
-                    const project = projects.find(p => p.id === a.projectId);
-                    if (project?.clientId !== filters.clientId) return false;
-                }
-                return true;
-            });
-        });
-    }
-
-    // Map to structure
-    return filteredResources.map(resource => {
-        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
-        const role = roles.find(r => r.id === resource.roleId);
-        return {
-            resource,
-            roleName: role?.name || '',
-            assignments: resourceAssignments
-        };
-    }).sort((a, b) => a.resource.name.localeCompare(b.resource.name));
-
-  }, [resources, assignments, projects, roles, filters]);
-
-  const resourceOptions = useMemo(() => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })), [resources]);
-  const projectOptions = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);
-  const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
-  const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id!, label: r.name })), [roles]);
-
-  return (
-    <div className="flex flex-col h-full">
-        <div className="flex-shrink-0 space-y-4">
-            {/* Controls */}
-            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                <div className="flex items-center justify-center md:justify-start space-x-2">
-                    <button onClick={handlePrev} className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm">← Prec.</button>
-                    <button onClick={handleToday} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full shadow-sm font-semibold hover:opacity-90">Oggi</button>
-                    <button onClick={handleNext} className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm">Succ. →</button>
-                    {isMobile && <span className="ml-2 text-sm font-semibold text-on-surface">{viewMode === 'week' ? 'Settimana Corrente' : viewMode === 'day' ? 'Giorno' : 'Mese'}</span>}
-                </div>
-                <div className="flex items-center justify-center md:justify-start space-x-1 bg-surface-container p-1 rounded-full">
-                    {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
-                        <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>
-                            {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="p-4 bg-surface rounded-2xl shadow">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
-                    {!isMobile && (
-                        <>
-                            <div><label className="block text-sm font-medium text-on-surface-variant">Ruoli</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
-                            <div><label className="block text-sm font-medium text-on-surface-variant">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
-                            <div><label className="block text-sm font-medium text-on-surface-variant">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
-                        </>
-                    )}
-                    <button onClick={clearFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>
-                </div>
-            </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-grow mt-4">
-            {isMobile ? (
-                <div className="space-y-4 pb-20">
-                    {displayData.map(item => (
-                        <MobileWorkloadCard 
-                            key={item.resource.id} 
-                            resource={item.resource} 
-                            roleName={item.roleName}
-                            timeColumns={timeColumns}
-                            assignments={item.assignments}
-                            allocations={allocations}
-                            projects={projects}
-                            clients={clients}
-                        />
-                    ))}
-                    {displayData.length === 0 && <div className="text-center p-10 text-on-surface-variant bg-surface rounded-2xl border border-dashed border-outline">Nessuna risorsa trovata.</div>}
-                </div>
-            ) : (
-                <div className="bg-surface rounded-2xl shadow overflow-x-auto">
-                    <div className="max-h-[660px] overflow-y-auto">
-                        <table className="min-w-full divide-y divide-outline-variant">
-                            <thead className="bg-surface-container-low sticky top-0 z-10">
-                                <tr>
-                                    <th className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-20" style={{ minWidth: '200px' }}>Risorsa</th>
-                                    {timeColumns.map((col, index) => (
-                                        <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 ${col.isNonWorkingDay ? 'bg-surface-container' : ''}`}>
-                                            <div className="flex flex-col items-center">
-                                                <span className={col.isNonWorkingDay ? 'text-on-surface-variant' : 'text-on-surface'}>{col.label}</span>
-                                                {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-outline-variant">
-                                {displayData.map(({ resource, roleName }) => (
-                                    <tr key={resource.id} className="hover:bg-surface-container-low">
-                                        <td className="sticky left-0 bg-surface group-hover:bg-surface-container-low px-3 py-4 text-sm z-9 border-r border-outline-variant">
-                                            <div className="flex flex-col">
-                                                <span className="font-medium text-on-surface">{resource.name}</span>
-                                                <span className="text-xs text-on-surface-variant">{roleName}</span>
-                                            </div>
-                                        </td>
-                                        {timeColumns.map((col, index) => {
-                                            if (viewMode === 'day') {
-                                                const isDayHoliday = isHoliday(col.startDate, resource.location, companyCalendar);
-                                                return (
-                                                    <ReadonlyDailyTotalCell 
-                                                        key={index} 
-                                                        resource={resource} 
-                                                        date={col.dateIso!} 
-                                                        isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday} 
-                                                    />
-                                                );
-                                            }
-                                            return (
-                                                <ReadonlyAggregatedWorkloadCell 
-                                                    key={index} 
-                                                    resource={resource} 
-                                                    startDate={col.startDate} 
-                                                    endDate={col.endDate} 
-                                                />
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-        </div>
-    </div>
-  );
 };
 
 export default WorkloadPage;

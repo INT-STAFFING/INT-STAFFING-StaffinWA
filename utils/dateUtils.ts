@@ -117,29 +117,36 @@ export const getLeaveDurationInWorkingDays = (
 
 /**
  * Formatta una data nel formato standard europeo completo GG/MM/AAAA.
- * Gestisce stringhe ISO (YYYY-MM-DD) interpretandole come UTC per evitare shift di fuso orario.
+ * Forza l'interpretazione manuale per garantire il formato esatto.
  * @param {Date | string | null | undefined} date - La data da formattare.
- * @returns {string} La data formattata es. "31/12/2024" o "N/A".
+ * @returns {string} La data formattata es. "31/12/2024" o "N/A" se nulla/invalida.
  */
 export const formatDateFull = (date: Date | string | null | undefined): string => {
     if (!date) return 'N/A';
     
     let d: Date;
+    let isUtc = false;
+
     if (typeof date === 'string') {
-        // Se è una stringa YYYY-MM-DD pura, forziamo l'interpretazione UTC per visualizzare il giorno corretto
+        // Se è una stringa YYYY-MM-DD pura, la trattiamo come UTC per evitare shift di fuso orario
         if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
             d = new Date(date);
-            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+            isUtc = true;
+        } else {
+            d = new Date(date);
         }
-        // Se è una stringa ISO con tempo o altro formato
-        d = new Date(date);
     } else {
         d = date;
     }
 
     if (isNaN(d.getTime())) return 'N/A';
     
-    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Estrazione manuale componenti per formato DD/MM/YYYY
+    const day = isUtc ? d.getUTCDate() : d.getDate();
+    const month = isUtc ? d.getUTCMonth() + 1 : d.getMonth() + 1;
+    const year = isUtc ? d.getUTCFullYear() : d.getFullYear();
+
+    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
 };
 
 /**
@@ -159,6 +166,8 @@ export const formatDate = (date: Date, format: 'iso' | 'short' | 'day' | 'full')
     if (format === 'day') {
         return date.toLocaleDateString('it-IT', { weekday: 'short' });
     }
-    // 'short' ora restituisce comunque la data completa per richiesta utente
-    return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    if (format === 'full' || format === 'short') {
+        return formatDateFull(date);
+    }
+    return date.toLocaleDateString('it-IT');
 };
