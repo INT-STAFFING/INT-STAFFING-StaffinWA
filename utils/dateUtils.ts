@@ -150,6 +150,36 @@ export const formatDateFull = (date: Date | string | null | undefined): string =
 };
 
 /**
+ * Formatta una data nel formato sintetico GG/MM.
+ * @param {Date | string | null | undefined} date - La data da formattare.
+ * @returns {string} La data formattata es. "31/12" o "N/A".
+ */
+export const formatDateSynthetic = (date: Date | string | null | undefined): string => {
+    if (!date) return 'N/A';
+    
+    let d: Date;
+    let isUtc = false;
+
+    if (typeof date === 'string') {
+        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            d = new Date(date);
+            isUtc = true;
+        } else {
+            d = new Date(date);
+        }
+    } else {
+        d = date;
+    }
+
+    if (isNaN(d.getTime())) return 'N/A';
+    
+    const day = isUtc ? d.getUTCDate() : d.getDate();
+    const month = isUtc ? d.getUTCMonth() + 1 : d.getMonth() + 1;
+
+    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`;
+};
+
+/**
  * Formatta un oggetto Date in una stringa secondo il formato specificato.
  * @param {Date} date - L'oggetto Date da formattare.
  * @param {'iso' | 'short' | 'day' | 'full'} format - Il formato desiderato:

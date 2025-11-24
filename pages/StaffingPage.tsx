@@ -13,7 +13,8 @@ import {
   addDays,
   isHoliday,
   getWorkingDaysBetween,
-  formatDateFull
+  formatDateFull,
+  formatDateSynthetic
 } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -662,7 +663,7 @@ const StaffingPage: React.FC = () => {
             const dateIso = formatDate(day, 'iso');
             const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
             cols.push({ 
-                label: formatDate(day, 'day') + ' ' + formatDate(day, 'short'), 
+                label: formatDate(day, 'day') + ' ' + formatDateSynthetic(day), 
                 subLabel: '', 
                 startDate: day, 
                 endDate: day, 
@@ -683,7 +684,7 @@ const StaffingPage: React.FC = () => {
           (e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY'
         );
         return {
-          label: formatDateFull(day), // Using full date DD/MM/YYYY here
+          label: formatDateSynthetic(day), // Using synthetic format DD/MM here
           subLabel: formatDate(day, 'day'),
           startDate: day,
           endDate: day,

@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateFull } from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateFull, formatDateSynthetic } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { Link } from 'react-router-dom';
@@ -193,7 +193,7 @@ const WorkloadPage: React.FC = () => {
                 const dateIso = formatDate(day, 'iso');
                 const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
                 return {
-                    label: formatDateFull(day),
+                    label: formatDateSynthetic(day), // Changed from formatDateFull
                     subLabel: formatDate(day, 'day'),
                     startDate: day,
                     endDate: day,
