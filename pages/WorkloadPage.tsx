@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
+type WorkloadFilterStatus = 'ALL' | 'UNDER' | 'OVER' | 'ISSUES';
 
 // Utility per generare la chiave di lookup
 const getLeaveKey = (resourceId: string, dateStr: string) => `${resourceId}_${dateStr}`;
@@ -151,8 +152,10 @@ const WorkloadPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
     const { resources, roles, companyCalendar, assignments, leaveRequests, leaveTypes } = useEntitiesContext();
+    const { allocations } = useAllocationsContext();
     
     const [filters, setFilters] = useState({ resourceId: '', roleId: '', horizontal: '' });
+    const [statusFilter, setStatusFilter] = useState<WorkloadFilterStatus>('ALL');
     
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -235,14 +238,63 @@ const WorkloadPage: React.FC = () => {
         return cols;
     }, [currentDate, viewMode, companyCalendar]);
 
+    // Calculate Monthly Load helper for Status Filter
+    const calculateMonthlyAvgLoad = useCallback((resource: Resource) => {
+        const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        
+        const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay 
+            ? new Date(resource.lastDayOfWork) 
+            : lastDay;
+        
+        if (firstDay > effectiveEndDate) return 0;
+
+        const workingDays = getWorkingDaysBetween(firstDay, effectiveEndDate, companyCalendar, resource.location);
+        if (workingDays === 0) return 0;
+
+        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+        let totalPersonDays = 0;
+
+        resourceAssignments.forEach(assignment => {
+            const assignmentAllocations = allocations[assignment.id!];
+            if (assignmentAllocations) {
+                for (const dateStr in assignmentAllocations) {
+                    const allocDate = new Date(dateStr);
+                    if (allocDate >= firstDay && allocDate <= effectiveEndDate) {
+                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                            totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                        }
+                    }
+                }
+            }
+        });
+
+        return (totalPersonDays / workingDays) * 100;
+    }, [currentDate, assignments, allocations, companyCalendar]);
+
     const displayData = useMemo(() => {
         let visibleResources = resources.filter((r) => !r.resigned);
+        
+        // Apply Manual Filters
         if (filters.resourceId) visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
         if (filters.roleId) visibleResources = visibleResources.filter(r => r.roleId === filters.roleId);
         if (filters.horizontal) visibleResources = visibleResources.filter(r => r.horizontal === filters.horizontal);
         
+        // Apply Status Filter (Calculated on the fly based on CURRENT MONTH)
+        if (statusFilter !== 'ALL') {
+            visibleResources = visibleResources.filter(r => {
+                const avgLoad = Math.round(calculateMonthlyAvgLoad(r));
+                const max = r.maxStaffingPercentage;
+                
+                if (statusFilter === 'UNDER') return avgLoad < max;
+                if (statusFilter === 'OVER') return avgLoad > max;
+                if (statusFilter === 'ISSUES') return avgLoad !== max;
+                return true;
+            });
+        }
+
         return visibleResources.sort((a, b) => a.name.localeCompare(b.name));
-    }, [resources, filters]);
+    }, [resources, filters, statusFilter, calculateMonthlyAvgLoad]);
 
     // Paginated Data
     const paginatedData = useMemo(() => {
@@ -318,6 +370,12 @@ const WorkloadPage: React.FC = () => {
         setCurrentPage(1);
     };
 
+    // Handle Status Filter Toggle
+    const handleStatusFilter = (status: WorkloadFilterStatus) => {
+        setStatusFilter(status);
+        setCurrentPage(1);
+    };
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex-shrink-0 space-y-4">
@@ -334,11 +392,40 @@ const WorkloadPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="p-4 bg-surface rounded-2xl shadow">
+                <div className="p-4 bg-surface rounded-2xl shadow flex flex-col gap-4">
+                    {/* Quick Filters Row */}
+                    <div className="flex flex-wrap gap-2 pb-2 border-b border-outline-variant">
+                        <span className="text-sm font-medium text-on-surface-variant self-center mr-2">Filtri Rapidi (Mese Corrente):</span>
+                        <button 
+                            onClick={() => handleStatusFilter('ALL')} 
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'ALL' ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
+                        >
+                            Tutte
+                        </button>
+                        <button 
+                            onClick={() => handleStatusFilter('UNDER')} 
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'UNDER' ? 'bg-yellow-container text-on-yellow-container border border-yellow-500' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
+                        >
+                            Sottostaffate (&lt; 100%)
+                        </button>
+                        <button 
+                            onClick={() => handleStatusFilter('OVER')} 
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'OVER' ? 'bg-error-container text-on-error-container border border-error' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
+                        >
+                            Sovrastaffate (&gt; 100%)
+                        </button>
+                        <button 
+                            onClick={() => handleStatusFilter('ISSUES')} 
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'ISSUES' ? 'bg-tertiary-container text-on-tertiary-container border border-tertiary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
+                        >
+                            Anomalie (≠ 100%)
+                        </button>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte"/></div>
                         <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti"/></div>
-                        <button onClick={() => { setFilters({ resourceId: '', roleId: '', horizontal: '' }); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
+                        <button onClick={() => { setFilters({ resourceId: '', roleId: '', horizontal: '' }); setStatusFilter('ALL'); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
                     </div>
                 </div>
             </div>
