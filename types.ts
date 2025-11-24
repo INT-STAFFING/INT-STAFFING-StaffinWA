@@ -2,6 +2,8 @@
 
 
 
+
+
 /**
  * @file types.ts
  * @description Definizioni dei tipi e delle interfacce TypeScript utilizzate in tutta l'applicazione.
@@ -598,4 +600,14 @@ export interface AuditLogEntry {
     details: any;
     ipAddress: string | null;
     createdAt: string;
+}
+
+/**
+ * @interface DashboardCategory
+ * @description Rappresenta una categoria (tab) nella pagina Dashboard.
+ */
+export interface DashboardCategory {
+    id: string;
+    label: string;
+    cards: string[]; // ID delle card associate a questa categoria
 }

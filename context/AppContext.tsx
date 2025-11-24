@@ -4,14 +4,14 @@ import {
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification
+    Notification, DashboardCategory
 } from '../types';
 import { useToast } from './ToastContext';
 
 // DEFAULT SIDEBAR CONFIGURATION
 const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
     { path: "/dashboard", label: "Dashboard", icon: "dashboard", section: "Principale" },
-    { path: "/notifications", label: "Notifiche", icon: "notifications", section: "Principale" }, // Added Notifications
+    { path: "/notifications", label: "Notifiche", icon: "notifications", section: "Principale" }, 
     { path: "/staffing", label: "Staffing", icon: "calendar_month", section: "Principale" },
     { path: "/workload", label: "Carico Risorse", icon: "groups", section: "Principale" },
     
@@ -45,6 +45,13 @@ const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
 ];
 
 const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
+
+const DEFAULT_DASHBOARD_LAYOUT: DashboardCategory[] = [
+    { id: 'generale', label: 'Generale', cards: ['kpiHeader', 'attentionCards', 'leavesOverview'] },
+    { id: 'staffing', label: 'Staffing Risorse', cards: ['averageAllocation', 'unallocatedFte', 'underutilizedResources', 'saturationTrend', 'locationAnalysis', 'effortByHorizontal'] },
+    { id: 'progetti', label: 'Progetti', cards: ['ftePerProject', 'budgetAnalysis', 'temporalBudgetAnalysis'] },
+    { id: 'contratti', label: 'Contratti', cards: ['monthlyClientCost', 'averageDailyRate', 'costForecast'] }
+];
 
 export interface AllocationsContextType {
     allocations: Allocation;
@@ -82,14 +89,15 @@ export interface EntitiesContextType {
     sidebarConfig: SidebarItem[]; 
     sidebarSections: string[]; 
     sidebarSectionColors: SidebarSectionColors; 
-    notifications: Notification[]; // Added
+    dashboardLayout: DashboardCategory[]; // Added
+    notifications: Notification[];
     loading: boolean;
     isActionLoading: (action: string) => boolean;
     
     // Methods
     fetchData: () => Promise<void>;
-    fetchNotifications: () => Promise<void>; // Added
-    markNotificationAsRead: (id?: string) => Promise<void>; // Added
+    fetchNotifications: () => Promise<void>;
+    markNotificationAsRead: (id?: string) => Promise<void>;
     addResource: (resource: Omit<Resource, 'id'>) => Promise<Resource>;
     updateResource: (resource: Resource) => Promise<void>;
     deleteResource: (id: string) => Promise<void>;
@@ -139,6 +147,7 @@ export interface EntitiesContextType {
     updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
     updateSidebarSections: (sections: string[]) => Promise<void>;
     updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
+    updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>; // Added
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
@@ -151,8 +160,6 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
     
     const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
     
-    // FIX: Handle 204 No Content response correctly to avoid JSON parse error
-    // Quando un'API di eliminazione restituisce 204, non c'è corpo JSON da parsare.
     if (response.status === 204) {
         return null;
     }
@@ -200,7 +207,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
-    const [notifications, setNotifications] = useState<Notification[]>([]); // Added
+    const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT); // Added
+    const [notifications, setNotifications] = useState<Notification[]>([]);
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -231,15 +239,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setManagerResourceIds(metaData.managerResourceIds || []);
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             
-            // Sidebar Config Loading
-            if (metaData.sidebarConfig) {
-                setSidebarConfig(metaData.sidebarConfig);
-            }
-            if (metaData.sidebarSections) {
-                setSidebarSections(metaData.sidebarSections);
-            }
-            if (metaData.sidebarSectionColors) {
-                setSidebarSectionColors(metaData.sidebarSectionColors);
+            // Config Loading
+            if (metaData.sidebarConfig) setSidebarConfig(metaData.sidebarConfig);
+            if (metaData.sidebarSections) setSidebarSections(metaData.sidebarSections);
+            if (metaData.sidebarSectionColors) setSidebarSectionColors(metaData.sidebarSectionColors);
+            
+            // Dashboard Layout Loading (fetched from app_config via backend data endpoint)
+            // Note: api/data.ts needs to return this field. If not present, it falls back to default.
+            if (metaData.dashboardLayout) {
+                setDashboardLayout(metaData.dashboardLayout);
             }
 
             // 2. Planning
@@ -294,12 +302,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     useEffect(() => {
         fetchData();
         fetchNotifications();
-        // Poll notifications every 60s
         const interval = setInterval(fetchNotifications, 60000);
         return () => clearInterval(interval);
     }, [fetchData, fetchNotifications]);
 
-    // ... (CRUD Operations - Only showing new/modified ones for brevity, keep others as is) ...
+    // CRUD Operations
     
     const addResource = async (resource: Omit<Resource, 'id'>) => {
         setActionLoading('addResource', true);
@@ -310,7 +317,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading('addResource', false); }
     };
 
-    // ... other CRUDs same as before ...
     const updateResource = async (resource: Resource) => {
         setActionLoading(`updateResource-${resource.id}`, true);
         try {
@@ -426,12 +432,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await apiFetch(`/api/config?type=${type}&id=${id}`, { method: 'DELETE' });
             const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations;
             setter(prev => prev.filter(o => o.id !== id));
-            // FIX: Added toast feedback for successful deletion
             addToast('Opzione eliminata con successo', 'success');
         } catch (error) {
             console.error("Failed to delete config option:", error);
-            // FIX: Added error handling feedback (e.g. integrity constraints)
-            addToast((error as Error).message || 'Errore durante l\'eliminazione (possibile vincolo di integrità)', 'error');
+            addToast((error as Error).message || 'Errore durante l\'eliminazione', 'error');
         } finally { setActionLoading(`deleteConfig-${type}-${id}`, false); }
     };
 
@@ -760,7 +764,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const newReq = await apiFetch('/api/resources?entity=leaves', { method: 'POST', body: JSON.stringify(req) });
             setLeaveRequests(prev => [...prev, newReq]);
-            await fetchNotifications(); // Refresh notifications after action
+            await fetchNotifications();
         } finally { setActionLoading('addLeaveRequest', false); }
     };
 
@@ -769,7 +773,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const updated = await apiFetch(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setLeaveRequests(prev => prev.map(r => r.id === req.id ? updated : r));
-            await fetchNotifications(); // Refresh notifications after action
+            await fetchNotifications();
         } finally { setActionLoading('updateLeaveRequest', false); }
     };
 
@@ -826,9 +830,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     };
 
+    const updateDashboardLayout = async (layout: DashboardCategory[]) => {
+        setActionLoading('updateDashboardLayout', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({
+                    updates: [{ key: 'dashboard_layout_v2', value: JSON.stringify(layout) }]
+                })
+            });
+            setDashboardLayout(layout);
+        } finally {
+            setActionLoading('updateDashboardLayout', false);
+        }
+    };
+
     const entitiesValue: EntitiesContextType = {
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, notifications, loading, isActionLoading,
-        fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar, wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, notifications, loading, isActionLoading,
+        fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject, addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, addMultipleAssignments, deleteAssignment, getRoleCost, addResourceRequest, updateResourceRequest, deleteResourceRequest, addInterview, updateInterview, deleteInterview, addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill, updateSkillThresholds, getResourceComputedSkills, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout
     };
 
     const allocationsValue: AllocationsContextType = {

@@ -4,10 +4,11 @@ import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
-import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole } from '../types';
+import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole, DashboardCategory } from '../types';
 import { useEntitiesContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
 
 const UserManagementSection: React.FC = () => {
     const [users, setUsers] = useState<AppUser[]>([]);
@@ -642,12 +643,213 @@ const AuditLogSection: React.FC = () => {
     );
 };
 
+const DashboardConfigSection: React.FC = () => {
+    const { dashboardLayout, updateDashboardLayout, isActionLoading } = useEntitiesContext();
+    const { addToast } = useToast();
+    const [layout, setLayout] = useState<DashboardCategory[]>(dashboardLayout);
+    const [hasChanges, setHasChanges] = useState(false);
+    
+    // State for adding/editing category
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+    
+    useEffect(() => { setLayout(dashboardLayout); }, [dashboardLayout]);
+
+    const handleAddCategory = () => {
+        if (!newCategoryName) return;
+        const newId = newCategoryName.toLowerCase().replace(/\s+/g, '_');
+        if (layout.some(c => c.id === newId)) {
+            addToast('Esiste già una categoria con questo ID/Nome.', 'error');
+            return;
+        }
+        setLayout(prev => [...prev, { id: newId, label: newCategoryName, cards: [] }]);
+        setNewCategoryName('');
+        setHasChanges(true);
+    };
+
+    const handleDeleteCategory = (id: string) => {
+        if (layout.length <= 1) {
+            addToast('Deve esserci almeno una categoria.', 'error');
+            return;
+        }
+        if (!confirm('Sei sicuro? Le card in questa categoria verranno rimosse dalla dashboard.')) return;
+        setLayout(prev => prev.filter(c => c.id !== id));
+        setHasChanges(true);
+    };
+
+    const moveCategory = (index: number, direction: 'up' | 'down') => {
+        if (direction === 'up' && index === 0) return;
+        if (direction === 'down' && index === layout.length - 1) return;
+        const newLayout = [...layout];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        [newLayout[index], newLayout[targetIndex]] = [newLayout[targetIndex], newLayout[index]];
+        setLayout(newLayout);
+        setHasChanges(true);
+    };
+
+    const moveCard = (catIndex: number, cardId: string, direction: 'up' | 'down') => {
+        const category = layout[catIndex];
+        const cardIndex = category.cards.indexOf(cardId);
+        if (cardIndex === -1) return;
+        if (direction === 'up' && cardIndex === 0) return;
+        if (direction === 'down' && cardIndex === category.cards.length - 1) return;
+
+        const newCards = [...category.cards];
+        const targetIndex = direction === 'up' ? cardIndex - 1 : cardIndex + 1;
+        [newCards[cardIndex], newCards[targetIndex]] = [newCards[targetIndex], newCards[cardIndex]];
+
+        const newLayout = [...layout];
+        newLayout[catIndex] = { ...category, cards: newCards };
+        setLayout(newLayout);
+        setHasChanges(true);
+    };
+
+    const removeCardFromCategory = (catIndex: number, cardId: string) => {
+        const newLayout = [...layout];
+        newLayout[catIndex].cards = newLayout[catIndex].cards.filter(c => c !== cardId);
+        setLayout(newLayout);
+        setHasChanges(true);
+    };
+
+    const addCardToCategory = (catIndex: number, cardId: string) => {
+        // Check if card exists elsewhere? Maybe allow duplicates or move? 
+        // Let's implement MOVE logic: remove from others, add to this.
+        let newLayout = [...layout];
+        
+        // Remove from all categories
+        newLayout = newLayout.map(cat => ({
+            ...cat,
+            cards: cat.cards.filter(c => c !== cardId)
+        }));
+
+        // Add to target
+        newLayout[catIndex].cards.push(cardId);
+        setLayout(newLayout);
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        try {
+            await updateDashboardLayout(layout);
+            addToast('Layout dashboard salvato.', 'success');
+            setHasChanges(false);
+        } catch (e) {
+            addToast('Errore nel salvataggio.', 'error');
+        }
+    };
+
+    // Find unassigned cards
+    const assignedCardIds = new Set(layout.flatMap(c => c.cards));
+    const unassignedCards = DASHBOARD_CARDS_CONFIG.filter(c => !assignedCardIds.has(c.id));
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Configurazione Dashboard</h2>
+                    <p className="text-xs text-on-surface-variant">Organizza le card della dashboard in tab (categorie).</p>
+                </div>
+                {hasChanges && (
+                    <button onClick={handleSave} disabled={isActionLoading('updateDashboardLayout')} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2">
+                        {isActionLoading('updateDashboardLayout') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Layout</>}
+                    </button>
+                )}
+            </div>
+
+            {/* Add Category */}
+            <div className="flex gap-2 mb-6">
+                <input 
+                    type="text" 
+                    value={newCategoryName} 
+                    onChange={e => setNewCategoryName(e.target.value)} 
+                    placeholder="Nuova Categoria (es. Finanza)..."
+                    className="form-input flex-grow"
+                />
+                <button onClick={handleAddCategory} disabled={!newCategoryName} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded font-bold disabled:opacity-50">
+                    Aggiungi
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                {layout.map((category, catIndex) => (
+                    <div key={category.id} className="border border-outline-variant rounded-lg bg-surface-container-low overflow-hidden">
+                        {/* Category Header */}
+                        <div className="p-3 flex justify-between items-center bg-surface-container border-b border-outline-variant">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-on-surface">{category.label}</span>
+                                <div className="flex flex-col">
+                                    <button onClick={() => moveCategory(catIndex, 'up')} disabled={catIndex === 0} className="text-on-surface-variant hover:text-primary disabled:opacity-30 p-0 leading-none"><span className="material-symbols-outlined text-sm">keyboard_arrow_up</span></button>
+                                    <button onClick={() => moveCategory(catIndex, 'down')} disabled={catIndex === layout.length - 1} className="text-on-surface-variant hover:text-primary disabled:opacity-30 p-0 leading-none"><span className="material-symbols-outlined text-sm">keyboard_arrow_down</span></button>
+                                </div>
+                            </div>
+                            <button onClick={() => handleDeleteCategory(category.id)} className="text-error hover:bg-error-container p-1 rounded"><span className="material-symbols-outlined text-sm">delete</span></button>
+                        </div>
+
+                        {/* Cards List */}
+                        <div className="p-2 space-y-2">
+                            {category.cards.map((cardId, cardIndex) => {
+                                const cardInfo = DASHBOARD_CARDS_CONFIG.find(c => c.id === cardId);
+                                return (
+                                    <div key={cardId} className="flex items-center justify-between p-2 bg-surface border border-outline-variant rounded shadow-sm">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl">{cardInfo?.icon || '❓'}</span>
+                                            <span className="text-sm font-medium">{cardInfo?.label || cardId}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => moveCard(catIndex, cardId, 'up')} disabled={cardIndex === 0} className="text-on-surface-variant hover:text-primary disabled:opacity-30"><span className="material-symbols-outlined text-sm">arrow_upward</span></button>
+                                            <button onClick={() => moveCard(catIndex, cardId, 'down')} disabled={cardIndex === category.cards.length - 1} className="text-on-surface-variant hover:text-primary disabled:opacity-30"><span className="material-symbols-outlined text-sm">arrow_downward</span></button>
+                                            <button onClick={() => removeCardFromCategory(catIndex, cardId)} className="text-on-surface-variant hover:text-error ml-2"><span className="material-symbols-outlined text-sm">close</span></button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {category.cards.length === 0 && <p className="text-xs text-on-surface-variant italic text-center p-2">Nessuna card.</p>}
+                            
+                            {/* Add Card Dropdown */}
+                            <div className="mt-2 pt-2 border-t border-dashed border-outline-variant">
+                                <select 
+                                    className="form-select text-xs"
+                                    value=""
+                                    onChange={(e) => {
+                                        if(e.target.value) addCardToCategory(catIndex, e.target.value);
+                                    }}
+                                >
+                                    <option value="">+ Aggiungi / Sposta Card qui...</option>
+                                    {DASHBOARD_CARDS_CONFIG.filter(c => !category.cards.includes(c.id)).map(c => (
+                                        <option key={c.id} value={c.id}>{c.icon} {c.label} {assignedCardIds.has(c.id) ? '(Sposta)' : '(Nuova)'}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Orphaned Cards Warning */}
+            {unassignedCards.length > 0 && (
+                <div className="mt-6 p-4 bg-yellow-container/20 border border-yellow-container rounded-lg">
+                    <h3 className="text-sm font-bold text-on-yellow-container mb-2">Card non assegnate (non visibili):</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {unassignedCards.map(c => (
+                            <span key={c.id} className="inline-flex items-center px-2 py-1 rounded bg-surface border border-yellow-container text-xs">
+                                {c.icon} {c.label}
+                            </span>
+                        ))}
+                    </div>
+                    <p className="text-xs mt-2 text-on-yellow-container">Usa i dropdown sopra per aggiungerle a una categoria.</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
 
     const tabs = [
         { id: 'general', label: 'Generale', icon: 'settings' },
         { id: 'users', label: 'Utenti & Sicurezza', icon: 'security' },
+        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard_customize' }, // New Tab
         { id: 'audit', label: 'Audit Log', icon: 'history' },
         { id: 'menu', label: 'Menu & Navigazione', icon: 'menu_open' },
         { id: 'business', label: 'Logiche di Business', icon: 'domain' },
@@ -685,6 +887,7 @@ const AdminSettingsPage: React.FC = () => {
                         <PermissionMatrixSection />
                     </div>
                 )}
+                {activeTab === 'dashboard' && <DashboardConfigSection />}
                 {activeTab === 'audit' && <AuditLogSection />}
                 {activeTab === 'menu' && <MenuConfigurationEditor />}
                 {activeTab === 'business' && (

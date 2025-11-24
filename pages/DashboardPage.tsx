@@ -1,11 +1,13 @@
 
+
+
+
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-// Fix: Import useAllocationsContext.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday, formatDate } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -15,11 +17,8 @@ import { ColumnDef } from '../components/DataTable';
 import {
   DashboardCardId,
   DASHBOARD_CARDS_CONFIG,
-  DEFAULT_DASHBOARD_CARD_ORDER,
-  DASHBOARD_CARD_ORDER_STORAGE_KEY,
 } from '../config/dashboardLayout';
 import GraphDataView from '../components/GraphDataView';
-// FIX: Replaced monolithic d3 import with modular imports to resolve type errors.
 import { select } from 'd3-selection';
 import { scaleTime, scaleLinear } from 'd3-scale';
 import { extent, max } from 'd3-array';
@@ -50,7 +49,6 @@ const DASHBOARD_COLORS = {
     negative: 'text-error',
   },
   link: 'text-primary hover:underline',
-  // Fix: Add chart colors for d3 visualizations.
   chart: {
     primary: '#006493',
     secondary: '#50606e',
@@ -639,19 +637,19 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
 };
 
 const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, resourceOptions, chartRef }) => (
-  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8 border-l-4 border-primary">
-    <div className="flex justify-between items-center mb-4">
+  <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
+    <div className="flex justify-between items-center mb-4 flex-shrink-0">
         <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
         <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
     </div>
-    <div className="h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
+    <div className="flex-grow h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
   </div>
 );
 
 const CostForecastCard: React.FC<any> = ({ chartRef }) => (
-  <div className="lg:col-span-2 bg-surface-container rounded-2xl shadow p-6 mt-8 border-l-4 border-primary">
-      <h2 className="text-lg font-semibold mb-4">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
-      <div className="h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
+  <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
+      <h2 className="text-lg font-semibold mb-4 flex-shrink-0">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
+      <div className="flex-grow h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
   </div>
 );
 
@@ -661,9 +659,19 @@ const CostForecastCard: React.FC<any> = ({ chartRef }) => (
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost } = useEntitiesContext();
+    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
+
+    // Tabs State
+    const [activeTab, setActiveTab] = useState<string>('');
+
+    // Set initial active tab once layout is loaded
+    useEffect(() => {
+        if (dashboardLayout.length > 0 && !activeTab) {
+            setActiveTab(dashboardLayout[0].id);
+        }
+    }, [dashboardLayout, activeTab]);
 
     // Stati dei filtri per ogni card
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
@@ -1252,29 +1260,6 @@ const DashboardPage: React.FC = () => {
 
     // --- Dynamic Card Rendering Logic ---
 
-    const cardOrder = useMemo(() => {
-        try {
-            const savedOrderJSON = localStorage.getItem(DASHBOARD_CARD_ORDER_STORAGE_KEY);
-            const savedOrder: DashboardCardId[] = savedOrderJSON ? JSON.parse(savedOrderJSON) : DEFAULT_DASHBOARD_CARD_ORDER;
-            
-            const allKnownIds = new Set(DASHBOARD_CARDS_CONFIG.map(c => c.id));
-            const savedIds = new Set(savedOrder);
-
-            const validOrder = savedOrder.filter(id => allKnownIds.has(id));
-            
-            allKnownIds.forEach(id => {
-                if (!savedIds.has(id)) {
-                    validOrder.push(id);
-                }
-            });
-
-            return validOrder;
-        } catch (error) {
-            console.error("Failed to load or parse dashboard card order from localStorage:", error);
-            return DEFAULT_DASHBOARD_CARD_ORDER;
-        }
-    }, []);
-
     const renderCardById = (id: DashboardCardId) => {
         switch (id) {
             case 'kpiHeader':
@@ -1311,24 +1296,73 @@ const DashboardPage: React.FC = () => {
         }
     };
     
-    // Group cards by their layout type based on the loaded order
-    const kpiGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'kpi');
-    const mainGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'main');
-    const fullWidthGroupCards = cardOrder.filter(id => DASHBOARD_CARDS_CONFIG.find(c => c.id === id)?.group === 'full-width');
+    // Get cards for active tab
+    const activeCategory = dashboardLayout.find(cat => cat.id === activeTab);
+    const activeCards = activeCategory ? activeCategory.cards : [];
+
+    // Render logic based on card type (kpi usually smaller, others larger)
+    const isKpiCard = (id: string) => ['kpiHeader', 'attentionCards', 'unallocatedFte', 'leavesOverview'].includes(id);
+    const isFullWidthCard = (id: string) => ['saturationTrend', 'costForecast'].includes(id);
+
+    const smallCards = activeCards.filter(id => isKpiCard(id));
+    const mediumCards = activeCards.filter(id => !isKpiCard(id) && !isFullWidthCard(id));
+    const largeCards = activeCards.filter(id => isFullWidthCard(id));
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-on-background mb-8">Dashboard</h1>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-on-background">Dashboard</h1>
+            </div>
+
+            {/* Tabs */}
+            <div className="mb-8 border-b border-outline-variant overflow-x-auto">
+                <div className="flex space-x-2 pb-1">
+                    {dashboardLayout.map((category) => (
+                        <button
+                            key={category.id}
+                            onClick={() => setActiveTab(category.id)}
+                            className={`
+                                px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
+                                ${activeTab === category.id 
+                                    ? 'bg-primary text-on-primary shadow-md' 
+                                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                                }
+                            `}
+                        >
+                            {category.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {kpiGroupCards.map(id => renderCardById(id))}
-            </div>
+            {activeCards.length === 0 && (
+                <div className="text-center p-10 bg-surface rounded-2xl border border-dashed border-outline-variant text-on-surface-variant">
+                    Nessuna card presente in questa categoria.
+                </div>
+            )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {mainGroupCards.map(id => renderCardById(id))}
-            </div>
+            <div className="animate-fade-in">
+                {/* KPI Section */}
+                {smallCards.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {smallCards.map(id => renderCardById(id as DashboardCardId))}
+                    </div>
+                )}
 
-            {fullWidthGroupCards.map(id => renderCardById(id))}
+                {/* Medium Section */}
+                {mediumCards.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        {mediumCards.map(id => renderCardById(id as DashboardCardId))}
+                    </div>
+                )}
+
+                {/* Full Width Section */}
+                {largeCards.length > 0 && (
+                    <div className="space-y-8">
+                        {largeCards.map(id => renderCardById(id as DashboardCardId))}
+                    </div>
+                )}
+            </div>
             
             <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-outline); background-color: var(--color-surface-container-highest); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); ring: 2px solid var(--color-primary); }`}</style>
         </div>
