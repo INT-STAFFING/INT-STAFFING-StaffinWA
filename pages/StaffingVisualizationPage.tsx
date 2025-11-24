@@ -15,6 +15,7 @@ import { zoom as d3Zoom } from 'd3-zoom';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceX, forceY } from 'd3-force';
 import { drag as d3Drag } from 'd3-drag';
 import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
+import 'd3-transition'; // Prevent crash on transitions
 
 type ViewMode = 'sankey' | 'network';
 

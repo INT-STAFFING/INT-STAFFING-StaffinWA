@@ -9,6 +9,7 @@ import { select } from 'd3-selection';
 import { scaleBand, scaleLinear } from 'd3-scale';
 import { axisBottom, axisLeft } from 'd3-axis';
 import { max } from 'd3-array';
+import 'd3-transition'; // Ensure transitions are loaded
 
 interface GraphConfig {
     xKey: string;

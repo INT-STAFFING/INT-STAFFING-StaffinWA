@@ -2,6 +2,7 @@
 
 
 
+
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -28,6 +29,7 @@ import { line } from 'd3-shape';
 import { format } from 'd3-format';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import 'd3-transition'; // Import transition to avoid crashes
 
 // --- Colori Centralizzati per la Dashboard ---
 const DASHBOARD_COLORS = {
@@ -636,22 +638,96 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     );
 };
 
-const SaturationTrendCard: React.FC<any> = ({ trendResource, setTrendResource, resourceOptions, chartRef }) => (
-  <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
-    <div className="flex justify-between items-center mb-4 flex-shrink-0">
-        <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
-        <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
-    </div>
-    <div className="flex-grow h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
-  </div>
-);
+const SaturationTrendCard: React.FC<{ 
+    trendResource: string, 
+    setTrendResource: (v: string) => void, 
+    resourceOptions: any[], 
+    data: any[] 
+}> = ({ trendResource, setTrendResource, resourceOptions, data }) => {
+    const chartRef = useRef<SVGSVGElement>(null);
 
-const CostForecastCard: React.FC<any> = ({ chartRef }) => (
-  <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
-      <h2 className="text-lg font-semibold mb-4 flex-shrink-0">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
-      <div className="flex-grow h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
-  </div>
-);
+    useEffect(() => {
+        if (!trendResource || !chartRef.current || data.length === 0) {
+            if (chartRef.current) select(chartRef.current).selectAll("*").remove();
+            return;
+        }
+
+        const svg = select(chartRef.current);
+        svg.selectAll("*").remove();
+        
+        const { width: containerWidth, height: containerHeight } = svg.node()!.getBoundingClientRect();
+        const margin = { top: 20, right: 30, bottom: 30, left: 40 };
+        const width = containerWidth - margin.left - margin.right;
+        const height = containerHeight - margin.top - margin.bottom;
+
+        if (width <= 0 || height <= 0) return;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = scaleTime().domain(extent(data, (d: any) => d.month) as [Date, Date]).range([0, width]);
+        const y = scaleLinear().domain([0, max(data, (d: any) => Math.max(110, d.value)) || 110]).range([height, 0]);
+
+        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).ticks(Math.min(data.length, Math.floor(width / 80))).tickFormat(timeFormat("%b %y") as any));
+        g.append("g").call(axisLeft(y).ticks(5).tickFormat((d: any) => `${d}%`));
+
+        g.append("path").datum(data).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2)
+          .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.value)) as any);
+        
+        g.append("line").attr("x1", 0).attr("x2", width).attr("y1", y(100)).attr("y2", y(100)).attr("stroke", DASHBOARD_COLORS.chart.threshold).attr("stroke-width", 1.5).attr("stroke-dasharray", "4");
+
+    }, [data, trendResource]);
+
+    return (
+        <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
+                <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
+            </div>
+            <div className="flex-grow h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
+        </div>
+    );
+};
+
+const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
+    const chartRef = useRef<SVGSVGElement>(null);
+
+    useEffect(() => {
+        if (!chartRef.current || data.length === 0) return;
+        
+        const svg = select(chartRef.current);
+        svg.selectAll("*").remove();
+
+        const { width: containerWidth, height: containerHeight } = svg.node()!.getBoundingClientRect();
+        const margin = { top: 20, right: 50, bottom: 30, left: 60 };
+        const width = containerWidth - margin.left - margin.right;
+        const height = containerHeight - margin.top - margin.bottom;
+
+        if (width <= 0 || height <= 0) return;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = scaleTime().domain(extent(data, (d: any) => d.month) as [Date, Date]).range([0, width]);
+        const yMax = max(data, (d: any) => Math.max(d.historic, d.forecast));
+        const y = scaleLinear().domain([0, (yMax || 0) * 1.1]).range([height, 0]);
+
+        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).ticks(Math.min(data.length, Math.floor(width / 80))).tickFormat(timeFormat("%b %y") as any));
+        g.append("g").call(axisLeft(y).ticks(5).tickFormat(format("~s") as any));
+
+        g.append("path").datum(data).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.secondary).attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
+            .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.historic)) as any);
+        
+        g.append("path").datum(data).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2.5)
+            .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.forecast)) as any);
+
+    }, [data]);
+
+    return (
+        <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
+            <h2 className="text-lg font-semibold mb-4 flex-shrink-0">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
+            <div className="flex-grow h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
+        </div>
+    );
+};
 
 
 /**
@@ -689,8 +765,6 @@ const DashboardPage: React.FC = () => {
     });
     const [underutilizedFilter, setUnderutilizedFilter] = useState(new Date().toISOString().slice(0, 7));
     const [trendResource, setTrendResource] = useState<string>('');
-    const trendChartRef = useRef<SVGSVGElement>(null);
-    const costForecastChartRef = useRef<SVGSVGElement>(null);
 
     const activeResources = useMemo(() => resources.filter(r => !r.resigned), [resources]);
 
@@ -1196,68 +1270,6 @@ const DashboardPage: React.FC = () => {
     const resourceOptions = useMemo(() => activeResources.map((r) => ({ value: r.id!, label: r.name })), [activeResources]);
     const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
 
-    // Chart useEffects
-    useEffect(() => {
-        if (!trendResource || !trendChartRef.current || saturationTrendData.length === 0) {
-            if (trendChartRef.current) select(trendChartRef.current).selectAll("*").remove();
-            return;
-        }
-
-        const svg = select(trendChartRef.current);
-        svg.selectAll("*").remove();
-        
-        const { width: containerWidth, height: containerHeight } = svg.node().getBoundingClientRect();
-        const margin = { top: 20, right: 30, bottom: 30, left: 40 };
-        const width = containerWidth - margin.left - margin.right;
-        const height = containerHeight - margin.top - margin.bottom;
-
-        if (width <= 0 || height <= 0) return;
-
-        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
-        const x = scaleTime().domain(extent(saturationTrendData, (d: any) => d.month) as [Date, Date]).range([0, width]);
-        const y = scaleLinear().domain([0, max(saturationTrendData, (d: any) => Math.max(110, d.value)) || 110]).range([height, 0]);
-
-        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).ticks(Math.min(saturationTrendData.length, Math.floor(width / 80))).tickFormat(timeFormat("%b %y") as any));
-        g.append("g").call(axisLeft(y).ticks(5).tickFormat((d: any) => `${d}%`));
-
-        g.append("path").datum(saturationTrendData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2)
-          .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.value)) as any);
-        
-        g.append("line").attr("x1", 0).attr("x2", width).attr("y1", y(100)).attr("y2", y(100)).attr("stroke", DASHBOARD_COLORS.chart.threshold).attr("stroke-width", 1.5).attr("stroke-dasharray", "4");
-
-    }, [saturationTrendData, trendResource]);
-
-    useEffect(() => {
-        if (!costForecastChartRef.current || monthlyCostForecastData.length === 0) return;
-        
-        const svg = select(costForecastChartRef.current);
-        svg.selectAll("*").remove();
-
-        const { width: containerWidth, height: containerHeight } = svg.node().getBoundingClientRect();
-        const margin = { top: 20, right: 50, bottom: 30, left: 60 };
-        const width = containerWidth - margin.left - margin.right;
-        const height = containerHeight - margin.top - margin.bottom;
-
-        if (width <= 0 || height <= 0) return;
-
-        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-
-        const x = scaleTime().domain(extent(monthlyCostForecastData, (d: any) => d.month) as [Date, Date]).range([0, width]);
-        const yMax = max(monthlyCostForecastData, (d: any) => Math.max(d.historic, d.forecast));
-        const y = scaleLinear().domain([0, (yMax || 0) * 1.1]).range([height, 0]);
-
-        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).ticks(Math.min(monthlyCostForecastData.length, Math.floor(width / 80))).tickFormat(timeFormat("%b %y") as any));
-        g.append("g").call(axisLeft(y).ticks(5).tickFormat(format("~s") as any));
-
-        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.secondary).attr("stroke-width", 2).attr("stroke-dasharray", "4,4")
-            .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.historic)) as any);
-        
-        g.append("path").datum(monthlyCostForecastData).attr("fill", "none").attr("stroke", DASHBOARD_COLORS.chart.primary).attr("stroke-width", 2.5)
-            .attr("d", line().x((d: any) => x(d.month)).y((d: any) => y(d.forecast)) as any);
-
-    }, [monthlyCostForecastData]);
-
     // --- Dynamic Card Rendering Logic ---
 
     const renderCardById = (id: DashboardCardId) => {
@@ -1289,9 +1301,9 @@ const DashboardPage: React.FC = () => {
             case 'locationAnalysis':
                 return <LocationAnalysisCard key={id} data={analysisByLocationData} isLoading={loading} />;
             case 'saturationTrend':
-                return <SaturationTrendCard key={id} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={resourceOptions} chartRef={trendChartRef} />;
+                return <SaturationTrendCard key={id} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={resourceOptions} data={saturationTrendData} />;
             case 'costForecast':
-                return <CostForecastCard key={id} chartRef={costForecastChartRef} />;
+                return <CostForecastCard key={id} data={monthlyCostForecastData} />;
             default: return null;
         }
     };
