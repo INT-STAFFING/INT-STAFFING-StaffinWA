@@ -6,42 +6,38 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateFull, formatDateSynthetic } from '../utils/dateUtils';
+import { Resource, Assignment, LeaveRequest, LeaveType } from '../types';
+import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
-import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
 
+// Utility per generare la chiave di lookup
+const getLeaveKey = (resourceId: string, dateStr: string) => `${resourceId}_${dateStr}`;
+
 interface DailyTotalCellProps {
   resource: Resource;
   date: string;
   isNonWorkingDay: boolean;
+  resourceAssignments: Assignment[]; // Optimized: Passed from parent
+  leaveInfo?: { request: LeaveRequest; type: LeaveType }; // Optimized: Passed from parent
 }
 
-const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date, isNonWorkingDay }) => {
-  const { assignments, leaveRequests, leaveTypes } = useEntitiesContext();
+const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, date, isNonWorkingDay, resourceAssignments, leaveInfo }) => {
   const { allocations } = useAllocationsContext();
 
-  const activeLeave = useMemo(() => {
-      return leaveRequests.find(l => 
-          l.resourceId === resource.id && 
-          l.status === 'APPROVED' && 
-          date >= l.startDate && 
-          date <= l.endDate
-      );
-  }, [leaveRequests, resource.id, date]);
+  const activeLeave = leaveInfo?.request;
+  const leaveType = leaveInfo?.type;
 
-  const leaveType = useMemo(() => {
-      return activeLeave ? leaveTypes.find(t => t.id === activeLeave.typeId) : undefined;
-  }, [activeLeave, leaveTypes]);
-
+  // Override working day status if forced by leave or resource end date
+  let effectiveIsNonWorking = isNonWorkingDay;
   if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
-    isNonWorkingDay = true;
+    effectiveIsNonWorking = true;
   }
 
+  // Render Leave Cell (Full Day)
   if (activeLeave && leaveType && !activeLeave.isHalfDay) {
       return (
         <td 
@@ -54,7 +50,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
       );
   }
 
-  if (isNonWorkingDay) {
+  if (effectiveIsNonWorking) {
     return (
       <td className="border-t border-outline-variant px-2 py-3 text-center text-sm font-semibold bg-surface-container text-on-surface-variant">
         -
@@ -62,12 +58,10 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
     );
   }
 
-  const total = useMemo(() => {
-    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
-    return resourceAssignments.reduce((sum, a) => {
+  // Calculate total only using the pre-filtered assignments
+  const total = resourceAssignments.reduce((sum, a) => {
       return sum + (allocations[a.id!]?.[date] || 0);
-    }, 0);
-  }, [assignments, allocations, resource.id, date]);
+  }, 0);
 
   let capacityUsed = total;
   if (activeLeave && activeLeave.isHalfDay && leaveType?.affectsCapacity) {
@@ -88,10 +82,10 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = ({ resource, date,
       {total > 0 ? `${total}%` : (activeLeave && activeLeave.isHalfDay ? '' : '-')}
     </td>
   );
-};
+});
 
-const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Date; endDate: Date }> = React.memo(({ resource, startDate, endDate }) => {
-  const { assignments, companyCalendar } = useEntitiesContext();
+const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Date; endDate: Date; resourceAssignments: Assignment[] }> = React.memo(({ resource, startDate, endDate, resourceAssignments }) => {
+  const { companyCalendar } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
   const averageAllocation = useMemo(() => {
@@ -109,7 +103,6 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
     );
     if (workingDays === 0) return 0;
 
-    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
     let totalPersonDays = 0;
 
     resourceAssignments.forEach((assignment) => {
@@ -133,7 +126,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
     });
 
     return (totalPersonDays / workingDays) * 100;
-  }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
+  }, [resource, startDate, endDate, resourceAssignments, allocations, companyCalendar]);
 
   const cellColor = useMemo(() => {
     const maxPercentage = resource.maxStaffingPercentage ?? 100;
@@ -157,7 +150,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
 const WorkloadPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
-    const { resources, roles, companyCalendar, assignments } = useEntitiesContext();
+    const { resources, roles, companyCalendar, assignments, leaveRequests, leaveTypes } = useEntitiesContext();
     
     const [filters, setFilters] = useState({ resourceId: '', roleId: '', horizontal: '' });
     
@@ -198,7 +191,7 @@ const WorkloadPage: React.FC = () => {
                 const dateIso = formatDate(day, 'iso');
                 const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
                 return {
-                    label: formatDateSynthetic(day), // Changed from formatDateFull
+                    label: formatDateSynthetic(day),
                     subLabel: formatDate(day, 'day'),
                     startDate: day,
                     endDate: day,
@@ -257,6 +250,66 @@ const WorkloadPage: React.FC = () => {
         return displayData.slice(startIndex, startIndex + itemsPerPage);
     }, [displayData, currentPage, itemsPerPage]);
 
+    // OPTIMIZATION: Pre-calculate Assignments map for the visible resources
+    // This prevents filtering assignments inside every single cell (O(N^2) -> O(N))
+    const assignmentsMap = useMemo(() => {
+        const map = new Map<string, Assignment[]>();
+        const visibleIds = new Set(paginatedData.map(r => r.id));
+        
+        assignments.forEach(a => {
+            if (visibleIds.has(a.resourceId)) {
+                if (!map.has(a.resourceId)) {
+                    map.set(a.resourceId, []);
+                }
+                map.get(a.resourceId)!.push(a);
+            }
+        });
+        return map;
+    }, [paginatedData, assignments]);
+
+    // OPTIMIZATION: Pre-calculate Leaves Lookup Map
+    // Key: resourceId_dateIso
+    const leavesLookup = useMemo(() => {
+        const map = new Map<string, { request: LeaveRequest; type: LeaveType }>();
+        // Only process approved leaves
+        const approvedLeaves = leaveRequests.filter(l => l.status === 'APPROVED');
+        
+        // For 'Day' view, we need precise daily lookup. For Aggregated, less critical but useful.
+        // To avoid exploding memory, we only map the visible date range if viewMode is 'day'
+        if (viewMode === 'day' && timeColumns.length > 0) {
+            const rangeStart = timeColumns[0].startDate;
+            const rangeEnd = timeColumns[timeColumns.length - 1].endDate;
+            const rangeStartStr = formatDate(rangeStart, 'iso');
+            const rangeEndStr = formatDate(rangeEnd, 'iso');
+
+            approvedLeaves.forEach(req => {
+                // Check overlap with visible range
+                if (req.endDate < rangeStartStr || req.startDate > rangeEndStr) return;
+
+                const type = leaveTypes.find(t => t.id === req.typeId);
+                if (!type) return;
+
+                // Iterate days of the leave request
+                let d = new Date(req.startDate);
+                const end = new Date(req.endDate);
+                
+                // Optimization: Clamp start/end to visible range
+                if (d < rangeStart) d = new Date(rangeStart);
+                const effectiveEnd = end > rangeEnd ? rangeEnd : end;
+
+                while (d <= effectiveEnd) {
+                    const dateStr = d.toISOString().split('T')[0];
+                    const key = getLeaveKey(req.resourceId, dateStr);
+                    // Last leave wins if duplicates (shouldn't happen in clean data)
+                    map.set(key, { request: req, type });
+                    d.setDate(d.getDate() + 1);
+                }
+            });
+        }
+        
+        return map;
+    }, [leaveRequests, leaveTypes, viewMode, timeColumns]);
+
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
@@ -307,19 +360,44 @@ const WorkloadPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-outline-variant">
-                            {paginatedData.map(resource => (
-                                <tr key={resource.id} className="hover:bg-surface-container-low">
-                                    <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9">
-                                        <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
-                                    </td>
-                                    {timeColumns.map((col, index) => {
-                                        if (viewMode === 'day') {
-                                            return <ReadonlyDailyTotalCell key={index} resource={resource} date={col.dateIso} isNonWorkingDay={col.isNonWorkingDay} />;
-                                        }
-                                        return <ReadonlyAggregatedTotalCell key={index} resource={resource} startDate={col.startDate} endDate={col.endDate} />;
-                                    })}
-                                </tr>
-                            ))}
+                            {paginatedData.map(resource => {
+                                // Pass pre-filtered assignments
+                                const resourceAssignments = assignmentsMap.get(resource.id!) || [];
+                                
+                                return (
+                                    <tr key={resource.id} className="hover:bg-surface-container-low">
+                                        <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9">
+                                            <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
+                                        </td>
+                                        {timeColumns.map((col, index) => {
+                                            if (viewMode === 'day') {
+                                                // Fast lookup
+                                                const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso));
+                                                
+                                                return (
+                                                    <ReadonlyDailyTotalCell 
+                                                        key={index} 
+                                                        resource={resource} 
+                                                        date={col.dateIso} 
+                                                        isNonWorkingDay={col.isNonWorkingDay} 
+                                                        resourceAssignments={resourceAssignments}
+                                                        leaveInfo={leaveInfo}
+                                                    />
+                                                );
+                                            }
+                                            return (
+                                                <ReadonlyAggregatedTotalCell 
+                                                    key={index} 
+                                                    resource={resource} 
+                                                    startDate={col.startDate} 
+                                                    endDate={col.endDate} 
+                                                    resourceAssignments={resourceAssignments}
+                                                />
+                                            );
+                                        })}
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>

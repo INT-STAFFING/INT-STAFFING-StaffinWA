@@ -25,15 +25,8 @@ import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
 
-// Helper per trovare l'assenza in una data specifica
-const getActiveLeave = (resourceId: string, dateStr: string, leaves: LeaveRequest[]) => {
-    return leaves.find(l => {
-        return l.resourceId === resourceId && 
-               l.status === 'APPROVED' &&
-               dateStr >= l.startDate && 
-               dateStr <= l.endDate;
-    });
-};
+// Helper per generare chiave lookup assenze
+const getLeaveKey = (resourceId: string, dateStr: string) => `${resourceId}_${dateStr}`;
 
 // Helper per icona
 const getLeaveIcon = (typeName: string) => {
@@ -42,13 +35,12 @@ const getLeaveIcon = (typeName: string) => {
     if (lower.includes('malattia')) return 'medical_services';
     if (lower.includes('permesso')) return 'schedule';
     if (lower.includes('studio')) return 'school';
-    if (lower.includes('smart')) return 'home_work'; // Smart working might not affect capacity, but if it does...
+    if (lower.includes('smart')) return 'home_work'; 
     return 'block'; 
 };
 
 /**
  * Celle di allocazione giornaliera modificabile (per singola assegnazione).
- * Ottimizzato usando Input invece di Select per ridurre i nodi DOM (performance).
  */
 interface AllocationCellProps {
   assignment: Assignment;
@@ -131,7 +123,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
   startDate: Date;
   endDate: Date;
 }> = React.memo(({ assignment, startDate, endDate }) => {
-  const { companyCalendar, resources, leaveRequests, leaveTypes } = useEntitiesContext();
+  const { companyCalendar, resources } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
   const resource = resources.find((r) => r.id === assignment.resourceId);
 
@@ -728,6 +720,44 @@ const StaffingPage: React.FC = () => {
     return cols;
   }, [currentDate, viewMode, companyCalendar, isMobile]);
 
+  // OPTIMIZATION: Pre-calculate Leaves Lookup Map
+  // Replaces O(N) search in render loop with O(1) map lookup
+  const leavesLookup = useMemo(() => {
+      const map = new Map<string, { request: LeaveRequest; type: LeaveType }>();
+      const approvedLeaves = leaveRequests.filter(l => l.status === 'APPROVED');
+      
+      // Performance Optimization: Only map visible range if in day view
+      if (viewMode === 'day' && timeColumns.length > 0) {
+          const rangeStart = timeColumns[0].startDate;
+          const rangeEnd = timeColumns[timeColumns.length - 1].endDate;
+          const rangeStartStr = formatDate(rangeStart, 'iso');
+          const rangeEndStr = formatDate(rangeEnd, 'iso');
+
+          approvedLeaves.forEach(req => {
+              // Check overlap
+              if (req.endDate < rangeStartStr || req.startDate > rangeEndStr) return;
+
+              const type = leaveTypeMap.get(req.typeId);
+              if (!type) return;
+
+              let d = new Date(req.startDate);
+              const end = new Date(req.endDate);
+              
+              // Clamp start/end to visible range
+              if (d < rangeStart) d = new Date(rangeStart);
+              const effectiveEnd = end > rangeEnd ? rangeEnd : end;
+
+              while (d <= effectiveEnd) {
+                  const dateStr = d.toISOString().split('T')[0];
+                  const key = getLeaveKey(req.resourceId, dateStr);
+                  map.set(key, { request: req, type });
+                  d.setDate(d.getDate() + 1);
+              }
+          });
+      }
+      return map;
+  }, [leaveRequests, leaveTypeMap, viewMode, timeColumns]);
+
   const assignableProjects = useMemo(
     () => projects.filter((p: any) => p.status !== 'Completato'),
     [projects]
@@ -1124,8 +1154,11 @@ const StaffingPage: React.FC = () => {
                               resource.location,
                               companyCalendar
                             );
-                            const activeLeave = getActiveLeave(resource.id!, col.dateIso!, leaveRequests);
-                            const leaveType = activeLeave ? leaveTypeMap.get(activeLeave.typeId) : undefined;
+                            
+                            // Use O(1) lookup
+                            const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso!));
+                            const activeLeave = leaveInfo?.request;
+                            const leaveType = leaveInfo?.type;
 
                             return (
                               <DailyTotalCell
@@ -1216,8 +1249,11 @@ const StaffingPage: React.FC = () => {
                                     resource.location,
                                     companyCalendar
                                   );
-                                  const activeLeave = getActiveLeave(resource.id!, col.dateIso!, leaveRequests);
-                                  const leaveType = activeLeave ? leaveTypeMap.get(activeLeave.typeId) : undefined;
+                                  
+                                  // Use O(1) lookup
+                                  const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso!));
+                                  const activeLeave = leaveInfo?.request;
+                                  const leaveType = leaveInfo?.type;
 
                                   return (
                                     <AllocationCell
