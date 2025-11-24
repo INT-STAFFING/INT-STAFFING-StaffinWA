@@ -8,7 +8,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { select } from 'd3-selection';
-import { zoom as d3Zoom } from 'd3-zoom';
+import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
 import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear } from 'd3-scale';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY } from 'd3-force';
 import { drag as d3Drag } from 'd3-drag';
@@ -119,7 +119,7 @@ const SkillForceGraph: React.FC<{
         return () => { simulation.stop(); };
     }, [nodes, links, width, height, theme, svgRef]);
 
-    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
 // 2. Matrix Heatmap
@@ -235,6 +235,19 @@ const SkillChordDiagram: React.FC<{
         const svg = select(svgRef.current);
         svg.selectAll("*").remove();
 
+        // Zoom Behavior Setup
+        const zoomBehavior = d3Zoom()
+            .scaleExtent([0.5, 5]) // Limit zoom scale
+            .on("zoom", (event: any) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoomBehavior as any);
+
+        // Initial Centering
+        const initialTransform = zoomIdentity.translate(width / 2, height / 2);
+        svg.call(zoomBehavior.transform as any, initialTransform);
+
         const outerRadius = Math.min(width, height) * 0.5 - 60;
         const innerRadius = outerRadius - 20;
 
@@ -251,8 +264,8 @@ const SkillChordDiagram: React.FC<{
 
         const color = scaleOrdinal(schemeCategory10);
 
-        const g = svg.append("g")
-            .attr("transform", `translate(${width / 2},${height / 2})`);
+        // Append the Main Group that will be Zoomed/Panned
+        const g = svg.append("g");
 
         const chords = chordGenerator(matrix);
 
@@ -293,7 +306,7 @@ const SkillChordDiagram: React.FC<{
 
     }, [matrix, names, width, height, theme, svgRef]);
 
-    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
 // 4. Radar Chart (Skill Profile)
@@ -310,6 +323,19 @@ const SkillRadarChart: React.FC<{
 
         const svg = select(svgRef.current);
         svg.selectAll("*").remove();
+
+        // Zoom Behavior Setup
+        const zoomBehavior = d3Zoom()
+            .scaleExtent([0.5, 5])
+            .on("zoom", (event: any) => {
+                g.attr("transform", event.transform);
+            });
+
+        svg.call(zoomBehavior as any);
+
+        // Initial Centering
+        const initialTransform = zoomIdentity.translate(width / 2, height / 2);
+        svg.call(zoomBehavior.transform as any, initialTransform);
 
         const cfg = {
             w: width - 100,
@@ -328,8 +354,8 @@ const SkillRadarChart: React.FC<{
             .range([0, radius])
             .domain([0, cfg.maxValue]);
 
-        const g = svg.append("g")
-            .attr("transform", `translate(${width / 2},${height / 2})`);
+        // Append the Main Group that will be Zoomed/Panned
+        const g = svg.append("g");
 
         // Circular grid
         const axisGrid = g.append("g").attr("class", "axisWrapper");
@@ -383,10 +409,10 @@ const SkillRadarChart: React.FC<{
             .style("fill", cfg.color)
             .style("fill-opacity", cfg.opacityArea)
             .on('mouseover', function() {
-                select(this).transition().duration(200).style("fill-opacity", 0.7);
+                (select(this) as any).transition().duration(200).style("fill-opacity", 0.7);
             })
             .on('mouseout', function() {
-                select(this).transition().duration(200).style("fill-opacity", cfg.opacityArea);
+                (select(this) as any).transition().duration(200).style("fill-opacity", cfg.opacityArea);
             });
 
         g.append("path")
@@ -410,7 +436,7 @@ const SkillRadarChart: React.FC<{
 
     }, [data, width, height, theme, svgRef]);
 
-    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
 
@@ -610,8 +636,8 @@ const SkillAnalysisPage: React.FC = () => {
             <div className="h-[700px] w-full">
                 {view === 'network' && <SkillForceGraph nodes={networkData.nodes} links={networkData.links} width={1200} height={700} theme={currentTheme} svgRef={chartRef} />}
                 {view === 'heatmap' && <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} theme={currentTheme} svgRef={chartRef} />}
-                {view === 'chord' && <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={800} height={700} theme={currentTheme} svgRef={chartRef} />}
-                {view === 'radar' && <SkillRadarChart data={radarData} width={600} height={600} theme={currentTheme} svgRef={chartRef} />}
+                {view === 'chord' && <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={1200} height={700} theme={currentTheme} svgRef={chartRef} />}
+                {view === 'radar' && <SkillRadarChart data={radarData} width={1200} height={700} theme={currentTheme} svgRef={chartRef} />}
             </div>
         </div>
     );
