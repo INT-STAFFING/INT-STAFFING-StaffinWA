@@ -328,7 +328,7 @@ const WorkloadPage: React.FC = () => {
       }
   }, [isMobile]);
 
-  const { resources, projects, assignments, clients, companyCalendar, roles, leaveRequests, leaveTypes } = useEntitiesContext();
+  const { resources, projects, assignments, clients, companyCalendar, roles } = useEntitiesContext();
   const { allocations } = useAllocationsContext();
 
   const [filters, setFilters] = useState({
@@ -343,7 +343,6 @@ const WorkloadPage: React.FC = () => {
     const resourceId = searchParams.get('resourceId');
     if (resourceId) {
       setFilters((prev) => ({ ...prev, resourceId }));
-      // Rimuovi il parametro dall'URL dopo averlo applicato per non confondere l'utente
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
@@ -354,8 +353,8 @@ const WorkloadPage: React.FC = () => {
       subLabel: string;
       startDate: Date;
       endDate: Date;
-      isNonWorkingHeader?: boolean;
-      dateIso?: string; // Added for mobile calculation
+      isNonWorkingDay?: boolean;
+      dateIso?: string;
     }[] = [];
     let d = new Date(currentDate);
 
@@ -379,368 +378,250 @@ const WorkloadPage: React.FC = () => {
              const dateIso = formatDate(day, 'iso');
              const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
              cols.push({ 
-                 label: formatDate(day, 'day'), 
+                 label: formatDate(day, 'day') + ' ' + formatDate(day, 'short'), 
                  subLabel: '', 
                  startDate: day, 
                  endDate: day, 
-                 isNonWorkingHeader: isWeekend || !!holiday, 
+                 isNonWorkingDay: isWeekend || !!holiday, 
                  dateIso 
              });
          }
          return cols;
     }
 
+    // Desktop Logic
     if (viewMode === 'day') {
-      return getCalendarDays(d, 28).map((day) => {
+      return getCalendarDays(d, 14).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        const holiday = companyCalendar.find(
-          (e) => e.date === formatDate(day, 'iso') && e.type !== 'LOCAL_HOLIDAY',
-        );
+        const dateIso = formatDate(day, 'iso');
+        const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
         return {
           label: formatDate(day, 'short'),
           subLabel: formatDate(day, 'day'),
           startDate: day,
           endDate: day,
-          isNonWorkingHeader: isWeekend || !!holiday,
+          isNonWorkingDay: isWeekend || !!holiday,
+          dateIso,
         };
       });
-    } else if (viewMode === 'week') {
-      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1)); // Start from Monday
-      for (let i = 0; i < 8; i++) {
+    }
+
+    if (viewMode === 'week') {
+      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+      for (let i = 0; i < 12; i++) {
         const startOfWeek = new Date(d);
         const endOfWeek = addDays(new Date(d), 6);
         cols.push({
           label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
-          subLabel: `Settimana ${i + 1}`,
+          subLabel: '',
           startDate: startOfWeek,
           endDate: endOfWeek,
         });
         d.setDate(d.getDate() + 7);
       }
     } else {
-      // month
-      d.setDate(1); // Start from first day of month
-      for (let i = 0; i < 6; i++) {
+      d.setDate(1);
+      for (let i = 0; i < 12; i++) {
         const startOfMonth = new Date(d);
         const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         cols.push({
           label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }),
-          subLabel: ``,
+          subLabel: '',
           startDate: startOfMonth,
           endDate: endOfMonth,
         });
         d.setMonth(d.getMonth() + 1);
       }
     }
+
     return cols;
   }, [currentDate, viewMode, companyCalendar, isMobile]);
 
-  const handlePrev = useCallback(() => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev);
-      if (viewMode === 'week') isMobile ? newDate.setDate(newDate.getDate() - 7) : newDate.setDate(newDate.getDate() - 7 * 8);
-      else if (viewMode === 'month') isMobile ? newDate.setMonth(newDate.getMonth() - 1) : newDate.setMonth(newDate.getMonth() - 6);
-      else newDate.setDate(newDate.getDate() - 35);
-      return newDate;
-    });
-  }, [viewMode, isMobile]);
+  const handlePrev = useCallback(() => setCurrentDate(prev => {
+    const newDate = new Date(prev);
+    if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
+    else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
+    else newDate.setDate(newDate.getDate() - 1);
+    return newDate;
+  }), [viewMode]);
 
-  const handleNext = useCallback(() => {
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev);
-      if (viewMode === 'week') isMobile ? newDate.setDate(newDate.getDate() + 7) : newDate.setDate(newDate.getDate() + 7 * 8);
-      else if (viewMode === 'month') isMobile ? newDate.setMonth(newDate.getMonth() + 1) : newDate.setMonth(newDate.getMonth() + 6);
-      else newDate.setDate(newDate.getDate() + 35);
-      return newDate;
-    });
-  }, [viewMode, isMobile]);
+  const handleNext = useCallback(() => setCurrentDate(prev => {
+    const newDate = new Date(prev);
+    if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
+    else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
+    else newDate.setDate(newDate.getDate() + 1);
+    return newDate;
+  }), [viewMode]);
 
-  const handleToday = () => setCurrentDate(new Date());
+  const handleToday = useCallback(() => setCurrentDate(new Date()), []);
 
-  const handleFilterChange = (name: string, value: string) => {
-    setFilters((prev) => ({ ...prev, [name]: value }));
-  };
+  const handleFilterChange = useCallback((name: string, value: string) => {
+    setFilters(prev => ({ ...prev, [name]: value }));
+  }, []);
 
-  const handleMultiSelectFilterChange = (name: string, values: string[]) => {
-    setFilters((prev) => ({ ...prev, [name]: values }));
-  };
+  const handleMultiSelectChange = useCallback((name: string, values: string[]) => {
+    setFilters(prev => ({ ...prev, [name]: values }));
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({ resourceId: '', projectId: '', clientId: '', roleIds: [] });
-  };
+  }, []);
 
-  // Calcola e memoizza le risorse da visualizzare, applicando i filtri.
-  const displayResources = useMemo(() => {
-    const activeResources = resources.filter((r) => !r.resigned);
-    let finalResources = [...activeResources];
-
-    if (filters.roleIds.length > 0) {
-      finalResources = finalResources.filter((r) => filters.roleIds.includes(r.roleId));
-    }
+  // Data Filtering and Preparation
+  const displayData = useMemo(() => {
+    // First filter resources based on criteria
+    let filteredResources = resources.filter(r => !r.resigned);
 
     if (filters.resourceId) {
-      finalResources = finalResources.filter((r) => r.id === filters.resourceId);
+        filteredResources = filteredResources.filter(r => r.id === filters.resourceId);
+    }
+    if (filters.roleIds.length > 0) {
+        filteredResources = filteredResources.filter(r => filters.roleIds.includes(r.roleId));
     }
 
+    // Then filter by project/client implication (if a resource works on selected project/client)
     if (filters.projectId || filters.clientId) {
-      let relevantResourceIds: Set<string>;
-
-      if (filters.projectId) {
-        relevantResourceIds = new Set(
-          assignments.filter((a) => a.projectId === filters.projectId).map((a) => a.resourceId),
-        );
-      } else {
-        // filters.clientId
-        const clientProjectIds = new Set(
-          projects.filter((p) => p.clientId === filters.clientId).map((p) => p.id),
-        );
-        relevantResourceIds = new Set(
-          assignments.filter((a) => clientProjectIds.has(a.projectId)).map((a) => a.resourceId),
-        );
-      }
-      finalResources = finalResources.filter((r) => relevantResourceIds.has(r.id!));
+        filteredResources = filteredResources.filter(r => {
+            const userAssignments = assignments.filter(a => a.resourceId === r.id);
+            return userAssignments.some(a => {
+                if (filters.projectId && a.projectId !== filters.projectId) return false;
+                if (filters.clientId) {
+                    const project = projects.find(p => p.id === a.projectId);
+                    if (project?.clientId !== filters.clientId) return false;
+                }
+                return true;
+            });
+        });
     }
 
-    return finalResources.sort((a, b) => a.name.localeCompare(b.name));
-  }, [resources, assignments, projects, filters]);
+    // Map to structure
+    return filteredResources.map(resource => {
+        const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+        const role = roles.find(r => r.id === resource.roleId);
+        return {
+            resource,
+            roleName: role?.name || '',
+            assignments: resourceAssignments
+        };
+    }).sort((a, b) => a.resource.name.localeCompare(b.resource.name));
 
-  const resourceOptions = useMemo(
-    () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
-    [resources],
-  );
-  const roleOptions = useMemo(
-    () => roles.map((r) => ({ value: r.id!, label: r.name })),
-    [roles],
-  );
-  const projectOptions = useMemo(
-    () => projects.map((p) => ({ value: p.id!, label: p.name })),
-    [projects],
-  );
-  const clientOptions = useMemo(
-    () => clients.map((c) => ({ value: c.id!, label: c.name })),
-    [clients],
-  );
+  }, [resources, assignments, projects, roles, filters]);
+
+  const resourceOptions = useMemo(() => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })), [resources]);
+  const projectOptions = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);
+  const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
+  const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id!, label: r.name })), [roles]);
 
   return (
-    <div className="flex flex-col w-full max-w-full h-full">
-      {/* Barra controlli + info */}
-      <div className="flex-shrink-0">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
-          <div className="flex items-center justify-start space-x-2">
-            <button
-              onClick={handlePrev}
-              className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm"
-            >
-              ← Prec.
-            </button>
-            <button
-              onClick={handleToday}
-              className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full shadow-sm font-semibold hover:opacity-90"
-            >
-              Oggi
-            </button>
-            <button
-              onClick={handleNext}
-              className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm"
-            >
-              Succ. →
-            </button>
-             {isMobile && <span className="ml-2 text-sm font-semibold text-on-surface">{viewMode === 'week' ? 'Settimana Corrente' : 'Mese'}</span>}
-          </div>
-          <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-            {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
-              <button
-                key={level}
-                onClick={() => setViewMode(level)}
-                className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
-                  viewMode === level
-                    ? 'bg-surface text-primary shadow'
-                    : 'text-on-surface-variant'
-                }`}
-              >
-                {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
-              </button>
-            ))}
-          </div>
-          {!isMobile && (
-             <div className="text-sm text-on-surface-variant text-right">
-                Vista di sola lettura.{' '}
-                <a href="/staffing" className="text-primary hover:underline">
-                  Vai a Staffing per modifiche
-                </a>
-                .
-             </div>
-          )}
-        </div>
-
-        {/* Sezione Filtri */}
-        <div className="mb-4 p-4 bg-surface rounded-2xl shadow relative z-30">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end">
-            <div>
-              <label className="block text-sm font-medium text-on-surface-variant">
-                Risorsa
-              </label>
-              <SearchableSelect
-                name="resourceId"
-                value={filters.resourceId}
-                onChange={handleFilterChange}
-                options={resourceOptions}
-                placeholder="Tutte le Risorse"
-              />
+    <div className="flex flex-col h-full">
+        <div className="flex-shrink-0 space-y-4">
+            {/* Controls */}
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                <div className="flex items-center justify-center md:justify-start space-x-2">
+                    <button onClick={handlePrev} className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm">← Prec.</button>
+                    <button onClick={handleToday} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full shadow-sm font-semibold hover:opacity-90">Oggi</button>
+                    <button onClick={handleNext} className="px-4 py-2 bg-surface border border-outline text-on-surface rounded-full shadow-sm hover:bg-surface-container-low text-sm">Succ. →</button>
+                    {isMobile && <span className="ml-2 text-sm font-semibold text-on-surface">{viewMode === 'week' ? 'Settimana Corrente' : viewMode === 'day' ? 'Giorno' : 'Mese'}</span>}
+                </div>
+                <div className="flex items-center justify-center md:justify-start space-x-1 bg-surface-container p-1 rounded-full">
+                    {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
+                        <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>
+                            {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
+                        </button>
+                    ))}
+                </div>
             </div>
-            {!isMobile && (
-                <>
-                    <div>
-                      <label className="block text-sm font-medium text-on-surface-variant">
-                        Ruolo
-                      </label>
-                      <MultiSelectDropdown
-                        name="roleIds"
-                        selectedValues={filters.roleIds}
-                        onChange={handleMultiSelectFilterChange}
-                        options={roleOptions}
-                        placeholder="Tutti i Ruoli"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-on-surface-variant">
-                        Progetto
-                      </label>
-                      <SearchableSelect
-                        name="projectId"
-                        value={filters.projectId}
-                        onChange={handleFilterChange}
-                        options={projectOptions}
-                        placeholder="Tutti i Progetti"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-on-surface-variant">
-                        Cliente
-                      </label>
-                      <SearchableSelect
-                        name="clientId"
-                        value={filters.clientId}
-                        onChange={handleFilterChange}
-                        options={clientOptions}
-                        placeholder="Tutti i Clienti"
-                      />
-                    </div>
-                </>
-            )}
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto"
-            >
-              Reset Filtri
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Griglia Carico */}
-      <div className="flex-grow overflow-auto bg-surface rounded-2xl shadow max-h-[660px]">
-        {isMobile ? (
-            <div className="space-y-4 p-4 pb-20">
-                {displayResources.map(resource => {
-                     const role = roles.find(r => r.id === resource.roleId);
-                     const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
-                     
-                     return (
+            {/* Filters */}
+            <div className="p-4 bg-surface rounded-2xl shadow">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                    <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/></div>
+                    {!isMobile && (
+                        <>
+                            <div><label className="block text-sm font-medium text-on-surface-variant">Ruoli</label><MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={handleMultiSelectChange} options={roleOptions} placeholder="Tutti i Ruoli"/></div>
+                            <div><label className="block text-sm font-medium text-on-surface-variant">Cliente</label><SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterChange} options={clientOptions} placeholder="Tutti i Clienti"/></div>
+                            <div><label className="block text-sm font-medium text-on-surface-variant">Progetto</label><SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/></div>
+                        </>
+                    )}
+                    <button onClick={clearFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>
+                </div>
+            </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-grow mt-4">
+            {isMobile ? (
+                <div className="space-y-4 pb-20">
+                    {displayData.map(item => (
                         <MobileWorkloadCard 
-                            key={resource.id} 
-                            resource={resource}
-                            roleName={role?.name || ''}
+                            key={item.resource.id} 
+                            resource={item.resource} 
+                            roleName={item.roleName}
                             timeColumns={timeColumns}
-                            assignments={resourceAssignments}
+                            assignments={item.assignments}
                             allocations={allocations}
                             projects={projects}
                             clients={clients}
                         />
-                     )
-                })}
-                 {displayResources.length === 0 && (
-                  <div className="text-center py-8 text-on-surface-variant">
-                    Nessuna risorsa trovata con i filtri correnti.
-                  </div>
-                )}
-            </div>
-        ) : (
-        <table className="min-w-full divide-y divide-outline-variant">
-          <thead className="bg-surface-container-low sticky top-0 z-20">
-            <tr>
-              <th
-                className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-30"
-                style={{ minWidth: '200px' }}
-              >
-                Carico Totale Risorsa
-              </th>
-              {timeColumns.map((col, index) => (
-                <th
-                  key={index}
-                  className={`px-2 py-3.5 text-center text-sm font-semibold w-28 md:w-32 ${
-                    col.isNonWorkingHeader ? 'bg-surface-container' : ''
-                  }`}
-                >
-                  <div className="flex flex-col items-center">
-                    <span
-                      className={
-                        col.isNonWorkingHeader ? 'text-on-surface-variant' : 'text-on-surface'
-                      }
-                    >
-                      {col.label}
-                    </span>
-                    {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant">
-            {displayResources.map((resource) => (
-              <tr
-                key={resource.id}
-                className="bg-surface-container/50 font-bold"
-              >
-                <td className="sticky left-0 bg-surface-container px-3 py-3 text-left text-sm text-on-surface-variant z-10">
-                  {resource.name} (Max: {resource.maxStaffingPercentage}%)
-                </td>
-                {timeColumns.map((col, index) => {
-                  if (viewMode === 'day') {
-                    const day = col.startDate;
-                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                    const isDayHoliday = isHoliday(day, resource.location, companyCalendar);
-                    return (
-                      <ReadonlyDailyTotalCell
-                        key={index}
-                        resource={resource}
-                        date={formatDate(day, 'iso')}
-                        isNonWorkingDay={isWeekend || isDayHoliday}
-                      />
-                    );
-                  } else {
-                    return (
-                      <ReadonlyAggregatedWorkloadCell
-                        key={index}
-                        resource={resource}
-                        startDate={col.startDate}
-                        endDate={col.endDate}
-                      />
-                    );
-                  }
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        )}
-        {!isMobile && displayResources.length === 0 && (
-          <div className="text-center py-8 text-on-surface-variant">
-            Nessuna risorsa trovata con i filtri correnti.
-          </div>
-        )}
-      </div>
+                    ))}
+                    {displayData.length === 0 && <div className="text-center p-10 text-on-surface-variant bg-surface rounded-2xl border border-dashed border-outline">Nessuna risorsa trovata.</div>}
+                </div>
+            ) : (
+                <div className="bg-surface rounded-2xl shadow overflow-x-auto">
+                    <div className="max-h-[660px] overflow-y-auto">
+                        <table className="min-w-full divide-y divide-outline-variant">
+                            <thead className="bg-surface-container-low sticky top-0 z-10">
+                                <tr>
+                                    <th className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-20" style={{ minWidth: '200px' }}>Risorsa</th>
+                                    {timeColumns.map((col, index) => (
+                                        <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 ${col.isNonWorkingDay ? 'bg-surface-container' : ''}`}>
+                                            <div className="flex flex-col items-center">
+                                                <span className={col.isNonWorkingDay ? 'text-on-surface-variant' : 'text-on-surface'}>{col.label}</span>
+                                                {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
+                                            </div>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-outline-variant">
+                                {displayData.map(({ resource, roleName }) => (
+                                    <tr key={resource.id} className="hover:bg-surface-container-low">
+                                        <td className="sticky left-0 bg-surface group-hover:bg-surface-container-low px-3 py-4 text-sm z-9 border-r border-outline-variant">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-on-surface">{resource.name}</span>
+                                                <span className="text-xs text-on-surface-variant">{roleName}</span>
+                                            </div>
+                                        </td>
+                                        {timeColumns.map((col, index) => {
+                                            if (viewMode === 'day') {
+                                                const isDayHoliday = isHoliday(col.startDate, resource.location, companyCalendar);
+                                                return (
+                                                    <ReadonlyDailyTotalCell 
+                                                        key={index} 
+                                                        resource={resource} 
+                                                        date={col.dateIso!} 
+                                                        isNonWorkingDay={!!col.isNonWorkingDay || isDayHoliday} 
+                                                    />
+                                                );
+                                            }
+                                            return (
+                                                <ReadonlyAggregatedWorkloadCell 
+                                                    key={index} 
+                                                    resource={resource} 
+                                                    startDate={col.startDate} 
+                                                    endDate={col.endDate} 
+                                                />
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+        </div>
     </div>
   );
 };

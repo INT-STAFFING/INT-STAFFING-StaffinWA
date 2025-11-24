@@ -1,5 +1,4 @@
 
-
 /**
  * @file StaffingPage.tsx
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
@@ -14,6 +13,7 @@ import {
   addDays,
   isHoliday,
   getWorkingDaysBetween,
+  formatDateFull
 } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -683,7 +683,7 @@ const StaffingPage: React.FC = () => {
           (e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY'
         );
         return {
-          label: formatDate(day, 'short'),
+          label: formatDateFull(day), // Using full date DD/MM/YYYY here
           subLabel: formatDate(day, 'day'),
           startDate: day,
           endDate: day,

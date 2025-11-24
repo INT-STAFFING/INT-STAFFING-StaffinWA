@@ -116,23 +116,49 @@ export const getLeaveDurationInWorkingDays = (
 };
 
 /**
+ * Formatta una data nel formato standard europeo completo GG/MM/AAAA.
+ * Gestisce stringhe ISO (YYYY-MM-DD) interpretandole come UTC per evitare shift di fuso orario.
+ * @param {Date | string | null | undefined} date - La data da formattare.
+ * @returns {string} La data formattata es. "31/12/2024" o "N/A".
+ */
+export const formatDateFull = (date: Date | string | null | undefined): string => {
+    if (!date) return 'N/A';
+    
+    let d: Date;
+    if (typeof date === 'string') {
+        // Se è una stringa YYYY-MM-DD pura, forziamo l'interpretazione UTC per visualizzare il giorno corretto
+        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            d = new Date(date);
+            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+        }
+        // Se è una stringa ISO con tempo o altro formato
+        d = new Date(date);
+    } else {
+        d = date;
+    }
+
+    if (isNaN(d.getTime())) return 'N/A';
+    
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+/**
  * Formatta un oggetto Date in una stringa secondo il formato specificato.
  * @param {Date} date - L'oggetto Date da formattare.
- * @param {'iso' | 'short' | 'day'} format - Il formato desiderato:
+ * @param {'iso' | 'short' | 'day' | 'full'} format - Il formato desiderato:
  *   'iso': "YYYY-MM-DD"
- *   'short': "DD/MM" (formato italiano)
- *   'day': "Lun", "Mar", etc. (giorno della settimana abbreviato in italiano)
+ *   'short': "DD/MM/AAAA" (Standard Europeo)
+ *   'day': "Lun", "Mar", etc.
+ *   'full': "DD/MM/AAAA"
  * @returns {string} La data formattata come stringa.
  */
-export const formatDate = (date: Date, format: 'iso' | 'short' | 'day'): string => {
+export const formatDate = (date: Date, format: 'iso' | 'short' | 'day' | 'full'): string => {
     if (format === 'iso') {
         return date.toISOString().split('T')[0];
-    }
-    if (format === 'short') {
-        return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
     }
     if (format === 'day') {
         return date.toLocaleDateString('it-IT', { weekday: 'short' });
     }
-    return date.toString();
+    // 'short' ora restituisce comunque la data completa per richiesta utente
+    return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };

@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { formatDate } from '../utils/dateUtils';
+import { formatDateFull } from '../utils/dateUtils';
 
 const NotificationsPage: React.FC = () => {
     const { notifications, markNotificationAsRead } = useEntitiesContext();
@@ -67,7 +67,7 @@ const NotificationsPage: React.FC = () => {
                                     {notification.title}
                                 </h3>
                                 <span className="text-xs text-on-surface-variant whitespace-nowrap ml-2">
-                                    {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    {formatDateFull(notification.createdAt)} {new Date(notification.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </span>
                             </div>
                             

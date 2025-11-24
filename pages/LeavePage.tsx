@@ -1,5 +1,4 @@
 
-
 /**
  * @file LeavePage.tsx
  * @description Pagina per la gestione delle assenze con workflow di approvazione multipla.
@@ -15,7 +14,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../context/AuthContext';
-import { formatDate } from '../utils/dateUtils';
+import { formatDateFull } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
 
 // --- Helper Types ---
@@ -308,7 +307,8 @@ const LeavePage: React.FC = () => {
                 {r.isHalfDay && <span className="text-xs bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
             </span>
         )},
-        { header: 'Periodo', sortKey: 'startDate', cell: r => <span className="text-sm text-on-surface-variant">{formatDate(new Date(r.startDate), 'short')} - {formatDate(new Date(r.endDate), 'short')}</span> },
+        // Utilizzo formatDateFull per visualizzare GG/MM/AAAA
+        { header: 'Periodo', sortKey: 'startDate', cell: r => <span className="text-sm text-on-surface-variant">{formatDateFull(r.startDate)} - {formatDateFull(r.endDate)}</span> },
         { header: 'Giorni', cell: r => {
             const diff = Math.ceil((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
             const effectiveDays = r.isHalfDay ? diff * 0.5 : diff;
@@ -324,6 +324,7 @@ const LeavePage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
+                    {/* Quick Action: Approve directly in table */}
                     {canApprove(req) && (
                         <>
                             <button onClick={() => handleApprove(req)} className="text-tertiary hover:bg-tertiary-container p-1 rounded" title="Approva">
@@ -360,7 +361,7 @@ const LeavePage: React.FC = () => {
                     {req.typeName}
                     {req.isHalfDay && <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
                 </span>
-                <span className="text-on-surface-variant">{formatDate(new Date(req.startDate), 'short')} - {formatDate(new Date(req.endDate), 'short')}</span>
+                <span className="text-on-surface-variant">{formatDateFull(req.startDate)} - {formatDateFull(req.endDate)}</span>
             </div>
             <p className="text-xs text-on-surface-variant">Approvatori: {req.approverNames}</p>
             {req.notes && <p className="text-xs text-on-surface-variant italic">{req.notes}</p>}

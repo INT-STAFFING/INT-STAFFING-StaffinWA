@@ -1,3 +1,4 @@
+
 /**
  * @file CalendarPage.tsx
  * @description Pagina per la gestione del calendario aziendale (festività, chiusure) utilizzando DataTable.
@@ -10,16 +11,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-
-/**
- * Formatta una data per la visualizzazione.
- */
-const formatDateForDisplay = (dateStr: string | null): string => {
-    if (!dateStr) return 'N/A';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('it-IT', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' });
-};
+import { formatDateFull } from '../utils/dateUtils';
 
 /**
  * Traduce il tipo di evento in una stringa leggibile.
@@ -128,7 +120,7 @@ const CalendarPage: React.FC = () => {
 
     // --- DataTable Configuration ---
     const columns: ColumnDef<CalendarEvent>[] = [
-        { header: 'Data', sortKey: 'date', cell: e => <span className="font-mono text-sm text-on-surface">{formatDateForDisplay(e.date)}</span> },
+        { header: 'Data', sortKey: 'date', cell: e => <span className="font-mono text-sm text-on-surface">{formatDateFull(e.date)}</span> },
         { header: 'Nome Evento', sortKey: 'name', cell: e => <span className="font-medium text-on-surface">{e.name}</span> },
         { header: 'Tipo', sortKey: 'type', cell: e => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getEventTypeBadgeClass(e.type)}`}>{formatEventType(e.type)}</span> },
         { header: 'Sede', sortKey: 'location', cell: e => <span className="text-sm text-on-surface-variant">{e.location || '-'}</span> },
@@ -153,7 +145,7 @@ const CalendarPage: React.FC = () => {
             <div className="flex justify-between items-start">
                 <div>
                     <p className="font-bold text-lg text-on-surface">{event.name}</p>
-                    <p className="text-sm text-on-surface-variant font-mono">{formatDateForDisplay(event.date)}</p>
+                    <p className="text-sm text-on-surface-variant font-mono">{formatDateFull(event.date)}</p>
                 </div>
                 <div className="flex items-center space-x-1">
                     <button onClick={() => openModalForEdit(event)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit</span></button>

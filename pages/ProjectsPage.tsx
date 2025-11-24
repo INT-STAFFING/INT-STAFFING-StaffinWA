@@ -1,3 +1,4 @@
+
 /**
  * @file ProjectsPage.tsx
  * @description Pagina per la gestione dei progetti (CRUD e visualizzazione).
@@ -13,19 +14,13 @@ import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
+import { formatDateFull } from '../utils/dateUtils';
 
 
 type EnrichedProject = Project & { 
     clientName: string; 
     isStaffed: boolean;
     assignedResources: number;
-};
-
-const formatDateForDisplay = (dateStr: string | null): string => {
-    if (!dateStr) return 'N/A';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
 const ProjectsPage: React.FC = () => {
@@ -220,7 +215,8 @@ const ProjectsPage: React.FC = () => {
         { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-on-surface-variant">{p.clientName}</span> },
         { header: 'Risorse Assegnate', sortKey: 'assignedResources', cell: p => <span className="text-sm text-center font-semibold text-on-surface-variant">{p.assignedResources}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
-        { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-on-surface-variant">{formatDateForDisplay(p.startDate)}</span> },
+        // Updated Date Format
+        { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-on-surface-variant">{formatDateFull(p.startDate)}</span> },
         { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-on-surface-variant">{formatCurrency(p.budget)}</span> },
     ];
     
@@ -304,7 +300,7 @@ const ProjectsPage: React.FC = () => {
                 <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-on-surface-variant">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
                     <div><p className="text-on-surface-variant">Risorse Assegnate</p><p className="font-medium text-on-surface">{project.assignedResources}</p></div>
-                    <div><p className="text-on-surface-variant">Data Inizio</p><p className="font-medium text-on-surface">{formatDateForDisplay(project.startDate)}</p></div>
+                    <div><p className="text-on-surface-variant">Data Inizio</p><p className="font-medium text-on-surface">{formatDateFull(project.startDate)}</p></div>
                     <div><p className="text-on-surface-variant">Budget</p><p className="font-medium text-on-surface">{formatCurrency(project.budget)}</p></div>
                 </div>
             </div>

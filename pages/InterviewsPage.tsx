@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus, Resource } from '../types';
@@ -8,6 +9,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useToast } from '../context/ToastContext';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import { formatDateFull } from '../utils/dateUtils';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -28,12 +30,6 @@ const calculateAge = (birthDate: string | null): number | null => {
     age--;
   }
   return age;
-};
-
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return 'N/A';
-  const date = new Date(dateStr.split('T')[0]);
-  return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 };
 
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
@@ -309,7 +305,7 @@ const InterviewsPage: React.FC = () => {
     { header: 'Ruolo Proposto', sortKey: 'roleName', cell: i => <span className="text-sm text-on-surface-variant">{i.roleName || 'N/A'}</span> },
     { header: 'Richiesta', sortKey: 'resourceRequestLabel', cell: i => <span className="text-xs text-on-surface-variant">{i.resourceRequestLabel || 'Nessuna'}</span> },
     { header: 'Colloquiato Da', cell: i => <span className="text-xs text-on-surface-variant">{i.interviewersNames.join(', ')}</span> },
-    { header: 'Data', sortKey: 'interviewDate', cell: i => <span className="text-sm text-on-surface-variant">{formatDate(i.interviewDate)}</span> },
+    { header: 'Data', sortKey: 'interviewDate', cell: i => <span className="text-sm text-on-surface-variant">{formatDateFull(i.interviewDate)}</span> },
     { header: 'Feedback', sortKey: 'feedback', cell: i => <span className="text-sm text-on-surface-variant">{i.feedback || 'N/A'}</span> },
     { header: 'Stato Assunzione', sortKey: 'hiringStatus', cell: i => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getHiringStatusBadgeClass(i.hiringStatus)}`}>{i.hiringStatus || 'N/A'}</span> },
     { header: 'Stato Processo', sortKey: 'status', cell: i => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(i.status)}`}>{i.status}</span> },
@@ -389,14 +385,14 @@ const InterviewsPage: React.FC = () => {
           </p>
         )}
         <p>
-          Colloquio del: <span className="font-medium text-on-surface">{formatDate(interview.interviewDate)}</span>
+          Colloquio del: <span className="font-medium text-on-surface">{formatDateFull(interview.interviewDate)}</span>
         </p>
         <p>
           Intervistatori: <span className="font-medium text-on-surface">{interview.interviewersNames.join(', ') || 'N/A'}</span>
         </p>
         {interview.hiringStatus === 'SI' && (
           <p>
-            Ingresso previsto: <span className="font-medium text-on-surface">{formatDate(interview.entryDate)}</span>
+            Ingresso previsto: <span className="font-medium text-on-surface">{formatDateFull(interview.entryDate)}</span>
           </p>
         )}
       </div>
@@ -462,7 +458,7 @@ const InterviewsPage: React.FC = () => {
                   <span className="truncate pr-2">
                     {hire.candidateName} {hire.candidateSurname}
                   </span>
-                  <span className="font-medium text-on-surface flex-shrink-0">{formatDate(hire.entryDate)}</span>
+                  <span className="font-medium text-on-surface flex-shrink-0">{formatDateFull(hire.entryDate)}</span>
                 </div>
               ))}
               {summaryCards.upcomingHires.length > 3 && <p className="text-center mt-1">... e altri {summaryCards.upcomingHires.length - 3}</p>}

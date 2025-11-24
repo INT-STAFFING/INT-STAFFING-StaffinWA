@@ -1,3 +1,4 @@
+
 /**
  * @file ResourcesPage.tsx
  * @description Pagina per la gestione delle risorse umane (CRUD e visualizzazione).
@@ -9,7 +10,7 @@ import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
-import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
+import { getWorkingDaysBetween, isHoliday, formatDateFull } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
@@ -301,7 +302,8 @@ const ResourcesPage: React.FC = () => {
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
         { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-on-surface-variant">{r.location}</span> },
         { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
-        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-on-surface-variant">{r.lastDayOfWork ? new Date(r.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</span> },
+        // Updated Date Format
+        { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-on-surface-variant">{formatDateFull(r.lastDayOfWork)}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
             r.isAssigned && !r.resigned
                 ? <span className={`text-sm font-semibold ${getAllocationColor(r.allocation)}`}>{r.allocation}%</span>
@@ -378,7 +380,7 @@ const ResourcesPage: React.FC = () => {
                         }
                     </div>
                     {resource.resigned && (
-                         <div><p className="text-on-surface-variant">Ultimo Giorno</p><p className="text-on-surface font-medium">{resource.lastDayOfWork ? new Date(resource.lastDayOfWork).toLocaleDateString('it-IT', { timeZone: 'UTC'}) : 'N/A'}</p></div>
+                         <div><p className="text-on-surface-variant">Ultimo Giorno</p><p className="text-on-surface font-medium">{formatDateFull(resource.lastDayOfWork)}</p></div>
                     )}
                     <div><p className="text-on-surface-variant">Progetti</p><p className="font-medium text-on-surface">{resource.activeProjects}</p></div>
                     <div><p className="text-on-surface-variant">Anzianità</p><p className="font-medium text-on-surface">{resource.seniority.toFixed(1)} anni</p></div>

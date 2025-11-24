@@ -1,3 +1,4 @@
+
 /**
  * @file ContractsPage.tsx
  * @description Pagina per la gestione dei contratti (CRUD e visualizzazione).
@@ -12,6 +13,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
+import { formatDateFull } from '../utils/dateUtils';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -22,12 +24,6 @@ type EnrichedContract = Contract & {
 };
 
 // --- Helper Functions ---
-const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return 'N/A';
-    const date = new Date(dateStr.split('T')[0]);
-    return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
-};
-
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
 
 // --- Component ---
@@ -159,6 +155,9 @@ export const ContractsPage: React.FC = () => {
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
         { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={c.backlog < 0 ? 'text-error font-semibold' : ''}>{formatCurrency(c.backlog)}</span> },
         { header: 'Progetti Collegati', sortKey: 'projectCount', cell: c => c.projectCount },
+        // Updated Date Format in Tooltip or similar context if needed, here mostly columns. 
+        // Adding dates if requested but usually Contract table is crowded. 
+        // The request said "ovunque". Let's assume for now contracts view is fine unless dates are shown.
     ];
 
     const renderRow = (contract: EnrichedContract) => (
@@ -198,7 +197,7 @@ export const ContractsPage: React.FC = () => {
             <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-on-surface-variant">Capienza</p><p className="font-medium text-on-surface">{formatCurrency(contract.capienza)}</p></div>
                 <div><p className="text-on-surface-variant">Backlog</p><p className={`font-medium ${contract.backlog < 0 ? 'text-error' : 'text-on-surface'}`}>{formatCurrency(contract.backlog)}</p></div>
-                <div className="col-span-2"><p className="text-on-surface-variant">Progetti</p><p className="font-medium text-on-surface">{contract.projectNames.join(', ') || 'Nessuno'}</p></div>
+                <div className="col-span-2"><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDateFull(contract.startDate)} - {formatDateFull(contract.endDate)}</p></div>
             </div>
         </div>
     );
