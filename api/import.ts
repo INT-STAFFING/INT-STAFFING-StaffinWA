@@ -1,5 +1,4 @@
 
-
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -485,7 +484,7 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     const leaveTypeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), t.id]));
 
     for (const leave of importedLeaves) {
-        const { 'Nome Risorsa': resName, 'Tipologia Assenza': typeName, 'Data Inizio': startDate, 'Data Fine': endDate, 'Stato': status, 'Note': notes } = leave;
+        const { 'Nome Risorsa': resName, 'Tipologia Assenza': typeName, 'Data Inizio': startDate, 'Data Fine': endDate, 'Approvatori': approverNames, 'Stato': status, 'Note': notes } = leave;
 
         if (!resName || !typeName || !startDate || !endDate) {
             warnings.push(`Assenza saltata: mancano dati obbligatori (Risorsa, Tipo o Date).`);
@@ -521,11 +520,37 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
             }
         }
 
+        // Process Approvers
+        let approverIds: string[] | null = null;
+        if (approverNames && typeof approverNames === 'string') {
+            const names = approverNames.split(',').map(n => n.trim());
+            approverIds = [];
+            for (const name of names) {
+                if (!name) continue;
+                const id = resourceMap.get(normalize(name));
+                if (id) {
+                    approverIds.push(id);
+                } else {
+                    warnings.push(`Assenza per '${resName}': Approvatore '${name}' non trovato.`);
+                }
+            }
+            if (approverIds.length === 0) approverIds = null;
+        }
+
         const newId = uuidv4();
         await client.query(`
-            INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, notes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `, [newId, resourceId, typeId, formatDateForDB(parsedStart), formatDateForDB(parsedEnd), normalizedStatus, notes]);
+            INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, notes, approver_ids)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [
+            newId, 
+            resourceId, 
+            typeId, 
+            formatDateForDB(parsedStart), 
+            formatDateForDB(parsedEnd), 
+            normalizedStatus, 
+            notes, 
+            approverIds // Passing string array works with pg driver for UUID[]
+        ]);
     }
 };
 
@@ -536,11 +561,11 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     if (Array.isArray(users)) {
         // Load existing users map
         const existingUsers = await client.query('SELECT id, username FROM app_users');
-        const userMap = new Map<string, string>(existingUsers.rows.map((u: any) => [u.username, u.id]));
+        const userMap = new Map<string, string>(existingUsers.rows.map((u: any) => [u.username, String(u.id)]));
         
         // Load resources to link by email
         const resources = await client.query('SELECT id, email FROM resources');
-        const resourceMap = new Map<string, string>(resources.rows.map((r: any) => [normalize(r.email), r.id]));
+        const resourceMap = new Map<string, string>(resources.rows.map((r: any) => [normalize(r.email), String(r.id)]));
 
         // Generate default password hash for new users: "Staffing2024!"
         const defaultHash = await bcrypt.hash("Staffing2024!", 10);

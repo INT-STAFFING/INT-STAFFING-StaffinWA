@@ -220,11 +220,16 @@ export const exportLeaves = (data: EntitiesContextType) => {
     const sheetData = leaveRequests.map(req => {
         const resource = resources.find(r => r.id === req.resourceId);
         const type = leaveTypes.find(t => t.id === req.typeId);
+        const approverNames = req.approverIds
+            ? req.approverIds.map(id => resources.find(r => r.id === id)?.name).filter(Boolean).join(', ')
+            : '';
+
         return {
             'Nome Risorsa': resource?.name || 'Sconosciuta',
             'Tipologia Assenza': type?.name || 'Sconosciuta',
             'Data Inizio': formatDateForExport(req.startDate),
             'Data Fine': formatDateForExport(req.endDate),
+            'Approvatori': approverNames,
             'Stato': req.status,
             'Note': req.notes || ''
         };
@@ -312,7 +317,7 @@ export const exportTemplate = (type: ExportType) => {
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
             break;
         case 'leaves':
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Tipologia Assenza", "Data Inizio", "Data Fine", "Stato", "Note"]]), 'Assenze');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Tipologia Assenza", "Data Inizio", "Data Fine", "Approvatori", "Stato", "Note"]]), 'Assenze');
             break;
         case 'users_permissions':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Username", "Ruolo", "Email Risorsa", "Stato Attivo"]]), 'Utenti');
