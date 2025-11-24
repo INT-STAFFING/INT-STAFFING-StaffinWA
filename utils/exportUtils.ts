@@ -1,15 +1,14 @@
 
-
 /**
  * @file exportUtils.ts
  * @description Funzioni di utilità per esportare dati in formato Excel.
  */
 
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType } from '../types';
 import { EntitiesContextType } from '../context/AppContext';
 import * as XLSX from 'xlsx';
 
-type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills';
+type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves';
 
 const formatDateForExport = (date: Date | string | null | undefined): string => {
     if (!date) return '';
@@ -211,6 +210,30 @@ export const exportSkills = (data: EntitiesContextType) => {
     XLSX.writeFile(wb, `Staffing_Export_Skills_${formatDateForExport(new Date())}.xlsx`);
 };
 
+/**
+ * Esporta i dati delle assenze in un file Excel.
+ */
+export const exportLeaves = (data: EntitiesContextType) => {
+    const { leaveRequests, resources, leaveTypes } = data;
+    const wb = XLSX.utils.book_new();
+
+    const sheetData = leaveRequests.map(req => {
+        const resource = resources.find(r => r.id === req.resourceId);
+        const type = leaveTypes.find(t => t.id === req.typeId);
+        return {
+            'Nome Risorsa': resource?.name || 'Sconosciuta',
+            'Tipologia Assenza': type?.name || 'Sconosciuta',
+            'Data Inizio': formatDateForExport(req.startDate),
+            'Data Fine': formatDateForExport(req.endDate),
+            'Stato': req.status,
+            'Note': req.notes || ''
+        };
+    });
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Assenze');
+    XLSX.writeFile(wb, `Staffing_Export_Assenze_${formatDateForExport(new Date())}.xlsx`);
+};
+
 
 /**
  * Genera e avvia il download di un template Excel vuoto basato sul tipo di importazione.
@@ -257,6 +280,9 @@ export const exportTemplate = (type: ExportType) => {
         case 'skills':
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Categoria"]]), 'Competenze');
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
+            break;
+        case 'leaves':
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Tipologia Assenza", "Data Inizio", "Data Fine", "Stato", "Note"]]), 'Assenze');
             break;
     }
 

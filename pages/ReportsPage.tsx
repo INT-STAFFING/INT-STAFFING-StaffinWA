@@ -1,3 +1,4 @@
+
 /**
  * @file ReportsPage.tsx
  * @description Pagina per la visualizzazione di report analitici su costi e utilizzo utilizzando il componente DataTable.
@@ -358,21 +359,23 @@ const ReportsPage: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-on-surface mb-6">Report e Analisi</h1>
-            
-            <div className="flex border-b border-outline-variant mb-6">
-                <button 
-                    onClick={() => setActiveTab('projectCosts')} 
-                    className={`px-6 py-3 font-medium text-sm ${activeTab === 'projectCosts' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-                >
-                    Costi per Progetto
-                </button>
-                <button 
-                    onClick={() => setActiveTab('resourceUtilization')} 
-                    className={`px-6 py-3 font-medium text-sm ${activeTab === 'resourceUtilization' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-                >
-                    Utilizzo Risorse
-                </button>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 p-4 bg-surface rounded-2xl shadow">
+                <h1 className="text-3xl font-bold text-on-surface">Report e Analisi</h1>
+                
+                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                    <button 
+                        onClick={() => setActiveTab('projectCosts')} 
+                        className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${activeTab === 'projectCosts' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    >
+                        Costi per Progetto
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('resourceUtilization')} 
+                        className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${activeTab === 'resourceUtilization' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    >
+                        Utilizzo Risorse
+                    </button>
+                </div>
             </div>
 
             {activeTab === 'projectCosts' ? <ProjectCostsReport /> : <ResourceUtilizationReport />}

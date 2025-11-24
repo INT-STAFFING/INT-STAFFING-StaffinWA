@@ -1,5 +1,6 @@
 
 
+
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel.
@@ -476,6 +477,58 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
     }
 };
 
+const importLeaves = async (client: any, body: any, warnings: string[]) => {
+    const { leaves: importedLeaves } = body;
+    if (!Array.isArray(importedLeaves)) return;
+
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const leaveTypeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), t.id]));
+
+    for (const leave of importedLeaves) {
+        const { 'Nome Risorsa': resName, 'Tipologia Assenza': typeName, 'Data Inizio': startDate, 'Data Fine': endDate, 'Stato': status, 'Note': notes } = leave;
+
+        if (!resName || !typeName || !startDate || !endDate) {
+            warnings.push(`Assenza saltata: mancano dati obbligatori (Risorsa, Tipo o Date).`);
+            continue;
+        }
+
+        const resourceId = resourceMap.get(normalize(resName));
+        if (!resourceId) {
+            warnings.push(`Assenza saltata: Risorsa '${resName}' non trovata.`);
+            continue;
+        }
+
+        const typeId = leaveTypeMap.get(normalize(typeName));
+        if (!typeId) {
+            warnings.push(`Assenza saltata: Tipologia '${typeName}' non trovata.`);
+            continue;
+        }
+
+        const parsedStart = parseDate(startDate);
+        const parsedEnd = parseDate(endDate);
+
+        if (!parsedStart || !parsedEnd) {
+            warnings.push(`Assenza per '${resName}' saltata: date non valide.`);
+            continue;
+        }
+
+        // Normalize Status
+        let normalizedStatus = 'PENDING';
+        if (status) {
+            const s = String(status).toUpperCase();
+            if (['PENDING', 'APPROVED', 'REJECTED'].includes(s)) {
+                normalizedStatus = s;
+            }
+        }
+
+        const newId = uuidv4();
+        await client.query(`
+            INSERT INTO leave_requests (id, resource_id, type_id, start_date, end_date, status, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [newId, resourceId, typeId, formatDateForDB(parsedStart), formatDateForDB(parsedEnd), normalizedStatus, notes]);
+    }
+};
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
@@ -507,6 +560,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break;
             case 'skills':
                 await importSkills(client, req.body, warnings);
+                break;
+            case 'leaves':
+                await importLeaves(client, req.body, warnings);
                 break;
             default:
                 throw new Error('Tipo di importazione non valido.');

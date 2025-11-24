@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useCallback, useContext, ReactNode } from 'react';
 import Toast from '../components/Toast';
 import { useTheme } from './ThemeContext';
@@ -45,7 +46,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className={`fixed z-[100] w-full max-w-lg p-4 space-y-2 ${getPositionClass()}`}>
+      <div className={`fixed z-[100] w-full max-w-lg p-4 space-y-2 pointer-events-none ${getPositionClass()}`}>
         {toasts.map(toast => (
           <Toast
             key={toast.id}

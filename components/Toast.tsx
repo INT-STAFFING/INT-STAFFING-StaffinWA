@@ -1,3 +1,4 @@
+
 /**
  * @file Toast.tsx
  * @description Componente per una singola notifica "toast".
@@ -23,7 +24,8 @@ const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
   }, [onDismiss]);
 
   const isSuccess = type === 'success';
-  const baseClasses = "w-full max-w-lg p-4 rounded-2xl shadow-lg border flex items-start space-x-4 animate-scale-in";
+  // Added pointer-events-auto to ensure the toast itself can receive clicks (e.g. close button)
+  const baseClasses = "w-full max-w-lg p-4 rounded-2xl shadow-lg border flex items-start space-x-4 animate-scale-in pointer-events-auto";
   const typeClasses = isSuccess
     ? "bg-tertiary-container border-tertiary text-on-tertiary-container"
     : "bg-error-container border-error text-on-error-container";

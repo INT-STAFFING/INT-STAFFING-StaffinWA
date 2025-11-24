@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { LeaveRequest } from '../types';
+import { LeaveRequest, Project, Assignment } from '../types';
 import { getWorkingDaysBetween, isHoliday, getLeaveDurationInWorkingDays } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -108,7 +108,7 @@ const ForecastingPage: React.FC = () => {
             Object.entries(assignmentAllocations).forEach(([dateStr, percentage]) => {
                 const date = new Date(dateStr);
                 if (date <= today) {
-                    totalPercentage += percentage;
+                    totalPercentage += (percentage as number);
                     countDays++;
                 }
             });
@@ -152,10 +152,13 @@ const ForecastingPage: React.FC = () => {
         }
         
         // Mappa rapida progetti per accesso veloce alle date
-        const projectMap = new Map(projects.map(p => [p.id, p]));
+        const projectMap = new Map<string, Project>();
+        projects.forEach(p => {
+            if (p.id) projectMap.set(p.id, p);
+        });
 
         // Create efficient lookup for assignments by resource
-        const assignmentsByResource = new Map<string, any[]>();
+        const assignmentsByResource = new Map<string, Assignment[]>();
         assignmentsToConsider.forEach(a => {
              if (!assignmentsByResource.has(a.resourceId)) assignmentsByResource.set(a.resourceId, []);
              assignmentsByResource.get(a.resourceId)?.push(a);

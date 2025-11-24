@@ -1,11 +1,13 @@
 
+
+
 import React, { useState, useCallback, useRef } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 import * as XLSX from 'xlsx';
 
-type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills';
+type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves';
 
 const importOptions: { value: ImportType; label: string; sheetName: string }[] = [
     { value: 'core_entities', label: 'Entità Principali (Risorse, Progetti, etc.)', sheetName: 'Multiple' },
@@ -13,6 +15,7 @@ const importOptions: { value: ImportType; label: string; sheetName: string }[] =
     { value: 'resource_requests', label: 'Richieste Risorse', sheetName: 'Richieste_Risorse' },
     { value: 'interviews', label: 'Colloqui', sheetName: 'Colloqui' },
     { value: 'skills', label: 'Competenze e Associazioni', sheetName: 'Competenze' },
+    { value: 'leaves', label: 'Assenze (Leaves)', sheetName: 'Assenze' },
 ];
 
 const ImportPage: React.FC = () => {
@@ -84,6 +87,9 @@ const ImportPage: React.FC = () => {
                             skills: XLSX.utils.sheet_to_json(workbook.Sheets['Competenze'] || {}),
                             associations: XLSX.utils.sheet_to_json(workbook.Sheets['Associazioni_Risorse'] || {}) 
                         };
+                        break;
+                    case 'leaves':
+                        body = { leaves: XLSX.utils.sheet_to_json(workbook.Sheets['Assenze'] || {}) };
                         break;
                 }
 

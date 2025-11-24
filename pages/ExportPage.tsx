@@ -1,4 +1,6 @@
 
+
+
 /**
  * @file ExportPage.tsx
  * @description Pagina dedicata all'esportazione dei dati dell'applicazione in file Excel separati.
@@ -7,10 +9,10 @@
 import React, { useState } from 'react';
 // Fix: Import useAllocationsContext to get allocations data.
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills } from '../utils/exportUtils';
+import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 
-type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills';
+type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves';
 
 interface ExportCardProps {
     title: string;
@@ -80,6 +82,9 @@ const ExportPage: React.FC = () => {
                 case 'skills':
                     await exportSkills(allData);
                     break;
+                case 'leaves':
+                    await exportLeaves(allData);
+                    break;
             }
         } catch (error) {
             console.error(`Failed to export ${type}:`, error);
@@ -129,6 +134,13 @@ const ExportPage: React.FC = () => {
                     onExport={() => handleExport('skills')}
                     isExporting={exportingType === 'skills'}
                     icon="school"
+                />
+                <ExportCard
+                    title="Assenze (Leaves)"
+                    description="Esporta l'elenco di tutte le richieste di assenza (ferie, permessi, etc.) con relativo stato e note."
+                    onExport={() => handleExport('leaves')}
+                    isExporting={exportingType === 'leaves'}
+                    icon="event_busy"
                 />
             </div>
         </div>

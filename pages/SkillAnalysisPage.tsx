@@ -16,9 +16,11 @@ import { interpolateBlues, schemeCategory10 } from 'd3-scale-chromatic';
 import { axisLeft, axisTop } from 'd3-axis';
 import { max, descending } from 'd3-array';
 import { chord as d3Chord, ribbon as d3Ribbon } from 'd3-chord';
-import { arc as d3Arc, lineRadial } from 'd3-shape';
+import { arc as d3Arc, lineRadial, curveLinearClosed } from 'd3-shape';
 import { rgb } from 'd3-color';
 import SearchableSelect from '../components/SearchableSelect';
+
+type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar';
 
 // --- Components for each visualization ---
 
@@ -263,7 +265,7 @@ const SkillChordDiagram: React.FC<{
         group.append("path")
             .attr("fill", (d: any) => color(d.index.toString()) as string)
             .attr("stroke", (d: any) => rgb(color(d.index.toString()) as string).darker().toString() as string)
-            .attr("d", arcGenerator as any);
+            .attr("d", (d: any) => arcGenerator(d as any) as string);
 
         // Labels
         group.append("text")
@@ -271,15 +273,15 @@ const SkillChordDiagram: React.FC<{
             .attr("dy", ".35em")
             .attr("transform", (d: any) => `
                 rotate(${(d.angle * 180 / Math.PI - 90)})
-                translate(${outerRadius + 5})
+                translate(${innerRadius + 26})
                 ${d.angle > Math.PI ? "rotate(180)" : ""}
             `)
             .attr("text-anchor", (d: any) => d.angle > Math.PI ? "end" : "start")
-            .text((d: any) => names[d.index])
+            .text((d: any) => names[d.index] || '')
             .style("font-size", "10px")
-            .attr("fill", theme.onSurface);
+            .style("fill", theme.onSurface);
 
-        // Ribbons
+        // Ribbons (Links)
         g.append("g")
             .attr("fill-opacity", 0.67)
             .selectAll("path")
@@ -291,10 +293,10 @@ const SkillChordDiagram: React.FC<{
 
     }, [matrix, names, width, height, theme, svgRef]);
 
-    return <svg ref={svgRef} width={width} height={height} className="bg-surface-container-low rounded-xl border border-outline-variant mx-auto" />;
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
 };
 
-// 4. Radar Chart
+// 4. Radar Chart (Skill Profile)
 const SkillRadarChart: React.FC<{
     data: { axis: string; value: number }[],
     width: number,
@@ -309,38 +311,41 @@ const SkillRadarChart: React.FC<{
         const svg = select(svgRef.current);
         svg.selectAll("*").remove();
 
-        const margin = 50;
-        const radius = Math.min(width, height) / 2 - margin;
+        const cfg = {
+            w: width - 100,
+            h: height - 100,
+            levels: 5,
+            maxValue: 100,
+            labelFactor: 1.25,
+            opacityArea: 0.35,
+            color: theme.primary
+        };
+
+        const radius = Math.min(cfg.w / 2, cfg.h / 2);
         const angleSlice = Math.PI * 2 / data.length;
 
-        // Scale
         const rScale = scaleLinear()
             .range([0, radius])
-            .domain([0, 100]); // Normalized 0-100
+            .domain([0, cfg.maxValue]);
 
         const g = svg.append("g")
-            .attr("transform", `translate(${width/2},${height/2})`);
+            .attr("transform", `translate(${width / 2},${height / 2})`);
 
         // Circular grid
-        const levels = 5;
-        for(let i=0; i<levels; i++){
-            const levelFactor = radius * ((i+1)/levels);
-            g.selectAll(".levels")
-             .data(data)
-             .enter()
-             .append("line")
-             .attr("x1", (d, i) => levelFactor * Math.cos(angleSlice*i - Math.PI/2))
-             .attr("y1", (d, i) => levelFactor * Math.sin(angleSlice*i - Math.PI/2))
-             .attr("x2", (d, i) => levelFactor * Math.cos(angleSlice*(i+1) - Math.PI/2))
-             .attr("y2", (d, i) => levelFactor * Math.sin(angleSlice*(i+1) - Math.PI/2))
-             .attr("class", "line")
-             .style("stroke", theme.outline)
-             .style("stroke-opacity", "0.3")
-             .style("stroke-width", "1px");
-        }
+        const axisGrid = g.append("g").attr("class", "axisWrapper");
+
+        axisGrid.selectAll(".levels")
+            .data(Array.from({ length: cfg.levels }, (_, i) => i + 1).reverse())
+            .enter()
+            .append("circle")
+            .attr("class", "gridCircle")
+            .attr("r", (d) => radius / cfg.levels * d)
+            .style("fill", "#CDCDCD")
+            .style("stroke", "#CDCDCD")
+            .style("fill-opacity", 0.1);
 
         // Axes
-        const axis = g.selectAll(".axis")
+        const axis = axisGrid.selectAll(".axis")
             .data(data)
             .enter()
             .append("g")
@@ -349,164 +354,79 @@ const SkillRadarChart: React.FC<{
         axis.append("line")
             .attr("x1", 0)
             .attr("y1", 0)
-            .attr("x2", (d, i) => rScale(100) * Math.cos(angleSlice*i - Math.PI/2))
-            .attr("y2", (d, i) => rScale(100) * Math.sin(angleSlice*i - Math.PI/2))
+            .attr("x2", (d, i) => rScale(cfg.maxValue * 1.1) * Math.cos(angleSlice * i - Math.PI / 2))
+            .attr("y2", (d, i) => rScale(cfg.maxValue * 1.1) * Math.sin(angleSlice * i - Math.PI / 2))
             .attr("class", "line")
-            .style("stroke", theme.outline)
-            .style("stroke-width", "1px");
+            .style("stroke", "white")
+            .style("stroke-width", "2px");
 
         axis.append("text")
             .attr("class", "legend")
-            .style("font-size", "10px")
+            .style("font-size", "11px")
             .attr("text-anchor", "middle")
             .attr("dy", "0.35em")
-            .attr("x", (d, i) => rScale(115) * Math.cos(angleSlice*i - Math.PI/2))
-            .attr("y", (d, i) => rScale(115) * Math.sin(angleSlice*i - Math.PI/2))
-            .text(d => d.axis)
-            .attr("fill", theme.onSurface);
+            .attr("x", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.cos(angleSlice * i - Math.PI / 2))
+            .attr("y", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.sin(angleSlice * i - Math.PI / 2))
+            .text((d) => d.axis)
+            .style("fill", theme.onSurface);
 
-        // Radar Area
-        const radarLineGenerator = lineRadial<{ axis: string; value: number }>()
-            .radius(d => rScale(d.value))
-            .angle((d, i) => i * angleSlice);
-            
+        // The Radar Chart Blob
+        const radarLine = lineRadial<{axis: string, value: number}>()
+            .radius((d) => rScale(d.value))
+            .angle((d, i) => i * angleSlice)
+            .curve(curveLinearClosed);
+
         g.append("path")
             .datum(data)
-            .attr("d", radarLineGenerator as any)
-            .style("fill", theme.primary)
-            .style("fill-opacity", 0.5)
-            .style("stroke", theme.primary)
-            .style("stroke-width", 2);
+            .attr("class", "radarArea")
+            .attr("d", radarLine)
+            .style("fill", cfg.color)
+            .style("fill-opacity", cfg.opacityArea)
+            .on('mouseover', function() {
+                select(this).transition().duration(200).style("fill-opacity", 0.7);
+            })
+            .on('mouseout', function() {
+                select(this).transition().duration(200).style("fill-opacity", cfg.opacityArea);
+            });
+
+        g.append("path")
+            .datum(data)
+            .attr("class", "radarStroke")
+            .attr("d", radarLine)
+            .style("stroke-width", "2px")
+            .style("stroke", cfg.color)
+            .style("fill", "none");
+
+        // Points
+        g.selectAll(".radarCircle")
+            .data(data)
+            .enter().append("circle")
+            .attr("class", "radarCircle")
+            .attr("r", 4)
+            .attr("cx", (d, i) => rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2))
+            .attr("cy", (d, i) => rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2))
+            .style("fill", cfg.color)
+            .style("fill-opacity", 0.8);
 
     }, [data, width, height, theme, svgRef]);
 
-    return <svg ref={svgRef} width={width} height={height} className="bg-surface-container-low rounded-xl border border-outline-variant mx-auto" />;
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant" />;
 };
 
 
 // --- Main Page Component ---
 
 const SkillAnalysisPage: React.FC = () => {
-    const { resources, skills, projects, getResourceComputedSkills, projectSkills } = useEntitiesContext();
-    const { theme: appTheme, mode } = useTheme();
-    const theme = mode === 'light' ? appTheme.light : appTheme.dark;
-
-    const [activeTab, setActiveTab] = useState<'network' | 'heatmap' | 'chord' | 'radar'>('network');
-    const [selectedResourceId, setSelectedResourceId] = useState<string>('');
+    const { resources, skills, projectSkills, resourceSkills, assignments } = useEntitiesContext();
+    const { theme } = useTheme();
     
+    const [view, setView] = useState<ViewMode>('network');
+    const [selectedResource, setSelectedResource] = useState<string>('');
+    
+    // Ref for export
     const chartRef = useRef<SVGSVGElement>(null);
-    
-    // --- Data Preparation ---
 
-    // 1. Network Data
-    const networkData = useMemo(() => {
-        const nodes: any[] = [];
-        const links: any[] = [];
-        const nodeSet = new Set();
-
-        resources.forEach(r => {
-            if(!r.resigned) {
-                nodes.push({ id: r.id, name: r.name, type: 'resource' });
-                nodeSet.add(r.id);
-            }
-        });
-        
-        skills.forEach(s => {
-            nodes.push({ id: s.id, name: s.name, type: 'skill' });
-            nodeSet.add(s.id);
-        });
-
-        // Connect Res -> Skills
-        resources.forEach(r => {
-            if(r.resigned) return;
-            const compSkills = getResourceComputedSkills(r.id!);
-            compSkills.forEach(cs => {
-                if(cs.manualDetails || cs.inferredDays > 50) { // Filter noise
-                    links.push({ source: r.id, target: cs.skill.id, value: 1 });
-                }
-            });
-        });
-
-        // Connect Proj -> Skills
-        projects.forEach(p => {
-             if(p.status === 'Completato') return; // Skip completed
-             nodes.push({ id: p.id, name: p.name, type: 'project' });
-             nodeSet.add(p.id);
-             const pSkills = projectSkills.filter(ps => ps.projectId === p.id).map(ps => ps.skillId);
-             pSkills.forEach(ps => {
-                 if(nodeSet.has(ps)) {
-                     links.push({ source: p.id, target: ps, value: 1 });
-                 }
-             });
-        });
-
-        return { nodes, links };
-    }, [resources, skills, projects, getResourceComputedSkills, projectSkills]);
-
-    // 2. Heatmap Data
-    const heatmapData = useMemo(() => {
-        const activeResources = resources.filter(r => !r.resigned).slice(0, 30); // Limit for perf
-        const topSkills = skills.slice(0, 20); // Limit
-        const data: any[] = [];
-        
-        activeResources.forEach(r => {
-            const compSkills = getResourceComputedSkills(r.id!);
-            topSkills.forEach(s => {
-                const found = compSkills.find(cs => cs.skill.id === s.id);
-                const val = found ? (found.manualDetails ? 100 : Math.min(found.inferredDays, 100)) : 0;
-                if (val > 0) {
-                    data.push({ resource: r.name, skill: s.name, value: val });
-                }
-            });
-        });
-        
-        return {
-            data,
-            resources: activeResources.map(r => r.name),
-            skills: topSkills.map(s => s.name)
-        };
-    }, [resources, skills, getResourceComputedSkills]);
-
-    // 3. Chord Data (Skill Co-occurrence)
-    const chordData = useMemo(() => {
-        const topSkills = skills.slice(0, 15); // Limit for clean chart
-        const names = topSkills.map(s => s.name);
-        const idToIndex = new Map(topSkills.map((s, i) => [s.id, i]));
-        const size = topSkills.length;
-        const matrix = Array(size).fill(0).map(() => Array(size).fill(0));
-
-        projects.forEach(p => {
-            const pSkills = projectSkills.filter(ps => ps.projectId === p.id).map(ps => ps.skillId);
-            for(let i = 0; i < pSkills.length; i++) {
-                for(let j = i + 1; j < pSkills.length; j++) {
-                    const idx1 = idToIndex.get(pSkills[i]);
-                    const idx2 = idToIndex.get(pSkills[j]);
-                    if (idx1 !== undefined && idx2 !== undefined) {
-                        matrix[idx1][idx2]++;
-                        matrix[idx2][idx1]++;
-                    }
-                }
-            }
-        });
-
-        return { matrix, names };
-    }, [skills, projects, projectSkills]);
-
-    // 4. Radar Data
-    const radarData = useMemo(() => {
-        if (!selectedResourceId) return [];
-        const compSkills = getResourceComputedSkills(selectedResourceId);
-        // Get top 6 skills
-        const sorted = compSkills.sort((a,b) => (b.manualDetails ? 1000 : b.inferredDays) - (a.manualDetails ? 1000 : a.inferredDays)).slice(0, 8);
-        
-        return sorted.map(cs => ({
-            axis: cs.skill.name,
-            value: cs.manualDetails ? 100 : Math.min((cs.inferredDays / 100) * 100, 90) // Normalize to 100
-        }));
-    }, [selectedResourceId, getResourceComputedSkills]);
-
-    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
-
+    // Export Handlers
     const handleExportSVG = () => {
         if (!chartRef.current) return;
         const svgData = new XMLSerializer().serializeToString(chartRef.current);
@@ -514,7 +434,7 @@ const SkillAnalysisPage: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `skill_analysis_${activeTab}.svg`;
+        link.download = `skill_analysis_${view}.svg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -523,10 +443,8 @@ const SkillAnalysisPage: React.FC = () => {
     const handleExportPNG = () => {
         if (!chartRef.current) return;
         const svg = chartRef.current;
-        
-        // Ensure dimensions are available
-        const width = parseInt(svg.getAttribute("width") || "0") || svg.getBoundingClientRect().width;
-        const height = parseInt(svg.getAttribute("height") || "0") || svg.getBoundingClientRect().height;
+        const width = svg.clientWidth || 800;
+        const height = svg.clientHeight || 600;
         
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -537,13 +455,14 @@ const SkillAnalysisPage: React.FC = () => {
         const svgData = new XMLSerializer().serializeToString(svg);
         const img = new Image();
         img.onload = () => {
-            ctx.fillStyle = theme.background;
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            ctx.fillStyle = isDarkMode ? theme.dark.surface : theme.light.surface;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+            ctx.drawImage(img, 0, 0, width, height);
             const pngUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = pngUrl;
-            link.download = `skill_analysis_${activeTab}.png`;
+            link.download = `skill_analysis_${view}.png`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -551,69 +470,148 @@ const SkillAnalysisPage: React.FC = () => {
         img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     };
 
-    return (
-        <div className="flex flex-col h-full">
-            <h1 className="text-3xl font-bold text-on-surface mb-6">Analisi Grafica Competenze</h1>
+    // Prepare Data
+    const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
 
-            <div className="flex flex-col md:flex-row justify-between items-center border-b border-outline-variant mb-6 gap-4">
-                <div className="flex overflow-x-auto">
-                    <button onClick={() => setActiveTab('network')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'network' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
-                    <button onClick={() => setActiveTab('heatmap')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'heatmap' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
-                    <button onClick={() => setActiveTab('chord')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'chord' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Co-Occorrenza</button>
-                    <button onClick={() => setActiveTab('radar')} className={`px-6 py-3 font-medium text-sm whitespace-nowrap ${activeTab === 'radar' ? 'border-b-2 border-primary text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar (Profilo)</button>
+    const networkData = useMemo(() => {
+        if (view !== 'network') return { nodes: [], links: [] };
+        const nodes: any[] = [];
+        const links: any[] = [];
+        const nodeIds = new Set();
+
+        // Skills
+        skills.forEach(s => {
+            nodes.push({ id: `skill_${s.id}`, name: s.name, type: 'skill' });
+            nodeIds.add(`skill_${s.id}`);
+        });
+
+        // Resources & Links
+        resources.forEach(r => {
+            if (r.resigned) return;
+            nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' });
+            nodeIds.add(`res_${r.id}`);
+
+            const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
+            rSkills.forEach(rs => {
+                if (nodeIds.has(`skill_${rs.skillId}`)) {
+                    links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 });
+                }
+            });
+        });
+
+        return { nodes, links };
+    }, [resources, skills, resourceSkills, view]);
+
+    const heatmapData = useMemo(() => {
+        if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
+        
+        const data: { resource: string; skill: string; value: number }[] = [];
+        const resList = resources.filter(r => !r.resigned).map(r => r.name);
+        const skillList = skills.map(s => s.name);
+
+        resources.filter(r => !r.resigned).forEach(r => {
+            skills.forEach(s => {
+                // Calculate "affinity" based on assignments to projects with that skill
+                const rAssignments = assignments.filter(a => a.resourceId === r.id);
+                let days = 0;
+                rAssignments.forEach(a => {
+                    const hasSkill = projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id);
+                    if (hasSkill) days += 10; // Simple weight
+                });
+                // Add manual skill weight
+                const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id);
+                if (manual) days += 50; 
+
+                if (days > 0) {
+                    data.push({ resource: r.name, skill: s.name, value: days });
+                }
+            });
+        });
+
+        return { data, resources: resList, skills: skillList };
+    }, [resources, skills, assignments, projectSkills, resourceSkills, view]);
+
+    const chordData = useMemo(() => {
+        if (view !== 'chord') return { matrix: [], names: [] };
+        // Co-occurrence of skills in projects
+        // FIX: Explicitly type Map key and value
+        const skillIndices = new Map<string, number>(skills.map((s, i) => [s.id!, i]));
+        const n = skills.length;
+        // FIX: Explicitly type matrix as number[][] to avoid unknown[] inference
+        const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+
+        projectSkills.forEach(ps1 => {
+            projectSkills.forEach(ps2 => {
+                if (ps1.projectId === ps2.projectId && ps1.skillId !== ps2.skillId) {
+                    const i = skillIndices.get(ps1.skillId);
+                    const j = skillIndices.get(ps2.skillId);
+                    if (i !== undefined && j !== undefined) {
+                        matrix[i][j]++;
+                    }
+                }
+            });
+        });
+
+        return { matrix, names: skills.map(s => s.name) };
+    }, [skills, projectSkills, view]);
+
+    const radarData = useMemo(() => {
+        if (view !== 'radar' || !selectedResource) return [];
+        
+        // Compare resource skills vs Max possible (level 5)
+        const rSkills = resourceSkills.filter(rs => rs.resourceId === selectedResource);
+        
+        // Pick top 6 skills for cleaner radar or all manual skills
+        const data = rSkills.map(rs => ({
+            axis: skills.find(s => s.id === rs.skillId)?.name || 'Unknown',
+            value: (rs.level || 1) * 20 // 1-5 => 20-100
+        }));
+
+        return data;
+    }, [selectedResource, resourceSkills, skills, view]);
+
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const currentTheme = isDarkMode ? theme.dark : theme.light;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4 p-4 bg-surface rounded-2xl shadow">
+                <h1 className="text-3xl font-bold text-on-surface">Analisi Competenze</h1>
+                
+                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                    <button onClick={() => setView('network')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
+                    <button onClick={() => setView('heatmap')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'heatmap' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
+                    <button onClick={() => setView('chord')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'chord' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Chord</button>
+                    <button onClick={() => setView('radar')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'radar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar</button>
                 </div>
-                <div className="flex items-center gap-2 pr-2 pb-2 md:pb-0">
-                     <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
-                        <span className="material-symbols-outlined mr-2 text-base">download</span>
-                        SVG
+
+                <div className="flex gap-2">
+                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
+                        <span className="material-symbols-outlined mr-2 text-base">download</span> SVG
                     </button>
                     <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
-                         <span className="material-symbols-outlined mr-2 text-base">download</span>
-                        PNG
+                        <span className="material-symbols-outlined mr-2 text-base">download</span> PNG
                     </button>
                 </div>
             </div>
 
-            <div className="flex-grow">
-                {activeTab === 'network' && (
-                    <div className="h-[600px]">
-                        <p className="text-sm text-on-surface-variant mb-2">Relazioni tra Risorse (Blu), Competenze (Viola) e Progetti (Arancione). Zoomabile e trascinabile.</p>
-                        <SkillForceGraph nodes={networkData.nodes} links={networkData.links} width={1200} height={600} theme={theme} svgRef={chartRef} />
-                    </div>
-                )}
+            {view === 'radar' && (
+                <div className="w-64 mx-auto">
+                    <SearchableSelect 
+                        name="resource" 
+                        value={selectedResource} 
+                        onChange={(_, v) => setSelectedResource(v)} 
+                        options={resourceOptions} 
+                        placeholder="Seleziona Risorsa per Radar" 
+                    />
+                </div>
+            )}
 
-                {activeTab === 'heatmap' && (
-                    <div>
-                        <p className="text-sm text-on-surface-variant mb-2">Distribuzione competenze per risorsa (top 30 risorse x top 20 skills).</p>
-                        <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} theme={theme} svgRef={chartRef} />
-                    </div>
-                )}
-
-                {activeTab === 'chord' && (
-                    <div className="flex flex-col items-center">
-                         <p className="text-sm text-on-surface-variant mb-4">Quali competenze vengono usate insieme negli stessi progetti?</p>
-                        <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={700} height={700} theme={theme} svgRef={chartRef} />
-                    </div>
-                )}
-
-                {activeTab === 'radar' && (
-                    <div className="flex flex-col items-center gap-6">
-                        <div className="w-72">
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Seleziona Risorsa</label>
-                            <SearchableSelect name="res" value={selectedResourceId} onChange={(_, v) => setSelectedResourceId(v)} options={resourceOptions} placeholder="Scegli una risorsa..." />
-                        </div>
-                        
-                        {selectedResourceId ? (
-                            radarData.length > 0 ? (
-                                <SkillRadarChart data={radarData} width={500} height={500} theme={theme} svgRef={chartRef} />
-                            ) : (
-                                <p className="text-on-surface-variant mt-10">Nessuna competenza rilevata per questa risorsa.</p>
-                            )
-                        ) : (
-                            <p className="text-on-surface-variant mt-10">Seleziona una risorsa per visualizzare il profilo delle competenze.</p>
-                        )}
-                    </div>
-                )}
+            <div className="h-[700px] w-full">
+                {view === 'network' && <SkillForceGraph nodes={networkData.nodes} links={networkData.links} width={1200} height={700} theme={currentTheme} svgRef={chartRef} />}
+                {view === 'heatmap' && <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} theme={currentTheme} svgRef={chartRef} />}
+                {view === 'chord' && <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={800} height={700} theme={currentTheme} svgRef={chartRef} />}
+                {view === 'radar' && <SkillRadarChart data={radarData} width={600} height={600} theme={currentTheme} svgRef={chartRef} />}
             </div>
         </div>
     );
