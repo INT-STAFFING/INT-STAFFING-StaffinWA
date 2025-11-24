@@ -21,6 +21,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
+import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -146,13 +147,6 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
       resource.location
     );
     if (workingDays === 0) return 0;
-
-    // Subtract Leave Impact from WORKING DAYS to get "Available Capacity Days" 
-    // (Note: this calculation depends on business logic. 
-    // If Avg = Allocated / Available, leaves increase %. 
-    // If Avg = Allocated / Total Working, leaves decrease total possible output but utilization is same).
-    // Usually for staffing grid avg, we want: TotalAllocated / TotalWorkingDays.
-    // Leaves affect capacity, not the allocation itself.
 
     let totalPersonDays = 0;
     const assignmentAllocations = allocations[assignment.id!];
@@ -546,6 +540,10 @@ const StaffingPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   useEffect(() => {
       const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -684,7 +682,7 @@ const StaffingPage: React.FC = () => {
           (e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY'
         );
         return {
-          label: formatDateSynthetic(day), // Using synthetic format DD/MM here
+          label: formatDateSynthetic(day), 
           subLabel: formatDate(day, 'day'),
           startDate: day,
           endDate: day,
@@ -812,10 +810,12 @@ const StaffingPage: React.FC = () => {
 
   const handleFilterChange = useCallback((name: string, value: string) => {
     setFilters((prev) => ({ ...prev, [name]: value }));
+    setCurrentPage(1); // Reset page on filter change
   }, []);
 
   const clearFilters = useCallback(() => {
     setFilters({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
+    setCurrentPage(1);
   }, []);
 
   const getResourceById = useCallback(
@@ -864,6 +864,12 @@ const StaffingPage: React.FC = () => {
       }))
       .sort((a, b) => a.resource.name.localeCompare(b.resource.name));
   }, [resources, filters, assignments, projectsById]);
+
+  // Data for current page
+  const paginatedData = useMemo(() => {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      return displayData.slice(startIndex, startIndex + itemsPerPage);
+  }, [displayData, currentPage, itemsPerPage]);
 
   const resourceOptions = useMemo(
     () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
@@ -1004,7 +1010,7 @@ const StaffingPage: React.FC = () => {
       <div className="flex-grow mt-4">
         {isMobile ? (
             <div className="space-y-4 pb-20">
-                {displayData.map(({ resource, assignments: resourceAssignments }) => (
+                {paginatedData.map(({ resource, assignments: resourceAssignments }) => (
                     <MobileResourceCard 
                       key={resource.id} 
                       resource={resource} 
@@ -1070,7 +1076,7 @@ const StaffingPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant">
-                {displayData.map(({ resource, assignments: resourceAssignments }) => {
+                {paginatedData.map(({ resource, assignments: resourceAssignments }) => {
                   const role = rolesById.get(resource.roleId);
 
                   return (
@@ -1250,6 +1256,13 @@ const StaffingPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination
+                currentPage={currentPage}
+                totalItems={displayData.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+            />
         </div>
         )}
       </div>

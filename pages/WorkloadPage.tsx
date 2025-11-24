@@ -11,6 +11,7 @@ import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween,
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { Link } from 'react-router-dom';
+import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -159,6 +160,10 @@ const WorkloadPage: React.FC = () => {
     const { resources, roles, companyCalendar, assignments } = useEntitiesContext();
     
     const [filters, setFilters] = useState({ resourceId: '', roleId: '', horizontal: '' });
+    
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
 
     const handlePrev = useCallback(() => {
         setCurrentDate(prev => {
@@ -246,9 +251,20 @@ const WorkloadPage: React.FC = () => {
         return visibleResources.sort((a, b) => a.name.localeCompare(b.name));
     }, [resources, filters]);
 
+    // Paginated Data
+    const paginatedData = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return displayData.slice(startIndex, startIndex + itemsPerPage);
+    }, [displayData, currentPage, itemsPerPage]);
+
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
+    const handleFilterChange = (name: string, value: string) => {
+        setFilters(p => ({...p, [name]: value}));
+        setCurrentPage(1);
+    };
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex-shrink-0 space-y-4">
@@ -267,9 +283,9 @@ const WorkloadPage: React.FC = () => {
 
                 <div className="p-4 bg-surface rounded-2xl shadow">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={(n, v) => setFilters(p => ({...p, [n]: v}))} options={resourceOptions} placeholder="Tutte"/></div>
-                        <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><SearchableSelect name="roleId" value={filters.roleId} onChange={(n, v) => setFilters(p => ({...p, [n]: v}))} options={roleOptions} placeholder="Tutti"/></div>
-                        <button onClick={() => setFilters({ resourceId: '', roleId: '', horizontal: '' })} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte"/></div>
+                        <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti"/></div>
+                        <button onClick={() => { setFilters({ resourceId: '', roleId: '', horizontal: '' }); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
                     </div>
                 </div>
             </div>
@@ -291,7 +307,7 @@ const WorkloadPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-outline-variant">
-                            {displayData.map(resource => (
+                            {paginatedData.map(resource => (
                                 <tr key={resource.id} className="hover:bg-surface-container-low">
                                     <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9">
                                         <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
@@ -307,6 +323,13 @@ const WorkloadPage: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
+                <Pagination
+                    currentPage={currentPage}
+                    totalItems={displayData.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
+                />
             </div>
         </div>
     );
