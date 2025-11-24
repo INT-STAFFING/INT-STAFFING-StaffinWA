@@ -479,8 +479,15 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     const { leaves: importedLeaves } = body;
     if (!Array.isArray(importedLeaves)) return;
 
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), String(r.id)]));
-    const leaveTypeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), String(t.id)]));
+    // FIX: Added explicit type assertion [string, string] to fix TS2345 error
+    const resourceRows = (await client.query('SELECT id, name FROM resources')).rows;
+    const resourceEntries: [string, string][] = resourceRows.map((r: any) => [normalize(r.name), String(r.id)]);
+    const resourceMap = new Map(resourceEntries);
+
+    // FIX: Added explicit type assertion [string, string] to fix TS2345 error
+    const leaveTypeRows = (await client.query('SELECT id, name FROM leave_types')).rows;
+    const leaveTypeEntries: [string, string][] = leaveTypeRows.map((t: any) => [normalize(t.name), String(t.id)]);
+    const leaveTypeMap = new Map(leaveTypeEntries);
 
     for (const leave of importedLeaves) {
         const { 'Nome Risorsa': resName, 'Tipologia Assenza': typeName, 'Data Inizio': startDate, 'Data Fine': endDate, 'Approvatori': approverNames, 'Stato': status, 'Note': notes } = leave;
@@ -558,13 +565,15 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     
     // 1. Import Users
     if (Array.isArray(users)) {
-        // Load existing users map
+        // FIX: Explicitly map query results to [string, string] tuples to fix TS2345 error
         const existingUsers = await client.query('SELECT id, username FROM app_users');
-        const userMap = new Map<string, string>(existingUsers.rows.map((u: any) => [String(u.username), String(u.id)]));
+        const userEntries: [string, string][] = existingUsers.rows.map((u: any) => [String(u.username), String(u.id)]);
+        const userMap = new Map(userEntries);
         
-        // Load resources to link by email
+        // FIX: Explicitly map query results to [string, string] tuples to fix TS2345 error
         const resources = await client.query('SELECT id, email FROM resources');
-        const resourceMap = new Map<string, string>(resources.rows.map((r: any) => [normalize(r.email), String(r.id)]));
+        const resourceEntries: [string, string][] = resources.rows.map((r: any) => [normalize(r.email), String(r.id)]);
+        const resourceMap = new Map(resourceEntries);
 
         // Generate default password hash for new users: "Staffing2024!"
         const defaultHash = await bcrypt.hash("Staffing2024!", 10);
