@@ -1,140 +1,48 @@
-
 /**
  * @file LeavePage.tsx
- * @description Pagina per la gestione delle assenze con workflow di approvazione multipla.
+ * @description Pagina per la gestione delle richieste di assenza (ferie, permessi).
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import React, { useState, useMemo } from 'react';
+import { useEntitiesContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { LeaveRequest, LeaveStatus } from '../types';
-import { DataTable, ColumnDef } from '../components/DataTable';
+import { isHoliday } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { useAuth } from '../context/AuthContext';
-import { formatDateFull, getWorkingDaysBetween, getCalendarDays, formatDate, isHoliday } from '../utils/dateUtils';
-import { useToast } from '../context/ToastContext';
-
-// --- Helper Types ---
-type EnrichedLeaveRequest = LeaveRequest & {
-    resourceName: string;
-    typeName: string;
-    typeColor: string;
-    approverNames: string;
-};
-
-type ViewMode = 'table' | 'card' | 'calendar';
-
-// --- Helper Functions ---
-const getStatusBadgeClass = (status: LeaveStatus) => {
-    switch (status) {
-        case 'APPROVED': return 'bg-tertiary-container text-on-tertiary-container';
-        case 'PENDING': return 'bg-yellow-container text-on-yellow-container';
-        case 'REJECTED': return 'bg-error-container text-on-error-container';
-        default: return 'bg-surface-variant text-on-surface-variant';
-    }
-};
 
 const LeavePage: React.FC = () => {
     const { 
-        leaveRequests, resources, leaveTypes, managerResourceIds, companyCalendar,
+        leaveRequests, resources, leaveTypes, companyCalendar, 
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, 
-        isActionLoading, loading 
+        isActionLoading, managerResourceIds 
     } = useEntitiesContext();
-    
-    const { allocations } = useAllocationsContext();
     const { user, isAdmin } = useAuth();
-    const { addToast } = useToast();
 
-    // State
-    const [view, setView] = useState<ViewMode>('table');
     const [calendarDate, setCalendarDate] = useState(new Date());
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | Omit<LeaveRequest, 'id'> | null>(null);
-    const [deleteRequest, setDeleteRequest] = useState<LeaveRequest | null>(null);
-    const [filters, setFilters] = useState({ resourceId: '', typeId: '', status: '' });
-    
-    // Conflict Detection State
-    const [conflictModalOpen, setConflictModalOpen] = useState(false);
-    const [conflictData, setConflictData] = useState<{ resourceName: string, conflicts: string[] } | null>(null);
-    const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+    const [requestToDelete, setRequestToDelete] = useState<LeaveRequest | null>(null);
 
-    const emptyRequest: Omit<LeaveRequest, 'id'> = {
-        resourceId: '',
-        typeId: '',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-        status: 'PENDING',
-        notes: '',
-        approverIds: [],
-        isHalfDay: false
-    };
+    const currentUserResource = useMemo(() => resources.find(r => r.id === user?.resourceId), [resources, user]);
 
-    // Auto-populate resource if user is linked
-    useEffect(() => {
-        if (isModalOpen && editingRequest && !('id' in editingRequest) && user?.resourceId && !editingRequest.resourceId) {
-            setEditingRequest(prev => prev ? ({ ...prev, resourceId: user.resourceId! }) : null);
-        }
-    }, [isModalOpen, editingRequest, user]);
-
-    // --- KPI Data ---
-    const kpis = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // My Pending Requests
-        const myPending = user?.resourceId ? leaveRequests.filter(l => l.resourceId === user.resourceId && l.status === 'PENDING').length : 0;
-        
-        // Waiting for Approval (If user is manager/admin)
-        const toApprove = leaveRequests.filter(l => 
-            l.status === 'PENDING' && 
-            (isAdmin || (user?.resourceId && l.approverIds?.includes(user.resourceId)))
-        ).length;
-
-        // Absent Today
-        const absentToday = leaveRequests.filter(l => 
-            l.status === 'APPROVED' && 
-            today >= l.startDate && 
-            today <= l.endDate
-        ).length;
-
-        return { myPending, toApprove, absentToday };
-    }, [leaveRequests, user, isAdmin]);
-
-    // --- Data Preparation ---
-    const enrichedRequests = useMemo<EnrichedLeaveRequest[]>(() => {
-        return leaveRequests.map(req => {
-            const resource = resources.find(r => r.id === req.resourceId);
-            const type = leaveTypes.find(t => t.id === req.typeId);
-            
-            const approverNames = req.approverIds
-                ? req.approverIds.map(id => resources.find(r => r.id === id)?.name).filter(Boolean).join(', ')
-                : 'Nessuno';
-
-            return {
-                ...req,
-                resourceName: resource?.name || 'Sconosciuto',
-                typeName: type?.name || 'N/A',
-                typeColor: type?.color || '#ccc',
-                approverNames
-            };
-        });
-    }, [leaveRequests, resources, leaveTypes]);
-
+    // Filter logic: Admins see all, others see their own + pending requests where they are approver?
+    // For simplicity in visualization, let's show all approved leaves (transparency) + own pending + pending to approve.
     const filteredRequests = useMemo(() => {
-        return enrichedRequests.filter(req => {
-            // RESTRIZIONE VISIBILITÀ SIMPLE USER
-            // Se l'utente è SIMPLE, può vedere solo le proprie richieste.
-            if (user?.role === 'SIMPLE' && req.resourceId !== user.resourceId) {
-                return false;
-            }
-
-            return (!filters.resourceId || req.resourceId === filters.resourceId) &&
-                   (!filters.typeId || req.typeId === filters.typeId) &&
-                   (!filters.status || req.status === filters.status);
-        }).sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-    }, [enrichedRequests, filters, user]);
+        return leaveRequests.filter(req => {
+            if (isAdmin) return true;
+            // See own requests
+            if (req.resourceId === user?.resourceId) return true;
+            // See requests where I am approver
+            if (req.approverIds?.includes(user?.resourceId || '')) return true;
+            // See approved requests of others (public calendar)
+            if (req.status === 'APPROVED') return true;
+            return false;
+        });
+    }, [leaveRequests, isAdmin, user]);
 
     // --- Calendar Data Generation ---
     const calendarGrid = useMemo(() => {
@@ -142,7 +50,6 @@ const LeavePage: React.FC = () => {
         const month = calendarDate.getMonth();
         
         const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
         
         // Calculate start date of the grid (monday of the first week)
         const startDate = new Date(firstDayOfMonth);
@@ -150,17 +57,22 @@ const LeavePage: React.FC = () => {
         const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
         startDate.setDate(diff);
 
-        // Generate 42 days (6 weeks) to cover any month
         const days = [];
         const currentDay = new Date(startDate);
         
+        // 6 weeks * 7 days = 42 days
         for (let i = 0; i < 42; i++) {
-            const dateIso = currentDay.toISOString().split('T')[0];
+            // FIX: Usa la data locale invece di toISOString() (che usa UTC) per evitare shift di fuso orario
+            const y = currentDay.getFullYear();
+            const m = String(currentDay.getMonth() + 1).padStart(2, '0');
+            const d = String(currentDay.getDate()).padStart(2, '0');
+            const dateIso = `${y}-${m}-${d}`;
+
             const isCurrentMonth = currentDay.getMonth() === month;
             
             // Find leaves for this day
             const dayLeaves = filteredRequests.filter(req => 
-                dateIso >= req.startDate && dateIso <= req.endDate
+                dateIso >= req.startDate && dateIso <= req.endDate && req.status !== 'REJECTED'
             );
 
             // Check holiday
@@ -179,601 +91,247 @@ const LeavePage: React.FC = () => {
         return days;
     }, [calendarDate, filteredRequests, companyCalendar]);
 
-    // --- Options ---
-    const resourceOptions = useMemo(() => {
-        let list = resources.filter(r => !r.resigned);
-        // Se l'utente è SIMPLE, restringiamo le opzioni di filtro alla sola sua risorsa
-        if (user?.role === 'SIMPLE' && user.resourceId) {
-            list = list.filter(r => r.id === user.resourceId);
-        }
-        return list.map(r => ({ value: r.id!, label: r.name }));
-    }, [resources, user]);
+    const handlePrevMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+    const handleNextMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+    const handleToday = () => setCalendarDate(new Date());
 
-    const typeOptions = useMemo(() => leaveTypes.map(t => ({ value: t.id!, label: t.name })), [leaveTypes]);
-    
-    const approverOptions = useMemo(() => {
-        // Only resources linked to Manager/Admin users
-        return resources
-            .filter(r => managerResourceIds.includes(r.id!))
-            .map(r => ({ value: r.id!, label: r.name }));
-    }, [resources, managerResourceIds]);
-
-    const statusOptions = [
-        { value: 'PENDING', label: 'In Attesa' },
-        { value: 'APPROVED', label: 'Approvata' },
-        { value: 'REJECTED', label: 'Rifiutata' }
-    ];
-
-    // --- Handlers ---
-    const handleFilterChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
-    const resetFilters = () => setFilters({ resourceId: '', typeId: '', status: '' });
-
-    const openModalForNew = () => {
-        setEditingRequest(emptyRequest);
-        setIsModalOpen(true);
-    };
-
-    const openModalForEdit = (req: LeaveRequest) => {
+    const openNewRequestModal = () => {
         setEditingRequest({
-            ...req,
-            startDate: req.startDate.split('T')[0],
-            endDate: req.endDate.split('T')[0],
-            approverIds: req.approverIds || [],
-            isHalfDay: req.isHalfDay || false
+            resourceId: currentUserResource?.id || '',
+            typeId: leaveTypes[0]?.id || '',
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0],
+            status: 'PENDING',
+            notes: '',
+            isHalfDay: false,
+            approverIds: []
         });
         setIsModalOpen(true);
     };
 
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setEditingRequest(null);
+    const openEditRequestModal = (req: LeaveRequest) => {
+        setEditingRequest({ ...req });
+        setIsModalOpen(true);
     };
 
-    // --- Calendar Navigation ---
-    const nextMonth = () => {
-        setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
-    };
-    
-    const prevMonth = () => {
-        setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
-    };
-    
-    const currentMonth = () => {
-        setCalendarDate(new Date());
-    };
-
-    // --- Helper for Assignments Access ---
-    const { projects, assignments } = useEntitiesContext();
-
-    const performConflictCheck = (resourceId: string, start: string, end: string, isHalfDay: boolean = false): string[] => {
-        const conflicts: string[] = [];
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-
-        const userAssignments = assignments.filter(a => a.resourceId === resourceId);
-        
-        userAssignments.forEach(assignment => {
-            const assignmentAllocations = allocations[assignment.id!];
-            if (assignmentAllocations) {
-                let hasConflict = false;
-                for (const dateStr in assignmentAllocations) {
-                    const date = new Date(dateStr);
-                    if (date >= startDate && date <= endDate) {
-                        const allocation = assignmentAllocations[dateStr] || 0;
-                        const leaveImpact = isHalfDay ? 50 : 100;
-                        
-                        // Conflitto se la somma supera il 100%
-                        if ((allocation + leaveImpact) > 100) {
-                            hasConflict = true;
-                            break;
-                        }
-                    }
-                }
-                if (hasConflict) {
-                    const project = projects.find(p => p.id === assignment.projectId);
-                    conflicts.push(`Progetto: ${project?.name || 'Sconosciuto'} (Sovraccarico)`);
-                }
-            }
-        });
-        
-        return [...new Set(conflicts)];
-    };
-
-    const saveRequest = async () => {
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
         if (!editingRequest) return;
+        
+        // Basic validation
+        if (!editingRequest.resourceId || !editingRequest.typeId || !editingRequest.startDate || !editingRequest.endDate) {
+            return; // Form validation handled by HTML required
+        }
+        
         try {
             if ('id' in editingRequest) {
                 await updateLeaveRequest(editingRequest as LeaveRequest);
             } else {
                 await addLeaveRequest(editingRequest as Omit<LeaveRequest, 'id'>);
             }
-            handleCloseModal();
-        } catch (e) {}
+            setIsModalOpen(false);
+            setEditingRequest(null);
+        } catch (err) {
+            console.error(err);
+        }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleDelete = async () => {
+        if (requestToDelete) {
+            await deleteLeaveRequest(requestToDelete.id!);
+            setRequestToDelete(null);
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (!editingRequest) return;
-
-        // Validation: 3 Approvers
-        if (!editingRequest.approverIds || editingRequest.approverIds.length < 3) {
-            addToast('Devi selezionare almeno 3 Manager per l\'approvazione.', 'error');
-            return;
-        }
-
-        // Check conflicts
-        const conflicts = performConflictCheck(
-            editingRequest.resourceId, 
-            editingRequest.startDate, 
-            editingRequest.endDate,
-            editingRequest.isHalfDay
-        );
-        
-        if (conflicts.length > 0) {
-            const resourceName = resources.find(r => r.id === editingRequest.resourceId)?.name || 'Risorsa';
-            setConflictData({ resourceName, conflicts });
-            setPendingAction(() => saveRequest);
-            setConflictModalOpen(true);
-        } else {
-            await saveRequest();
-        }
+        const { name, value, type } = e.target;
+        const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+        setEditingRequest({ ...editingRequest, [name]: val });
     };
 
-    const handleApprove = async (req: LeaveRequest) => {
-        const conflicts = performConflictCheck(req.resourceId, req.startDate, req.endDate, req.isHalfDay);
-        const action = async () => {
-            // Track WHO approved it (managerId) but keep approverIds list intact
-            await updateLeaveRequest({ ...req, status: 'APPROVED', managerId: user?.resourceId || null });
-        };
-
-        if (conflicts.length > 0) {
-            const resourceName = resources.find(r => r.id === req.resourceId)?.name || 'Risorsa';
-            setConflictData({ resourceName, conflicts });
-            setPendingAction(() => action);
-            setConflictModalOpen(true);
-        } else {
-            await action();
-        }
+    const handleSelectChange = (name: string, value: string) => {
+        if(editingRequest) setEditingRequest({ ...editingRequest, [name]: value });
     };
 
-    const handleReject = async (req: LeaveRequest) => {
-        await updateLeaveRequest({ ...req, status: 'REJECTED', managerId: user?.resourceId || null });
+    const handleApproversChange = (name: string, values: string[]) => {
+        if(editingRequest) setEditingRequest({ ...editingRequest, [name]: values });
     };
 
-    const handleConflictConfirm = async () => {
-        if (pendingAction) {
-            await pendingAction();
-        }
-        setConflictModalOpen(false);
-        setPendingAction(null);
-        setConflictData(null);
-    };
-
-    const canApprove = (req: LeaveRequest) => {
-        if (req.status !== 'PENDING') return false;
-        if (isAdmin) return true;
-        // Can approve if I am in the list of approvers
-        return user?.resourceId && req.approverIds?.includes(user.resourceId);
-    };
-
-    // --- Columns for Table ---
-    const columns: ColumnDef<EnrichedLeaveRequest>[] = [
-        { header: 'Risorsa', sortKey: 'resourceName', cell: r => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.resourceName}</span> },
-        { header: 'Tipo', sortKey: 'typeName', cell: r => (
-            <span className="inline-flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: r.typeColor }}></span>
-                {r.typeName}
-                {r.isHalfDay && <span className="text-xs bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
-            </span>
-        )},
-        // Utilizzo formatDateFull per visualizzare GG/MM/AAAA
-        { header: 'Periodo', sortKey: 'startDate', cell: r => <span className="text-sm text-on-surface-variant">{formatDateFull(r.startDate)} - {formatDateFull(r.endDate)}</span> },
-        { header: 'Giorni (Lav.)', cell: r => {
-            const resource = resources.find(res => res.id === r.resourceId);
-            const workingDays = getWorkingDaysBetween(
-                new Date(r.startDate), 
-                new Date(r.endDate), 
-                companyCalendar, 
-                resource?.location || null
-            );
-            const effectiveDays = r.isHalfDay ? workingDays * 0.5 : workingDays;
-            
-            return <span className="text-sm font-semibold">{effectiveDays} gg</span>;
-        }},
-        { header: 'Richiesto A', cell: r => <span className="text-xs text-on-surface-variant truncate max-w-xs block" title={r.approverNames}>{r.approverNames}</span> },
-        { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
-        { header: 'Note', cell: r => <span className="text-xs text-on-surface-variant truncate max-w-xs block" title={r.notes}>{r.notes}</span> }
+    // Options
+    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const typeOptions = useMemo(() => leaveTypes.map(t => ({ value: t.id!, label: t.name })), [leaveTypes]);
+    const managerOptions = useMemo(() => resources.filter(r => managerResourceIds.includes(r.id!) && !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources, managerResourceIds]);
+    const statusOptions: {value: LeaveStatus, label: string}[] = [
+        { value: 'PENDING', label: 'In Attesa' },
+        { value: 'APPROVED', label: 'Approvata' },
+        { value: 'REJECTED', label: 'Rifiutata' }
     ];
 
-    const renderRow = (req: EnrichedLeaveRequest) => (
-        <tr key={req.id} className="hover:bg-surface-container group">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-center space-x-2 w-full">
-                    {canApprove(req) && (
-                        <>
-                            <button onClick={() => handleApprove(req)} className="text-green-600 hover:bg-green-100 p-1 rounded transition-colors" title="Approva">
-                                <span className="material-symbols-outlined">check_circle</span>
-                            </button>
-                            <button onClick={() => handleReject(req)} className="text-red-600 hover:bg-red-100 p-1 rounded transition-colors" title="Rifiuta">
-                                <span className="material-symbols-outlined">cancel</span>
-                            </button>
-                        </>
-                    )}
-                    {(isAdmin || req.resourceId === user?.resourceId) && (
-                        <>
-                            <button onClick={() => openModalForEdit(req)} className="text-on-surface-variant hover:text-primary p-1 rounded" title="Modifica">
-                                <span className="material-symbols-outlined">edit</span>
-                            </button>
-                            <button onClick={() => setDeleteRequest(req)} className="text-on-surface-variant hover:text-error p-1 rounded" title="Elimina">
-                                <span className="material-symbols-outlined">delete</span>
-                            </button>
-                        </>
-                    )}
-                </div>
-            </td>
-        </tr>
-    );
-
-    const renderMobileCard = (req: EnrichedLeaveRequest) => (
-        <div className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 mb-4 flex flex-col gap-2`} style={{ borderLeftColor: req.typeColor }}>
-            <div className="flex justify-between items-start">
-                <h3 className="font-bold text-lg text-on-surface">{req.resourceName}</h3>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(req.status)}`}>{req.status}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-                <span className="font-medium flex items-center gap-1">
-                    {req.typeName}
-                    {req.isHalfDay && <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
-                </span>
-                <span className="text-on-surface-variant">{formatDateFull(req.startDate)} - {formatDateFull(req.endDate)}</span>
-            </div>
-            <p className="text-xs text-on-surface-variant">Approvatori: {req.approverNames}</p>
-            {req.notes && <p className="text-xs text-on-surface-variant italic">{req.notes}</p>}
-            <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-outline-variant">
-                 {canApprove(req) && (
-                    <>
-                        <button onClick={() => handleApprove(req)} className="text-tertiary font-medium text-sm">Approva</button>
-                        <button onClick={() => handleReject(req)} className="text-error font-medium text-sm">Rifiuta</button>
-                    </>
-                )}
-                <button onClick={() => openModalForEdit(req)} className="text-primary font-medium text-sm">Modifica</button>
-            </div>
-        </div>
-    );
-
-    const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte le Risorse"/>
-            <SearchableSelect name="typeId" value={filters.typeId} onChange={handleFilterChange} options={typeOptions} placeholder="Tutti i Tipi"/>
-            <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
-            <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
-        </div>
-    );
-
     return (
-        <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
-                
-                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                    {/* View Switcher */}
-                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                        <button 
-                            onClick={() => setView('table')} 
-                            className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-2 transition-all ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
-                        >
-                            <span className="material-symbols-outlined text-lg">table_rows</span> Tabella
-                        </button>
-                        <button 
-                            onClick={() => setView('card')} 
-                            className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-2 transition-all ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
-                        >
-                            <span className="material-symbols-outlined text-lg">grid_view</span> Card
-                        </button>
-                        <button 
-                            onClick={() => setView('calendar')} 
-                            className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-2 transition-all ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
-                        >
-                            <span className="material-symbols-outlined text-lg">calendar_month</span> Calendario
-                        </button>
+        <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-on-surface">Calendario Assenze</h1>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center bg-surface-container p-1 rounded-full">
+                        <button onClick={handlePrevMonth} className="p-2 hover:bg-surface rounded-full text-on-surface-variant"><span className="material-symbols-outlined">chevron_left</span></button>
+                        <span className="px-4 font-medium text-on-surface min-w-[150px] text-center">
+                            {calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button onClick={handleNextMonth} className="p-2 hover:bg-surface rounded-full text-on-surface-variant"><span className="material-symbols-outlined">chevron_right</span></button>
                     </div>
-
-                    <button onClick={openModalForNew} className="px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 w-full md:w-auto flex justify-center items-center gap-2">
-                        <span className="material-symbols-outlined">add_circle</span> Nuova Richiesta
+                    <button onClick={handleToday} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full font-medium">Oggi</button>
+                    <button onClick={openNewRequestModal} className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold flex items-center gap-2">
+                        <span className="material-symbols-outlined">add</span> Nuova Richiesta
                     </button>
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div 
-                    className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary cursor-pointer hover:shadow-md"
-                    onClick={() => user?.resourceId && setFilters(f => ({...f, resourceId: user.resourceId!, status: 'PENDING'}))}
-                >
-                    <p className="text-sm text-on-surface-variant">Le Mie Richieste Pendenti</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.myPending}</p>
-                </div>
-                <div 
-                    className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500 cursor-pointer hover:shadow-md"
-                    onClick={() => setFilters(f => ({...f, status: 'PENDING', resourceId: ''}))}
-                >
-                    <p className="text-sm text-on-surface-variant">Da Approvare (Team)</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.toApprove}</p>
-                </div>
-                <div 
-                    className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary cursor-pointer hover:shadow-md"
-                    onClick={() => setFilters(f => ({...f, status: 'APPROVED', resourceId: ''}))}
-                >
-                    <p className="text-sm text-on-surface-variant">Assenti Oggi</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.absentToday}</p>
+            {/* Legend */}
+            <div className="flex flex-wrap gap-4 mb-4 px-2">
+                {leaveTypes.map(t => (
+                    <div key={t.id} className="flex items-center gap-2 text-xs">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }}></span>
+                        <span className="text-on-surface-variant">{t.name}</span>
+                    </div>
+                ))}
+                <div className="flex items-center gap-2 text-xs">
+                    <span className="w-3 h-3 rounded-full bg-surface-container border border-outline"></span>
+                    <span className="text-on-surface-variant">Festivo/Weekend</span>
                 </div>
             </div>
 
-            {/* CONDITIONAL CONTENT BASED ON VIEW */}
-            {view === 'table' && (
-                <DataTable<EnrichedLeaveRequest>
-                    title=""
-                    addNewButtonLabel=""
-                    data={filteredRequests}
-                    columns={columns}
-                    filtersNode={filtersNode}
-                    onAddNew={() => {}}
-                    renderRow={renderRow}
-                    renderMobileCard={renderMobileCard}
-                    initialSortKey="startDate"
-                    isLoading={loading}
-                    tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    numActions={4}
-                />
-            )}
-
-            {view === 'card' && (
-                <div className="space-y-6">
-                    <div className="bg-surface rounded-2xl shadow p-4">{filtersNode}</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                        {filteredRequests.map(req => (
-                            <div key={req.id} className="bg-surface rounded-2xl shadow p-4 border-l-4 relative" style={{ borderLeftColor: req.typeColor }}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-lg text-on-surface">{req.resourceName}</h3>
-                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(req.status)}`}>{req.status}</span>
-                                </div>
-                                <div className="text-sm text-on-surface-variant space-y-1 mb-4">
-                                    <div className="flex justify-between">
-                                        <span>Tipo:</span>
-                                        <span className="font-medium text-on-surface flex items-center gap-1">
-                                            {req.typeName}
-                                            {req.isHalfDay && <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Dal:</span>
-                                        <span className="font-medium text-on-surface">{formatDateFull(req.startDate)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Al:</span>
-                                        <span className="font-medium text-on-surface">{formatDateFull(req.endDate)}</span>
-                                    </div>
-                                    {req.notes && <div className="pt-1 italic text-xs border-t border-outline-variant mt-2">"{req.notes}"</div>}
-                                </div>
-                                <div className="flex justify-end gap-2 border-t border-outline-variant pt-2">
-                                    {canApprove(req) && (
-                                        <>
-                                            <button onClick={() => handleApprove(req)} className="p-1 text-tertiary hover:bg-tertiary-container rounded"><span className="material-symbols-outlined">check_circle</span></button>
-                                            <button onClick={() => handleReject(req)} className="p-1 text-error hover:bg-error-container rounded"><span className="material-symbols-outlined">cancel</span></button>
-                                        </>
-                                    )}
-                                    {(isAdmin || req.resourceId === user?.resourceId) && (
-                                        <>
-                                            <button onClick={() => openModalForEdit(req)} className="p-1 text-primary hover:bg-primary-container rounded"><span className="material-symbols-outlined">edit</span></button>
-                                            <button onClick={() => setDeleteRequest(req)} className="p-1 text-error hover:bg-error-container rounded"><span className="material-symbols-outlined">delete</span></button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {view === 'calendar' && (
-                <div className="bg-surface rounded-2xl shadow p-4">
-                    {/* Calendar Controls */}
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-on-surface capitalize">
-                            {calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}
-                        </h2>
-                        <div className="flex items-center gap-2">
-                            <button onClick={prevMonth} className="p-2 rounded-full hover:bg-surface-container text-on-surface"><span className="material-symbols-outlined">chevron_left</span></button>
-                            <button onClick={currentMonth} className="px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-sm font-medium">Oggi</button>
-                            <button onClick={nextMonth} className="p-2 rounded-full hover:bg-surface-container text-on-surface"><span className="material-symbols-outlined">chevron_right</span></button>
+            {/* Calendar Grid */}
+            <div className="flex-grow bg-surface rounded-2xl shadow overflow-hidden flex flex-col">
+                {/* Weekday Headers */}
+                <div className="grid grid-cols-7 border-b border-outline-variant bg-surface-container-low">
+                    {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(d => (
+                        <div key={d} className="p-3 text-center text-sm font-bold text-on-surface-variant uppercase tracking-wide">
+                            {d}
                         </div>
-                    </div>
-
-                    {/* Filter bar for calendar (simplified) */}
-                    <div className="mb-4">{filtersNode}</div>
-
-                    {/* Calendar Grid */}
-                    <div className="grid grid-cols-7 border-l border-t border-outline-variant">
-                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-                            <div key={day} className="p-2 text-center font-bold text-on-surface-variant bg-surface-container-low border-r border-b border-outline-variant text-sm">
-                                {day}
-                            </div>
-                        ))}
-                        
-                        {calendarGrid.map((day, idx) => (
-                            <div 
-                                key={idx} 
-                                className={`min-h-[100px] p-1 border-r border-b border-outline-variant flex flex-col ${
-                                    !day.isCurrentMonth ? 'bg-surface-container/30' : day.isHoliday || day.isWeekend ? 'bg-surface-container-low' : 'bg-surface'
-                                }`}
-                            >
-                                <div className={`text-right text-xs font-medium mb-1 ${day.dateIso === new Date().toISOString().split('T')[0] ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>
-                                    {day.date.getDate()}
-                                </div>
-                                <div className="flex-grow space-y-1 overflow-y-auto max-h-[120px]">
-                                    {day.leaves.map((leave, i) => {
-                                        if (i > 2) return null; // Show max 3 per day
-                                        return (
-                                            <div 
-                                                key={leave.id} 
-                                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
-                                                style={{ backgroundColor: leave.typeColor, color: '#000000' }} // Ensure text contrast
-                                                onClick={() => openModalForEdit(leave)}
-                                                title={`${leave.resourceName} - ${leave.typeName} (${leave.status})`}
-                                            >
-                                                {leave.resourceName}
-                                            </div>
-                                        );
-                                    })}
-                                    {day.leaves.length > 3 && (
-                                        <div className="text-[10px] text-center text-on-surface-variant italic">
-                                            +{day.leaves.length - 3} altri
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    ))}
                 </div>
-            )}
-
-            {/* Edit/Create Modal */}
-            {editingRequest && (
-                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
-                    <form onSubmit={handleSubmit} className="space-y-4 flex flex-col max-h-[80vh]">
-                        <div className="flex-grow overflow-y-auto space-y-4 px-1">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Risorsa Richiedente *</label>
-                                <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={(name, val) => setEditingRequest(prev => prev ? ({...prev, [name]: val}) : null)} options={resourceOptions} required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Tipologia Assenza *</label>
-                                <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={(name, val) => setEditingRequest(prev => prev ? ({...prev, [name]: val}) : null)} options={typeOptions} required />
+                {/* Days */}
+                <div className="grid grid-cols-7 flex-grow auto-rows-fr">
+                    {calendarGrid.map((day) => (
+                        <div 
+                            key={day.dateIso} 
+                            className={`
+                                min-h-[100px] p-2 border-b border-r border-outline-variant relative flex flex-col gap-1
+                                ${!day.isCurrentMonth ? 'bg-surface-container-lowest text-on-surface-variant/50' : 'bg-surface'}
+                                ${(day.isWeekend || day.isHoliday) ? 'bg-surface-container/30' : ''}
+                            `}
+                        >
+                            <div className="flex justify-between items-start">
+                                <span className={`text-sm font-medium ${day.dateIso === new Date().toISOString().split('T')[0] ? 'bg-primary text-on-primary w-6 h-6 rounded-full flex items-center justify-center' : ''}`}>
+                                    {day.date.getDate()}
+                                </span>
+                                {day.isHoliday && <span className="text-[10px] text-error font-bold uppercase tracking-tighter">Festivo</span>}
                             </div>
                             
-                            <div className="bg-surface-container-low p-3 rounded border border-outline-variant">
-                                <label className="block text-sm font-bold text-primary mb-1">Richiedi Approvazione a (Min. 3) *</label>
-                                <p className="text-xs text-on-surface-variant mb-2">Seleziona almeno 3 Manager. Basta l'approvazione di uno solo.</p>
-                                <MultiSelectDropdown 
-                                    name="approverIds" 
-                                    selectedValues={editingRequest.approverIds || []} 
-                                    onChange={(_, val) => setEditingRequest(prev => prev ? ({...prev, approverIds: val}) : null)}
-                                    options={approverOptions}
-                                    placeholder="Seleziona Manager..."
-                                />
-                                {editingRequest.approverIds && editingRequest.approverIds.length < 3 && (
-                                    <p className="text-xs text-error mt-1">Selezionati: {editingRequest.approverIds.length}/3</p>
-                                )}
+                            <div className="flex-grow overflow-y-auto space-y-1 custom-scrollbar">
+                                {day.leaves.map(req => {
+                                    const type = leaveTypes.find(t => t.id === req.typeId);
+                                    const resource = resources.find(r => r.id === req.resourceId);
+                                    const isPending = req.status === 'PENDING';
+                                    
+                                    return (
+                                        <button 
+                                            key={req.id} 
+                                            onClick={() => openEditRequestModal(req)}
+                                            className={`
+                                                w-full text-left text-[10px] px-1.5 py-0.5 rounded truncate block border-l-2
+                                                ${isPending ? 'opacity-70 border-dashed' : ''}
+                                            `}
+                                            style={{ 
+                                                backgroundColor: `${type?.color}20` || '#eee', 
+                                                borderLeftColor: type?.color || '#ccc',
+                                                color: '#191c1e'
+                                            }}
+                                            title={`${resource?.name} - ${type?.name} (${req.status})`}
+                                        >
+                                            <span className="font-bold">{resource?.name.split(' ')[0]}</span> {req.isHalfDay ? '½' : ''}
+                                        </button>
+                                    );
+                                })}
                             </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
-                                    <input 
-                                        type="date" 
-                                        value={editingRequest.startDate} 
-                                        onChange={e => {
-                                            const newVal = e.target.value;
-                                            setEditingRequest(prev => prev ? ({
-                                                ...prev, 
-                                                startDate: newVal,
-                                                // Auto disable half day if dates differ
-                                                isHalfDay: newVal !== prev.endDate ? false : prev.isHalfDay
-                                            }) : null);
-                                        }} 
-                                        className="form-input" 
-                                        required 
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
-                                    <input 
-                                        type="date" 
-                                        value={editingRequest.endDate} 
-                                        onChange={e => {
-                                            const newVal = e.target.value;
-                                            setEditingRequest(prev => prev ? ({
-                                                ...prev, 
-                                                endDate: newVal,
-                                                // Auto disable half day if dates differ
-                                                isHalfDay: prev.startDate !== newVal ? false : prev.isHalfDay
-                                            }) : null);
-                                        }} 
-                                        className="form-input" 
-                                        required 
-                                    />
-                                </div>
-                            </div>
-
-                            {editingRequest.startDate && editingRequest.endDate && editingRequest.startDate === editingRequest.endDate && (
-                                <div className="flex items-center gap-2 p-2 bg-secondary-container/30 rounded border border-secondary-container">
-                                    <input 
-                                        type="checkbox" 
-                                        id="isHalfDay"
-                                        checked={editingRequest.isHalfDay} 
-                                        onChange={e => setEditingRequest(prev => prev ? ({...prev, isHalfDay: e.target.checked}) : null)}
-                                        className="form-checkbox text-primary rounded"
-                                    />
-                                    <label htmlFor="isHalfDay" className="text-sm font-medium text-on-surface cursor-pointer">
-                                        Richiedi solo mezza giornata
-                                    </label>
-                                </div>
-                            )}
-
+            {/* Edit/Add Modal */}
+            {isModalOpen && editingRequest && (
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Risorsa</label>
+                            <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona risorsa..." required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Tipologia</label>
+                            <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={handleSelectChange} options={typeOptions} placeholder="Seleziona tipo..." required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato</label>
-                                <select value={editingRequest.status} onChange={e => setEditingRequest(prev => prev ? ({...prev, status: e.target.value as LeaveStatus}) : null)} className="form-select">
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Dal</label>
+                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} className="form-input" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Al</label>
+                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} className="form-input" required />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input type="checkbox" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox" />
+                            <label className="text-sm text-on-surface">Mezza Giornata (0.5 G/U)</label>
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Richiedi Approvazione a (min. 3)</label>
+                            <MultiSelectDropdown name="approverIds" selectedValues={editingRequest.approverIds || []} onChange={handleApproversChange} options={managerOptions} placeholder="Seleziona manager..." />
+                            <p className="text-xs text-on-surface-variant mt-1">Seleziona almeno 3 manager se richiesto dalle policy.</p>
+                        </div>
+
+                        {(isAdmin || editingRequest.approverIds?.includes(user?.resourceId || '')) && (
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Stato (Admin/Approver)</label>
+                                <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
                                     {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
-                                <textarea value={editingRequest.notes || ''} onChange={e => setEditingRequest(prev => prev ? ({...prev, notes: e.target.value}) : null)} className="form-textarea" rows={3}></textarea>
-                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Note</label>
+                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={2}></textarea>
                         </div>
-                        <div className="flex justify-end space-x-2 pt-4 border-t border-outline-variant">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">
-                                {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
-                            </button>
+
+                        <div className="flex justify-between items-center pt-4 mt-4 border-t border-outline-variant">
+                            {'id' in editingRequest && (
+                                <button type="button" onClick={() => setRequestToDelete(editingRequest as LeaveRequest)} className="text-error hover:text-error-container flex items-center gap-1 text-sm font-medium">
+                                    <span className="material-symbols-outlined text-lg">delete</span> Elimina
+                                </button>
+                            )}
+                            <div className="flex gap-2 ml-auto">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary font-medium hover:bg-surface-container">Annulla</button>
+                                <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-4 py-2 bg-primary text-on-primary rounded-full font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
+                                    {(isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')) ? <SpinnerIcon className="w-4 h-4" /> : 'Salva'}
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </Modal>
             )}
 
-            {/* Conflict Modal */}
-            <ConfirmationModal 
-                isOpen={conflictModalOpen}
-                onClose={() => { setConflictModalOpen(false); setPendingAction(null); }}
-                onConfirm={handleConflictConfirm}
-                title="Rilevato Conflitto di Allocazione"
-                message={
-                    <div>
-                        <p className="mb-2">Attenzione: <strong>{conflictData?.resourceName}</strong> risulta avere allocazioni attive che superano il 100% di capacità considerando l'assenza richiesta:</p>
-                        <ul className="list-disc list-inside mb-4 text-sm text-on-surface">
-                            {conflictData?.conflicts.map(c => <li key={c}>{c}</li>)}
-                        </ul>
-                        <p>Procedendo, le ferie verranno registrate ma le allocazioni esistenti <strong>NON verranno rimosse automaticamente</strong>. Si consiglia di verificare lo staffing.</p>
-                        <p className="mt-2 font-semibold">Vuoi procedere comunque?</p>
-                    </div>
-                }
-                confirmButtonText="Procedi Comunque"
-                cancelButtonText="Annulla"
-            />
-
-            {/* Delete Confirmation */}
-            {deleteRequest && (
-                <ConfirmationModal 
-                    isOpen={!!deleteRequest}
-                    onClose={() => setDeleteRequest(null)}
-                    onConfirm={async () => {
-                        await deleteLeaveRequest(deleteRequest.id!);
-                        setDeleteRequest(null);
-                    }}
+            {requestToDelete && (
+                <ConfirmationModal
+                    isOpen={!!requestToDelete}
+                    onClose={() => setRequestToDelete(null)}
+                    onConfirm={handleDelete}
                     title="Elimina Richiesta"
                     message="Sei sicuro di voler eliminare questa richiesta di assenza?"
-                    isConfirming={isActionLoading(`deleteLeaveRequest-${deleteRequest.id}`)}
+                    isConfirming={isActionLoading(`deleteLeaveRequest-${requestToDelete.id}`)}
                 />
             )}
         </div>
