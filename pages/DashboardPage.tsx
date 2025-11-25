@@ -7,8 +7,8 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday, formatDate } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { DashboardDataTable } from '../components/DashboardDataTable';
 import { ColumnDef } from '../components/DataTable';
 import {
@@ -237,7 +237,7 @@ const ViewToggleButton: React.FC<{ view: 'table' | 'graph', setView: (v: 'table'
 const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
-        { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link href={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
+        { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
         { header: 'Mese Corrente', sortKey: 'currentMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
         { header: 'Mese Prossimo', sortKey: 'nextMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</span> },
     ];
@@ -733,7 +733,7 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
 const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
-    const router = useRouter();
+    const navigate = useNavigate();
 
     // Tabs State
     const [activeTab, setActiveTab] = useState<string>('');
@@ -1269,8 +1269,8 @@ const DashboardPage: React.FC = () => {
     const renderCard = (cardId: string) => {
         switch (cardId) {
             case 'kpiHeader': return <KpiHeaderCards key={cardId} overallKPIs={overallKPIs} currentMonthKPIs={currentMonthKPIs} />;
-            case 'attentionCards': return <AttentionCards key={cardId} overallKPIs={overallKPIs} navigate={router.push} />;
-            case 'leavesOverview': return <LeavesOverviewCard key={cardId} navigate={router.push} />;
+            case 'attentionCards': return <AttentionCards key={cardId} overallKPIs={overallKPIs} navigate={navigate} />;
+            case 'leavesOverview': return <LeavesOverviewCard key={cardId} navigate={navigate} />;
             case 'unallocatedFte': return <UnallocatedFteCard key={cardId} kpis={currentMonthKPIs} />;
             case 'averageAllocation': return <AverageAllocationCard key={cardId} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={activeResources.map(r => ({ value: r.id!, label: r.name }))} totals={avgAllocationTotals} isLoading={loading} />;
             case 'ftePerProject': return <FtePerProjectCard key={cardId} data={fteData} filter={fteFilter} setFilter={setFteFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={fteTotals} isLoading={loading} />;
@@ -1278,7 +1278,7 @@ const DashboardPage: React.FC = () => {
             case 'temporalBudgetAnalysis': return <TemporalBudgetAnalysisCard key={cardId} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={temporalBudgetTotals} isLoading={loading} />;
             case 'averageDailyRate': return <AverageDailyRateCard key={cardId} data={averageDailyRateData} filter={avgDailyRateFilter} setFilter={setAvgDailyRateFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={avgDailyRateTotals} isLoading={loading} />;
             case 'underutilizedResources': return <UnderutilizedResourcesCard key={cardId} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} isLoading={loading} />;
-            case 'monthlyClientCost': return <MonthlyClientCostCard key={cardId} data={currentMonthKPIs.clientCostArray} navigate={router.push} isLoading={loading} />;
+            case 'monthlyClientCost': return <MonthlyClientCostCard key={cardId} data={currentMonthKPIs.clientCostArray} navigate={navigate} isLoading={loading} />;
             case 'effortByHorizontal': return <EffortByHorizontalCard key={cardId} data={effortByHorizontalData} total={effortByHorizontalTotal} isLoading={loading} />;
             case 'locationAnalysis': return <LocationAnalysisCard key={cardId} data={analysisByLocationData} isLoading={loading} />;
             case 'saturationTrend': return <SaturationTrendCard key={cardId} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={activeResources.map(r => ({ value: r.id!, label: r.name }))} data={saturationTrendData} />;

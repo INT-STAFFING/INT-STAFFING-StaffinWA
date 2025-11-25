@@ -11,7 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { getWorkingDaysBetween, isHoliday, formatDateFull } from '../utils/dateUtils';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 
 // --- Types ---
@@ -37,18 +37,16 @@ const ResourcesPage: React.FC = () => {
     const [selectedSkillDetails, setSelectedSkillDetails] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string, level: number }[]>([]);
     const [tempSelectedSkillId, setTempSelectedSkillId] = useState<string>('');
 
-    const searchParams = useSearchParams();
-    const router = useRouter();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (searchParams.get('filter') === 'unassigned') {
             setShowOnlyUnassigned(true);
-            // Optional: remove the query param after applying the filter using next/navigation
-            const newParams = new URLSearchParams(searchParams.toString());
-            newParams.delete('filter');
-            router.replace(`?${newParams.toString()}`);
+            // Remove the query param after applying the filter
+            setSearchParams({});
         }
-    }, [searchParams, router]);
+    }, [searchParams, setSearchParams]);
 
     
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);

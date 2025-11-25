@@ -19,7 +19,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -1123,7 +1123,7 @@ const StaffingPage: React.FC = () => {
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex flex-col min-w-0">
                               <Link
-                                href={`/workload?resourceId=${resource.id}`}
+                                to={`/workload?resourceId=${resource.id}`}
                                 className="text-primary hover:underline truncate"
                                 title={resource.name}
                               >
@@ -1202,7 +1202,7 @@ const StaffingPage: React.FC = () => {
                               >
                                 {project ? (
                                   <Link
-                                    href={`/projects?projectId=${project.id}`}
+                                    to={`/projects?projectId=${project.id}`}
                                     className="text-primary hover:underline block truncate"
                                     title={project.name}
                                   >

@@ -11,7 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
 
@@ -28,8 +28,8 @@ const ProjectsPage: React.FC = () => {
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
     const [showOnlyUnstaffed, setShowOnlyUnstaffed] = useState(false);
-    const searchParams = useSearchParams();
-    const router = useRouter();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
      useEffect(() => {
@@ -40,17 +40,16 @@ const ProjectsPage: React.FC = () => {
         if (projectId) {
             setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: '', status: '' }));
             setShowOnlyUnstaffed(false);
-            // Remove query params
-            router.replace(window.location.pathname);
+            setSearchParams({});
         } else if (clientId) {
             setFilters(prev => ({ ...prev, clientId, name: '', status: '' }));
             setShowOnlyUnstaffed(false);
-            router.replace(window.location.pathname);
+            setSearchParams({});
         } else if (filter === 'unstaffed') {
             setShowOnlyUnstaffed(true);
-            router.replace(window.location.pathname);
+            setSearchParams({});
         }
-    }, [searchParams, projects, router]);
+    }, [searchParams, projects, setSearchParams]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);

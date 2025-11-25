@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEntitiesContext } from '../context/AppContext';
 import { SidebarItem } from '../types';
@@ -19,9 +19,8 @@ interface NavItemProps {
 }
 
 const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount, onClick }) => {
-    const pathname = usePathname();
-    const router = useRouter();
-    const isActive = pathname === to;
+    const location = useLocation();
+    const isActive = location.pathname === to;
 
     // Helper to get dynamic style based on theme color key if present
     const getColorStyle = (active: boolean) => {
@@ -30,16 +29,10 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount, o
         return {};
     };
 
-    const handleClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        if (onClick) onClick();
-        router.push(to);
-    };
-
     return (
-    <a
-        href={to}
-        onClick={handleClick}
+    <Link
+        to={to}
+        onClick={onClick}
         className={
             `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 justify-between ${
                 isActive
@@ -58,7 +51,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount, o
                 {badgeCount}
             </span>
         )}
-    </a>
+    </Link>
 )};
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
@@ -103,7 +96,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     // Chiude la sidebar quando si clicca su un link (utile per mobile)
     const handleLinkClick = () => {
-        setIsOpen(false);
+        // Close sidebar on mobile when a link is clicked
+        if (window.innerWidth < 768) {
+            setIsOpen(false);
+        }
     };
 
     return (
