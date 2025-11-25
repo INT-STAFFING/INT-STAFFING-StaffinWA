@@ -352,4 +352,77 @@ export const ResourceRequestPage: React.FC = () => {
                     {dataForTable.length > 0 ? (
                         dataForTable.map(renderCard)
                     ) : (
-                        <p className="col-span
+                        <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna richiesta trovata.</p>
+                    )}
+                </div>
+            )}
+
+            {/* Modals */}
+            {editingRequest && (
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Progetto *</label>
+                                <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto..." required/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Ruolo Richiesto *</label>
+                                <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." required/>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Richiedente (Opzionale)</label>
+                            <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente..." />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label className="block text-sm font-medium mb-1">Data Inizio *</label><input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/></div>
+                            <div><label className="block text-sm font-medium mb-1">Data Fine *</label><input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/></div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Impegno % ({editingRequest.commitmentPercentage}%)</label>
+                            <input type="range" min="0" max="100" step="10" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox"/>
+                                <label className="text-sm">Urgente</label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input type="checkbox" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox"/>
+                                <label className="text-sm">Richiesta TECH</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Stato</label>
+                            <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
+                                {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Note</label>
+                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3}></textarea>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
+                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold disabled:opacity-50">
+                                {isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {requestToDelete && (
+                <ConfirmationModal
+                    isOpen={!!requestToDelete}
+                    onClose={() => setRequestToDelete(null)}
+                    onConfirm={handleDelete}
+                    title="Elimina Richiesta"
+                    message="Sei sicuro di voler eliminare questa richiesta? L'azione è irreversibile."
+                    isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
+                />
+            )}
+        </div>
+    );
+};
