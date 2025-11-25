@@ -34,6 +34,17 @@ export const getCalendarDays = (startDate: Date, count: number): Date[] => {
 };
 
 /**
+ * Helper interno per formattare una data in YYYY-MM-DD usando l'ora locale.
+ * Evita i problemi di shift dovuti a toISOString() (UTC).
+ */
+const toLocalISOString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+/**
  * Controlla se una data specifica è un giorno festivo o di chiusura aziendale.
  * @param {Date} date - La data da controllare.
  * @param {string | null} resourceLocation - La sede della risorsa, per controllare le festività locali.
@@ -41,7 +52,9 @@ export const getCalendarDays = (startDate: Date, count: number): Date[] => {
  * @returns {boolean} True se la data è un giorno non lavorativo, altrimenti false.
  */
 export const isHoliday = (date: Date, resourceLocation: string | null, companyCalendar: CalendarEvent[]): boolean => {
-    const dateStr = date.toISOString().split('T')[0];
+    // FIX: Usa data locale per evitare shift di fuso orario
+    const dateStr = toLocalISOString(date);
+    
     return companyCalendar.some(event => {
         if (event.date !== dateStr) return false;
         if (event.type === 'NATIONAL_HOLIDAY' || event.type === 'COMPANY_CLOSURE') return true;
@@ -191,7 +204,8 @@ export const formatDateSynthetic = (date: Date | string | null | undefined): str
  */
 export const formatDate = (date: Date, format: 'iso' | 'short' | 'day' | 'full'): string => {
     if (format === 'iso') {
-        return date.toISOString().split('T')[0];
+        // FIX: Usa helper locale per evitare shift UTC
+        return toLocalISOString(date);
     }
     if (format === 'day') {
         return date.toLocaleDateString('it-IT', { weekday: 'short' });
