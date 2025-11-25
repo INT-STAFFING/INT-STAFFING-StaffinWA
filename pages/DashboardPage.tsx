@@ -1,8 +1,3 @@
-
-
-
-
-
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -12,7 +7,8 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { getWorkingDaysBetween, isHoliday, formatDate } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { DashboardDataTable } from '../components/DashboardDataTable';
 import { ColumnDef } from '../components/DataTable';
 import {
@@ -86,7 +82,7 @@ const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any }> = ({
     </>
 );
 
-const AttentionCards: React.FC<{ overallKPIs: any, navigate: Function }> = ({ overallKPIs, navigate }) => (
+const AttentionCards: React.FC<{ overallKPIs: any, navigate: (path: string) => void }> = ({ overallKPIs, navigate }) => (
     <>
         <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px] border-l-4 border-error`} onClick={() => navigate('/resources?filter=unassigned')}>
             <div className="flex justify-between items-start w-full">
@@ -143,7 +139,7 @@ const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
     </div>
 );
 
-const LeavesOverviewCard: React.FC<{ navigate: Function }> = ({ navigate }) => {
+const LeavesOverviewCard: React.FC<{ navigate: (path: string) => void }> = ({ navigate }) => {
     const { leaveRequests, resources, leaveTypes } = useEntitiesContext();
     const { isAdmin } = useAuth();
     
@@ -241,7 +237,7 @@ const ViewToggleButton: React.FC<{ view: 'table' | 'graph', setView: (v: 'table'
 const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
-        { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
+        { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link href={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
         { header: 'Mese Corrente', sortKey: 'currentMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
         { header: 'Mese Prossimo', sortKey: 'nextMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</span> },
     ];
@@ -737,7 +733,7 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
 const DashboardPage: React.FC = () => {
     const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
-    const navigate = useNavigate();
+    const router = useRouter();
 
     // Tabs State
     const [activeTab, setActiveTab] = useState<string>('');
@@ -1249,13 +1245,15 @@ const DashboardPage: React.FC = () => {
     const budgetTotals = useMemo(() => {
         const budget = budgetAnalysisData.reduce((sum, d) => sum + d.budget, 0);
         const cost = budgetAnalysisData.reduce((sum, d) => sum + d.estimatedCost, 0);
-        return { budget, cost, variance: budget - cost };
+        const variance = budgetAnalysisData.reduce((sum, d) => sum + d.variance, 0);
+        return { budget, cost, variance };
     }, [budgetAnalysisData]);
 
     const temporalBudgetTotals = useMemo(() => {
         const budget = temporalBudgetAnalysisData.reduce((sum, d) => sum + d.periodBudget, 0);
         const cost = temporalBudgetAnalysisData.reduce((sum, d) => sum + d.estimatedCost, 0);
-        return { budget, cost, variance: budget - cost };
+        const variance = temporalBudgetAnalysisData.reduce((sum, d) => sum + d.variance, 0);
+        return { budget, cost, variance };
     }, [temporalBudgetAnalysisData]);
 
     const avgDailyRateTotals = useMemo(() => {
@@ -1264,119 +1262,65 @@ const DashboardPage: React.FC = () => {
         return { totalDays, totalCost, weightedAverage: totalDays > 0 ? totalCost / totalDays : 0 };
     }, [averageDailyRateData]);
 
+    const effortByHorizontalTotal = useMemo(() => {
+        return effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0);
+    }, [effortByHorizontalData]);
 
-    const effortByHorizontalTotal = useMemo(() => effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0), [effortByHorizontalData]);
-    
-    const resourceOptions = useMemo(() => activeResources.map((r) => ({ value: r.id!, label: r.name })), [activeResources]);
-    const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
-
-    // --- Dynamic Card Rendering Logic ---
-
-    const renderCardById = (id: DashboardCardId) => {
-        switch (id) {
-            case 'kpiHeader':
-                return <KpiHeaderCards key={id} overallKPIs={overallKPIs} currentMonthKPIs={currentMonthKPIs} />;
-            case 'attentionCards':
-                return <AttentionCards key={id} overallKPIs={overallKPIs} navigate={navigate} />;
-            case 'unallocatedFte':
-                return <UnallocatedFteCard key={id} kpis={currentMonthKPIs} />;
-            case 'leavesOverview':
-                return <LeavesOverviewCard key={id} navigate={navigate} />;
-            case 'averageAllocation': 
-                return <AverageAllocationCard key={id} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={resourceOptions} totals={avgAllocationTotals} isLoading={loading} />;
-            case 'ftePerProject':
-                return <FtePerProjectCard key={id} data={fteData} filter={fteFilter} setFilter={setFteFilter} clientOptions={clientOptions} totals={fteTotals} isLoading={loading} />;
-            case 'budgetAnalysis':
-                return <BudgetAnalysisCard key={id} data={budgetAnalysisData} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clientOptions} totals={budgetTotals} isLoading={loading} />;
-            case 'temporalBudgetAnalysis':
-                return <TemporalBudgetAnalysisCard key={id} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clientOptions} totals={temporalBudgetTotals} isLoading={loading} />;
-            case 'averageDailyRate':
-                return <AverageDailyRateCard key={id} data={averageDailyRateData} filter={avgDailyRateFilter} setFilter={setAvgDailyRateFilter} clientOptions={clientOptions} totals={avgDailyRateTotals} isLoading={loading} />;
-            case 'underutilizedResources':
-                return <UnderutilizedResourcesCard key={id} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} isLoading={loading} />;
-            case 'monthlyClientCost':
-                return <MonthlyClientCostCard key={id} data={currentMonthKPIs.clientCostArray} navigate={navigate} isLoading={loading} />;
-            case 'effortByHorizontal':
-                return <EffortByHorizontalCard key={id} data={effortByHorizontalData} total={effortByHorizontalTotal} isLoading={loading} />;
-            case 'locationAnalysis':
-                return <LocationAnalysisCard key={id} data={analysisByLocationData} isLoading={loading} />;
-            case 'saturationTrend':
-                return <SaturationTrendCard key={id} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={resourceOptions} data={saturationTrendData} />;
-            case 'costForecast':
-                return <CostForecastCard key={id} data={monthlyCostForecastData} />;
+    const renderCard = (cardId: string) => {
+        switch (cardId) {
+            case 'kpiHeader': return <KpiHeaderCards key={cardId} overallKPIs={overallKPIs} currentMonthKPIs={currentMonthKPIs} />;
+            case 'attentionCards': return <AttentionCards key={cardId} overallKPIs={overallKPIs} navigate={router.push} />;
+            case 'leavesOverview': return <LeavesOverviewCard key={cardId} navigate={router.push} />;
+            case 'unallocatedFte': return <UnallocatedFteCard key={cardId} kpis={currentMonthKPIs} />;
+            case 'averageAllocation': return <AverageAllocationCard key={cardId} data={averageAllocationData} filter={avgAllocFilter} setFilter={setAvgAllocFilter} resourceOptions={activeResources.map(r => ({ value: r.id!, label: r.name }))} totals={avgAllocationTotals} isLoading={loading} />;
+            case 'ftePerProject': return <FtePerProjectCard key={cardId} data={fteData} filter={fteFilter} setFilter={setFteFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={fteTotals} isLoading={loading} />;
+            case 'budgetAnalysis': return <BudgetAnalysisCard key={cardId} data={budgetAnalysisData} filter={budgetFilter} setFilter={setBudgetFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={budgetTotals} isLoading={loading} />;
+            case 'temporalBudgetAnalysis': return <TemporalBudgetAnalysisCard key={cardId} data={temporalBudgetAnalysisData} filter={temporalBudgetFilter} setFilter={setTemporalBudgetFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={temporalBudgetTotals} isLoading={loading} />;
+            case 'averageDailyRate': return <AverageDailyRateCard key={cardId} data={averageDailyRateData} filter={avgDailyRateFilter} setFilter={setAvgDailyRateFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={avgDailyRateTotals} isLoading={loading} />;
+            case 'underutilizedResources': return <UnderutilizedResourcesCard key={cardId} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} isLoading={loading} />;
+            case 'monthlyClientCost': return <MonthlyClientCostCard key={cardId} data={currentMonthKPIs.clientCostArray} navigate={router.push} isLoading={loading} />;
+            case 'effortByHorizontal': return <EffortByHorizontalCard key={cardId} data={effortByHorizontalData} total={effortByHorizontalTotal} isLoading={loading} />;
+            case 'locationAnalysis': return <LocationAnalysisCard key={cardId} data={analysisByLocationData} isLoading={loading} />;
+            case 'saturationTrend': return <SaturationTrendCard key={cardId} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={activeResources.map(r => ({ value: r.id!, label: r.name }))} data={saturationTrendData} />;
+            case 'costForecast': return <CostForecastCard key={cardId} data={monthlyCostForecastData} />;
             default: return null;
         }
     };
-    
-    // Get cards for active tab
-    const activeCategory = dashboardLayout.find(cat => cat.id === activeTab);
-    const activeCards = activeCategory ? activeCategory.cards : [];
 
-    // Render logic based on card type (kpi usually smaller, others larger)
-    const isKpiCard = (id: string) => ['kpiHeader', 'attentionCards', 'unallocatedFte', 'leavesOverview'].includes(id);
-    const isFullWidthCard = (id: string) => ['saturationTrend', 'costForecast'].includes(id);
-
-    const smallCards = activeCards.filter(id => isKpiCard(id));
-    const mediumCards = activeCards.filter(id => !isKpiCard(id) && !isFullWidthCard(id));
-    const largeCards = activeCards.filter(id => isFullWidthCard(id));
+    // If no layout defined (should not happen due to default), fallback
+    const activeCategory = dashboardLayout.find(c => c.id === activeTab) || dashboardLayout[0];
 
     return (
-        <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-on-background">Dashboard</h1>
-            </div>
-
+        <div className="space-y-6">
+            <h1 className="text-3xl font-bold text-on-surface">Dashboard</h1>
+            
             {/* Tabs */}
-            <div className="mb-8 border-b border-outline-variant overflow-x-auto">
-                <div className="flex space-x-2 pb-1">
-                    {dashboardLayout.map((category) => (
-                        <button
-                            key={category.id}
-                            onClick={() => setActiveTab(category.id)}
-                            className={`
-                                px-6 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap
-                                ${activeTab === category.id 
-                                    ? 'bg-primary text-on-primary shadow-md' 
-                                    : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-                                }
-                            `}
-                        >
-                            {category.label}
-                        </button>
-                    ))}
-                </div>
+            <div className="flex border-b border-outline-variant overflow-x-auto">
+                {dashboardLayout.map(cat => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setActiveTab(cat.id)}
+                        className={`flex items-center px-6 py-3 font-medium text-sm whitespace-nowrap transition-colors ${
+                            activeTab === cat.id || (!activeTab && cat.id === dashboardLayout[0].id)
+                                ? 'border-b-2 border-primary text-primary' 
+                                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
+                        }`}
+                    >
+                        {cat.label}
+                    </button>
+                ))}
             </div>
-            
-            {activeCards.length === 0 && (
-                <div className="text-center p-10 bg-surface rounded-2xl border border-dashed border-outline-variant text-on-surface-variant">
-                    Nessuna card presente in questa categoria.
-                </div>
-            )}
 
-            <div className="animate-fade-in">
-                {/* KPI Section */}
-                {smallCards.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        {smallCards.map(id => renderCardById(id as DashboardCardId))}
-                    </div>
-                )}
-
-                {/* Medium Section */}
-                {mediumCards.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        {mediumCards.map(id => renderCardById(id as DashboardCardId))}
-                    </div>
-                )}
-
-                {/* Full Width Section */}
-                {largeCards.length > 0 && (
-                    <div className="space-y-8">
-                        {largeCards.map(id => renderCardById(id as DashboardCardId))}
-                    </div>
-                )}
+            {/* Content */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in">
+                {activeCategory?.cards.map(cardId => {
+                    return (
+                        <React.Fragment key={cardId}>
+                            {renderCard(cardId)}
+                        </React.Fragment>
+                    );
+                })}
             </div>
-            
-            <style>{`.form-input, .form-select { display: block; width: 100%; border-radius: 0.375rem; border: 1px solid var(--color-outline); background-color: var(--color-surface-container-highest); padding: 0.5rem 0.75rem; font-size: 0.875rem; line-height: 1.25rem; } .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); ring: 2px solid var(--color-primary); }`}</style>
         </div>
     );
 };

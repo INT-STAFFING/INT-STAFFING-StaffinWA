@@ -1,4 +1,3 @@
-
 /**
  * @file ProjectsPage.tsx
  * @description Pagina per la gestione dei progetti (CRUD e visualizzazione).
@@ -12,7 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
 
@@ -29,7 +28,8 @@ const ProjectsPage: React.FC = () => {
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
     const [showOnlyUnstaffed, setShowOnlyUnstaffed] = useState(false);
-    const [searchParams, setSearchParams] = useSearchParams();
+    const searchParams = useSearchParams();
+    const router = useRouter();
     const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
      useEffect(() => {
@@ -40,16 +40,17 @@ const ProjectsPage: React.FC = () => {
         if (projectId) {
             setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: '', status: '' }));
             setShowOnlyUnstaffed(false);
-            setSearchParams({}, { replace: true });
+            // Remove query params
+            router.replace(window.location.pathname);
         } else if (clientId) {
             setFilters(prev => ({ ...prev, clientId, name: '', status: '' }));
             setShowOnlyUnstaffed(false);
-            setSearchParams({}, { replace: true });
+            router.replace(window.location.pathname);
         } else if (filter === 'unstaffed') {
             setShowOnlyUnstaffed(true);
-            setSearchParams({}, { replace: true });
+            router.replace(window.location.pathname);
         }
-    }, [searchParams, setSearchParams, projects]);
+    }, [searchParams, projects, router]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);

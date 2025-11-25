@@ -1,7 +1,5 @@
-
-
 import React, { useMemo } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useEntitiesContext } from '../context/AppContext';
 import { SidebarItem } from '../types';
@@ -17,27 +15,39 @@ interface NavItemProps {
     label: string;
     color?: string;
     badgeCount?: number;
+    onClick?: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount }) => {
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount, onClick }) => {
+    const pathname = usePathname();
+    const router = useRouter();
+    const isActive = pathname === to;
+
     // Helper to get dynamic style based on theme color key if present
-    const getColorStyle = (isActive: boolean) => {
-        if (isActive) return {}; // Active overrides color to primary usually
+    const getColorStyle = (active: boolean) => {
+        if (active) return {}; // Active overrides color to primary usually
         if (color) return { color: `var(--color-${color})` };
         return {};
     };
 
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (onClick) onClick();
+        router.push(to);
+    };
+
     return (
-    <NavLink
-        to={to}
-        className={({ isActive }) =>
+    <a
+        href={to}
+        onClick={handleClick}
+        className={
             `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 justify-between ${
                 isActive
                     ? 'text-primary bg-secondary-container border-r-4 border-primary'
                     : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
             }`
         }
-        style={({ isActive }) => getColorStyle(isActive)}
+        style={getColorStyle(isActive)}
     >
         <div className="flex items-center">
             <span className="material-symbols-outlined mr-3">{icon}</span>
@@ -48,14 +58,13 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount })
                 {badgeCount}
             </span>
         )}
-    </NavLink>
+    </a>
 )};
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { logout, user, isAdmin, hasPermission } = useAuth();
     const { sidebarConfig, sidebarSections, sidebarSectionColors, notifications } = useEntitiesContext();
-    const location = useLocation();
-
+    
     // Layout fix: Mobile is fixed (overlay/slide), Desktop is relative (flex item taking space)
     const sidebarClasses = `fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-outline-variant transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
@@ -92,6 +101,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         return sortedGroups;
     }, [sidebarConfig, sidebarSections]);
 
+    // Chiude la sidebar quando si clicca su un link (utile per mobile)
+    const handleLinkClick = () => {
+        setIsOpen(false);
+    };
+
     return (
         <aside className={sidebarClasses}>
             <div className="flex flex-col h-full">
@@ -125,6 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                         label={item.label} 
                                         color={item.color} 
                                         badgeCount={item.path === '/notifications' ? unreadNotifications : undefined}
+                                        onClick={handleLinkClick}
                                     />
                                 ))}
                             </div>
@@ -135,8 +150,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                     {isAdmin && (
                         <div className="pb-4">
                             <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Amministrazione</p>
-                            <NavItem to="/admin-settings" icon="admin_panel_settings" label="Impostazioni Admin" />
-                            <NavItem to="/db-inspector" icon="database" label="Database Inspector" />
+                            <NavItem to="/admin-settings" icon="admin_panel_settings" label="Impostazioni Admin" onClick={handleLinkClick} />
+                            <NavItem to="/db-inspector" icon="database" label="Database Inspector" onClick={handleLinkClick} />
                         </div>
                     )}
                 </nav>

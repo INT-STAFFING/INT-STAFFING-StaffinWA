@@ -75,7 +75,8 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
                     .range([0, width])
                     .padding(0.4);
 
-                const yMax = max(data, (d: any) => getNestedValue(d, config.yKey));
+                const rawYMax = max(data, (d: any) => getNestedValue(d, config.yKey));
+                const yMax = Number(rawYMax) || 0;
                 const y = scaleLinear()
                     .domain([0, (yMax > 0 ? yMax : 10) * 1.1])
                     .range([height, 0]);

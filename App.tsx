@@ -1,14 +1,15 @@
-
-
-
-
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
+ * Updated to use Next.js routing primitives instead of react-router-dom.
  */
 
 import React, { useState, lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+// Removed react-router-dom imports
+// import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+
 import { AppProvider, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -50,12 +51,22 @@ const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
 const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
 
+// Custom Navigate component to replace react-router-dom's Navigate
+const Navigate: React.FC<{ to: string; replace?: boolean }> = ({ to, replace }) => {
+  const router = useRouter();
+  useEffect(() => {
+    if (replace) router.replace(to);
+    else router.push(to);
+  }, [router, to, replace]);
+  return null;
+};
+
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-  const location = useLocation();
+  const pathname = usePathname();
   const { sidebarConfig } = useEntitiesContext();
 
   const getPageTitle = (pathname: string): string => {
@@ -76,7 +87,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     }
   };
   
-  const pageTitle = getPageTitle(location.pathname);
+  const pageTitle = getPageTitle(pathname || '/');
 
   return (
     <header className="flex-shrink-0 bg-surface border-b border-outline-variant sticky top-0 z-30">
@@ -92,7 +103,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         <nav aria-label="breadcrumb" className="flex-1 min-w-0">
           <ol className="flex items-center space-x-1 text-sm md:text-base truncate">
             <li>
-              <Link to="/staffing" className="text-on-surface-variant hover:text-on-surface hover:underline">
+              <Link href="/staffing" className="text-on-surface-variant hover:text-on-surface hover:underline">
                 Home
               </Link>
             </li>
@@ -162,64 +173,60 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
+  const pathname = usePathname() || '/';
+
+  // Manual Route Switching for SPA behavior without React Router
+  const renderPage = () => {
+    if (pathname === '/' || pathname === '') return <Navigate to="/staffing" replace />;
+    
+    // Main Pages
+    if (pathname === '/staffing') return <DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>;
+    if (pathname === '/resources') return <DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>;
+    if (pathname === '/skills') return <DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>;
+    if (pathname === '/projects') return <DynamicRoute path="/projects"><ProjectsPage /></DynamicRoute>;
+    if (pathname === '/clients') return <DynamicRoute path="/clients"><ClientsPage /></DynamicRoute>;
+    if (pathname === '/roles') return <DynamicRoute path="/roles"><RolesPage /></DynamicRoute>;
+    if (pathname === '/contracts') return <DynamicRoute path="/contracts"><ContractsPage /></DynamicRoute>;
+    if (pathname === '/dashboard') return <DynamicRoute path="/dashboard"><DashboardPage /></DynamicRoute>;
+    if (pathname === '/forecasting') return <DynamicRoute path="/forecasting"><ForecastingPage /></DynamicRoute>;
+    if (pathname === '/workload') return <DynamicRoute path="/workload"><WorkloadPage /></DynamicRoute>;
+    if (pathname === '/gantt') return <DynamicRoute path="/gantt"><GanttPage /></DynamicRoute>;
+    if (pathname === '/calendar') return <DynamicRoute path="/calendar"><CalendarPage /></DynamicRoute>;
+    if (pathname === '/export') return <DynamicRoute path="/export"><ExportPage /></DynamicRoute>;
+    if (pathname === '/import') return <DynamicRoute path="/import"><ImportPage /></DynamicRoute>;
+    if (pathname === '/config') return <DynamicRoute path="/config"><ConfigPage /></DynamicRoute>;
+    if (pathname === '/reports') return <DynamicRoute path="/reports"><ReportsPage /></DynamicRoute>;
+    if (pathname === '/resource-requests') return <DynamicRoute path="/resource-requests"><ResourceRequestPage /></DynamicRoute>;
+    if (pathname === '/interviews') return <DynamicRoute path="/interviews"><InterviewsPage /></DynamicRoute>;
+    if (pathname === '/skills-map') return <DynamicRoute path="/skills-map"><SkillsMapPage /></DynamicRoute>;
+    if (pathname === '/skill-analysis') return <DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>;
+    if (pathname === '/staffing-visualization') return <DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>;
+    if (pathname === '/manuale-utente') return <DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>;
+    if (pathname === '/simple-user-manual') return <DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>;
+    if (pathname === '/test-staffing') return <DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>;
+    if (pathname === '/leaves') return <DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>;
+    if (pathname === '/notifications') return <DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>;
+
+    // Admin Routes
+    if (pathname === '/admin-settings') return <AdminRoute><AdminSettingsPage /></AdminRoute>;
+    if (pathname === '/db-inspector') return <AdminRoute><DbInspectorPage /></AdminRoute>;
+
+    // Fallback / 404
+    return <Navigate to="/staffing" replace />;
+  };
 
   if (loading) {
     return loadingSpinner;
   }
 
   return (
-    // Reverted to flex layout without margin-left, as sidebar is now relative on desktop
     <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
       <Header onToggleSidebar={onToggleSidebar} />
 
       <main className="flex-1 overflow-y-auto bg-background pb-20 md:pb-0">
         <div className="w-full max-w-none px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           <Suspense fallback={loadingSpinner}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/staffing" replace />} />
-              <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
-              <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
-              <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />
-              <Route path="/projects" element={<DynamicRoute path="/projects"><ProjectsPage /></DynamicRoute>} />
-              <Route path="/clients" element={<DynamicRoute path="/clients"><ClientsPage /></DynamicRoute>} />
-              <Route path="/roles" element={<DynamicRoute path="/roles"><RolesPage /></DynamicRoute>} />
-              <Route path="/contracts" element={<DynamicRoute path="/contracts"><ContractsPage /></DynamicRoute>} />
-              <Route path="/dashboard" element={<DynamicRoute path="/dashboard"><DashboardPage /></DynamicRoute>} />
-              <Route path="/forecasting" element={<DynamicRoute path="/forecasting"><ForecastingPage /></DynamicRoute>} />
-              <Route path="/workload" element={<DynamicRoute path="/workload"><WorkloadPage /></DynamicRoute>} />
-              <Route path="/gantt" element={<DynamicRoute path="/gantt"><GanttPage /></DynamicRoute>} />
-              <Route path="/calendar" element={<DynamicRoute path="/calendar"><CalendarPage /></DynamicRoute>} />
-              <Route path="/export" element={<DynamicRoute path="/export"><ExportPage /></DynamicRoute>} />
-              <Route path="/import" element={<DynamicRoute path="/import"><ImportPage /></DynamicRoute>} />
-              <Route path="/config" element={<DynamicRoute path="/config"><ConfigPage /></DynamicRoute>} />
-              <Route path="/reports" element={<DynamicRoute path="/reports"><ReportsPage /></DynamicRoute>} />
-              <Route path="/resource-requests" element={<DynamicRoute path="/resource-requests"><ResourceRequestPage /></DynamicRoute>} />
-              <Route path="/interviews" element={<DynamicRoute path="/interviews"><InterviewsPage /></DynamicRoute>} />
-              <Route path="/skills-map" element={<DynamicRoute path="/skills-map"><SkillsMapPage /></DynamicRoute>} />
-              <Route path="/skill-analysis" element={<DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>} />
-              <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
-              <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
-              <Route path="/simple-user-manual" element={<DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>} /> 
-              <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
-              <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
-              <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
-              <Route
-                path="/admin-settings"
-                element={
-                  <AdminRoute>
-                    <AdminSettingsPage />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="/db-inspector"
-                element={
-                  <AdminRoute>
-                    <DbInspectorPage />
-                  </AdminRoute>
-                }
-              />
-            </Routes>
+            {renderPage()}
           </Suspense>
         </div>
       </main>
@@ -250,9 +257,6 @@ const ForcePasswordChange: React.FC = () => {
         setLoading(true);
         try {
             await changePassword(newPassword);
-            // Once changed, the context will update (or we should force a reload/logout if needed, 
-            // but ideally AuthContext updates the user state locally).
-            // Actually, context state update is needed. We'll reload for simplicity if context doesn't auto-update.
             window.location.reload();
         } catch (e) {
             setError('Errore durante il cambio password.');
@@ -373,31 +377,31 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
   return children;
 };
 
-const AppRoutes: React.FC = () => (
-  <Suspense fallback={loadingSpinner}>
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
-  </Suspense>
-);
+const AppRoutes: React.FC = () => {
+  const pathname = usePathname() || '/';
+  
+  // Manual routing
+  if (pathname === '/login') {
+    return <Suspense fallback={loadingSpinner}><LoginPage /></Suspense>;
+  }
 
+  return (
+    <Suspense fallback={loadingSpinner}>
+      <ProtectedRoute>
+        <MainLayout />
+      </ProtectedRoute>
+    </Suspense>
+  );
+};
+
+// App Component - Simplified to just providers and the route handler
 const App: React.FC = () => {
   return (
     <ThemeProvider>
       <ToastProvider>
         <AppProvider>
           <AuthProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+             <AppRoutes />
           </AuthProvider>
         </AppProvider>
       </ToastProvider>
