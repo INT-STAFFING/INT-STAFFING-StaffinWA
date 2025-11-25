@@ -4,6 +4,7 @@
  */
 
 import { db } from './db.js';
+import { performFullRecalculation } from './resources.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 /**
@@ -48,6 +49,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `, [assignmentId, date, percentage]);
             }
         }
+
+        // Trigger Recalculation (Write-Through Cache Strategy)
+        await performFullRecalculation(client);
 
         await client.query('COMMIT');
         return res.status(200).json({ message: 'Allocations updated successfully' });

@@ -1,6 +1,3 @@
-
-
-
 /**
  * @file api/data.ts
  * @description Endpoint API Dispatcher per recuperare i dati in base allo scope (metadata, planning, all).
@@ -77,7 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarConfigRes,
                 sidebarSectionsRes,
                 sidebarSectionColorsRes,
-                dashboardLayoutRes
+                dashboardLayoutRes,
+                analyticsRes // FETCH ANALYTICS CACHE
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -99,7 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_sections_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_section_colors';`,
-                db.sql`SELECT value FROM app_config WHERE key = 'dashboard_layout_v2';`
+                db.sql`SELECT value FROM app_config WHERE key = 'dashboard_layout_v2';`,
+                db.sql`SELECT * FROM analytics_cache WHERE key = 'dashboard_kpi_current';`
             ]);
 
              // Formatta le date del calendario
@@ -164,6 +163,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     console.error("Error parsing dashboard layout", e);
                 }
             }
+            
+            // Analytics Cache
+            let analyticsCache = {};
+            if (analyticsRes.rows.length > 0) {
+                analyticsCache = analyticsRes.rows[0].data;
+            }
 
             // Mappa Manager (Resource IDs)
             const managerResourceIds = managersRes.rows.map(r => r.resource_id);
@@ -199,7 +204,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarConfig,
                 sidebarSections,
                 sidebarSectionColors,
-                dashboardLayout
+                dashboardLayout,
+                analyticsCache // Pass cached analytics to frontend
             });
         }
 

@@ -1,8 +1,3 @@
-
-
-
-
-
 import type { VercelPool } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -61,6 +56,17 @@ export async function ensureDbTablesExist(db: VercelPool) {
     // This function is idempotent, thanks to "IF NOT EXISTS".
     // It can be safely called on every API request without performance issues on subsequent calls.
     await db.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
+
+    // --- ANALYTICS CACHE TABLE (New) ---
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS analytics_cache (
+            key VARCHAR(255) PRIMARY KEY,
+            data JSONB NOT NULL,
+            scope VARCHAR(100) DEFAULT 'GLOBAL',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_stale BOOLEAN DEFAULT FALSE
+        );
+    `;
 
     // Configuration Tables
     await db.sql`

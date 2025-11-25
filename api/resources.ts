@@ -1,5 +1,3 @@
-
-
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -58,6 +56,124 @@ const logAction = async (client: any, user: any, action: string, entity: string,
     }
 };
 
+// --- DATE UTILS (Internal copy to avoid import issues) ---
+const isHolidayInternal = (date: Date, resourceLocation: string | null, companyCalendar: any[]): boolean => {
+    const dateStr = date.toISOString().split('T')[0];
+    return companyCalendar.some(event => {
+        if (event.date !== dateStr) return false;
+        if (event.type === 'NATIONAL_HOLIDAY' || event.type === 'COMPANY_CLOSURE') return true;
+        if (event.type === 'LOCAL_HOLIDAY' && event.location === resourceLocation) return true;
+        return false;
+    });
+};
+
+// --- ANALYTICS RECALCULATION LOGIC ---
+export const performFullRecalculation = async (client: any) => {
+    // 1. Fetch raw data
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const resourcesRes = await client.query('SELECT * FROM resources WHERE resigned = FALSE');
+    const projectsRes = await client.query('SELECT * FROM projects');
+    const assignmentsRes = await client.query('SELECT * FROM assignments');
+    const allocationsRes = await client.query('SELECT * FROM allocations');
+    const calendarRes = await client.query('SELECT * FROM company_calendar');
+    const rolesRes = await client.query('SELECT * FROM roles');
+    const historyRes = await client.query('SELECT * FROM role_cost_history');
+
+    const resources = resourcesRes.rows;
+    const projects = projectsRes.rows;
+    const assignments = assignmentsRes.rows;
+    const allocations = allocationsRes.rows;
+    const calendar = calendarRes.rows.map((e: any) => ({ ...e, date: e.date.toISOString().split('T')[0] }));
+    const roles = rolesRes.rows;
+    const history = historyRes.rows;
+
+    // Helper to get daily rate
+    const getRate = (roleId: string, date: Date) => {
+        const dStr = date.toISOString().split('T')[0];
+        const h = history.find((r: any) => r.role_id === roleId && dStr >= r.start_date.toISOString().split('T')[0] && (!r.end_date || dStr <= r.end_date.toISOString().split('T')[0]));
+        if (h) return Number(h.daily_cost);
+        const r = roles.find((role: any) => role.id === roleId);
+        return r ? Number(r.daily_cost) : 0;
+    };
+
+    // --- KPI 1: Current Month Costs & Days ---
+    let totalCost = 0;
+    let totalDays = 0;
+    const clientCost: Record<string, number> = {};
+
+    const allocMap = new Map();
+    allocations.forEach((a: any) => {
+        const key = `${a.assignment_id}_${a.allocation_date.toISOString().split('T')[0]}`;
+        allocMap.set(key, a.percentage);
+    });
+
+    for (const assignment of assignments) {
+        const res = resources.find((r: any) => r.id === assignment.resource_id);
+        const proj = projects.find((p: any) => p.id === assignment.project_id);
+        if (!res || !proj) continue;
+
+        let cur = new Date(startOfMonth);
+        while (cur <= endOfMonth) {
+            const dStr = cur.toISOString().split('T')[0];
+            const pct = allocMap.get(`${assignment.id}_${dStr}`);
+            
+            if (pct && !isHolidayInternal(cur, res.location, calendar) && cur.getDay() !== 0 && cur.getDay() !== 6) {
+                const fraction = pct / 100;
+                const rate = getRate(res.role_id, cur);
+                const cost = fraction * rate * (proj.realization_percentage / 100);
+                
+                totalCost += cost;
+                totalDays += fraction;
+                
+                if (proj.client_id) {
+                    clientCost[proj.client_id] = (clientCost[proj.client_id] || 0) + cost;
+                }
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+    }
+
+    // --- KPI 2: Unallocated ---
+    const assignedResIds = new Set(assignments.map((a: any) => a.resource_id));
+    const unassignedCount = resources.filter((r: any) => !assignedResIds.has(r.id)).length;
+    
+    // --- KPI 3: Unstaffed Projects ---
+    const staffedProjIds = new Set(assignments.map((a: any) => a.project_id));
+    const unstaffedCount = projects.filter((p: any) => p.status === 'In corso' && !staffedProjIds.has(p.id)).length;
+
+    // --- KPI 4: Total Active Budget ---
+    const totalBudget = projects.reduce((sum: number, p: any) => {
+        if (p.status === 'In corso') {
+            return sum + Number(p.budget || 0);
+        }
+        return sum;
+    }, 0);
+
+    // --- Save to Cache ---
+    const kpiData = {
+        totalBudget,
+        totalCost,
+        totalPersonDays: totalDays,
+        totalActiveResources: resources.length,
+        totalActiveProjects: projects.filter((p: any) => p.status === 'In corso').length,
+        unassignedResources: resources.filter((r: any) => !assignedResIds.has(r.id)).map((r: any) => ({ id: r.id, name: r.name })),
+        unstaffedProjects: projects.filter((p: any) => p.status === 'In corso' && !staffedProjIds.has(p.id)).map((p: any) => ({ id: p.id, name: p.name })),
+        clientCostDistribution: clientCost,
+        lastCalc: new Date().toISOString()
+    };
+
+    await client.query(`
+        INSERT INTO analytics_cache (key, data, scope, updated_at)
+        VALUES ('dashboard_kpi_current', $1, 'GLOBAL', NOW())
+        ON CONFLICT (key) DO UPDATE SET data = $1, updated_at = NOW()
+    `, [JSON.stringify(kpiData)]);
+    
+    return kpiData;
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action, table, dialect, olderThanDays } = req.query;
@@ -65,6 +181,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
 
     try {
+        // --- ANALYTICS CACHE MANAGEMENT ---
+        if (entity === 'analytics_cache') {
+            // Allow roles: ADMIN, MANAGER, SENIOR MANAGER, MANAGING DIRECTOR
+            const allowedRoles = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
+            if (!currentUser || !allowedRoles.includes(currentUser.role)) {
+                return res.status(403).json({ error: 'Insufficient permissions to trigger recalculation.' });
+            }
+
+            if (method === 'POST' && action === 'recalc_all') {
+                const result = await performFullRecalculation(client);
+                await logAction(client, currentUser, 'RECALC_ANALYTICS', 'analytics_cache', null, { triggeredBy: currentUser.username }, req);
+                return res.status(200).json({ success: true, data: result });
+            }
+        }
+
         // --- CONFIG BATCH UPDATE ---
         if (entity === 'app-config-batch' && method === 'POST') {
             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
@@ -146,7 +277,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     username: r.username,
                     action: r.action,
                     entity: r.entity,
-                    entityId: r.entity_id,
+                    entity_id: r.entity_id,
                     details: r.details,
                     ipAddress: r.ip_address,
                     createdAt: r.created_at

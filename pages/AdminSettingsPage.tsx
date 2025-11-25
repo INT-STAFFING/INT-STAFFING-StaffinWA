@@ -843,13 +843,38 @@ const DashboardConfigSection: React.FC = () => {
     );
 };
 
+// --- NEW SECTION: Cache Control ---
+const CacheControlSection: React.FC = () => {
+    const { forceRecalculateAnalytics, isActionLoading } = useEntitiesContext();
+    
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6 mt-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Gestione Cache Analytics</h2>
+                    <p className="text-xs text-on-surface-variant">
+                        Gestisce i dati precalcolati per la Dashboard. I dati vengono aggiornati automaticamente, ma puoi forzarne il ricalcolo qui.
+                    </p>
+                </div>
+                <button 
+                    onClick={forceRecalculateAnalytics} 
+                    disabled={isActionLoading('recalculateAnalytics')}
+                    className="px-4 py-2 bg-tertiary-container text-on-tertiary-container rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50 hover:opacity-80"
+                >
+                    {isActionLoading('recalculateAnalytics') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">refresh</span> Forza Ricalcolo Totale</>}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
 
     const tabs = [
         { id: 'general', label: 'Generale', icon: 'settings' },
         { id: 'users', label: 'Utenti & Sicurezza', icon: 'security' },
-        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard_customize' }, // New Tab
+        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard_customize' }, 
         { id: 'audit', label: 'Audit Log', icon: 'history' },
         { id: 'menu', label: 'Menu & Navigazione', icon: 'menu_open' },
         { id: 'business', label: 'Logiche di Business', icon: 'domain' },
@@ -887,7 +912,12 @@ const AdminSettingsPage: React.FC = () => {
                         <PermissionMatrixSection />
                     </div>
                 )}
-                {activeTab === 'dashboard' && <DashboardConfigSection />}
+                {activeTab === 'dashboard' && (
+                    <div className="space-y-8">
+                        <DashboardConfigSection />
+                        <CacheControlSection /> 
+                    </div>
+                )}
                 {activeTab === 'audit' && <AuditLogSection />}
                 {activeTab === 'menu' && <MenuConfigurationEditor />}
                 {activeTab === 'business' && (
