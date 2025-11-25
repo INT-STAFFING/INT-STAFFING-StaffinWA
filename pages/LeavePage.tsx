@@ -1,3 +1,4 @@
+
 /**
  * @file LeavePage.tsx
  * @description Pagina per la gestione delle assenze con workflow di approvazione multipla.
@@ -328,7 +329,8 @@ const LeavePage: React.FC = () => {
         <tr key={req.id} className="hover:bg-surface-container group">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-end space-x-2 w-full">
+                {/* Changed justify-end to justify-center to keep buttons visible in sticky column */}
+                <div className="flex items-center justify-center space-x-2 w-full">
                     {/* Quick Action: Approve directly in table with visible styling */}
                     {canApprove(req) && (
                         <>

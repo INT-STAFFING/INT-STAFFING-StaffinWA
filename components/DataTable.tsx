@@ -1,3 +1,4 @@
+
 /**
  * @file DataTable.tsx
  * @description Componente generico e riutilizzabile per visualizzare dati in una tabella con ordinamento, filtri, layout responsive e colonne ridimensionabili/fisse.
@@ -85,7 +86,7 @@ export function DataTable<T extends { id?: string }>({
 
     // Costanti per il calcolo della larghezza
     const BUTTON_WIDTH = 45; // Larghezza stimata per un pulsante icona (con padding e gap)
-    const BASE_PADDING = 24; // Padding cella (px-2 + borders) o margine di sicurezza
+    const BASE_PADDING = 12; // RIDOTTO A 12PX COME RICHIESTO
 
     // Calcolo larghezza colonna azioni
     const finalActionsWidth = useMemo(() => {

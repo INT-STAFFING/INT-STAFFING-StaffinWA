@@ -13,6 +13,7 @@ import { getWorkingDaysBetween, isHoliday, formatDateFull } from '../utils/dateU
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
+import { useToast } from '../context/ToastContext';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -28,6 +29,7 @@ type EnrichedResource = Resource & {
 const ResourcesPage: React.FC = () => {
     const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading, loading, skills, resourceSkills, addResourceSkill, deleteResourceSkill } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
+    const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active' });
@@ -188,37 +190,67 @@ const ResourcesPage: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (editingResource) {
-            try {
-                let resourceId: string;
-                if ('id' in editingResource) {
-                    await updateResource(editingResource as Resource);
-                    resourceId = editingResource.id!;
-                } else {
-                    const newResource = await addResource(editingResource as Omit<Resource, 'id'>);
-                    resourceId = newResource.id!;
-                }
+        if (!editingResource) return;
 
-                // Update Skills
-                const oldSkills = resourceSkills.filter(rs => rs.resourceId === resourceId).map(rs => rs.skillId);
-                const currentSkillIds = selectedSkillDetails.map(s => s.skillId);
-                
-                const toAddOrUpdate = selectedSkillDetails;
-                const toRemove = oldSkills.filter(id => !currentSkillIds.includes(id));
-                
-                await Promise.all([
-                    ...toAddOrUpdate.map(detail => addResourceSkill({ 
-                        resourceId, 
-                        skillId: detail.skillId, 
-                        acquisitionDate: detail.acquisitionDate || null, 
-                        expirationDate: detail.expirationDate || null,
-                        level: detail.level
-                    })),
-                    ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
-                ]);
+        // Validazione Manuale
+        if (!editingResource.name || !editingResource.email || !editingResource.roleId || !editingResource.horizontal || !editingResource.location) {
+            addToast('Compila tutti i campi obbligatori (Nome, Email, Ruolo, Horizontal, Sede).', 'error');
+            return;
+        }
 
-                handleCloseModal();
-            } catch (e) {}
+        // Sanitizzazione Payload: rimuove campi extra derivanti da EnrichedResource (es. roleName)
+        const resourcePayload: any = {
+            name: editingResource.name,
+            email: editingResource.email,
+            roleId: editingResource.roleId,
+            horizontal: editingResource.horizontal,
+            location: editingResource.location,
+            hireDate: editingResource.hireDate || null, // Converti stringa vuota in null
+            workSeniority: editingResource.workSeniority || 0,
+            maxStaffingPercentage: editingResource.maxStaffingPercentage,
+            resigned: editingResource.resigned,
+            lastDayOfWork: editingResource.lastDayOfWork || null, // Converti stringa vuota in null
+            notes: editingResource.notes
+        };
+
+        // Se stiamo modificando, aggiungiamo l'ID
+        if ('id' in editingResource && editingResource.id) {
+            resourcePayload.id = editingResource.id;
+        }
+
+        try {
+            let resourceId: string;
+            if ('id' in editingResource) {
+                await updateResource(resourcePayload as Resource);
+                resourceId = editingResource.id!;
+            } else {
+                const newResource = await addResource(resourcePayload as Omit<Resource, 'id'>);
+                resourceId = newResource.id!;
+            }
+
+            // Update Skills
+            const oldSkills = resourceSkills.filter(rs => rs.resourceId === resourceId).map(rs => rs.skillId);
+            const currentSkillIds = selectedSkillDetails.map(s => s.skillId);
+            
+            const toAddOrUpdate = selectedSkillDetails;
+            const toRemove = oldSkills.filter(id => !currentSkillIds.includes(id));
+            
+            await Promise.all([
+                ...toAddOrUpdate.map(detail => addResourceSkill({ 
+                    resourceId, 
+                    skillId: detail.skillId, 
+                    acquisitionDate: detail.acquisitionDate || null, 
+                    expirationDate: detail.expirationDate || null,
+                    level: detail.level
+                })),
+                ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
+            ]);
+
+            addToast('Risorsa salvata con successo!', 'success');
+            handleCloseModal();
+        } catch (e) {
+            console.error(e);
+            addToast('Errore durante il salvataggio della risorsa.', 'error');
         }
     };
 
@@ -288,7 +320,17 @@ const ResourcesPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
     
-    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateResource(inlineEditingData); handleCancelInlineEdit(); } };
+    const handleSaveInlineEdit = async () => { 
+        if (inlineEditingData) { 
+            try {
+                await updateResource(inlineEditingData); 
+                addToast('Risorsa aggiornata.', 'success');
+                handleCancelInlineEdit(); 
+            } catch (e) {
+                addToast('Errore aggiornamento rapido.', 'error');
+            }
+        } 
+    };
     
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);
     const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
