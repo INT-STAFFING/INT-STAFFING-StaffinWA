@@ -14,7 +14,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../context/AuthContext';
-import { formatDateFull, getWorkingDaysBetween } from '../utils/dateUtils';
+import { formatDateFull, getWorkingDaysBetween, getCalendarDays, formatDate, isHoliday } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
 
 // --- Helper Types ---
@@ -24,6 +24,8 @@ type EnrichedLeaveRequest = LeaveRequest & {
     typeColor: string;
     approverNames: string;
 };
+
+type ViewMode = 'table' | 'card' | 'calendar';
 
 // --- Helper Functions ---
 const getStatusBadgeClass = (status: LeaveStatus) => {
@@ -47,6 +49,8 @@ const LeavePage: React.FC = () => {
     const { addToast } = useToast();
 
     // State
+    const [view, setView] = useState<ViewMode>('table');
+    const [calendarDate, setCalendarDate] = useState(new Date());
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | Omit<LeaveRequest, 'id'> | null>(null);
     const [deleteRequest, setDeleteRequest] = useState<LeaveRequest | null>(null);
@@ -132,6 +136,49 @@ const LeavePage: React.FC = () => {
         }).sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     }, [enrichedRequests, filters, user]);
 
+    // --- Calendar Data Generation ---
+    const calendarGrid = useMemo(() => {
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        
+        // Calculate start date of the grid (monday of the first week)
+        const startDate = new Date(firstDayOfMonth);
+        const dayOfWeek = startDate.getDay(); // 0 (Sun) to 6 (Sat)
+        const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+        startDate.setDate(diff);
+
+        // Generate 42 days (6 weeks) to cover any month
+        const days = [];
+        const currentDay = new Date(startDate);
+        
+        for (let i = 0; i < 42; i++) {
+            const dateIso = currentDay.toISOString().split('T')[0];
+            const isCurrentMonth = currentDay.getMonth() === month;
+            
+            // Find leaves for this day
+            const dayLeaves = filteredRequests.filter(req => 
+                dateIso >= req.startDate && dateIso <= req.endDate
+            );
+
+            // Check holiday
+            const holiday = isHoliday(currentDay, null, companyCalendar);
+            
+            days.push({
+                date: new Date(currentDay),
+                dateIso,
+                isCurrentMonth,
+                leaves: dayLeaves,
+                isHoliday: holiday,
+                isWeekend: currentDay.getDay() === 0 || currentDay.getDay() === 6
+            });
+            currentDay.setDate(currentDay.getDate() + 1);
+        }
+        return days;
+    }, [calendarDate, filteredRequests, companyCalendar]);
+
     // --- Options ---
     const resourceOptions = useMemo(() => {
         let list = resources.filter(r => !r.resigned);
@@ -180,6 +227,19 @@ const LeavePage: React.FC = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingRequest(null);
+    };
+
+    // --- Calendar Navigation ---
+    const nextMonth = () => {
+        setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
+    };
+    
+    const prevMonth = () => {
+        setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
+    };
+    
+    const currentMonth = () => {
+        setCalendarDate(new Date());
     };
 
     // --- Helper for Assignments Access ---
@@ -296,7 +356,7 @@ const LeavePage: React.FC = () => {
         return user?.resourceId && req.approverIds?.includes(user.resourceId);
     };
 
-    // --- Columns ---
+    // --- Columns for Table ---
     const columns: ColumnDef<EnrichedLeaveRequest>[] = [
         { header: 'Risorsa', sortKey: 'resourceName', cell: r => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.resourceName}</span> },
         { header: 'Tipo', sortKey: 'typeName', cell: r => (
@@ -329,9 +389,7 @@ const LeavePage: React.FC = () => {
         <tr key={req.id} className="hover:bg-surface-container group">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                {/* Changed justify-end to justify-center to keep buttons visible in sticky column */}
                 <div className="flex items-center justify-center space-x-2 w-full">
-                    {/* Quick Action: Approve directly in table with visible styling */}
                     {canApprove(req) && (
                         <>
                             <button onClick={() => handleApprove(req)} className="text-green-600 hover:bg-green-100 p-1 rounded transition-colors" title="Approva">
@@ -395,6 +453,38 @@ const LeavePage: React.FC = () => {
 
     return (
         <div>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
+                
+                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    {/* View Switcher */}
+                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                        <button 
+                            onClick={() => setView('table')} 
+                            className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-2 transition-all ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
+                        >
+                            <span className="material-symbols-outlined text-lg">table_rows</span> Tabella
+                        </button>
+                        <button 
+                            onClick={() => setView('card')} 
+                            className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-2 transition-all ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
+                        >
+                            <span className="material-symbols-outlined text-lg">grid_view</span> Card
+                        </button>
+                        <button 
+                            onClick={() => setView('calendar')} 
+                            className={`px-3 py-1.5 text-sm font-medium rounded-full flex items-center gap-2 transition-all ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
+                        >
+                            <span className="material-symbols-outlined text-lg">calendar_month</span> Calendario
+                        </button>
+                    </div>
+
+                    <button onClick={openModalForNew} className="px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 w-full md:w-auto flex justify-center items-center gap-2">
+                        <span className="material-symbols-outlined">add_circle</span> Nuova Richiesta
+                    </button>
+                </div>
+            </div>
+
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div 
@@ -420,20 +510,133 @@ const LeavePage: React.FC = () => {
                 </div>
             </div>
 
-            <DataTable<EnrichedLeaveRequest>
-                title="Gestione Assenze"
-                addNewButtonLabel="Nuova Richiesta"
-                data={filteredRequests}
-                columns={columns}
-                filtersNode={filtersNode}
-                onAddNew={openModalForNew}
-                renderRow={renderRow}
-                renderMobileCard={renderMobileCard}
-                initialSortKey="startDate"
-                isLoading={loading}
-                tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                numActions={4} // APPROVA, RIFIUTA, MODIFICA, ELIMINA
-            />
+            {/* CONDITIONAL CONTENT BASED ON VIEW */}
+            {view === 'table' && (
+                <DataTable<EnrichedLeaveRequest>
+                    title=""
+                    addNewButtonLabel=""
+                    data={filteredRequests}
+                    columns={columns}
+                    filtersNode={filtersNode}
+                    onAddNew={() => {}}
+                    renderRow={renderRow}
+                    renderMobileCard={renderMobileCard}
+                    initialSortKey="startDate"
+                    isLoading={loading}
+                    tableLayout={{ dense: true, striped: true, headerSticky: true }}
+                    numActions={4}
+                />
+            )}
+
+            {view === 'card' && (
+                <div className="space-y-6">
+                    <div className="bg-surface rounded-2xl shadow p-4">{filtersNode}</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+                        {filteredRequests.map(req => (
+                            <div key={req.id} className="bg-surface rounded-2xl shadow p-4 border-l-4 relative" style={{ borderLeftColor: req.typeColor }}>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-bold text-lg text-on-surface">{req.resourceName}</h3>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(req.status)}`}>{req.status}</span>
+                                </div>
+                                <div className="text-sm text-on-surface-variant space-y-1 mb-4">
+                                    <div className="flex justify-between">
+                                        <span>Tipo:</span>
+                                        <span className="font-medium text-on-surface flex items-center gap-1">
+                                            {req.typeName}
+                                            {req.isHalfDay && <span className="text-[10px] bg-secondary-container text-on-secondary-container px-1 rounded">1/2</span>}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Dal:</span>
+                                        <span className="font-medium text-on-surface">{formatDateFull(req.startDate)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Al:</span>
+                                        <span className="font-medium text-on-surface">{formatDateFull(req.endDate)}</span>
+                                    </div>
+                                    {req.notes && <div className="pt-1 italic text-xs border-t border-outline-variant mt-2">"{req.notes}"</div>}
+                                </div>
+                                <div className="flex justify-end gap-2 border-t border-outline-variant pt-2">
+                                    {canApprove(req) && (
+                                        <>
+                                            <button onClick={() => handleApprove(req)} className="p-1 text-tertiary hover:bg-tertiary-container rounded"><span className="material-symbols-outlined">check_circle</span></button>
+                                            <button onClick={() => handleReject(req)} className="p-1 text-error hover:bg-error-container rounded"><span className="material-symbols-outlined">cancel</span></button>
+                                        </>
+                                    )}
+                                    {(isAdmin || req.resourceId === user?.resourceId) && (
+                                        <>
+                                            <button onClick={() => openModalForEdit(req)} className="p-1 text-primary hover:bg-primary-container rounded"><span className="material-symbols-outlined">edit</span></button>
+                                            <button onClick={() => setDeleteRequest(req)} className="p-1 text-error hover:bg-error-container rounded"><span className="material-symbols-outlined">delete</span></button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {view === 'calendar' && (
+                <div className="bg-surface rounded-2xl shadow p-4">
+                    {/* Calendar Controls */}
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-on-surface capitalize">
+                            {calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <button onClick={prevMonth} className="p-2 rounded-full hover:bg-surface-container text-on-surface"><span className="material-symbols-outlined">chevron_left</span></button>
+                            <button onClick={currentMonth} className="px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-sm font-medium">Oggi</button>
+                            <button onClick={nextMonth} className="p-2 rounded-full hover:bg-surface-container text-on-surface"><span className="material-symbols-outlined">chevron_right</span></button>
+                        </div>
+                    </div>
+
+                    {/* Filter bar for calendar (simplified) */}
+                    <div className="mb-4">{filtersNode}</div>
+
+                    {/* Calendar Grid */}
+                    <div className="grid grid-cols-7 border-l border-t border-outline-variant">
+                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                            <div key={day} className="p-2 text-center font-bold text-on-surface-variant bg-surface-container-low border-r border-b border-outline-variant text-sm">
+                                {day}
+                            </div>
+                        ))}
+                        
+                        {calendarGrid.map((day, idx) => (
+                            <div 
+                                key={idx} 
+                                className={`min-h-[100px] p-1 border-r border-b border-outline-variant flex flex-col ${
+                                    !day.isCurrentMonth ? 'bg-surface-container/30' : day.isHoliday || day.isWeekend ? 'bg-surface-container-low' : 'bg-surface'
+                                }`}
+                            >
+                                <div className={`text-right text-xs font-medium mb-1 ${day.dateIso === new Date().toISOString().split('T')[0] ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>
+                                    {day.date.getDate()}
+                                </div>
+                                <div className="flex-grow space-y-1 overflow-y-auto max-h-[120px]">
+                                    {day.leaves.map((leave, i) => {
+                                        if (i > 2) return null; // Show max 3 per day
+                                        return (
+                                            <div 
+                                                key={leave.id} 
+                                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+                                                style={{ backgroundColor: leave.typeColor, color: '#000000' }} // Ensure text contrast
+                                                onClick={() => openModalForEdit(leave)}
+                                                title={`${leave.resourceName} - ${leave.typeName} (${leave.status})`}
+                                            >
+                                                {leave.resourceName}
+                                            </div>
+                                        );
+                                    })}
+                                    {day.leaves.length > 3 && (
+                                        <div className="text-[10px] text-center text-on-surface-variant italic">
+                                            +{day.leaves.length - 3} altri
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Edit/Create Modal */}
             {editingRequest && (
