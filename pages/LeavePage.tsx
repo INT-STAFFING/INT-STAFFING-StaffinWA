@@ -13,7 +13,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useAuth } from '../context/AuthContext';
-import { formatDateFull } from '../utils/dateUtils';
+import { formatDateFull, getWorkingDaysBetween } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
 
 // --- Helper Types ---
@@ -36,7 +36,7 @@ const getStatusBadgeClass = (status: LeaveStatus) => {
 
 const LeavePage: React.FC = () => {
     const { 
-        leaveRequests, resources, leaveTypes, managerResourceIds,
+        leaveRequests, resources, leaveTypes, managerResourceIds, companyCalendar,
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, 
         isActionLoading, loading 
     } = useEntitiesContext();
@@ -307,10 +307,17 @@ const LeavePage: React.FC = () => {
         )},
         // Utilizzo formatDateFull per visualizzare GG/MM/AAAA
         { header: 'Periodo', sortKey: 'startDate', cell: r => <span className="text-sm text-on-surface-variant">{formatDateFull(r.startDate)} - {formatDateFull(r.endDate)}</span> },
-        { header: 'Giorni', cell: r => {
-            const diff = Math.ceil((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-            const effectiveDays = r.isHalfDay ? diff * 0.5 : diff;
-            return <span className="text-sm">{effectiveDays} gg</span>;
+        { header: 'Giorni (Lav.)', cell: r => {
+            const resource = resources.find(res => res.id === r.resourceId);
+            const workingDays = getWorkingDaysBetween(
+                new Date(r.startDate), 
+                new Date(r.endDate), 
+                companyCalendar, 
+                resource?.location || null
+            );
+            const effectiveDays = r.isHalfDay ? workingDays * 0.5 : workingDays;
+            
+            return <span className="text-sm font-semibold">{effectiveDays} gg</span>;
         }},
         { header: 'Richiesto A', cell: r => <span className="text-xs text-on-surface-variant truncate max-w-xs block" title={r.approverNames}>{r.approverNames}</span> },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
@@ -321,7 +328,7 @@ const LeavePage: React.FC = () => {
         <tr key={req.id} className="hover:bg-surface-container group">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-end space-x-2">
+                <div className="flex items-center justify-end space-x-2 w-full">
                     {/* Quick Action: Approve directly in table with visible styling */}
                     {canApprove(req) && (
                         <>
@@ -423,6 +430,7 @@ const LeavePage: React.FC = () => {
                 initialSortKey="startDate"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}
+                numActions={4} // APPROVA, RIFIUTA, MODIFICA, ELIMINA
             />
 
             {/* Edit/Create Modal */}

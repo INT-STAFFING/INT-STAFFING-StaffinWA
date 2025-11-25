@@ -227,6 +227,7 @@ const ClientsPage: React.FC = () => {
                 tableClassNames={{
                     base: 'w-full text-sm',
                 }}
+                numActions={3} // MODIFICA, EDIT VELOCE, ELIMINA
             />
             
             {editingClient && (

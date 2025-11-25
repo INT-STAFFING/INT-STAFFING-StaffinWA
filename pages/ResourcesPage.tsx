@@ -454,6 +454,7 @@ const ResourcesPage: React.FC = () => {
                 tableClassNames={{
                     base: 'w-full text-sm',
                 }}
+                numActions={3} // MODIFICA, EDIT VELOCE, ELIMINA
             />
             
             {/* Modals are the same as previous version, just keeping them for completeness if needed */}

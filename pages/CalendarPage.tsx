@@ -1,4 +1,3 @@
-
 /**
  * @file CalendarPage.tsx
  * @description Pagina per la gestione del calendario aziendale (festività, chiusure) utilizzando DataTable.
@@ -184,6 +183,7 @@ const CalendarPage: React.FC = () => {
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
                 tableClassNames={{ base: 'w-full text-sm' }}
+                numActions={2} // MODIFICA, ELIMINA
             />
 
             {editingEvent && (

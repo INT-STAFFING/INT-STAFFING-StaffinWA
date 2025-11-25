@@ -49,7 +49,8 @@ interface DataTableProps<T extends { id?: string }> {
     emptyMessage?: React.ReactNode;
     tableLayout?: TableLayoutProps;
     tableClassNames?: TableClassNames;
-    actionsWidth?: number; // Opzionale: larghezza personalizzata per la colonna azioni
+    actionsWidth?: number; // Opzionale: larghezza personalizzata manuale
+    numActions?: number;   // Opzionale: numero di pulsanti azione per calcolo automatico larghezza
 }
 
 /** Utility per combinare classNames */
@@ -71,7 +72,8 @@ export function DataTable<T extends { id?: string }>({
     emptyMessage,
     tableLayout,
     tableClassNames,
-    actionsWidth = 130, // Default aumentato a 130px per accomodare 3 icone
+    actionsWidth,
+    numActions,
 }: DataTableProps<T>) {
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(
         initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null
@@ -81,12 +83,25 @@ export function DataTable<T extends { id?: string }>({
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const tableRef = useRef<HTMLTableElement>(null);
 
+    // Costanti per il calcolo della larghezza
+    const BUTTON_WIDTH = 45; // Larghezza stimata per un pulsante icona (con padding e gap)
+    const BASE_PADDING = 24; // Padding cella (px-2 + borders) o margine di sicurezza
+
+    // Calcolo larghezza colonna azioni
+    const finalActionsWidth = useMemo(() => {
+        if (actionsWidth) return actionsWidth;
+        if (numActions !== undefined) {
+            return Math.max((numActions * BUTTON_WIDTH) + BASE_PADDING, 100);
+        }
+        return 130; // Default storico
+    }, [actionsWidth, numActions]);
+
     // Inizializza le larghezze delle colonne se non settate
     useEffect(() => {
         if (tableRef.current && Object.keys(columnWidths).length === 0) {
             const initialWidths: Record<string, number> = {};
             // Distribuzione equa iniziale o basata su minWidth
-            const totalWidth = tableRef.current.offsetWidth - actionsWidth; 
+            const totalWidth = tableRef.current.offsetWidth - finalActionsWidth; 
             const defaultWidth = Math.max(150, totalWidth / columns.length);
             
             columns.forEach(col => {
@@ -94,7 +109,7 @@ export function DataTable<T extends { id?: string }>({
             });
             setColumnWidths(initialWidths);
         }
-    }, [columns, actionsWidth]);
+    }, [columns, finalActionsWidth]);
 
     const layout: Required<TableLayoutProps> = {
         dense: tableLayout?.dense ?? false,
@@ -203,7 +218,7 @@ export function DataTable<T extends { id?: string }>({
         // Logica Sticky per header
         const isFirstDataCol = index === 0;
         const stickyClass = isFirstDataCol 
-            ? `sticky left-[${actionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+            ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
             : 'relative'; 
 
         const bgClass = layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface';
@@ -260,12 +275,14 @@ export function DataTable<T extends { id?: string }>({
                 <h1 className="text-3xl font-bold text-on-surface self-start">
                     {title}
                 </h1>
-                <button
-                    onClick={onAddNew}
-                    className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
-                >
-                    {addNewButtonLabel}
-                </button>
+                {title && addNewButtonLabel && (
+                    <button
+                        onClick={onAddNew}
+                        className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
+                    >
+                        {addNewButtonLabel}
+                    </button>
+                )}
             </div>
 
             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
@@ -293,7 +310,7 @@ export function DataTable<T extends { id?: string }>({
                                             layout.headerBorder && 'border-b border-outline-variant',
                                             'text-center text-xs font-medium text-on-surface-variant uppercase tracking-wider border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
                                         )}
-                                        style={{ minWidth: `${actionsWidth}px`, width: `${actionsWidth}px` }}
+                                        style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
                                     >
                                         Azioni
                                     </th>
@@ -310,7 +327,7 @@ export function DataTable<T extends { id?: string }>({
                                             'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
                                             layout.headerSticky && 'sticky top-[45px]' // Offset approssimativo dell'header sopra
                                         )}
-                                        style={{ minWidth: `${actionsWidth}px`, width: `${actionsWidth}px` }}
+                                        style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
                                     >
                                         {/* Placeholder */}
                                     </th>
@@ -320,7 +337,7 @@ export function DataTable<T extends { id?: string }>({
                                         const key = col.sortKey || col.header;
                                         const isFirstDataCol = index === 0;
                                         const stickyClass = isFirstDataCol 
-                                            ? `sticky left-[${actionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+                                            ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
                                             : 'relative z-10';
                                         
                                         return (
@@ -382,7 +399,7 @@ export function DataTable<T extends { id?: string }>({
                                                             "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
                                                             "whitespace-nowrap"
                                                         )}
-                                                        style={{ width: `${actionsWidth}px`, minWidth: `${actionsWidth}px` }}
+                                                        style={{ width: `${finalActionsWidth}px`, minWidth: `${finalActionsWidth}px` }}
                                                     >
                                                         {actionCell && actionCell.props.children}
                                                     </td>
@@ -391,7 +408,7 @@ export function DataTable<T extends { id?: string }>({
                                                     {dataCells.map((cell, cellIndex) => {
                                                         const isFirstDataCol = cellIndex === 0;
                                                         const stickyClass = isFirstDataCol 
-                                                            ? `sticky left-[${actionsWidth}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
+                                                            ? `sticky left-[${finalActionsWidth}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
                                                             : '';
                                                         
                                                         const safeCell = cell as React.ReactElement<any>;

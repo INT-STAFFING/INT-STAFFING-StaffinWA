@@ -344,6 +344,7 @@ export const ResourceRequestPage: React.FC = () => {
                             tableClassNames={{
                                 base: 'w-full text-sm',
                             }}
+                            numActions={2} // MODIFICA, ELIMINA
                         />
                     </div>
                 </div>

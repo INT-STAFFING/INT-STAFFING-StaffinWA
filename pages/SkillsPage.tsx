@@ -1,4 +1,3 @@
-
 /**
  * @file SkillsPage.tsx
  * @description Pagina per la gestione delle Competenze (Skills) - CRUD, Dashboard e Visualizzazione.
@@ -364,6 +363,7 @@ const SkillsPage: React.FC = () => {
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
+                    numActions={3} // ASSEGNA, MODIFICA, ELIMINA
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

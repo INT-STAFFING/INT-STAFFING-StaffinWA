@@ -1,4 +1,3 @@
-
 /**
  * @file ContractsPage.tsx
  * @description Pagina per la gestione dei contratti (CRUD e visualizzazione).
@@ -238,8 +237,9 @@ export const ContractsPage: React.FC = () => {
                 renderMobileCard={renderMobileCard}
                 initialSortKey="name"
                 isLoading={loading}
-                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
                 tableClassNames={{ base: 'w-full text-sm' }}
+                numActions={3} // RICALCOLA, MODIFICA, ELIMINA
             />
             {editingContract && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingContract ? 'Modifica Contratto' : 'Nuovo Contratto'}>
