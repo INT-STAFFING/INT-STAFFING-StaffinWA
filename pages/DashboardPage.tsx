@@ -1,3 +1,4 @@
+
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -398,12 +399,12 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
-                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                     <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
-                    <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                        <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-start xl:justify-end items-center">
+                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
+                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
+                        <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                     </div>
                 </div>
@@ -452,12 +453,12 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                     <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
-                     <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5"/>
-                        <div className="w-full md:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                     <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-start xl:justify-end items-center">
+                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
+                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
+                        <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                     </div>
                 </div>
@@ -1312,7 +1313,7 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
                 {activeCategory?.cards.map(cardId => {
                     return (
                         <React.Fragment key={cardId}>
