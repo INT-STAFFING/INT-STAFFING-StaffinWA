@@ -189,6 +189,26 @@ const LeavePage: React.FC = () => {
         }
     };
 
+    const handleQuickAction = async (req: typeof enrichedRequests[0], newStatus: LeaveStatus) => {
+        try {
+            const payload: LeaveRequest = {
+                id: req.id,
+                resourceId: req.resourceId,
+                typeId: req.typeId,
+                startDate: req.startDate,
+                endDate: req.endDate,
+                status: newStatus,
+                managerId: user?.resourceId, // L'utente corrente agisce come manager
+                approverIds: req.approverIds,
+                notes: req.notes,
+                isHalfDay: req.isHalfDay
+            };
+            await updateLeaveRequest(payload);
+        } catch (e) {
+            console.error("Failed quick action", e);
+        }
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (!editingRequest) return;
         const { name, value, type } = e.target;
@@ -240,17 +260,41 @@ const LeavePage: React.FC = () => {
         )},
     ];
 
-    const renderRow = (req: typeof enrichedRequests[0]) => (
-        <tr key={req.id} className="hover:bg-surface-container-low group">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-center space-x-3">
-                    <button onClick={() => openEditRequestModal(req)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => setRequestToDelete(req)} className="text-on-surface-variant hover:text-error" title="Elimina"><span className="material-symbols-outlined">delete</span></button>
-                </div>
-            </td>
-        </tr>
-    );
+    const renderRow = (req: typeof enrichedRequests[0]) => {
+        const canApprove = req.status === 'PENDING' && (isAdmin || (user?.resourceId && req.approverIds?.includes(user.resourceId)));
+        const isSelf = req.resourceId === user?.resourceId;
+
+        return (
+            <tr key={req.id} className="hover:bg-surface-container-low group">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
+                    <div className="flex items-center justify-end space-x-2">
+                        {canApprove && (
+                            <>
+                                <button onClick={() => handleQuickAction(req, 'APPROVED')} className="p-1 text-tertiary hover:bg-tertiary-container rounded-full" title="Approva">
+                                    <span className="material-symbols-outlined">check_circle</span>
+                                </button>
+                                <button onClick={() => handleQuickAction(req, 'REJECTED')} className="p-1 text-error hover:bg-error-container rounded-full" title="Rifiuta">
+                                    <span className="material-symbols-outlined">cancel</span>
+                                </button>
+                                <div className="w-px h-4 bg-outline-variant mx-1"></div>
+                            </>
+                        )}
+                        {(isAdmin || isSelf) && (
+                            <button onClick={() => openEditRequestModal(req)} className="text-on-surface-variant hover:text-primary p-1" title="Modifica">
+                                <span className="material-symbols-outlined">edit</span>
+                            </button>
+                        )}
+                        {(isAdmin || (isSelf && req.status === 'PENDING')) && (
+                            <button onClick={() => setRequestToDelete(req)} className="text-on-surface-variant hover:text-error p-1" title="Elimina">
+                                <span className="material-symbols-outlined">delete</span>
+                            </button>
+                        )}
+                    </div>
+                </td>
+            </tr>
+        );
+    };
 
     const renderCard = (req: typeof enrichedRequests[0]) => (
         <div key={req.id} className="bg-surface p-4 rounded-2xl shadow border-l-4 flex flex-col gap-3" style={{ borderLeftColor: req.typeColor }}>
