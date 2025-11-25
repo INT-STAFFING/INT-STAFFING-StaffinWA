@@ -15,7 +15,7 @@ import BottomNavBar from './components/BottomNavBar';
 import { SpinnerIcon } from './components/icons';
 
 // Lazy load all page components for code splitting
-const StaffingPage = lazy(() => import('./pages/StaffingPage'));
+const StaffingPage = lazy(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const ClientsPage = lazy(() => import('./pages/ClientsPage'));

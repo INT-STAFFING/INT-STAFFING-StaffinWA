@@ -101,10 +101,10 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                     <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
                     <td className="px-6 py-4 text-right sticky right-0 bg-inherit"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-primary hover:opacity-80 disabled:opacity-50">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full hover:bg-surface-container text-primary disabled:opacity-50">
                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-1 text-on-surface-variant hover:opacity-80"><span className="material-symbols-outlined">close</span></button>
+                        <button onClick={handleCancelInlineEdit} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant"><span className="material-symbols-outlined">close</span></button>
                     </div></td>
                 </tr>
             );
@@ -113,10 +113,10 @@ const RolesPage: React.FC = () => {
             <tr key={role.id} className="group h-16 hover:bg-surface-container">
                 {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((role as any)[col.sortKey] || '') : undefined}>{col.cell(role)}</td>)}
                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
-                    <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(role)} className="text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                    <div className="flex items-center justify-end space-x-2">
+                        <button onClick={() => openModalForEdit(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteRole(role.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
                            {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
@@ -224,9 +224,9 @@ const RolesPage: React.FC = () => {
                                 <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || 0} onChange={handleChange} className="form-input"/>
                             </div>
                         </div>
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
                                 {(isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

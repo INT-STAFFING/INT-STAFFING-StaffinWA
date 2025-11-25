@@ -1,4 +1,3 @@
-
 /**
  * @file TestStaffingPage.tsx
  * @description Pagina di test per la visualizzazione dello staffing con Responsive Layout Switching.
@@ -583,8 +582,33 @@ const TestStaffingPage: React.FC = () => {
 
       {/* Modali Comuni */}
       {assignmentToDelete && <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={() => { if (assignmentToDelete) { deleteAssignment(assignmentToDelete.id!); setAssignmentToDelete(null); } }} title="Conferma Rimozione" message={<>Sei sicuro di voler rimuovere l'assegnazione di <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong> dal progetto <strong>{getProjectById(assignmentToDelete.projectId)?.name}</strong>?</>} isConfirming={isActionLoading(`deleteAssignment-${assignmentToDelete.id}`)} />}
-      <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva"><form onSubmit={handleBulkSubmit}><div className="space-y-4"><div><label className="block text-sm font-medium text-on-surface-variant">Data Inizio</label><input type="date" required value={bulkFormData.startDate} onChange={(e) => setBulkFormData(f => ({ ...f, startDate: e.target.value }))} className="mt-1 block w-full form-input"/></div><div><label className="block text-sm font-medium text-on-surface-variant">Data Fine</label><input type="date" required value={bulkFormData.endDate} onChange={(e) => setBulkFormData(f => ({ ...f, endDate: e.target.value }))} className="mt-1 block w-full form-input"/></div><div><label className="block text-sm font-medium text-on-surface-variant">Percentuale ({bulkFormData.percentage}%)</label><input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={(e) => setBulkFormData(f => ({ ...f, percentage: parseInt(e.target.value, 10) }))} className="mt-1 block w-full accent-primary"/></div></div><div className="mt-6 flex justify-end space-x-2"><button type="button" onClick={() => setBulkModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button><button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold">Salva</button></div></form></Modal>
-      <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto"><form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96"><div className="space-y-4 flex-grow"><div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={newAssignmentData.resourceId} onChange={(name, value) => setNewAssignmentData(d => ({ ...d, [name]: value }))} options={resourceOptions} placeholder="Seleziona una risorsa" required/></div><div><label className="block text-sm font-medium text-on-surface-variant">Progetto/i</label><MultiSelectDropdown name="projectIds" selectedValues={newAssignmentData.projectIds} onChange={(name, values) => setNewAssignmentData(d => ({ ...d, [name]: values }))} options={projects.filter((p) => p.status !== 'Completato').map((p) => ({ value: p.id!, label: p.name }))} placeholder="Seleziona uno o più progetti"/></div></div><div className="mt-6 flex justify-end space-x-2"><button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button><button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold">Aggiungi</button></div></form></Modal>
+      
+      <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva">
+          <form onSubmit={handleBulkSubmit}>
+              <div className="space-y-4">
+                  <div><label className="block text-sm font-medium text-on-surface-variant">Data Inizio</label><input type="date" required value={bulkFormData.startDate} onChange={(e) => setBulkFormData(f => ({ ...f, startDate: e.target.value }))} className="mt-1 block w-full form-input"/></div>
+                  <div><label className="block text-sm font-medium text-on-surface-variant">Data Fine</label><input type="date" required value={bulkFormData.endDate} onChange={(e) => setBulkFormData(f => ({ ...f, endDate: e.target.value }))} className="mt-1 block w-full form-input"/></div>
+                  <div><label className="block text-sm font-medium text-on-surface-variant">Percentuale ({bulkFormData.percentage}%)</label><input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={(e) => setBulkFormData(f => ({ ...f, percentage: parseInt(e.target.value, 10) }))} className="mt-1 block w-full accent-primary"/></div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-outline-variant">
+                  <button type="button" onClick={() => setBulkModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                  <button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90">Salva</button>
+              </div>
+          </form>
+      </Modal>
+      
+      <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto">
+          <form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96">
+              <div className="space-y-4 flex-grow">
+                  <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={newAssignmentData.resourceId} onChange={(name, value) => setNewAssignmentData(d => ({ ...d, [name]: value }))} options={resourceOptions} placeholder="Seleziona una risorsa" required/></div>
+                  <div><label className="block text-sm font-medium text-on-surface-variant">Progetto/i</label><MultiSelectDropdown name="projectIds" selectedValues={newAssignmentData.projectIds} onChange={(name, values) => setNewAssignmentData(d => ({ ...d, [name]: values }))} options={projects.filter((p) => p.status !== 'Completato').map((p) => ({ value: p.id!, label: p.name }))} placeholder="Seleziona uno o più progetti"/></div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-outline-variant">
+                  <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                  <button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90">Aggiungi</button>
+              </div>
+          </form>
+      </Modal>
     </div>
   );
 };

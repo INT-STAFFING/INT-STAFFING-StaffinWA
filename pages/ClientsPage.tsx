@@ -113,10 +113,10 @@ const ClientsPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="email" name="contactEmail" value={inlineEditingData!.contactEmail} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4 text-right sticky right-0 bg-inherit">
                         <div className="flex items-center justify-end space-x-2">
-                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-1 text-green-600 hover:text-green-500 disabled:opacity-50">
+                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full text-tertiary hover:bg-surface-container disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                             </button>
-                            <button onClick={handleCancelInlineEdit} className="p-1 text-gray-500 hover:text-gray-400"><span className="material-symbols-outlined">close</span></button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container"><span className="material-symbols-outlined">close</span></button>
                         </div>
                     </td>
                 </tr>
@@ -126,10 +126,10 @@ const ClientsPage: React.FC = () => {
              <tr key={client.id} className="group h-16 hover:bg-surface-container">
                 {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((client as any)[col.sortKey]) : undefined}>{col.cell(client)}</td>)}
                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
-                    <div className="flex items-center justify-end space-x-3">
-                        <button onClick={() => openModalForEdit(client)} className="text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
-                        <button onClick={() => handleStartInlineEdit(client)} className="text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
-                        <button onClick={() => deleteClient(client.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                    <div className="flex items-center justify-end space-x-2">
+                        <button onClick={() => openModalForEdit(client)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(client)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteClient(client.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error" title="Elimina">
                            {isActionLoading(`deleteClient-${client.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
@@ -251,9 +251,9 @@ const ClientsPage: React.FC = () => {
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Email Contatto *</label>
                             <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="form-input"/>
                         </div>
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
                                 {(isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

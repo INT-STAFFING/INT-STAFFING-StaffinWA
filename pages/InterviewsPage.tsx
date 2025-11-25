@@ -277,9 +277,11 @@ const InterviewsPage: React.FC = () => {
     <tr key={interview.id} className="group hover:bg-surface-container">
         {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(interview)}</td>)}
         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-            <div className="flex items-center justify-end space-x-3">
-                <button onClick={() => openModalForEdit(interview)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                <button onClick={() => setInterviewToDelete(interview)} className="text-on-surface-variant hover:text-error" title="Elimina">
+            <div className="flex items-center justify-end space-x-2">
+                <button onClick={() => openModalForEdit(interview)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors" title="Modifica">
+                    <span className="material-symbols-outlined">edit_note</span>
+                </button>
+                <button onClick={() => setInterviewToDelete(interview)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error transition-colors" title="Elimina">
                     {isActionLoading(`deleteInterview-${interview.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                 </button>
             </div>
@@ -358,65 +360,99 @@ const InterviewsPage: React.FC = () => {
         {/* Edit Modal */}
         {editingInterview && (
             <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>
-                <form onSubmit={handleSubmit} className="space-y-4 flex flex-col max-h-[80vh]">
-                    <div className="flex-grow overflow-y-auto space-y-4 px-1">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Nome *</label><input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input"/></div>
-                            <div><label className="block text-sm font-medium mb-1">Cognome *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Data Nascita</label><input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input"/></div>
-                            <div><label className="block text-sm font-medium mb-1">Data Colloquio</label><input type="date" name="interviewDate" value={editingInterview.interviewDate || ''} onChange={handleChange} className="form-input"/></div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Richiesta Collegata (Opzionale)</label>
-                            <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Seleziona richiesta..." />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Ruolo Proposto</label><SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." /></div>
-                            <div><label className="block text-sm font-medium mb-1">Horizontal</label><SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal..." /></div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Intervistatori</label>
-                            <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona intervistatori..." />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">CV Summary</label>
-                            <textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} className="form-textarea" rows={2}></textarea>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Feedback</label>
-                                <select name="feedback" value={editingInterview.feedback || ''} onChange={handleChange} className="form-select">
-                                    <option value="">-</option>
-                                    {feedbackOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Stato Processo</label>
-                                <select name="status" value={editingInterview.status} onChange={handleChange} className="form-select" required>
-                                    {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
+                <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[80vh]">
+                    <div className="flex-grow overflow-y-auto px-1 space-y-6">
+                        
+                        {/* Dati Candidato */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">person</span> Dati Candidato
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-medium mb-1">Nome *</label><input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Cognome *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
+                                <div><label className="block text-sm font-medium mb-1">Data Nascita</label><input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input"/></div>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Stato Hiring</label>
-                                <select name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleChange} className="form-select">
-                                    <option value="">-</option>
-                                    {hiringStatusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
+
+                        {/* Posizione e Contesto */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">work</span> Posizione & Contesto
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Richiesta Collegata (Opzionale)</label>
+                                    <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Seleziona richiesta..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Ruolo Proposto</label>
+                                    <SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Horizontal</label>
+                                    <SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal..." />
+                                </div>
                             </div>
-                            <div><label className="block text-sm font-medium mb-1">Data Ingresso Prevista</label><input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={handleChange} className="form-input"/></div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">CV Summary</label>
+                                <textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Breve riepilogo competenze..."></textarea>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Note</label>
-                            <textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} className="form-textarea" rows={2}></textarea>
+
+                        {/* Dettagli Colloquio */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">event</span> Dettagli Colloquio
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div><label className="block text-sm font-medium mb-1">Data Colloquio</label><input type="date" name="interviewDate" value={editingInterview.interviewDate || ''} onChange={handleChange} className="form-input"/></div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Intervistatori</label>
+                                    <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona intervistatori..." />
+                                </div>
+                            </div>
                         </div>
+
+                        {/* Esito e Stato */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">assignment_turned_in</span> Esito
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Feedback</label>
+                                    <select name="feedback" value={editingInterview.feedback || ''} onChange={handleChange} className="form-select">
+                                        <option value="">-</option>
+                                        {feedbackOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Stato Processo</label>
+                                    <select name="status" value={editingInterview.status} onChange={handleChange} className="form-select" required>
+                                        {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Stato Hiring</label>
+                                    <select name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleChange} className="form-select">
+                                        <option value="">-</option>
+                                        {hiringStatusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                </div>
+                                <div><label className="block text-sm font-medium mb-1">Data Ingresso Prevista</label><input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={handleChange} className="form-input"/></div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Note</label>
+                                <textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note aggiuntive..."></textarea>
+                            </div>
+                        </div>
+
                     </div>
-                    <div className="flex justify-end space-x-2 pt-4 border-t border-outline-variant">
-                        <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
-                        <button type="submit" disabled={isActionLoading('addInterview') || isActionLoading('updateInterview')} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">
+                    
+                    <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
+                        <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                        <button type="submit" disabled={isActionLoading('addInterview') || isActionLoading('updateInterview')} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90 disabled:opacity-50">
                             {isActionLoading('addInterview') || isActionLoading('updateInterview') ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                         </button>
                     </div>

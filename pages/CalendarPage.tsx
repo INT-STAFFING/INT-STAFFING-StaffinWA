@@ -129,9 +129,9 @@ const CalendarPage: React.FC = () => {
         <tr key={event.id} className="group hover:bg-surface-container">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit" title={col.sortKey ? String((event as any)[col.sortKey]) : undefined}>{col.cell(event)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
-                <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(event)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => deleteCalendarEvent(event.id!)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                <div className="flex items-center justify-end space-x-2">
+                    <button onClick={() => openModalForEdit(event)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => deleteCalendarEvent(event.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
                         {isActionLoading(`deleteCalendarEvent-${event.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
@@ -209,9 +209,9 @@ const CalendarPage: React.FC = () => {
                                 <SearchableSelect name="location" value={editingEvent.location || ''} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required/>
                             </div>
                         )}
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50">
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
                                {(isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

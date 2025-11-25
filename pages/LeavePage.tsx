@@ -1,10 +1,4 @@
 
-/**
- * @file LeavePage.tsx
- * @description Pagina per la gestione delle richieste di assenza (ferie, permessi).
- * Supporta viste: Tabella, Card, Calendario.
- */
-
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -112,7 +106,6 @@ const LeavePage: React.FC = () => {
         
         // 6 weeks grid
         for (let i = 0; i < 42; i++) {
-            // LOCAL DATE FIX: Costruiamo la stringa manualmente per evitare shift UTC
             const y = currentDay.getFullYear();
             const m = String(currentDay.getMonth() + 1).padStart(2, '0');
             const d = String(currentDay.getDate()).padStart(2, '0');
@@ -240,7 +233,7 @@ const LeavePage: React.FC = () => {
     ];
 
     const columns: ColumnDef<typeof enrichedRequests[0]>[] = [
-        { header: 'Risorsa', sortKey: 'resourceName', cell: r => <span className="font-medium text-on-surface">{r.resourceName}</span> },
+        { header: 'Risorsa', sortKey: 'resourceName', cell: r => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.resourceName}</span> },
         { header: 'Tipologia', sortKey: 'typeName', cell: r => (
             <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: `${r.typeColor}30`, color: '#191c1e' }}>
                 <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: r.typeColor }}></span>
@@ -262,33 +255,32 @@ const LeavePage: React.FC = () => {
 
     const renderRow = (req: typeof enrichedRequests[0]) => {
         const canApprove = req.status === 'PENDING' && (isAdmin || (user?.resourceId && req.approverIds?.includes(user.resourceId)));
-        const isSelf = req.resourceId === user?.resourceId;
+        const isUpdating = isActionLoading('updateLeaveRequest');
 
         return (
-            <tr key={req.id} className="hover:bg-surface-container-low group">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(req)}</td>)}
+            <tr key={req.id} className="group hover:bg-surface-container">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit text-sm text-on-surface-variant">{col.cell(req)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                     <div className="flex items-center justify-end space-x-2">
                         {canApprove && (
                             <>
-                                <button onClick={() => handleQuickAction(req, 'APPROVED')} className="p-1 text-tertiary hover:bg-tertiary-container rounded-full" title="Approva">
-                                    <span className="material-symbols-outlined">check_circle</span>
+                                <button onClick={() => handleQuickAction(req, 'APPROVED')} disabled={isUpdating} className="p-2 rounded-full hover:bg-tertiary-container text-tertiary" title="Approva Rapido">
+                                    <span className="material-symbols-outlined">check</span>
                                 </button>
-                                <button onClick={() => handleQuickAction(req, 'REJECTED')} className="p-1 text-error hover:bg-error-container rounded-full" title="Rifiuta">
-                                    <span className="material-symbols-outlined">cancel</span>
+                                <button onClick={() => handleQuickAction(req, 'REJECTED')} disabled={isUpdating} className="p-2 rounded-full hover:bg-error-container text-error" title="Rifiuta Rapido">
+                                    <span className="material-symbols-outlined">close</span>
                                 </button>
-                                <div className="w-px h-4 bg-outline-variant mx-1"></div>
                             </>
                         )}
-                        {(isAdmin || isSelf) && (
-                            <button onClick={() => openEditRequestModal(req)} className="text-on-surface-variant hover:text-primary p-1" title="Modifica">
-                                <span className="material-symbols-outlined">edit</span>
-                            </button>
-                        )}
-                        {(isAdmin || (isSelf && req.status === 'PENDING')) && (
-                            <button onClick={() => setRequestToDelete(req)} className="text-on-surface-variant hover:text-error p-1" title="Elimina">
-                                <span className="material-symbols-outlined">delete</span>
-                            </button>
+                        {(isAdmin || req.resourceId === user?.resourceId) && req.status === 'PENDING' && (
+                            <>
+                                <button onClick={() => openEditRequestModal(req)} className="p-2 rounded-full hover:bg-surface-container text-primary" title="Modifica">
+                                    <span className="material-symbols-outlined">edit</span>
+                                </button>
+                                <button onClick={() => setRequestToDelete(req)} className="p-2 rounded-full hover:bg-surface-container text-error" title="Elimina">
+                                    <span className="material-symbols-outlined">delete</span>
+                                </button>
+                            </>
                         )}
                     </div>
                 </td>
@@ -296,89 +288,84 @@ const LeavePage: React.FC = () => {
         );
     };
 
-    const renderCard = (req: typeof enrichedRequests[0]) => (
-        <div key={req.id} className="bg-surface p-4 rounded-2xl shadow border-l-4 flex flex-col gap-3" style={{ borderLeftColor: req.typeColor }}>
+    const renderMobileCard = (req: typeof enrichedRequests[0]) => (
+        <div key={req.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 mb-4 ${req.status === 'APPROVED' ? 'border-tertiary' : req.status === 'REJECTED' ? 'border-error' : 'border-yellow-500'}`}>
             <div className="flex justify-between items-start">
                 <div>
-                    <h3 className="font-bold text-on-surface">{req.resourceName}</h3>
-                    <span className="text-xs text-on-surface-variant">{req.typeName}</span>
+                    <h3 className="font-bold text-lg text-on-surface">{req.resourceName}</h3>
+                    <span className="text-xs font-medium bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">{req.typeName}</span>
                 </div>
-                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                     req.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' :
                     req.status === 'REJECTED' ? 'bg-error-container text-on-error-container' :
                     'bg-yellow-container text-on-yellow-container'
-                }`}>
-                    {req.status}
-                </span>
+                }`}>{req.status}</span>
             </div>
-            <div className="text-sm text-on-surface-variant">
-                <p>Dal: {formatDateFull(req.startDate)}</p>
-                <p>Al: {formatDateFull(req.endDate)}</p>
-                <p className="font-semibold mt-1">Durata: {req.duration} gg {req.isHalfDay ? '(Mezza)' : ''}</p>
+            <div className="mt-2 text-sm text-on-surface-variant">
+                <p>{formatDateFull(req.startDate)} - {formatDateFull(req.endDate)}</p>
+                <p className="font-semibold">{req.duration} gg</p>
             </div>
             <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-outline-variant">
-                <button onClick={() => openEditRequestModal(req)} className="text-primary text-sm font-medium">Modifica</button>
-                <button onClick={() => setRequestToDelete(req)} className="text-error text-sm font-medium">Elimina</button>
+                <button onClick={() => openEditRequestModal(req)} className="text-primary font-medium text-sm">Modifica</button>
+                <button onClick={() => setRequestToDelete(req)} className="text-error font-medium text-sm">Elimina</button>
             </div>
         </div>
     );
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_,v) => setFilters(p => ({...p, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse" />
-            <SearchableSelect name="typeId" value={filters.typeId} onChange={(_,v) => setFilters(p => ({...p, typeId: v}))} options={typeOptions} placeholder="Tutti i Tipi" />
-            <SearchableSelect name="status" value={filters.status} onChange={(_,v) => setFilters(p => ({...p, status: v}))} options={statusOptions} placeholder="Tutti gli Stati" />
-            <button onClick={() => setFilters({resourceId: '', typeId: '', status: ''})} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full">Reset</button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({ ...f, resourceId: v }))} options={resourceOptions} placeholder="Tutte le Risorse" />
+            <SearchableSelect name="typeId" value={filters.typeId} onChange={(_, v) => setFilters(f => ({ ...f, typeId: v }))} options={typeOptions} placeholder="Tutti i Tipi" />
+            <button onClick={() => setFilters({ resourceId: '', typeId: '', status: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
 
     return (
-        <div className="h-full flex flex-col space-y-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-surface-container p-1 rounded-full">
-                        <button onClick={() => setView('table')} className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
-                        <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Calendario</button>
-                    </div>
-                    <button onClick={openNewRequestModal} className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold flex items-center gap-2 shadow-sm hover:opacity-90">
-                        <span className="material-symbols-outlined">add</span> Nuova
-                    </button>
-                </div>
+                <button onClick={openNewRequestModal} className="px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                    <span className="material-symbols-outlined">add</span> Nuova Richiesta
+                </button>
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div 
-                    onClick={() => handleFilterClick('PENDING')}
-                    className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500 cursor-pointer transition-all hover:shadow-md ${filters.status === 'PENDING' ? 'ring-2 ring-yellow-500' : ''}`}
+                    onClick={() => handleFilterClick('PENDING')} 
+                    className={`cursor-pointer bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500 transition-all ${filters.status === 'PENDING' ? 'ring-2 ring-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' : 'hover:shadow-md'}`}
                 >
                     <p className="text-sm text-on-surface-variant">In Attesa</p>
-                    <p className="text-2xl font-bold text-yellow-700">{kpis.pending}</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.pending}</p>
                 </div>
                 <div 
-                    onClick={() => handleFilterClick('APPROVED')}
-                    className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary cursor-pointer transition-all hover:shadow-md ${filters.status === 'APPROVED' ? 'ring-2 ring-tertiary' : ''}`}
+                    onClick={() => handleFilterClick('APPROVED')} 
+                    className={`cursor-pointer bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary transition-all ${filters.status === 'APPROVED' ? 'ring-2 ring-tertiary bg-tertiary-container/20' : 'hover:shadow-md'}`}
                 >
                     <p className="text-sm text-on-surface-variant">Approvate</p>
-                    <p className="text-2xl font-bold text-tertiary">{kpis.approved}</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.approved}</p>
                 </div>
                 <div 
-                    onClick={() => handleFilterClick('REJECTED')}
-                    className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error cursor-pointer transition-all hover:shadow-md ${filters.status === 'REJECTED' ? 'ring-2 ring-error' : ''}`}
+                    onClick={() => handleFilterClick('REJECTED')} 
+                    className={`cursor-pointer bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error transition-all ${filters.status === 'REJECTED' ? 'ring-2 ring-error bg-error-container/20' : 'hover:shadow-md'}`}
                 >
                     <p className="text-sm text-on-surface-variant">Rifiutate</p>
-                    <p className="text-2xl font-bold text-error">{kpis.rejected}</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.rejected}</p>
                 </div>
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
                     <p className="text-sm text-on-surface-variant">Assenti Oggi</p>
-                    <p className="text-2xl font-bold text-primary">{kpis.onLeaveToday}</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.onLeaveToday}</p>
                 </div>
             </div>
 
-            {/* Content Views */}
+            {/* View Toggle */}
+            <div className="flex justify-end mb-4">
+                <div className="flex items-center bg-surface-container p-1 rounded-full">
+                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                    <button onClick={() => setView('calendar')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Calendario</button>
+                </div>
+            </div>
+
             {view === 'table' && (
                 <DataTable<typeof enrichedRequests[0]>
                     title=""
@@ -388,101 +375,50 @@ const LeavePage: React.FC = () => {
                     filtersNode={filtersNode}
                     onAddNew={() => {}}
                     renderRow={renderRow}
-                    renderMobileCard={renderCard}
+                    renderMobileCard={renderMobileCard}
                     initialSortKey="startDate"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    numActions={4} // Edit, Delete + potentially Approve/Reject via modal
+                    numActions={isAdmin ? 2 : 1}
                 />
             )}
 
-            {view === 'card' && (
-                <div className="space-y-4">
-                    <div className="bg-surface rounded-2xl shadow p-4">
-                        {filtersNode}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {enrichedRequests.map(renderCard)}
-                        {enrichedRequests.length === 0 && <p className="col-span-full text-center py-10 text-on-surface-variant">Nessuna richiesta trovata.</p>}
-                    </div>
-                </div>
-            )}
-
             {view === 'calendar' && (
-                <div className="flex-grow bg-surface rounded-2xl shadow overflow-hidden flex flex-col">
-                    {/* Calendar Header */}
-                    <div className="flex justify-between items-center p-4 border-b border-outline-variant">
-                        <div className="flex items-center gap-4">
-                            <button onClick={handlePrevMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_left</span></button>
-                            <h2 className="text-xl font-bold text-on-surface min-w-[150px] text-center">
-                                {calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}
-                            </h2>
-                            <button onClick={handleNextMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_right</span></button>
-                            <button onClick={handleToday} className="text-sm font-medium text-primary hover:underline ml-2">Oggi</button>
-                        </div>
-                        
-                        {/* Legend */}
-                        <div className="flex flex-wrap gap-3">
-                            {leaveTypes.map(t => (
-                                <div key={t.id} className="flex items-center gap-1.5 text-xs">
-                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: t.color }}></span>
-                                    <span className="text-on-surface-variant">{t.name}</span>
-                                </div>
-                            ))}
-                        </div>
+                <div className="bg-surface rounded-2xl shadow p-4 overflow-hidden">
+                    <div className="flex justify-between items-center mb-4">
+                        <button onClick={handlePrevMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_left</span></button>
+                        <h2 className="text-xl font-bold text-on-surface capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}</h2>
+                        <button onClick={handleNextMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_right</span></button>
+                        <button onClick={handleToday} className="ml-2 px-3 py-1 text-sm bg-secondary-container text-on-secondary-container rounded-full">Oggi</button>
                     </div>
-
-                    {/* Weekday Headers */}
-                    <div className="grid grid-cols-7 bg-surface-container-low border-b border-outline-variant">
-                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(d => (
-                            <div key={d} className="p-2 text-center text-xs font-bold text-on-surface-variant uppercase">{d}</div>
+                    <div className="grid grid-cols-7 gap-px bg-outline-variant border border-outline-variant rounded-lg overflow-hidden text-sm">
+                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                            <div key={day} className="bg-surface-container text-center py-2 font-bold text-on-surface-variant">{day}</div>
                         ))}
-                    </div>
-
-                    {/* Days Grid */}
-                    <div className="grid grid-cols-7 flex-grow auto-rows-fr bg-surface-variant/20 gap-px border-b border-outline-variant">
-                        {calendarGrid.map((day) => (
+                        {calendarGrid.map((day, i) => (
                             <div 
-                                key={day.dateIso} 
-                                className={`
-                                    min-h-[100px] p-1 bg-surface relative flex flex-col gap-1
-                                    ${!day.isCurrentMonth ? 'bg-surface-container-lowest opacity-50' : ''}
-                                    ${(day.isWeekend || day.isHoliday) ? 'bg-surface-container/30' : ''}
+                                key={i} 
+                                className={`min-h-[100px] bg-surface p-2 flex flex-col gap-1 
+                                    ${!day.isCurrentMonth ? 'bg-surface-container-low/50 text-on-surface-variant/50' : ''}
+                                    ${(day.isWeekend || day.isHoliday) ? 'bg-surface-container' : ''} 
                                 `}
                             >
-                                <div className="flex justify-between items-start px-1">
-                                    <span className={`text-xs font-medium ${day.dateIso === new Date().toISOString().split('T')[0] ? 'bg-primary text-on-primary w-5 h-5 rounded-full flex items-center justify-center' : 'text-on-surface-variant'}`}>
-                                        {day.date.getDate()}
-                                    </span>
-                                    {day.isHoliday && <span className="text-[9px] text-error font-bold uppercase">Festivo</span>}
+                                <div className="flex justify-between items-start">
+                                    <span className={`text-xs font-semibold ${day.dateIso === new Date().toISOString().split('T')[0] ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>{day.date.getDate()}</span>
+                                    {day.isHoliday && <span className="material-symbols-outlined text-xs text-tertiary" title="Festivo">star</span>}
                                 </div>
-                                
-                                <div className="flex-grow overflow-y-auto space-y-0.5 custom-scrollbar">
-                                    {day.leaves.map(req => {
-                                        const type = leaveTypes.find(t => t.id === req.typeId);
-                                        const resource = resources.find(r => r.id === req.resourceId);
-                                        const isPending = req.status === 'PENDING';
-                                        
-                                        return (
-                                            <button 
-                                                key={req.id} 
-                                                onClick={() => openEditRequestModal(req)}
-                                                className={`
-                                                    w-full text-left text-[10px] px-1 py-0.5 rounded truncate block border-l-2
-                                                    ${isPending ? 'opacity-70 border-dashed' : ''}
-                                                    hover:brightness-95 transition-all
-                                                `}
-                                                style={{ 
-                                                    backgroundColor: `${type?.color}20` || '#eee', 
-                                                    borderLeftColor: type?.color || '#ccc',
-                                                    color: '#191c1e'
-                                                }}
-                                                title={`${resource?.name} - ${type?.name} (${req.status})`}
-                                            >
-                                                <span className="font-bold">{resource?.name.split(' ')[0]}</span> {req.isHalfDay ? '½' : ''}
-                                            </button>
-                                        );
-                                    })}
+                                <div className="flex-grow overflow-y-auto space-y-1 max-h-[80px]">
+                                    {day.leaves.map(leave => (
+                                        <div 
+                                            key={leave.id} 
+                                            onClick={() => openEditRequestModal(leave)}
+                                            className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 border-l-2"
+                                            style={{ backgroundColor: `${leave.typeColor}30`, borderLeftColor: leave.typeColor, color: '#191c1e' }}
+                                            title={`${leave.resourceName} - ${leave.typeName}`}
+                                        >
+                                            {leave.resourceName}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         ))}
@@ -490,65 +426,49 @@ const LeavePage: React.FC = () => {
                 </div>
             )}
 
-            {/* Edit/Add Modal */}
+            {/* Edit Modal */}
             {isModalOpen && editingRequest && (
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
                     <form onSubmit={handleSave} className="space-y-4">
+                        {!('id' in editingRequest) && (
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Risorsa Richiedente</label>
+                                <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona risorsa..." required/>
+                            </div>
+                        )}
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Risorsa</label>
-                            <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona risorsa..." required />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Tipologia</label>
-                            <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={handleSelectChange} options={typeOptions} placeholder="Seleziona tipo..." required />
+                            <label className="block text-sm font-medium mb-1">Tipologia Assenza</label>
+                            <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={handleSelectChange} options={typeOptions} placeholder="Seleziona tipo..." required/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Dal</label>
-                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} className="form-input" required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Al</label>
-                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} className="form-input" required />
-                            </div>
+                            <div><label className="block text-sm font-medium mb-1">Data Inizio</label><input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/></div>
+                            <div><label className="block text-sm font-medium mb-1">Data Fine</label><input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/></div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <input type="checkbox" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox" />
-                            <label className="text-sm text-on-surface">Mezza Giornata (0.5 G/U)</label>
+                            <input type="checkbox" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox"/>
+                            <label className="text-sm">Mezza Giornata (0.5 gg)</label>
                         </div>
-                        
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Richiedi Approvazione a (min. 3)</label>
-                            <MultiSelectDropdown name="approverIds" selectedValues={editingRequest.approverIds || []} onChange={handleApproversChange} options={managerOptions} placeholder="Seleziona manager..." />
-                            <p className="text-xs text-on-surface-variant mt-1">Seleziona almeno 3 manager se richiesto dalle policy.</p>
-                        </div>
-
-                        {(isAdmin || editingRequest.approverIds?.includes(user?.resourceId || '')) && (
+                        {isAdmin && (
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Stato (Admin/Approver)</label>
+                                <label className="block text-sm font-medium mb-1">Stato</label>
                                 <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
-                                    {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                    {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                 </select>
                             </div>
                         )}
-
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Note</label>
-                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={2}></textarea>
+                            <label className="block text-sm font-medium mb-1">Richiedi Approvazione a (Opzionale)</label>
+                            <MultiSelectDropdown name="approverIds" selectedValues={editingRequest.approverIds || []} onChange={handleApproversChange} options={managerOptions} placeholder="Seleziona Manager..."/>
                         </div>
-
-                        <div className="flex justify-between items-center pt-4 mt-4 border-t border-outline-variant">
-                            {'id' in editingRequest && (
-                                <button type="button" onClick={() => setRequestToDelete(editingRequest as LeaveRequest)} className="text-error hover:text-error-container flex items-center gap-1 text-sm font-medium">
-                                    <span className="material-symbols-outlined text-lg">delete</span> Elimina
-                                </button>
-                            )}
-                            <div className="flex gap-2 ml-auto">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary font-medium hover:bg-surface-container">Annulla</button>
-                                <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-4 py-2 bg-primary text-on-primary rounded-full font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
-                                    {(isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')) ? <SpinnerIcon className="w-4 h-4" /> : 'Salva'}
-                                </button>
-                            </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Note</label>
+                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3}></textarea>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold disabled:opacity-50">
+                                {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
                         </div>
                     </form>
                 </Modal>
@@ -560,7 +480,7 @@ const LeavePage: React.FC = () => {
                     onClose={() => setRequestToDelete(null)}
                     onConfirm={handleDelete}
                     title="Elimina Richiesta"
-                    message="Sei sicuro di voler eliminare questa richiesta di assenza?"
+                    message="Sei sicuro di voler eliminare questa richiesta? L'azione è irreversibile."
                     isConfirming={isActionLoading(`deleteLeaveRequest-${requestToDelete.id}`)}
                 />
             )}

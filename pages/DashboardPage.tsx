@@ -225,11 +225,27 @@ const getAvgAllocationColor = (avg: number): string => {
 
 const ViewToggleButton: React.FC<{ view: 'table' | 'graph', setView: (v: 'table' | 'graph') => void }> = ({ view, setView }) => (
     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-        <button onClick={() => setView('table')} className={`p-1 rounded-full ${view === 'table' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'}`} title="Vista Tabella">
-            <span className="material-symbols-outlined text-base">table_rows</span>
+        <button
+            onClick={() => setView('table')}
+            className={`px-3 py-1 text-xs font-medium rounded-full flex items-center transition-all ${
+                view === 'table'
+                    ? 'bg-surface text-primary shadow'
+                    : 'text-on-surface-variant hover:text-on-surface'
+            }`}
+        >
+            <span className="material-symbols-outlined text-sm mr-1">table_rows</span>
+            Tabella
         </button>
-        <button onClick={() => setView('graph')} className={`p-1 rounded-full ${view === 'graph' ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'}`} title="Vista Grafico">
-            <span className="material-symbols-outlined text-base">bar_chart</span>
+        <button
+            onClick={() => setView('graph')}
+            className={`px-3 py-1 text-xs font-medium rounded-full flex items-center transition-all ${
+                view === 'graph'
+                    ? 'bg-surface text-primary shadow'
+                    : 'text-on-surface-variant hover:text-on-surface'
+            }`}
+        >
+            <span className="material-symbols-outlined text-sm mr-1">bar_chart</span>
+            Grafico
         </button>
     </div>
 );
@@ -1267,6 +1283,17 @@ const DashboardPage: React.FC = () => {
         return effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0);
     }, [effortByHorizontalData]);
 
+    // --- Helper function to get icon for category tabs ---
+    const getCategoryIcon = (id: string) => {
+        switch(id) {
+            case 'generale': return 'dashboard';
+            case 'staffing': return 'groups';
+            case 'progetti': return 'folder';
+            case 'contratti': return 'description';
+            default: return 'grid_view';
+        }
+    };
+
     const renderCard = (cardId: string) => {
         switch (cardId) {
             case 'kpiHeader': return <KpiHeaderCards key={cardId} overallKPIs={overallKPIs} currentMonthKPIs={currentMonthKPIs} />;
@@ -1307,6 +1334,7 @@ const DashboardPage: React.FC = () => {
                                 : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
                         }`}
                     >
+                        <span className="material-symbols-outlined mr-2 text-lg">{getCategoryIcon(cat.id)}</span>
                         {cat.label}
                     </button>
                 ))}

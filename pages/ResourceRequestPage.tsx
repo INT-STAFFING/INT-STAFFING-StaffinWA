@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
@@ -203,9 +202,9 @@ export const ResourceRequestPage: React.FC = () => {
         <tr key={request.id} className="group hover:bg-surface-container">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openModalForEdit(request)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                <div className="flex items-center justify-end space-x-2">
+                    <button onClick={() => openModalForEdit(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => setRequestToDelete(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
@@ -353,92 +352,4 @@ export const ResourceRequestPage: React.FC = () => {
                     {dataForTable.length > 0 ? (
                         dataForTable.map(renderCard)
                     ) : (
-                        <p className="col-span-full text-center py-8 text-on-surface-variant">
-                            Nessuna richiesta trovata.
-                        </p>
-                    )}
-                </div>
-            )}
-
-
-
-            {editingRequest && (
-                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {'id' in editingRequest && editingRequest.id && (
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">ID Richiesta</label>
-                                <input type="text" value={(editingRequest as ResourceRequest).requestCode || ''} readOnly disabled className="form-input bg-surface-container"/>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto *</label>
-                                <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Richiesto *</label>
-                                <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} required />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Richiedente</label>
-                            <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Nessun richiedente (opzionale)" />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
-                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
-                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/>
-                            </div>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Percentuale Impegno ({editingRequest.commitmentPercentage}%)</label>
-                            <input type="range" min="0" max="100" step="5" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full accent-primary"/>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex items-center">
-                                <input id="isUrgent" name="isUrgent" type="checkbox" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox"/>
-                                <label htmlFor="isUrgent" className="ml-2 block text-sm text-on-surface">Richiesta Urgente</label>
-                            </div>
-                            <div className="flex items-center">
-                                <input id="isTechRequest" name="isTechRequest" type="checkbox" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox"/>
-                                <label htmlFor="isTechRequest" className="ml-2 block text-sm text-on-surface">Richiesta TECH</label>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
-                            <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
-                                {statusOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </select>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
-                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} rows={3} className="form-textarea"></textarea>
-                        </div>
-                        <div className="flex justify-end space-x-2 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50">
-                               {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
-                            </button>
-                        </div>
-                    </form>
-                </Modal>
-            )}
-
-            {requestToDelete && (
-                <ConfirmationModal
-                    isOpen={!!requestToDelete}
-                    onClose={() => setRequestToDelete(null)}
-                    onConfirm={handleDelete}
-                    title="Conferma Eliminazione"
-                    message={`Sei sicuro di voler eliminare la richiesta ${requestToDelete.requestCode || ''} per ${requestToDelete.roleName} sul progetto ${requestToDelete.projectName}?`}
-                    isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
-                />
-            )}
-        </div>
-    );
-};
+                        <p className="col-span

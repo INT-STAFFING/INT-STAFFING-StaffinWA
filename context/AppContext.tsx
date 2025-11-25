@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
 import { 
     Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
@@ -740,7 +741,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const assignmentAllocations = allocations[assignment.id!];
             let days = 0;
             if (assignmentAllocations) {
-                Object.values(assignmentAllocations).forEach(pct => days += (pct / 100));
+                Object.values(assignmentAllocations).forEach((pct: any) => days += (pct / 100));
             }
 
             pSkills.forEach(ps => {
