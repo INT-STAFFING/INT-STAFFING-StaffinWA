@@ -41,25 +41,41 @@ const LeavePage: React.FC = () => {
 
     // --- Data Preparation ---
 
-    const filteredRequests = useMemo(() => {
+    // Base set of requests visible to the user (Security Layer)
+    const accessibleRequests = useMemo(() => {
         return leaveRequests.filter(req => {
-            // Permission Filter
-            let isVisible = false;
-            if (isAdmin) isVisible = true;
-            else if (req.resourceId === user?.resourceId) isVisible = true;
-            else if (req.approverIds?.includes(user?.resourceId || '')) isVisible = true;
-            else if (req.status === 'APPROVED') isVisible = true;
+            if (isAdmin) return true;
+            // User can see own requests
+            if (req.resourceId === user?.resourceId) return true;
+            // Approvers can see requests assigned to them
+            if (req.approverIds?.includes(user?.resourceId || '')) return true;
+            // Everyone can see APPROVED requests (public calendar), but not details/notes if not theirs
+            if (req.status === 'APPROVED') return true;
             
-            if (!isVisible) return false;
+            return false;
+        });
+    }, [leaveRequests, isAdmin, user]);
 
-            // UI Filters
+    // Calculate KPIs based on accessible requests
+    const kpis = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0];
+        return {
+            pending: accessibleRequests.filter(r => r.status === 'PENDING').length,
+            approved: accessibleRequests.filter(r => r.status === 'APPROVED').length,
+            rejected: accessibleRequests.filter(r => r.status === 'REJECTED').length,
+            onLeaveToday: accessibleRequests.filter(r => r.status === 'APPROVED' && today >= r.startDate && today <= r.endDate).length
+        };
+    }, [accessibleRequests]);
+
+    // Apply UI Filters on top of accessible requests
+    const filteredRequests = useMemo(() => {
+        return accessibleRequests.filter(req => {
             if (filters.resourceId && req.resourceId !== filters.resourceId) return false;
             if (filters.typeId && req.typeId !== filters.typeId) return false;
             if (filters.status && req.status !== filters.status) return false;
-
             return true;
         });
-    }, [leaveRequests, isAdmin, user, filters]);
+    }, [accessibleRequests, filters]);
 
     const enrichedRequests = useMemo(() => {
         return filteredRequests.map(req => {
@@ -188,6 +204,10 @@ const LeavePage: React.FC = () => {
         if(editingRequest) setEditingRequest({ ...editingRequest, [name]: values });
     };
 
+    const handleFilterClick = (status: string) => {
+        setFilters(prev => ({ ...prev, status: prev.status === status ? '' : status }));
+    };
+
     // --- Render Components ---
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
@@ -282,6 +302,35 @@ const LeavePage: React.FC = () => {
                     <button onClick={openNewRequestModal} className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold flex items-center gap-2 shadow-sm hover:opacity-90">
                         <span className="material-symbols-outlined">add</span> Nuova
                     </button>
+                </div>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+                <div 
+                    onClick={() => handleFilterClick('PENDING')}
+                    className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500 cursor-pointer transition-all hover:shadow-md ${filters.status === 'PENDING' ? 'ring-2 ring-yellow-500' : ''}`}
+                >
+                    <p className="text-sm text-on-surface-variant">In Attesa</p>
+                    <p className="text-2xl font-bold text-yellow-700">{kpis.pending}</p>
+                </div>
+                <div 
+                    onClick={() => handleFilterClick('APPROVED')}
+                    className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary cursor-pointer transition-all hover:shadow-md ${filters.status === 'APPROVED' ? 'ring-2 ring-tertiary' : ''}`}
+                >
+                    <p className="text-sm text-on-surface-variant">Approvate</p>
+                    <p className="text-2xl font-bold text-tertiary">{kpis.approved}</p>
+                </div>
+                <div 
+                    onClick={() => handleFilterClick('REJECTED')}
+                    className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error cursor-pointer transition-all hover:shadow-md ${filters.status === 'REJECTED' ? 'ring-2 ring-error' : ''}`}
+                >
+                    <p className="text-sm text-on-surface-variant">Rifiutate</p>
+                    <p className="text-2xl font-bold text-error">{kpis.rejected}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <p className="text-sm text-on-surface-variant">Assenti Oggi</p>
+                    <p className="text-2xl font-bold text-primary">{kpis.onLeaveToday}</p>
                 </div>
             </div>
 
