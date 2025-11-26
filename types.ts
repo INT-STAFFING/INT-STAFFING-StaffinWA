@@ -1,3 +1,4 @@
+
 /**
  * @file types.ts
  * @description Definizioni dei tipi e delle interfacce TypeScript utilizzate in tutta l'applicazione.
@@ -368,7 +369,7 @@ export interface Skill {
     category?: string;
     /** @property {string} [macroCategory] - Macro Ambito della competenza. */
     macroCategory?: string;
-    /** @property {boolean} [isCertification] - Se è una certificazione. */
+    /** @property {boolean} [isCertification] - Se è una certificazione ufficiale. */
     isCertification?: boolean;
 }
 

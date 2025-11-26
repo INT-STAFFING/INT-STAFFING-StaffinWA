@@ -145,7 +145,12 @@ const SkillsPage: React.FC = () => {
     }, [skills]);
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
-    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: s.name })), [skills]);
+    
+    // Updated skillOptions with disambiguation
+    const skillOptions = useMemo(() => skills.map(s => ({ 
+        value: s.id!, 
+        label: `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})` 
+    })), [skills]);
 
     // --- Handlers ---
 

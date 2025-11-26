@@ -202,7 +202,13 @@ const SkillsMapPage: React.FC = () => {
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
-    const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
+    
+    // Updated skillOptions with disambiguation
+    const skillOptions = useMemo(() => skills.map(s => ({ 
+        value: s.id!, 
+        label: `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})` 
+    })), [skills]);
+
     const categoryOptions = useMemo(() => {
         const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
         return cats.sort().map(c => ({ value: c as string, label: c as string }));
@@ -412,6 +418,7 @@ const SkillsMapPage: React.FC = () => {
                                 {editingSkills.map(detail => {
                                     const skillObj = skills.find(s => s.id === detail.skillId);
                                     const skillName = skillObj?.name || 'Unknown';
+                                    const skillContext = skillObj ? `(${skillObj.category || '-'})` : '';
                                     const isCert = skillObj?.isCertification;
                                     const expired = isExpired(detail.expirationDate);
                                     const expiring = !expired && isExpiringSoon(detail.expirationDate);
@@ -419,12 +426,15 @@ const SkillsMapPage: React.FC = () => {
                                     return (
                                         <div key={detail.skillId} className={`p-3 bg-surface rounded border ${expired ? 'border-error bg-error-container/10' : expiring ? 'border-yellow-500 bg-yellow-container/10' : 'border-outline'} flex flex-col gap-2`}>
                                             <div className="flex justify-between items-center">
-                                                <span className="font-medium text-sm text-on-surface flex items-center gap-2">
-                                                    {skillName}
-                                                    {isCert && <span className="material-symbols-outlined text-yellow-600 text-sm" title="Certificazione">verified</span>}
-                                                    {expired && <span className="text-xs text-error font-bold">(Scaduta)</span>}
-                                                    {expiring && <span className="text-xs text-yellow-600 font-bold">(In Scadenza)</span>}
-                                                </span>
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-sm text-on-surface flex items-center gap-2">
+                                                        {skillName}
+                                                        {isCert && <span className="material-symbols-outlined text-yellow-600 text-sm" title="Certificazione">verified</span>}
+                                                        {expired && <span className="text-xs text-error font-bold">(Scaduta)</span>}
+                                                        {expiring && <span className="text-xs text-yellow-600 font-bold">(In Scadenza)</span>}
+                                                    </span>
+                                                    <span className="text-[10px] text-on-surface-variant">{skillContext}</span>
+                                                </div>
                                                 <button type="button" onClick={() => handleRemoveSkill(detail.skillId)} className="text-error hover:bg-error-container p-1 rounded">
                                                     <span className="material-symbols-outlined text-sm">delete</span>
                                                 </button>

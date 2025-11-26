@@ -23,6 +23,11 @@ import 'd3-transition'; // Import transition to avoid crashes on interactions
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar';
 
+// --- Helper to format label ---
+const formatSkillLabel = (name: string, context?: string) => {
+    return context ? `${name} (${context})` : name;
+};
+
 // --- Components for each visualization ---
 
 // 1. Force-Directed Graph (Skill Network)
@@ -114,7 +119,10 @@ const SkillForceGraph: React.FC<{
             .style("pointer-events", "none");
 
         node.append("title")
-            .text((d: any) => `${d.type.toUpperCase()}: ${d.name} ${d.macroCategory ? `(${d.macroCategory})` : ''}`);
+            .text((d: any) => {
+                if (d.type === 'skill') return `SKILL: ${d.name}\nAmbito: ${d.category || '-'}\nMacro: ${d.macroCategory || '-'}`;
+                return d.name;
+            });
 
         simulation.on("tick", () => {
             link
@@ -134,7 +142,7 @@ const SkillForceGraph: React.FC<{
 
 // 2. Matrix Heatmap
 const SkillHeatmap: React.FC<{
-    data: { resource: string; skill: string; value: number }[],
+    data: { resource: string; skillLabel: string; value: number }[],
     resources: string[],
     skills: string[],
     theme: any,
@@ -144,7 +152,7 @@ const SkillHeatmap: React.FC<{
     useEffect(() => {
         if (!svgRef.current || data.length === 0) return;
         
-        const margin = { top: 100, right: 25, bottom: 30, left: 150 };
+        const margin = { top: 150, right: 25, bottom: 30, left: 150 };
         const cellSize = 30;
         const width = skills.length * cellSize + margin.left + margin.right;
         const height = resources.length * cellSize + margin.top + margin.bottom;
@@ -203,16 +211,16 @@ const SkillHeatmap: React.FC<{
 
         // Cells
         g.selectAll()
-            .data(data, (d: any) => d.resource + ':' + d.skill)
+            .data(data, (d: any) => d.resource + ':' + d.skillLabel)
             .enter()
             .append("rect")
-            .attr("x", (d: any) => x(d.skill) || 0)
+            .attr("x", (d: any) => x(d.skillLabel) || 0)
             .attr("y", (d: any) => y(d.resource) || 0)
             .attr("width", x.bandwidth())
             .attr("height", y.bandwidth())
             .style("fill", (d: any) => colorScale(d.value))
             .on("mouseover", (event, d: any) => {
-                tooltip.style("visibility", "visible").text(`${d.resource} - ${d.skill}: ${d.value.toFixed(0)} days`);
+                tooltip.style("visibility", "visible").text(`${d.resource} - ${d.skillLabel}: ${d.value.toFixed(0)} days`);
             })
             .on("mousemove", (event) => {
                 tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
@@ -262,7 +270,7 @@ const SkillChordDiagram: React.FC<{
         const initialTransform = zoomIdentity.translate(width / 2, height / 2);
         svg.call(zoomBehavior.transform as any, initialTransform);
 
-        const outerRadius = Math.min(width, height) * 0.5 - 60;
+        const outerRadius = Math.min(width, height) * 0.5 - 120; // Increased margin for labels
         const innerRadius = outerRadius - 20;
 
         const chordGenerator = d3Chord()
@@ -518,7 +526,14 @@ const SkillAnalysisPage: React.FC = () => {
 
         // Skills
         skills.forEach(s => {
-            nodes.push({ id: `skill_${s.id}`, name: s.name, type: 'skill', macroCategory: s.macroCategory, isCertification: s.isCertification });
+            nodes.push({ 
+                id: `skill_${s.id}`, 
+                name: formatSkillLabel(s.name, s.category), // Use disambiguated label if needed or just short name 
+                type: 'skill', 
+                category: s.category,
+                macroCategory: s.macroCategory, 
+                isCertification: s.isCertification 
+            });
             nodeIds.add(`skill_${s.id}`);
         });
 
@@ -542,9 +557,9 @@ const SkillAnalysisPage: React.FC = () => {
     const heatmapData = useMemo(() => {
         if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
         
-        const data: { resource: string; skill: string; value: number }[] = [];
+        const data: { resource: string; skillLabel: string; value: number }[] = [];
         const resList = resources.filter(r => !r.resigned).map(r => r.name);
-        const skillList = skills.map(s => s.name);
+        const skillList = skills.map(s => formatSkillLabel(s.name, s.category)); // Use formatted label for axis
 
         resources.filter(r => !r.resigned).forEach(r => {
             skills.forEach(s => {
@@ -560,7 +575,7 @@ const SkillAnalysisPage: React.FC = () => {
                 if (manual) days += 50; 
 
                 if (days > 0) {
-                    data.push({ resource: r.name, skill: s.name, value: days });
+                    data.push({ resource: r.name, skillLabel: formatSkillLabel(s.name, s.category), value: days });
                 }
             });
         });
@@ -571,10 +586,8 @@ const SkillAnalysisPage: React.FC = () => {
     const chordData = useMemo(() => {
         if (view !== 'chord') return { matrix: [], names: [] };
         // Co-occurrence of skills in projects
-        // FIX: Explicitly type Map key and value
         const skillIndices = new Map<string, number>(skills.map((s, i) => [s.id!, i]));
         const n = skills.length;
-        // FIX: Explicitly type matrix as number[][] to avoid unknown[] inference
         const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
 
         projectSkills.forEach(ps1 => {
@@ -589,7 +602,7 @@ const SkillAnalysisPage: React.FC = () => {
             });
         });
 
-        return { matrix, names: skills.map(s => s.name) };
+        return { matrix, names: skills.map(s => formatSkillLabel(s.name, s.category)) };
     }, [skills, projectSkills, view]);
 
     const radarData = useMemo(() => {
@@ -599,10 +612,13 @@ const SkillAnalysisPage: React.FC = () => {
         const rSkills = resourceSkills.filter(rs => rs.resourceId === selectedResource);
         
         // Pick top 6 skills for cleaner radar or all manual skills
-        const data = rSkills.map(rs => ({
-            axis: skills.find(s => s.id === rs.skillId)?.name || 'Unknown',
-            value: (rs.level || 1) * 20 // 1-5 => 20-100
-        }));
+        const data = rSkills.map(rs => {
+            const skill = skills.find(s => s.id === rs.skillId);
+            return {
+                axis: skill ? formatSkillLabel(skill.name, skill.category) : 'Unknown',
+                value: (rs.level || 1) * 20 // 1-5 => 20-100
+            };
+        });
 
         return data;
     }, [selectedResource, resourceSkills, skills, view]);
