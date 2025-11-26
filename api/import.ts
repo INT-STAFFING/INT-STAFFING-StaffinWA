@@ -491,7 +491,9 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
     }
 
     // 3. Process Associations (Sheet 2) to find missing skills
-    const assocRows: any[][] = [];
+    // FIX: Use a Map to deduplicate associations before inserting. 
+    // Postgres fails if we try to UPSERT the same (resource_id, skill_id) twice in the same batch.
+    const assocMap = new Map<string, any[]>();
     
     if (Array.isArray(importedAssociations)) {
         const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
@@ -523,7 +525,9 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
                  const parsed = parseInt(String(level), 10);
                  if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) normalizedLevel = parsed;
 
-                 assocRows.push([
+                 // Use composite key to deduplicate
+                 const uniqueKey = `${resourceId}_${skillId}`;
+                 assocMap.set(uniqueKey, [
                      resourceId, skillId, normalizedLevel, 
                      formatDateForDB(parseDate(acqDate)), formatDateForDB(parseDate(expDate))
                  ]);
@@ -547,6 +551,7 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
     }
 
     // 5. Execute Associations Upsert
+    const assocRows = Array.from(assocMap.values());
     if (assocRows.length > 0) {
         await executeBulkInsert(
             client, 
