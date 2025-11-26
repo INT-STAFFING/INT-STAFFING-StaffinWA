@@ -653,6 +653,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await logAction(client, currentUser, 'DB_INSPECTOR_TRUNCATE', table as string, null, {}, req);
                 return res.status(200).json({ success: true });
             }
+            // NEW: Run Raw SQL
+            if (action === 'run_raw_query' && method === 'POST') {
+                const { query } = req.body;
+                if (!query) return res.status(400).json({ error: 'Query is required' });
+                
+                try {
+                    const result = await client.query(query);
+                    await logAction(client, currentUser, 'DB_RAW_QUERY', 'sql', null, { query: query.substring(0, 200) }, req); // Log truncated query
+                    return res.status(200).json({ 
+                        success: true, 
+                        rows: result.rows, 
+                        fields: result.fields, 
+                        rowCount: result.rowCount,
+                        command: result.command 
+                    });
+                } catch(e) {
+                    return res.status(400).json({ error: (e as Error).message });
+                }
+            }
             if (action === 'export_sql' && dialect) {
                 return res.status(400).json({ error: 'Use /api/export-sql endpoint' });
             }

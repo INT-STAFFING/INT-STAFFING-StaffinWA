@@ -15,7 +15,17 @@ interface TableData {
     rows: any[];
 }
 
+interface QueryResult {
+    rows: any[];
+    fields: any[];
+    rowCount: number;
+    command: string;
+}
+
+type ViewMode = 'inspector' | 'query';
+
 const DbInspectorPage: React.FC = () => {
+    const [mode, setMode] = useState<ViewMode>('inspector');
     const [tables, setTables] = useState<string[]>([]);
     const [selectedTable, setSelectedTable] = useState<string>('');
     const [tableData, setTableData] = useState<TableData | null>(null);
@@ -26,6 +36,12 @@ const DbInspectorPage: React.FC = () => {
     const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
     const [isExportingPg, setIsExportingPg] = useState(false);
     const [isExportingMysql, setIsExportingMysql] = useState(false);
+    
+    // Query Mode State
+    const [sqlQuery, setSqlQuery] = useState('');
+    const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
+    const [queryError, setQueryError] = useState<string | null>(null);
+
     const { addToast } = useToast();
 
     const getAuthToken = () => localStorage.getItem('authToken');
@@ -53,7 +69,7 @@ const DbInspectorPage: React.FC = () => {
     }, [addToast]);
 
     useEffect(() => {
-        if (!selectedTable) {
+        if (mode !== 'inspector' || !selectedTable) {
             setTableData(null);
             return;
         }
@@ -75,7 +91,7 @@ const DbInspectorPage: React.FC = () => {
             }
         };
         fetchTableData();
-    }, [selectedTable, addToast]);
+    }, [selectedTable, mode, addToast]);
     
     const handleEdit = (row: any) => {
         setEditingRowId(row.id);
@@ -178,6 +194,35 @@ const DbInspectorPage: React.FC = () => {
         }
     };
 
+    const handleRunQuery = async () => {
+        if (!sqlQuery.trim()) return;
+        setIsLoading(true);
+        setQueryResult(null);
+        setQueryError(null);
+
+        try {
+            const response = await fetch('/api/resources?entity=db_inspector&action=run_raw_query', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}` 
+                },
+                body: JSON.stringify({ query: sqlQuery })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Errore esecuzione query');
+            }
+            setQueryResult(data);
+        } catch (e) {
+            setQueryError((e as Error).message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, colName: string, colType: string) => {
         if (!editingRowData) return;
         let value: any = e.target.value;
@@ -238,14 +283,14 @@ const DbInspectorPage: React.FC = () => {
         );
     };
 
-    const renderCellContent = (value: any, columnName: string) => {
+    const renderCellContent = (value: any, columnName?: string) => {
         const currencyColumns = [
             'daily_cost', 'standard_cost', 'daily_expenses', 'budget', 'capienza', 'backlog',
             'produzione_lorda', 'produzione_lorda_network_italia', 'perdite', 'spese_onorari_esterni',
             'spese_altro', 'fatture_onorari', 'fatture_spese', 'iva', 'incassi'
         ];
     
-        if (currencyColumns.includes(columnName) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value))))) {
+        if (columnName && currencyColumns.includes(columnName) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value))))) {
             return formatCurrency(Number(value));
         }
         
@@ -256,108 +301,200 @@ const DbInspectorPage: React.FC = () => {
     };
 
     return (
-        <div>
-            <h1 className="text-3xl font-bold text-on-surface mb-6">Database Inspector</h1>
+        <div className="space-y-6">
+            <h1 className="text-3xl font-bold text-on-surface">Database Inspector</h1>
             
-            <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="table-select" className="block text-sm font-medium text-on-surface-variant mb-2">Seleziona una Tabella</label>
-                        <select
-                            id="table-select"
-                            value={selectedTable}
-                            onChange={e => setSelectedTable(e.target.value)}
-                            className="form-select w-full"
-                            disabled={isLoading}
-                        >
-                            {tables.map(table => <option key={table} value={table}>{table}</option>)}
-                        </select>
-                    </div>
-                     <div className="space-y-2">
-                         <label className="block text-sm font-medium text-on-surface-variant mb-2">Azioni Globali</label>
-                         <div className="flex items-center gap-2">
-                             <button
-                                onClick={() => handleExport('postgres')}
-                                disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full disabled:opacity-50"
-                            >
-                                {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
-                            </button>
-                            <button
-                                onClick={() => handleExport('mysql')}
-                                disabled={isLoading || isExportingPg || isExportingMysql}
-                                className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                            >
-                                {isExportingMysql ? <SpinnerIcon className="w-5 h-5"/> : 'Export MySQL'}
-                            </button>
-                            <button
-                                onClick={() => setIsDeleteAllModalOpen(true)}
-                                disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
-                                className="px-4 py-2 bg-error text-on-error font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                                title="Elimina Tutte le Righe dalla Tabella Selezionata"
-                            >
-                                Svuota
-                            </button>
-                         </div>
-                    </div>
-                </div>
+            <div className="flex border-b border-outline-variant">
+                <button 
+                    onClick={() => setMode('inspector')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${mode === 'inspector' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+                >
+                    Ispettore Tabelle
+                </button>
+                <button 
+                    onClick={() => setMode('query')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${mode === 'query' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+                >
+                    <span className="material-symbols-outlined text-sm">terminal</span> SQL Editor
+                </button>
             </div>
 
-            {isLoading && !tableData && (
-                <div className="flex justify-center items-center py-12">
-                    <SpinnerIcon className="w-8 h-8 text-primary" />
-                </div>
-            )}
-            
-            {tableData && (
-                <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
-                    {(isLoading || isSaving) && (
-                        <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
+            {mode === 'inspector' && (
+                <div className="animate-fade-in">
+                    <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="table-select" className="block text-sm font-medium text-on-surface-variant mb-2">Seleziona una Tabella</label>
+                                <select
+                                    id="table-select"
+                                    value={selectedTable}
+                                    onChange={e => setSelectedTable(e.target.value)}
+                                    className="form-select w-full"
+                                    disabled={isLoading}
+                                >
+                                    {tables.map(table => <option key={table} value={table}>{table}</option>)}
+                                </select>
+                            </div>
+                             <div className="space-y-2">
+                                 <label className="block text-sm font-medium text-on-surface-variant mb-2">Azioni Globali</label>
+                                 <div className="flex items-center gap-2">
+                                     <button
+                                        onClick={() => handleExport('postgres')}
+                                        disabled={isLoading || isExportingPg || isExportingMysql}
+                                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full disabled:opacity-50"
+                                    >
+                                        {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('mysql')}
+                                        disabled={isLoading || isExportingPg || isExportingMysql}
+                                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
+                                    >
+                                        {isExportingMysql ? <SpinnerIcon className="w-5 h-5"/> : 'Export MySQL'}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsDeleteAllModalOpen(true)}
+                                        disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
+                                        className="px-4 py-2 bg-error text-on-error font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
+                                        title="Elimina Tutte le Righe dalla Tabella Selezionata"
+                                    >
+                                        Svuota
+                                    </button>
+                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {isLoading && !tableData && (
+                        <div className="flex justify-center items-center py-12">
                             <SpinnerIcon className="w-8 h-8 text-primary" />
                         </div>
                     )}
-                    <table className="min-w-full divide-y divide-outline-variant">
-                        <thead className="bg-surface-container-low">
-                            <tr>
-                                {tableData.columns.map(col => (
-                                    <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                        {col.column_name}
-                                        <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
-                                    </th>
-                                ))}
-                                <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-outline-variant">
-                            {tableData.rows.map(row => (
-                                <tr key={row.id} className="hover:bg-surface-container">
-                                    {tableData.columns.map(col => (
-                                        <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
-                                            {editingRowId === row.id && col.column_name !== 'id' ? (
-                                                renderInputField(col, editingRowData[col.column_name])
-                                            ) : (
-                                                renderCellContent(row[col.column_name], col.column_name)
-                                            )}
-                                        </td>
+                    
+                    {tableData && (
+                        <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
+                            {(isLoading || isSaving) && (
+                                <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
+                                    <SpinnerIcon className="w-8 h-8 text-primary" />
+                                </div>
+                            )}
+                            <table className="min-w-full divide-y divide-outline-variant">
+                                <thead className="bg-surface-container-low">
+                                    <tr>
+                                        {tableData.columns.map(col => (
+                                            <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                                {col.column_name}
+                                                <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
+                                            </th>
+                                        ))}
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-outline-variant">
+                                    {tableData.rows.map(row => (
+                                        <tr key={row.id} className="hover:bg-surface-container">
+                                            {tableData.columns.map(col => (
+                                                <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
+                                                    {editingRowId === row.id && col.column_name !== 'id' ? (
+                                                        renderInputField(col, editingRowData[col.column_name])
+                                                    ) : (
+                                                        renderCellContent(row[col.column_name], col.column_name)
+                                                    )}
+                                                </td>
+                                            ))}
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                {editingRowId === row.id ? (
+                                                    <div className="flex items-center justify-end space-x-2">
+                                                        <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
+                                                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
+                                                        </button>
+                                                        <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
+                                                    </div>
+                                                ) : (
+                                                    <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                                                )}
+                                            </td>
+                                        </tr>
                                     ))}
-                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                        {editingRowId === row.id ? (
-                                            <div className="flex items-center justify-end space-x-2">
-                                                <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
-                                                    {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
-                                                </button>
-                                                <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
-                                            </div>
-                                        ) : (
-                                            <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                     {tableData.rows.length === 0 && (
-                        <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
+                                </tbody>
+                            </table>
+                             {tableData.rows.length === 0 && (
+                                <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {mode === 'query' && (
+                <div className="animate-fade-in space-y-4">
+                    <div className="bg-surface rounded-2xl shadow p-6">
+                        <label className="block text-sm font-medium text-on-surface mb-2">Query SQL Raw</label>
+                        <textarea 
+                            value={sqlQuery}
+                            onChange={e => setSqlQuery(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && e.ctrlKey) {
+                                    handleRunQuery();
+                                }
+                            }}
+                            className="form-textarea font-mono text-sm w-full h-40 bg-surface-container text-on-surface border-outline-variant focus:ring-primary"
+                            placeholder="SELECT * FROM users WHERE..."
+                        ></textarea>
+                        <div className="mt-4 flex justify-end">
+                            <button 
+                                onClick={handleRunQuery}
+                                disabled={isLoading || !sqlQuery.trim()}
+                                className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isLoading ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">play_arrow</span>}
+                                Esegui (Ctrl+Enter)
+                            </button>
+                        </div>
+                    </div>
+
+                    {queryError && (
+                        <div className="p-4 bg-error-container text-on-error-container rounded-lg border border-error">
+                            <strong>Errore SQL:</strong>
+                            <pre className="mt-1 text-xs whitespace-pre-wrap">{queryError}</pre>
+                        </div>
+                    )}
+
+                    {queryResult && (
+                        <div className="bg-surface rounded-2xl shadow overflow-hidden">
+                            <div className="p-4 bg-surface-container border-b border-outline-variant flex justify-between items-center">
+                                <span className="text-sm font-bold text-on-surface">Risultati Query</span>
+                                <span className="text-xs text-on-surface-variant bg-surface px-2 py-1 rounded">Rows: {queryResult.rowCount} | Cmd: {queryResult.command}</span>
+                            </div>
+                            <div className="overflow-x-auto max-h-[500px]">
+                                <table className="min-w-full divide-y divide-outline-variant">
+                                    <thead className="bg-surface-container-low sticky top-0">
+                                        <tr>
+                                            {queryResult.fields.map((field: any) => (
+                                                <th key={field.name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                                    {field.name}
+                                                    <span className="block text-[10px] opacity-50 normal-case">ID: {field.dataTypeID}</span>
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-outline-variant bg-surface">
+                                        {queryResult.rows.map((row, i) => (
+                                            <tr key={i} className="hover:bg-surface-container">
+                                                {queryResult.fields.map((field: any) => (
+                                                    <td key={field.name} className="px-4 py-2 whitespace-nowrap text-sm text-on-surface font-mono">
+                                                        {renderCellContent(row[field.name])}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {queryResult.rows.length === 0 && (
+                                    <p className="text-center text-on-surface-variant py-8">Nessun risultato restituito.</p>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
             )}
