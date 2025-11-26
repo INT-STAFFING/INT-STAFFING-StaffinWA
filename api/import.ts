@@ -415,18 +415,22 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
         existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
 
         for (const s of importedSkills) {
-            const { 'Nome Competenza': name, Categoria: category } = s;
+            // Map Excel headers to internal fields. "Ambito" maps to 'category'.
+            const { 'Nome Competenza': name, 'Ambito': category, 'Macro Ambito': macroCategory, Certificazione: isCert } = s;
             if (!name) continue;
             const normalized = normalize(name);
             
+            // Convert 'SI'/'NO' to boolean
+            const isCertification = String(isCert).toUpperCase() === 'SI';
+            
             if (!skillNameMap.has(normalized)) {
                 const newId = uuidv4();
-                await client.query('INSERT INTO skills (id, name, category) VALUES ($1, $2, $3)', [newId, String(name).trim(), category]);
+                await client.query('INSERT INTO skills (id, name, category, macro_category, is_certification) VALUES ($1, $2, $3, $4, $5)', [newId, String(name).trim(), category, macroCategory, isCertification]);
                 skillNameMap.set(normalized, newId);
             } else {
-                 // Update category if exists
+                 // Update attributes if exists
                  const id = skillNameMap.get(normalized);
-                 await client.query('UPDATE skills SET category = $1 WHERE id = $2', [category, id]);
+                 await client.query('UPDATE skills SET category = $1, macro_category = $2, is_certification = $3 WHERE id = $4', [category, macroCategory, isCertification, id]);
             }
         }
     }

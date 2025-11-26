@@ -1017,6 +1017,7 @@ const MenuConfigurationEditor: React.FC = () => {
             addToast('Configurazione menu salvata.', 'success');
             setHasChanges(false);
         } catch (error) {
+            console.error("Error saving menu config:", error);
             addToast('Errore salvataggio menu.', 'error');
         }
     };
@@ -1085,6 +1086,7 @@ const MenuConfigurationEditor: React.FC = () => {
             addToast('Sezioni salvate con successo.', 'success');
             setIsSectionModalOpen(false);
         } catch (e) {
+            console.error("Error saving sections:", e);
             addToast('Errore salvataggio sezioni.', 'error');
         }
     };

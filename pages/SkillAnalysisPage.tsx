@@ -50,9 +50,18 @@ const SkillForceGraph: React.FC<{
         
         svg.call(zoomBehavior as any);
 
-        const color = scaleOrdinal<string, string>()
-            .domain(['skill', 'resource', 'project'])
-            .range([theme.tertiary, theme.primary, '#e67e22']); // Greenish (Skill), Blue (Res), Orange (Proj)
+        // Color mapping: Resources = Primary, Projects = Orange, Skills = Based on Macro Category (Category10)
+        const macroCategoryColor = scaleOrdinal(schemeCategory10);
+
+        const getNodeColor = (d: any) => {
+            if (d.type === 'resource') return theme.primary;
+            if (d.type === 'project') return '#e67e22';
+            if (d.type === 'skill') {
+                if (d.isCertification) return '#e6c200'; // Gold for certs
+                return macroCategoryColor(d.macroCategory || 'default');
+            }
+            return '#ccc';
+        };
 
         const simulation = forceSimulation(nodes)
             .force("link", forceLink(links).id((d: any) => d.id).distance(100))
@@ -91,8 +100,8 @@ const SkillForceGraph: React.FC<{
             );
 
         node.append("circle")
-            .attr("r", (d: any) => d.type === 'skill' ? 8 : d.type === 'project' ? 12 : 6)
-            .attr("fill", (d: any) => color(d.type))
+            .attr("r", (d: any) => d.type === 'skill' ? (d.isCertification ? 10 : 8) : d.type === 'project' ? 12 : 6)
+            .attr("fill", (d: any) => getNodeColor(d))
             .attr("stroke", theme.surface)
             .attr("stroke-width", 1.5);
 
@@ -105,7 +114,7 @@ const SkillForceGraph: React.FC<{
             .style("pointer-events", "none");
 
         node.append("title")
-            .text((d: any) => `${d.type.toUpperCase()}: ${d.name}`);
+            .text((d: any) => `${d.type.toUpperCase()}: ${d.name} ${d.macroCategory ? `(${d.macroCategory})` : ''}`);
 
         simulation.on("tick", () => {
             link
@@ -509,7 +518,7 @@ const SkillAnalysisPage: React.FC = () => {
 
         // Skills
         skills.forEach(s => {
-            nodes.push({ id: `skill_${s.id}`, name: s.name, type: 'skill' });
+            nodes.push({ id: `skill_${s.id}`, name: s.name, type: 'skill', macroCategory: s.macroCategory, isCertification: s.isCertification });
             nodeIds.add(`skill_${s.id}`);
         });
 

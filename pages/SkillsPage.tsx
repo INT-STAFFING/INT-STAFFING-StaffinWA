@@ -1,3 +1,4 @@
+
 /**
  * @file SkillsPage.tsx
  * @description Pagina per la gestione delle Competenze (Skills) - CRUD, Dashboard e Visualizzazione.
@@ -62,11 +63,13 @@ const SkillsPage: React.FC = () => {
     });
 
     // Filter State
-    const [filters, setFilters] = useState({ name: '', category: '', unusedOnly: false });
+    const [filters, setFilters] = useState({ name: '', category: '', macroCategory: '', isCertification: '', unusedOnly: false });
 
     const emptySkill: Omit<Skill, 'id'> = {
         name: '',
-        category: ''
+        category: '',
+        macroCategory: '',
+        isCertification: false
     };
 
     // --- Data Processing ---
@@ -100,26 +103,34 @@ const SkillsPage: React.FC = () => {
         const categories = new Set(enrichedSkills.map(s => s.category).filter(Boolean));
         const totalCategories = categories.size;
 
-        // Most popular category
-        const catCounts: Record<string, number> = {};
+        // Most popular Macro Category
+        const macroCounts: Record<string, number> = {};
+        let totalCerts = 0;
+
         enrichedSkills.forEach(s => {
-            if (s.category) catCounts[s.category] = (catCounts[s.category] || 0) + 1;
+            if (s.macroCategory) macroCounts[s.macroCategory] = (macroCounts[s.macroCategory] || 0) + 1;
+            if (s.isCertification) totalCerts++;
         });
-        const topCategoryEntry = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0];
-        const topCategory = topCategoryEntry ? `${topCategoryEntry[0]} (${topCategoryEntry[1]})` : 'N/A';
+        const topMacroEntry = Object.entries(macroCounts).sort((a, b) => b[1] - a[1])[0];
+        const topMacroCategory = topMacroEntry ? `${topMacroEntry[0]} (${topMacroEntry[1]})` : 'N/A';
 
         // Unused skills
         const unusedSkills = enrichedSkills.filter(s => s.totalUsage === 0).length;
 
-        return { totalSkills, totalCategories, topCategory, unusedSkills };
+        return { totalSkills, totalCategories, topMacroCategory, unusedSkills, totalCerts };
     }, [enrichedSkills]);
 
     const filteredSkills = useMemo(() => {
         return enrichedSkills.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
             const catMatch = !filters.category || s.category === filters.category;
+            const macroMatch = !filters.macroCategory || s.macroCategory === filters.macroCategory;
+            const certMatch = filters.isCertification === '' ? true : 
+                              filters.isCertification === 'yes' ? s.isCertification : !s.isCertification;
+            
             const unusedMatch = !filters.unusedOnly || s.totalUsage === 0;
-            return nameMatch && catMatch && unusedMatch;
+            
+            return nameMatch && catMatch && macroMatch && certMatch && unusedMatch;
         });
     }, [enrichedSkills, filters]);
 
@@ -128,13 +139,18 @@ const SkillsPage: React.FC = () => {
         return cats.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
+    const macroCategoryOptions = useMemo(() => {
+        const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean)));
+        return macros.sort().map(c => ({ value: c as string, label: c as string }));
+    }, [skills]);
+
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: s.name })), [skills]);
 
     // --- Handlers ---
 
     const handleOpenModal = (skill?: Skill) => {
-        setEditingSkill(skill || emptySkill);
+        setEditingSkill(skill ? { ...skill } : emptySkill);
         setIsModalOpen(true);
     };
 
@@ -170,9 +186,12 @@ const SkillsPage: React.FC = () => {
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (editingSkill) {
-            setEditingSkill({ ...editingSkill, [e.target.name]: e.target.value });
-        }
+        if (!editingSkill) return;
+        const { name, value, type, checked } = e.target;
+        setEditingSkill({ 
+            ...editingSkill, 
+            [name]: type === 'checkbox' ? checked : value 
+        });
     };
 
     // --- Assignment Handlers ---
@@ -221,8 +240,14 @@ const SkillsPage: React.FC = () => {
     // --- Render Helpers ---
 
     const columns: ColumnDef<EnrichedSkill>[] = [
-        { header: 'Nome Competenza', sortKey: 'name', cell: s => <span className="font-medium text-on-surface">{s.name}</span> },
-        { header: 'Categoria', sortKey: 'category', cell: s => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant">{s.category || 'Generica'}</span> },
+        { header: 'Nome Competenza', sortKey: 'name', cell: s => (
+            <div className="flex items-center gap-2 sticky left-0 bg-inherit pl-6">
+                {s.isCertification && <span className="material-symbols-outlined text-yellow-600 text-sm" title="Certificazione">verified</span>}
+                <span className="font-medium text-on-surface">{s.name}</span>
+            </div>
+        ) },
+        { header: 'Ambito', sortKey: 'category', cell: s => <span className="text-sm text-on-surface-variant">{s.category || '-'}</span> },
+        { header: 'Macro Ambito', sortKey: 'macroCategory', cell: s => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant">{s.macroCategory || '-'}</span> },
         { header: 'Utilizzo Risorse', sortKey: 'resourceCount', cell: s => <span className="text-center block font-semibold">{s.resourceCount}</span> },
         { header: 'Utilizzo Progetti', sortKey: 'projectCount', cell: s => <span className="text-center block font-semibold">{s.projectCount}</span> },
     ];
@@ -231,14 +256,14 @@ const SkillsPage: React.FC = () => {
         <tr key={skill.id} className="hover:bg-surface-container group">
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(skill)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => openAssignmentModal(skill)} className="text-on-surface-variant hover:text-tertiary" title="Assegna a Risorse">
+                <div className="flex items-center justify-end space-x-2">
+                    <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary" title="Assegna a Risorse">
                         <span className="material-symbols-outlined">person_add</span>
                     </button>
-                    <button onClick={() => handleOpenModal(skill)} className="text-on-surface-variant hover:text-primary" title="Modifica">
+                    <button onClick={() => handleOpenModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica">
                         <span className="material-symbols-outlined">edit</span>
                     </button>
-                    <button onClick={() => setSkillToDelete(skill)} className="text-on-surface-variant hover:text-error" title="Elimina">
+                    <button onClick={() => setSkillToDelete(skill)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
                         {isActionLoading(`deleteSkill-${skill.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
@@ -247,13 +272,21 @@ const SkillsPage: React.FC = () => {
     );
 
     const renderCard = (skill: EnrichedSkill) => (
-        <div key={skill.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3">
+        <div key={skill.id} className={`bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 border-l-4 ${skill.isCertification ? 'border-yellow-500' : 'border-primary'}`}>
             <div className="flex justify-between items-start">
                 <div>
-                    <h3 className="font-bold text-lg text-on-surface">{skill.name}</h3>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-variant text-on-surface-variant mt-1">
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg text-on-surface">{skill.name}</h3>
+                        {skill.isCertification && <span className="material-symbols-outlined text-yellow-600 text-sm">verified</span>}
+                    </div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-variant text-on-surface-variant mt-1 mr-2">
                         {skill.category || 'Generica'}
                     </span>
+                    {skill.macroCategory && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-outline-variant text-on-surface-variant mt-1">
+                            {skill.macroCategory}
+                        </span>
+                    )}
                 </div>
                 <div className="flex gap-1">
                      <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-tertiary">
@@ -291,7 +324,7 @@ const SkillsPage: React.FC = () => {
                     </div>
                     <button onClick={() => openAssignmentModal(null)} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
                         <span className="material-symbols-outlined text-lg">group_add</span>
-                        Assegna Skills
+                        Assegna
                     </button>
                     <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Skill</button>
                 </div>
@@ -303,13 +336,13 @@ const SkillsPage: React.FC = () => {
                     <p className="text-sm text-on-surface-variant">Totale Skills</p>
                     <p className="text-3xl font-bold text-on-surface">{kpis.totalSkills}</p>
                 </div>
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-secondary">
-                    <p className="text-sm text-on-surface-variant">Categorie Uniche</p>
-                    <p className="text-3xl font-bold text-on-surface">{kpis.totalCategories}</p>
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-yellow-500">
+                    <p className="text-sm text-on-surface-variant">Totale Certificazioni</p>
+                    <p className="text-3xl font-bold text-on-surface">{kpis.totalCerts}</p>
                 </div>
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-tertiary">
-                    <p className="text-sm text-on-surface-variant">Categoria Top</p>
-                    <p className="text-xl font-bold text-on-surface truncate" title={kpis.topCategory}>{kpis.topCategory}</p>
+                    <p className="text-sm text-on-surface-variant">Top Macro Ambito</p>
+                    <p className="text-xl font-bold text-on-surface truncate" title={kpis.topMacroCategory}>{kpis.topMacroCategory}</p>
                 </div>
                 <div 
                     className={`bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error cursor-pointer hover:shadow-lg transition-all ${filters.unusedOnly ? 'ring-2 ring-error' : ''}`}
@@ -317,7 +350,7 @@ const SkillsPage: React.FC = () => {
                 >
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm text-on-surface-variant">Skills Inutilizzate</p>
+                            <p className="text-sm text-on-surface-variant">Inutilizzate</p>
                             <p className="text-3xl font-bold text-on-surface">{kpis.unusedSkills}</p>
                         </div>
                         {filters.unusedOnly && <span className="material-symbols-outlined text-error">filter_alt</span>}
@@ -328,7 +361,7 @@ const SkillsPage: React.FC = () => {
 
             {/* Filters */}
              <div className="bg-surface rounded-2xl shadow p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <input 
                         type="text" 
                         placeholder="Cerca per nome..." 
@@ -337,14 +370,31 @@ const SkillsPage: React.FC = () => {
                         onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}
                     />
                     <SearchableSelect 
+                        name="macroCategory" 
+                        value={filters.macroCategory} 
+                        onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} 
+                        options={macroCategoryOptions} 
+                        placeholder="Macro Ambito"
+                    />
+                    <SearchableSelect 
                         name="category" 
                         value={filters.category} 
                         onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} 
                         options={categoryOptions} 
-                        placeholder="Tutte le Categorie"
+                        placeholder="Ambito"
                     />
-                    <button onClick={() => setFilters({ name: '', category: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full md:w-auto">
-                        Reset Filtri
+                    <select 
+                        className="form-select"
+                        value={filters.isCertification}
+                        onChange={e => setFilters(prev => ({ ...prev, isCertification: e.target.value }))}
+                    >
+                        <option value="">Tutti i tipi</option>
+                        <option value="yes">Solo Certificazioni</option>
+                        <option value="no">Solo Competenze</option>
+                    </select>
+                    
+                    <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', isCertification: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
+                        Reset
                     </button>
                 </div>
             </div>
@@ -388,21 +438,54 @@ const SkillsPage: React.FC = () => {
                                 placeholder="es. React, Project Management..."
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Categoria</label>
-                            <input 
-                                type="text" 
-                                name="category" 
-                                value={editingSkill.category || ''} 
-                                onChange={handleInputChange} 
-                                className="form-input"
-                                placeholder="es. Frontend, Soft Skill..."
-                                list="category-suggestions"
-                            />
-                            <datalist id="category-suggestions">
-                                {categoryOptions.map(opt => <option key={opt.value} value={opt.value} />)}
-                            </datalist>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Macro Ambito</label>
+                                <input 
+                                    type="text" 
+                                    name="macroCategory" 
+                                    value={editingSkill.macroCategory || ''} 
+                                    onChange={handleInputChange} 
+                                    className="form-input"
+                                    placeholder="es. Tech, Lingue..."
+                                    list="macro-suggestions"
+                                />
+                                <datalist id="macro-suggestions">
+                                    {macroCategoryOptions.map(opt => <option key={opt.value} value={opt.value} />)}
+                                </datalist>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambito</label>
+                                <input 
+                                    type="text" 
+                                    name="category" 
+                                    value={editingSkill.category || ''} 
+                                    onChange={handleInputChange} 
+                                    className="form-input"
+                                    placeholder="es. Frontend, Soft Skill..."
+                                    list="category-suggestions"
+                                />
+                                <datalist id="category-suggestions">
+                                    {categoryOptions.map(opt => <option key={opt.value} value={opt.value} />)}
+                                </datalist>
+                            </div>
                         </div>
+
+                        <div className="flex items-center gap-3 p-3 bg-surface-container-low rounded border border-outline-variant">
+                            <input 
+                                type="checkbox" 
+                                name="isCertification" 
+                                checked={editingSkill.isCertification} 
+                                onChange={handleInputChange} 
+                                className="form-checkbox h-5 w-5 text-primary"
+                            />
+                            <div>
+                                <label className="text-sm font-medium text-on-surface">È una certificazione?</label>
+                                <p className="text-xs text-on-surface-variant">Se selezionato, verrà evidenziata come certificazione ufficiale.</p>
+                            </div>
+                        </div>
+
                          <div className="flex justify-end space-x-3 pt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
                                 Annulla

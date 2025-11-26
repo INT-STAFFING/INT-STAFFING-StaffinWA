@@ -188,7 +188,9 @@ export const exportSkills = (data: EntitiesContextType) => {
     // Sheet 1: Competenze Definition
     const skillsData = skills.map(s => ({
         'Nome Competenza': s.name,
-        'Categoria': s.category
+        'Ambito': s.category || '', // Ex Categoria
+        'Macro Ambito': s.macroCategory || '', // Nuovo Campo
+        'Certificazione': s.isCertification ? 'SI' : 'NO' // Nuovo Campo
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(skillsData), 'Competenze');
 
@@ -313,7 +315,7 @@ export const exportTemplate = (type: ExportType) => {
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["candidateName", "candidateSurname", "birthDate", "horizontal", "roleName", "cv_summary", "interviewersNames", "interviewDate", "feedback", "notes", "hiringStatus", "entryDate", "status"]]), 'Colloqui');
             break;
         case 'skills':
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Categoria"]]), 'Competenze');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Ambito", "Macro Ambito", "Certificazione"]]), 'Competenze');
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
             break;
         case 'leaves':

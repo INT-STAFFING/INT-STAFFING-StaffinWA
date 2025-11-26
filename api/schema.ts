@@ -458,6 +458,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
             category VARCHAR(255)
         );
     `;
+    // UPDATES FOR SKILL MANAGEMENT UPGRADE
+    await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_category VARCHAR(255);`;
+    await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS is_certification BOOLEAN DEFAULT FALSE;`;
     
     await db.sql`
         CREATE TABLE IF NOT EXISTS resource_skills (

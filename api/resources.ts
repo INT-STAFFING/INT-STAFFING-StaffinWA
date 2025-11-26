@@ -203,15 +203,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const { updates } = req.body; // [{ key, value }]
             if (!Array.isArray(updates)) throw new Error('Invalid updates format');
             
-            await client.query('BEGIN');
-            for (const { key, value } of updates) {
-                await client.query(`
-                    INSERT INTO app_config (key, value) VALUES ($1, $2)
-                    ON CONFLICT (key) DO UPDATE SET value = $2
-                `, [key, value]);
+            try {
+                await client.query('BEGIN');
+                for (const { key, value } of updates) {
+                    await client.query(`
+                        INSERT INTO app_config (key, value) VALUES ($1, $2)
+                        ON CONFLICT (key) DO UPDATE SET value = $2
+                    `, [key, value]);
+                }
+                await client.query('COMMIT');
+                return res.status(200).json({ success: true });
+            } catch (e) {
+                await client.query('ROLLBACK');
+                throw e;
             }
-            await client.query('COMMIT');
-            return res.status(200).json({ success: true });
         }
 
         // --- THEME HANDLER ---

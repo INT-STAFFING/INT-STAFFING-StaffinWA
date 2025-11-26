@@ -47,7 +47,7 @@ const SkillsMapPage: React.FC = () => {
 
     // State
     const [view, setView] = useState<'table' | 'card'>('table');
-    const [filters, setFilters] = useState({ resourceId: '', roleId: '', skillIds: [] as string[], category: '' });
+    const [filters, setFilters] = useState({ resourceId: '', roleId: '', skillIds: [] as string[], category: '', macroCategory: '', isCertification: '' });
     
     // Edit Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,7 +63,7 @@ const SkillsMapPage: React.FC = () => {
             const role = roles.find(r => r.id === resource.roleId);
             
             const manualSkills = computed.filter(cs => cs.manualDetails);
-            const certifications = manualSkills.filter(cs => cs.manualDetails?.acquisitionDate);
+            const certifications = manualSkills.filter(cs => cs.skill.isCertification);
             
             return {
                 ...resource,
@@ -114,9 +114,15 @@ const SkillsMapPage: React.FC = () => {
             
             const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
             
+            // Advanced Filtering
             const matchesCategory = !filters.category || r.computedSkills.some(cs => cs.skill.category === filters.category);
+            const matchesMacro = !filters.macroCategory || r.computedSkills.some(cs => cs.skill.macroCategory === filters.macroCategory);
+            
+            const matchesCert = filters.isCertification === '' ? true : 
+                                filters.isCertification === 'yes' ? r.computedSkills.some(cs => cs.skill.isCertification && cs.manualDetails) : 
+                                true;
 
-            return matchesRes && matchesRole && matchesSkill && matchesCategory;
+            return matchesRes && matchesRole && matchesSkill && matchesCategory && matchesMacro && matchesCert;
         });
     }, [allEnrichedResources, filters]);
 
@@ -199,7 +205,11 @@ const SkillsMapPage: React.FC = () => {
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
     const categoryOptions = useMemo(() => {
         const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
-        return cats.map(c => ({ value: c as string, label: c as string }));
+        return cats.sort().map(c => ({ value: c as string, label: c as string }));
+    }, [skills]);
+    const macroCategoryOptions = useMemo(() => {
+        const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean)));
+        return macros.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
     const columns: ColumnDef<EnrichedSkillResource>[] = [
@@ -210,22 +220,27 @@ const SkillsMapPage: React.FC = () => {
                 {r.computedSkills.slice(0, 3).map(cs => {
                     const levelName = SKILL_LEVELS[(cs.manualDetails?.level || cs.inferredLevel || 1) as SkillLevelValue];
                     const isManual = !!cs.manualDetails;
+                    const isCert = cs.skill.isCertification;
                     return (
                         <span 
                             key={cs.skill.id} 
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${isManual ? 'bg-primary-container text-on-primary-container border-transparent' : 'bg-surface-variant text-on-surface-variant border-outline-variant'}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                                isCert && isManual ? 'bg-yellow-50 text-yellow-800 border-yellow-200' : 
+                                isManual ? 'bg-primary-container text-on-primary-container border-transparent' : 
+                                'bg-surface-variant text-on-surface-variant border-outline-variant'}`}
                             title={`Livello: ${levelName} ${!isManual ? '(Inferito)' : ''}`}
                         >
                             {cs.skill.name} <span className="ml-1 opacity-70 text-[10px]">({levelName.substring(0,3)})</span>
+                            {isCert && <span className="material-symbols-outlined text-[10px] ml-1">verified</span>}
                         </span>
                     );
                 })}
                 {r.computedSkills.length > 3 && <span className="text-xs text-on-surface-variant">+{r.computedSkills.length - 3}</span>}
             </div>
         )},
-        { header: 'N. Certificazioni', sortKey: 'certificationCount', cell: r => (
+        { header: 'Certificazioni', sortKey: 'certificationCount', cell: r => (
             <div className="flex items-center gap-2">
-                <span className="font-semibold">{r.certificationCount}</span>
+                <span className={`font-semibold ${r.certificationCount > 0 ? 'text-primary' : 'text-on-surface-variant'}`}>{r.certificationCount}</span>
                 {r.expiringCertifications > 0 && (
                     <span className="flex items-center text-xs text-error font-medium" title={`${r.expiringCertifications} in scadenza`}>
                         <span className="material-symbols-outlined text-sm mr-1">warning</span>
@@ -244,7 +259,7 @@ const SkillsMapPage: React.FC = () => {
         <tr key={r.id} className="hover:bg-surface-container group">
              {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(r)}</td>)}
              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-center">
+                <div className="flex items-center justify-end space-x-2">
                     <button onClick={() => openEditModal(r)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Gestisci Competenze">
                         <span className="material-symbols-outlined">edit_note</span>
                     </button>
@@ -269,7 +284,7 @@ const SkillsMapPage: React.FC = () => {
                 <div className="px-2 py-1 bg-surface rounded border border-outline-variant">
                     <span className="font-semibold">{r.totalSkills}</span> Skills
                 </div>
-                <div className={`px-2 py-1 bg-surface rounded border border-outline-variant ${r.expiringCertifications > 0 ? 'border-error text-error' : ''}`}>
+                <div className={`px-2 py-1 bg-surface rounded border border-outline-variant ${r.certificationCount > 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : ''} ${r.expiringCertifications > 0 ? 'border-error text-error' : ''}`}>
                     <span className="font-semibold">{r.certificationCount}</span> Certificazioni
                 </div>
             </div>
@@ -279,13 +294,18 @@ const SkillsMapPage: React.FC = () => {
                 <div className="flex flex-wrap gap-1">
                     {r.computedSkills.slice(0, 5).map(cs => {
                         const level = cs.manualDetails?.level || cs.inferredLevel || 1;
+                        const isCert = cs.skill.isCertification;
+                        const isManual = !!cs.manualDetails;
                         return (
                             <span 
                                 key={cs.skill.id} 
-                                className={`px-2 py-0.5 rounded-full text-[10px] ${cs.manualDetails ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-on-surface-variant'}`}
+                                className={`px-2 py-0.5 rounded-full text-[10px] border ${
+                                    isCert && isManual ? 'bg-yellow-50 text-yellow-800 border-yellow-100' :
+                                    cs.manualDetails ? 'bg-primary/10 text-primary border-transparent' : 
+                                    'bg-surface-variant text-on-surface-variant border-transparent'}`}
                                 title={SKILL_LEVELS[level as SkillLevelValue]}
                             >
-                                {cs.skill.name}
+                                {cs.skill.name} {isCert && '★'}
                             </span>
                         );
                     })}
@@ -327,15 +347,19 @@ const SkillsMapPage: React.FC = () => {
 
             {/* Filters */}
             <div className="bg-surface rounded-2xl shadow p-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
-                    <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
-                    <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Tutte le Categorie"/>
+                    <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(f => ({...f, macroCategory: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
+                    <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Ambito"/>
+                    <select className="form-select" value={filters.isCertification} onChange={(e) => setFilters(prev => ({...prev, isCertification: e.target.value}))}>
+                        <option value="">Tutto</option>
+                        <option value="yes">Ha Certificazioni</option>
+                    </select>
                     <div className="flex gap-2">
                         <div className="flex-grow">
                             <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
                         </div>
-                        <button onClick={() => setFilters({ resourceId: '', roleId: '', skillIds: [], category: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
+                        <button onClick={() => setFilters({ resourceId: '', roleId: '', skillIds: [], category: '', macroCategory: '', isCertification: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
                     </div>
                 </div>
             </div>
@@ -386,7 +410,9 @@ const SkillsMapPage: React.FC = () => {
                             <div className="space-y-2 overflow-y-auto pr-1 flex-grow">
                                 {editingSkills.length === 0 && <p className="text-center text-sm text-on-surface-variant mt-4">Nessuna competenza manuale assegnata.</p>}
                                 {editingSkills.map(detail => {
-                                    const skillName = skills.find(s => s.id === detail.skillId)?.name || 'Unknown';
+                                    const skillObj = skills.find(s => s.id === detail.skillId);
+                                    const skillName = skillObj?.name || 'Unknown';
+                                    const isCert = skillObj?.isCertification;
                                     const expired = isExpired(detail.expirationDate);
                                     const expiring = !expired && isExpiringSoon(detail.expirationDate);
                                     
@@ -395,6 +421,7 @@ const SkillsMapPage: React.FC = () => {
                                             <div className="flex justify-between items-center">
                                                 <span className="font-medium text-sm text-on-surface flex items-center gap-2">
                                                     {skillName}
+                                                    {isCert && <span className="material-symbols-outlined text-yellow-600 text-sm" title="Certificazione">verified</span>}
                                                     {expired && <span className="text-xs text-error font-bold">(Scaduta)</span>}
                                                     {expiring && <span className="text-xs text-yellow-600 font-bold">(In Scadenza)</span>}
                                                 </span>
