@@ -203,6 +203,8 @@ export const exportSkills = (data: EntitiesContextType) => {
         return {
             'Nome Risorsa': res.name,
             'Nome Competenza': skill.name,
+            'Ambito': skill.category || '', 
+            'Macro Ambito': skill.macroCategory || '',
             'Livello': rs.level || 1,
             'Data Conseguimento': formatDateForExport(rs.acquisitionDate),
             'Data Scadenza': formatDateForExport(rs.expirationDate)
@@ -317,7 +319,7 @@ export const exportTemplate = (type: ExportType) => {
             break;
         case 'skills':
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Ambito", "Macro Ambito", "Certificazione"]]), 'Competenze');
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Ambito", "Macro Ambito", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
             break;
         case 'leaves':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Tipologia Assenza", "Data Inizio", "Data Fine", "Approvatori", "Stato", "Note"]]), 'Assenze');

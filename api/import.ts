@@ -1,4 +1,5 @@
 
+
 /**
  * @file api/import.ts
  * @description Endpoint API per l'importazione massiva di dati da un file Excel con logica Batch/Bulk ottimizzata.
@@ -464,56 +465,58 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
 
 const importSkills = async (client: any, body: any, warnings: string[]) => {
     const { skills: importedSkills, associations: importedAssociations } = body;
-    const skillNameMap = new Map<string, string>();
-    
-    // 1. Import Skills Definition
+    const skillNameMap = new Map<string, string>(); // normalized name -> id
+    const skillDefinitions = new Map<string, any>(); // id -> { ...cols } to ensure unique rows for skills table
+
+    // 1. Load existing skills
+    const existingSkills = await client.query('SELECT id, name FROM skills');
+    existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
+
+    // 2. Process Definitions (Sheet 1)
     if (Array.isArray(importedSkills)) {
-        const existingSkills = await client.query('SELECT id, name FROM skills');
-        existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
-
-        const skillRows: any[][] = [];
-
         for (const s of importedSkills) {
             const { 'Nome Competenza': name, 'Ambito': category, 'Macro Ambito': macroCategory, Certificazione: isCert } = s;
             if (!name) continue;
             const normalized = normalize(name);
             const isCertification = String(isCert).toUpperCase() === 'SI';
-            
+
             let id = skillNameMap.get(normalized);
             if (!id) {
                 id = uuidv4();
                 skillNameMap.set(normalized, id);
-                skillRows.push([id, String(name).trim(), category, macroCategory, isCertification]);
-            } else {
-                // Update existing attributes via single Upsert batch later or skip
-                // For simplicity in batch, we can include ID and use Upsert
-                skillRows.push([id, String(name).trim(), category, macroCategory, isCertification]);
             }
+            // Always overwrite/set definition based on import
+            skillDefinitions.set(id, [id, String(name).trim(), category, macroCategory, isCertification]);
         }
-
-        await executeBulkInsert(
-            client, 
-            'skills', 
-            ['id', 'name', 'category', 'macro_category', 'is_certification'], 
-            skillRows,
-            'ON CONFLICT (id) DO UPDATE SET category = EXCLUDED.category, macro_category = EXCLUDED.macro_category, is_certification = EXCLUDED.is_certification'
-        );
     }
 
-    // 2. Import Associations
+    // 3. Process Associations (Sheet 2) to find missing skills
+    const assocRows: any[][] = [];
+    
     if (Array.isArray(importedAssociations)) {
         const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-        // Refresh skill map if needed, but we tracked new IDs above
-        
-        const assocRows: any[][] = [];
 
         for (const assoc of importedAssociations) {
-             const { 'Nome Risorsa': resName, 'Nome Competenza': skillName, 'Livello': level, 'Data Conseguimento': acqDate, 'Data Scadenza': expDate } = assoc;
+             const { 'Nome Risorsa': resName, 'Nome Competenza': skillName, 'Livello': level, 'Data Conseguimento': acqDate, 'Data Scadenza': expDate, 'Ambito': category, 'Macro Ambito': macroCategory } = assoc;
              
              if (!resName || !skillName) continue;
              
              const resourceId = resourceMap.get(normalize(resName));
-             const skillId = skillNameMap.get(normalize(skillName));
+             const normalizedSkill = normalize(skillName);
+             let skillId = skillNameMap.get(normalizedSkill);
+
+             // If skill doesn't exist yet, create it from Association data
+             if (!skillId) {
+                 skillId = uuidv4();
+                 skillNameMap.set(normalizedSkill, skillId);
+                 // Default isCertification to false.
+                 skillDefinitions.set(skillId, [skillId, String(skillName).trim(), category || null, macroCategory || null, false]);
+             } else {
+                 // If skill exists but wasn't in the Definitions sheet, update it if we have context info
+                 if (!skillDefinitions.has(skillId) && (category || macroCategory)) {
+                     skillDefinitions.set(skillId, [skillId, String(skillName).trim(), category || null, macroCategory || null, false]); 
+                 }
+             }
              
              if (resourceId && skillId) {
                  let normalizedLevel = 1;
@@ -526,7 +529,25 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
                  ]);
              }
         }
+    }
 
+    // 4. Execute Skills Upsert (Merging definitions from both sheets)
+    if (skillDefinitions.size > 0) {
+        const skillRows = Array.from(skillDefinitions.values());
+        await executeBulkInsert(
+            client, 
+            'skills', 
+            ['id', 'name', 'category', 'macro_category', 'is_certification'], 
+            skillRows,
+            `ON CONFLICT (id) DO UPDATE SET 
+                category = COALESCE(EXCLUDED.category, skills.category), 
+                macro_category = COALESCE(EXCLUDED.macro_category, skills.macro_category), 
+                is_certification = COALESCE(EXCLUDED.is_certification, skills.is_certification)`
+        );
+    }
+
+    // 5. Execute Associations Upsert
+    if (assocRows.length > 0) {
         await executeBulkInsert(
             client, 
             'resource_skills', 
