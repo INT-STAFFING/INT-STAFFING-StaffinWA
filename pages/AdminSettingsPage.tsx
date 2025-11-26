@@ -117,7 +117,12 @@ const UserManagementSection: React.FC = () => {
     };
 
     const openModal = (user?: AppUser) => {
-        setEditingUser(user ? { ...user } : { role: 'SIMPLE', isActive: true, username: '', mustChangePassword: false });
+        setEditingUser(user ? { ...user } : { 
+            role: 'SIMPLE', 
+            isActive: true, 
+            username: '', 
+            mustChangePassword: true // Default to TRUE for new users to force password change
+        });
         setShowPassword(false);
         setIsModalOpen(true);
     };
