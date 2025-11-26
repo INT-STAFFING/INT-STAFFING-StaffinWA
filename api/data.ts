@@ -218,6 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (start && end) {
                 // Filtered query
                 allocationsQuery = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
+                // Filter leaves that overlap with the window
                 leaveRequestsQuery = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
             } else {
                 // Full load (legacy support)

@@ -250,8 +250,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (metaData.sidebarSectionColors) setSidebarSectionColors(metaData.sidebarSectionColors);
             if (metaData.dashboardLayout) setDashboardLayout(metaData.dashboardLayout);
 
-            // 2. Planning
-            const planningData = await apiFetch('/api/data?scope=planning');
+            // 2. Planning - Calculate Window (6 months back, 18 months forward)
+            const today = new Date();
+            const start = new Date(today);
+            start.setMonth(start.getMonth() - 6);
+            const end = new Date(today);
+            end.setMonth(end.getMonth() + 18);
+            
+            const startStr = start.toISOString().split('T')[0];
+            const endStr = end.toISOString().split('T')[0];
+
+            const planningData = await apiFetch(`/api/data?scope=planning&start=${startStr}&end=${endStr}`);
             setAssignments(planningData.assignments || []);
             setAllocations(planningData.allocations || {});
             setWbsTasks(planningData.wbsTasks || []);

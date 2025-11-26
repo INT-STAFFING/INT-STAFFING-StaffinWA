@@ -179,21 +179,26 @@ const SkillsPage: React.FC = () => {
         if (!editingSkill) return;
 
         try {
-            // Sanitization: Clean undefined values
-            const payload = {
-                ...editingSkill,
+            // Sanitization: Explicitly select fields to avoid sending computed props (like resourceCount) to API
+            const payload: any = {
+                name: editingSkill.name,
                 category: editingSkill.category || null,
-                macroCategory: editingSkill.macroCategory || null
+                macroCategory: editingSkill.macroCategory || null,
+                isCertification: !!editingSkill.isCertification
             };
 
-            if ('id' in editingSkill) {
+            if ('id' in editingSkill && editingSkill.id) {
+                payload.id = editingSkill.id;
                 await updateSkill(payload as Skill);
+                addToast('Competenza aggiornata.', 'success');
             } else {
-                await addSkill(payload);
+                await addSkill(payload as Omit<Skill, 'id'>);
+                addToast('Competenza creata.', 'success');
             }
             handleCloseModal();
         } catch (error) {
-            // Error handled by context toast
+            console.error("Failed to save skill:", error);
+            addToast('Errore durante il salvataggio.', 'error');
         }
     };
 
