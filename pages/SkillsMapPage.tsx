@@ -244,9 +244,11 @@ const SkillsMapPage: React.FC = () => {
         <tr key={r.id} className="hover:bg-surface-container group">
              {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(r)}</td>)}
              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <button onClick={() => openEditModal(r)} className="text-primary hover:text-primary-container font-semibold flex items-center justify-end gap-1">
-                    <span className="material-symbols-outlined text-lg">edit_note</span> Gestisci
-                </button>
+                <div className="flex items-center justify-center">
+                    <button onClick={() => openEditModal(r)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Gestisci Competenze">
+                        <span className="material-symbols-outlined">edit_note</span>
+                    </button>
+                </div>
              </td>
         </tr>
     );
@@ -352,6 +354,7 @@ const SkillsMapPage: React.FC = () => {
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
+                    numActions={1}
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

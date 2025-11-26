@@ -85,8 +85,9 @@ export function DataTable<T extends { id?: string }>({
     const tableRef = useRef<HTMLTableElement>(null);
 
     // Costanti per il calcolo della larghezza
-    const BUTTON_WIDTH = 45; // Larghezza stimata per un pulsante icona (con padding e gap)
-    const BASE_PADDING = 12; // RIDOTTO A 12PX COME RICHIESTO
+    // Aumentato a 50 per accomodare meglio pulsanti con padding e gap
+    const BUTTON_WIDTH = 50; 
+    const BASE_PADDING = 16; 
 
     // Calcolo larghezza colonna azioni
     const finalActionsWidth = useMemo(() => {

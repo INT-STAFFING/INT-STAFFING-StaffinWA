@@ -379,7 +379,8 @@ const LeavePage: React.FC = () => {
                     initialSortKey="startDate"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    numActions={isAdmin ? 2 : 1}
+                    // Increase action count for admins to accommodate up to 4 buttons
+                    numActions={isAdmin ? 4 : 2}
                 />
             )}
 
