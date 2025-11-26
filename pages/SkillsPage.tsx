@@ -155,7 +155,17 @@ const SkillsPage: React.FC = () => {
     // --- Handlers ---
 
     const handleOpenModal = (skill?: Skill) => {
-        setEditingSkill(skill ? { ...skill } : emptySkill);
+        // Ensure fields are initialized to empty strings/false to prevent uncontrolled input warnings
+        if (skill) {
+            setEditingSkill({
+                ...skill,
+                category: skill.category || '',
+                macroCategory: skill.macroCategory || '',
+                isCertification: skill.isCertification || false
+            });
+        } else {
+            setEditingSkill(emptySkill);
+        }
         setIsModalOpen(true);
     };
 
@@ -169,10 +179,17 @@ const SkillsPage: React.FC = () => {
         if (!editingSkill) return;
 
         try {
+            // Sanitization: Clean undefined values
+            const payload = {
+                ...editingSkill,
+                category: editingSkill.category || null,
+                macroCategory: editingSkill.macroCategory || null
+            };
+
             if ('id' in editingSkill) {
-                await updateSkill(editingSkill as Skill);
+                await updateSkill(payload as Skill);
             } else {
-                await addSkill(editingSkill);
+                await addSkill(payload);
             }
             handleCloseModal();
         } catch (error) {
@@ -218,6 +235,7 @@ const SkillsPage: React.FC = () => {
         const { selectedResourceIds, selectedSkillIds, acquisitionDate, expirationDate, level } = assignmentData;
 
         if (selectedResourceIds.length === 0 || selectedSkillIds.length === 0) {
+            addToast('Seleziona almeno una risorsa e una competenza.', 'error');
             return;
         }
 
@@ -235,7 +253,7 @@ const SkillsPage: React.FC = () => {
                 }
             }
             await Promise.all(promises);
-            addToast(`${promises.length} associazioni create con successo.`, 'success');
+            addToast(`${promises.length} associazioni salvate con successo.`, 'success');
             setIsAssignmentModalOpen(false);
         } catch (error) {
             addToast('Errore durante l\'assegnazione delle competenze.', 'error');
@@ -481,7 +499,7 @@ const SkillsPage: React.FC = () => {
                             <input 
                                 type="checkbox" 
                                 name="isCertification" 
-                                checked={editingSkill.isCertification} 
+                                checked={editingSkill.isCertification || false} 
                                 onChange={handleInputChange} 
                                 className="form-checkbox h-5 w-5 text-primary"
                             />

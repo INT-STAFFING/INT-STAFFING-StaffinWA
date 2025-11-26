@@ -1,3 +1,4 @@
+
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -667,27 +668,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (method === 'POST') {
                 const keys = Object.keys(req.body);
                 const values = Object.values(req.body);
-                
-                if (!keys.includes('id') && entity !== 'resource_skills' && entity !== 'project_skills') {
-                    keys.push('id');
-                    values.push(uuidv4());
-                }
-                
                 const toSnake = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
                 const dbKeys = keys.map(toSnake);
+
+                // Special Handling for Association Tables to support UPSERT
+                if (entity === 'resource_skills' || entity === 'project_skills') {
+                    // Construct ON CONFLICT clause based on primary key columns
+                    const conflictTarget = entity === 'resource_skills' ? '(resource_id, skill_id)' : '(project_id, skill_id)';
+                    
+                    const placeholders = values.map((_, i) => `$${i + 1}`).join(',');
+                    const updateClauses = dbKeys
+                        .filter(k => !['resource_id', 'skill_id', 'project_id'].includes(k)) // Don't update PKs
+                        .map(k => `${k} = EXCLUDED.${k}`)
+                        .join(', ');
+
+                    let query = `INSERT INTO ${entity} (${dbKeys.join(',')}) VALUES (${placeholders})`;
+                    
+                    if (updateClauses.length > 0) {
+                        query += ` ON CONFLICT ${conflictTarget} DO UPDATE SET ${updateClauses}`;
+                    } else {
+                        // If no columns to update (pure association), DO NOTHING
+                        query += ` ON CONFLICT ${conflictTarget} DO NOTHING`;
+                    }
+
+                    const { rows } = await client.query(query + ' RETURNING *', values);
+                    
+                    // Log logic for upsert
+                    let entityIdLog = entity === 'resource_skills' ? `${req.body.resourceId}:${req.body.skillId}` : `${req.body.projectId}:${req.body.skillId}`;
+                    // If rows is empty (DO NOTHING and exists), fallback log
+                    await logAction(client, currentUser, `UPSERT_${(entity as string).toUpperCase()}`, entity as string, entityIdLog, req.body, req);
+                    
+                    const toCamel = (obj: any) => {
+                        if (!obj) return {};
+                        const newObj: any = {};
+                        for (const key in obj) {
+                            newObj[key.replace(/(_\w)/g, k => k[1].toUpperCase())] = obj[key];
+                        }
+                        return newObj;
+                    };
+                    return res.status(201).json(rows[0] ? toCamel(rows[0]) : {});
+                }
+
+                // Generic Logic for Entity Tables
+                if (!keys.includes('id')) {
+                    keys.push('id');
+                    dbKeys.push('id');
+                    values.push(uuidv4());
+                }
                 
                 const placeholders = values.map((_, i) => `$${i + 1}`).join(',');
                 const query = `INSERT INTO ${entity} (${dbKeys.join(',')}) VALUES (${placeholders}) RETURNING *`;
                 
                 const { rows } = await client.query(query, values);
-                
-                // Determine ID for logging
-                let entityIdLog = null;
-                if (rows[0]?.id) entityIdLog = rows[0].id;
-                else if (entity === 'resource_skills') entityIdLog = `${req.body.resourceId}:${req.body.skillId}`;
-                else if (entity === 'project_skills') entityIdLog = `${req.body.projectId}:${req.body.skillId}`;
-
-                await logAction(client, currentUser, `CREATE_${(entity as string).toUpperCase()}`, entity as string, entityIdLog, req.body, req);
+                await logAction(client, currentUser, `CREATE_${(entity as string).toUpperCase()}`, entity as string, rows[0]?.id, req.body, req);
 
                 const toCamel = (obj: any) => {
                     const newObj: any = {};

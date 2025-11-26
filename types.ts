@@ -367,9 +367,9 @@ export interface Skill {
     name: string;
     /** @property {string} [category] - Ambito della competenza (ex Categoria). */
     category?: string;
-    /** @property {string} [macroCategory] - Macro Ambito della competenza. */
+    /** @property {string} [macroCategory] - Macro Ambito della competenza (es. "Backend", "Frontend", "Project Mgmt"). */
     macroCategory?: string;
-    /** @property {boolean} [isCertification] - Se è una certificazione ufficiale. */
+    /** @property {boolean} [isCertification] - Se true, questa skill rappresenta una certificazione ufficiale. */
     isCertification?: boolean;
 }
 

@@ -134,12 +134,22 @@ const SkillsMapPage: React.FC = () => {
         // Pre-load ONLY manual skills for editing
         const currentManualSkills = resourceSkills
             .filter(rs => rs.resourceId === resource.id)
-            .map(rs => ({
-                skillId: rs.skillId,
-                acquisitionDate: rs.acquisitionDate ? rs.acquisitionDate.split('T')[0] : '',
-                expirationDate: rs.expirationDate ? rs.expirationDate.split('T')[0] : '',
-                level: rs.level || 1
-            }));
+            .map(rs => {
+                // Ensure we extract pure date strings (YYYY-MM-DD) or empty strings for inputs
+                const acq = rs.acquisitionDate && typeof rs.acquisitionDate === 'string' 
+                    ? rs.acquisitionDate.split('T')[0] 
+                    : '';
+                const exp = rs.expirationDate && typeof rs.expirationDate === 'string'
+                    ? rs.expirationDate.split('T')[0]
+                    : '';
+
+                return {
+                    skillId: rs.skillId,
+                    acquisitionDate: acq,
+                    expirationDate: exp,
+                    level: rs.level || 1
+                };
+            });
         setEditingSkills(currentManualSkills);
         setTempSkillId('');
         setIsModalOpen(true);
@@ -163,6 +173,7 @@ const SkillsMapPage: React.FC = () => {
         const toRemove = oldSkills.filter(id => !currentSkillIds.includes(id));
         
         try {
+            // The addResourceSkill function should now handle UPSERT properly on the backend
             await Promise.all([
                 ...toAddOrUpdate.map(detail => addResourceSkill({ 
                     resourceId, 
@@ -418,7 +429,7 @@ const SkillsMapPage: React.FC = () => {
                                 {editingSkills.map(detail => {
                                     const skillObj = skills.find(s => s.id === detail.skillId);
                                     const skillName = skillObj?.name || 'Unknown';
-                                    const skillContext = skillObj ? `(${skillObj.category || '-'})` : '';
+                                    const skillContext = skillObj ? `(${skillObj.category || '-'} | ${skillObj.macroCategory || '-'})` : '';
                                     const isCert = skillObj?.isCertification;
                                     const expired = isExpired(detail.expirationDate);
                                     const expiring = !expired && isExpiringSoon(detail.expirationDate);
