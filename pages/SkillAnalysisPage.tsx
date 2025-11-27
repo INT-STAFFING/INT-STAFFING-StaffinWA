@@ -1,4 +1,3 @@
-
 /**
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey, Bubble.
@@ -1039,6 +1038,7 @@ const SkillBubbleChart: React.FC<{
             .join("g")
             .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
 
+        // Circle
         node.append("circle")
             .attr("r", (d: any) => d.r)
             .attr("fill", (d: any) => colorScale(d.value) as string)
@@ -1049,13 +1049,28 @@ const SkillBubbleChart: React.FC<{
 
         node.append("title").text((d: any) => `${d.data.name}: ${d.value} risorse`);
 
-        node.filter((d: any) => d.r > 15).append("text")
-            .attr("dy", "0.3em")
+        // TEXT RENDERING (Always Visible Name & Number)
+        const textGroup = node.append("text")
             .style("text-anchor", "middle")
-            .text((d: any) => d.data.name.substring(0, Math.floor(d.r / 3)))
-            .attr("font-size", (d: any) => Math.min(d.r / 2, 14) + "px")
-            .attr("fill", theme.onPrimary)
-            .style("pointer-events", "none");
+            .attr("fill", theme.onPrimary) // High contrast
+            .style("pointer-events", "none")
+            .style("text-shadow", "0px 1px 2px rgba(0,0,0,0.4)"); // Shadow for readability
+
+        // Skill Name
+        textGroup.append("tspan")
+            .attr("x", 0)
+            .attr("dy", "-0.2em")
+            .style("font-weight", "bold")
+            // Font size logic: dynamic but clamped to readable range
+            .style("font-size", (d: any) => `${Math.max(8, Math.min(d.r / 2.5, 14))}px`) 
+            .text((d: any) => d.data.name);
+
+        // Value (Number)
+        textGroup.append("tspan")
+            .attr("x", 0)
+            .attr("dy", "1.2em")
+            .style("font-size", (d: any) => `${Math.max(8, Math.min(d.r / 3, 12))}px`)
+            .text((d: any) => d.value);
 
     }, [data, width, height, theme, svgRef]);
 
