@@ -1,7 +1,7 @@
 
 /**
  * @file SkillAnalysisPage.tsx
- * @description Pagina di analisi avanzata delle competenze con 7 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey.
+ * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey, Bubble.
  * Supporta filtri globali e controlli di zoom unificati.
  */
 
@@ -26,9 +26,9 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import 'd3-transition';
 import { Skill } from '../types';
 
-type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey';
+type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey' | 'bubble';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
-type DisplayMode = 'all' | 'skills_only' | 'certs_only'; // Removed 'empty' and 'not_empty' as they are replaced by the new flag
+type DisplayMode = 'all' | 'skills_only' | 'certs_only';
 
 // --- Helper to format label ---
 const formatSkillLabel = (name: string, context?: string) => {
@@ -972,6 +972,96 @@ const SkillSankeyChart: React.FC<{
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
+// 8. Bubble Chart (Flattened Skills by Name)
+const SkillBubbleChart: React.FC<{
+    data: any, // { name: "Skills", children: [{name, value}] }
+    width: number,
+    height: number,
+    theme: any,
+    zoomAction: ZoomAction,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ data, width, height, theme, zoomAction, svgRef }) => {
+
+    const zoomBehavior = useRef<any>(null);
+    const gRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (!svgRef.current) return;
+        const svg = select(svgRef.current);
+        
+        zoomBehavior.current = d3Zoom()
+            .scaleExtent([0.1, 8])
+            .on("zoom", (event: any) => {
+                if(gRef.current) gRef.current.attr("transform", event.transform);
+            });
+        
+        svg.call(zoomBehavior.current);
+    }, [width, height, svgRef]);
+
+    useEffect(() => {
+        if (!svgRef.current || !zoomBehavior.current) return;
+        const svg = select(svgRef.current);
+        
+        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
+    }, [zoomAction]);
+
+    useEffect(() => {
+        if (!svgRef.current || !data) return;
+
+        const svg = select(svgRef.current);
+        svg.selectAll("g").remove();
+
+        const g = svg.append("g");
+        gRef.current = g;
+
+        const t = zoomTransform(svg.node() as Element);
+        g.attr("transform", t.toString());
+
+        const root = d3Hierarchy(data)
+            .sum(d => d.value)
+            .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
+            
+        if (!root.value) {
+             g.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato.");
+             return;
+        }
+
+        const pack = d3Pack().size([width, height]).padding(5);
+        pack(root);
+
+        const colorScale = scaleSequential(interpolate(theme.primaryContainer, theme.primary))
+            .domain([0, max(root.leaves(), (d: any) => d.value) || 10]);
+
+        const node = g.selectAll("g")
+            .data(root.leaves())
+            .join("g")
+            .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+
+        node.append("circle")
+            .attr("r", (d: any) => d.r)
+            .attr("fill", (d: any) => colorScale(d.value) as string)
+            .attr("stroke", theme.outline)
+            .attr("stroke-width", 1)
+            .on("mouseover", function() { select(this).attr("stroke-width", 2).attr("stroke", theme.tertiary); })
+            .on("mouseout", function() { select(this).attr("stroke-width", 1).attr("stroke", theme.outline); });
+
+        node.append("title").text((d: any) => `${d.data.name}: ${d.value} risorse`);
+
+        node.filter((d: any) => d.r > 15).append("text")
+            .attr("dy", "0.3em")
+            .style("text-anchor", "middle")
+            .text((d: any) => d.data.name.substring(0, Math.floor(d.r / 3)))
+            .attr("font-size", (d: any) => Math.min(d.r / 2, 14) + "px")
+            .attr("fill", theme.onPrimary)
+            .style("pointer-events", "none");
+
+    }, [data, width, height, theme, svgRef]);
+
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
+};
+
 
 // --- Main Page Component ---
 
@@ -1312,6 +1402,29 @@ const SkillAnalysisPage: React.FC = () => {
         return { nodes, links };
     }, [filteredSkills, filteredResources, resourceSkills, view]);
 
+    const bubbleData = useMemo(() => {
+        if (view !== 'bubble') return null;
+        
+        const counts = new Map<string, number>();
+        
+        // Count skills by name, ignoring category, only for filtered resources
+        // If two skills have same name but different category, we aggregate them as requested
+        resourceSkills.forEach(rs => {
+            if (filteredResources.some(r => r.id === rs.resourceId)) {
+                // Find skill definition
+                const skill = skills.find(s => s.id === rs.skillId);
+                // Also check if skill is in filteredSkills (respects category filters)
+                if (skill && filteredSkills.some(fs => fs.id === skill.id)) {
+                    const name = skill.name;
+                    counts.set(name, (counts.get(name) || 0) + 1);
+                }
+            }
+        });
+
+        const children = Array.from(counts.entries()).map(([name, value]) => ({ name, value }));
+        return { name: "Skills", children };
+    }, [view, resourceSkills, filteredResources, skills, filteredSkills]);
+
 
     const currentTheme = mode === 'dark' ? theme.dark : theme.light; 
 
@@ -1369,6 +1482,7 @@ const SkillAnalysisPage: React.FC = () => {
                     <button onClick={() => setView('dendrogram')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'dendrogram' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Dendrogramma</button>
                     <button onClick={() => setView('packing')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'packing' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Packing</button>
                     <button onClick={() => setView('sankey')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Sankey</button>
+                    <button onClick={() => setView('bubble')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'bubble' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Bubble</button>
                 </div>
 
                 <div className="flex gap-2">
@@ -1450,6 +1564,7 @@ const SkillAnalysisPage: React.FC = () => {
                 {view === 'dendrogram' && <SkillRadialTree data={dendrogramData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 {view === 'packing' && <SkillCirclePacking data={packingData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 {view === 'sankey' && <SkillSankeyChart data={sankeyData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                {view === 'bubble' && <SkillBubbleChart data={bubbleData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
             </div>
         </div>
     );
