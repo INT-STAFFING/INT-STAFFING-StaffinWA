@@ -13,13 +13,12 @@ import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear } from 'd3-scale';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY } from 'd3-force';
 import { drag as d3Drag } from 'd3-drag';
-import { interpolateBlues, schemeCategory10, schemeTableau10 } from 'd3-scale-chromatic';
+import { interpolate } from 'd3-interpolate';
 import { axisLeft, axisTop } from 'd3-axis';
 import { max, descending, mean } from 'd3-array';
 import { chord as d3Chord, ribbon as d3Ribbon } from 'd3-chord';
 import { arc as d3Arc, lineRadial, curveLinearClosed, linkRadial as d3LinkRadial } from 'd3-shape';
 import { rgb } from 'd3-color';
-// Import aggiuntivi
 import { tree as d3Tree, hierarchy as d3Hierarchy, pack as d3Pack } from 'd3-hierarchy';
 import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import SearchableSelect from '../components/SearchableSelect';
@@ -35,6 +34,18 @@ type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
 const formatSkillLabel = (name: string, context?: string) => {
     return context ? `${name} (${context})` : name;
 };
+
+// --- Helper for Theme Colors ---
+const getThemePalette = (theme: any) => [
+    theme.primary,
+    theme.secondary,
+    theme.tertiary,
+    theme.error,
+    theme.primaryContainer,
+    theme.secondaryContainer,
+    theme.tertiaryContainer,
+    theme.errorContainer
+];
 
 // --- Components for each visualization ---
 
@@ -56,7 +67,6 @@ const SkillForceGraph: React.FC<{
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
         
-        // Define zoom behavior only once or when dimensions change
         zoomBehavior.current = d3Zoom()
             .scaleExtent([0.1, 4])
             .on("zoom", (event: any) => {
@@ -66,7 +76,6 @@ const SkillForceGraph: React.FC<{
         svg.call(zoomBehavior.current);
     }, [width, height, svgRef]);
 
-    // Handle External Zoom Controls
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
@@ -84,37 +93,36 @@ const SkillForceGraph: React.FC<{
         if (!svgRef.current || nodes.length === 0) return;
         
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove(); // Clean previous content but keep svg attributes
+        svg.selectAll("g").remove();
 
         const g = svg.append("g");
         gRef.current = g;
         
-        // Initial Center: Apply current zoom transform if exists
         const t = zoomTransform(svg.node() as Element);
         if (t.k !== 1 || t.x !== 0 || t.y !== 0) {
              g.attr("transform", t.toString());
         } else {
-             // Apply default center if no transform
              svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2));
         }
         
-        // Color mapping
-        const macroCategoryColor = scaleOrdinal(schemeCategory10);
+        // Use Theme Colors
+        const palette = getThemePalette(theme);
+        const macroCategoryColor = scaleOrdinal(palette);
 
         const getNodeColor = (d: any) => {
             if (d.type === 'resource') return theme.primary;
-            if (d.type === 'project') return '#e67e22';
+            if (d.type === 'project') return theme.secondary;
             if (d.type === 'skill') {
-                if (d.isCertification) return '#e6c200'; // Gold for certs
+                if (d.isCertification) return theme.tertiary; 
                 return macroCategoryColor(d.macroCategory || 'default');
             }
-            return '#ccc';
+            return theme.surfaceVariant;
         };
 
         const simulation = forceSimulation(nodes)
             .force("link", forceLink(links).id((d: any) => d.id).distance(100))
             .force("charge", forceManyBody().strength(-300))
-            .force("center", forceCenter(0, 0)) // Center at (0,0) because we translate the group to center
+            .force("center", forceCenter(0, 0))
             .force("collide", forceCollide(30));
 
         const link = g.append("g")
@@ -240,13 +248,11 @@ const SkillHeatmap: React.FC<{
         
         gRef.current = g;
         
-        // Re-apply zoom if exists
         const t = zoomTransform(svg.node() as Element);
         if (t.k !== 1 || t.x !== 0 || t.y !== 0) {
              g.attr("transform", t.toString());
         }
 
-        // Scales
         const x = scaleBand()
             .range([0, skills.length * cellSize])
             .domain(skills)
@@ -257,8 +263,9 @@ const SkillHeatmap: React.FC<{
             .domain(resources)
             .padding(0.05);
 
+        // Custom Interpolation using Theme Colors
         const colorScale = scaleSequential()
-            .interpolator(interpolateBlues)
+            .interpolator(interpolate(theme.surfaceContainerHighest, theme.primary))
             .domain([0, max(data, d => d.value) || 100]);
 
         // Rows (Resources)
@@ -279,7 +286,6 @@ const SkillHeatmap: React.FC<{
             .attr("fill", theme.onSurface)
             .style("font-size", "11px");
         
-        // Tooltip
         const tooltip = select("body").append("div")
             .attr("class", "d3-tooltip")
             .style("position", "absolute")
@@ -291,7 +297,6 @@ const SkillHeatmap: React.FC<{
             .style("border-radius", "4px")
             .style("font-size", "10px");
 
-        // Cells
         g.selectAll()
             .data(data, (d: any) => d.resource + ':' + d.skillLabel)
             .enter()
@@ -329,7 +334,6 @@ const SkillChordDiagram: React.FC<{
     const zoomBehavior = useRef<any>(null);
     const gRef = useRef<any>(null);
 
-    // Initial and Zoom setup
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
@@ -343,7 +347,6 @@ const SkillChordDiagram: React.FC<{
         svg.call(zoomBehavior.current);
     }, [width, height, svgRef]);
 
-    // Handle external zoom actions
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
@@ -357,31 +360,26 @@ const SkillChordDiagram: React.FC<{
         }
     }, [zoomAction, width, height]);
 
-    // Draw Chart
     useEffect(() => {
         if (!svgRef.current || matrix.length === 0 || names.length === 0) return;
 
         const svg = select(svgRef.current);
-        // Clear only content groups, keep main logic if needed, but safer to clear internal G
         svg.selectAll("g").remove();
 
         const g = svg.append("g");
         gRef.current = g;
 
-        // Apply current transform if any (or reset to center)
         const t = zoomTransform(svg.node() as Element);
         if (t.k === 1 && t.x === 0 && t.y === 0) {
-             // Initial Center
              svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
         } else {
-             // Maintain current zoom/pan
              g.attr("transform", t.toString());
         }
         
         const outerRadius = Math.min(width, height) * 0.5 - 60;
         const innerRadius = outerRadius - 20;
 
-        if (innerRadius <= 0) return; // Window too small
+        if (innerRadius <= 0) return; 
 
         const chordGenerator = d3Chord()
             .padAngle(0.05)
@@ -394,7 +392,9 @@ const SkillChordDiagram: React.FC<{
         const ribbonGenerator = d3Ribbon()
             .radius(innerRadius);
 
-        const color = scaleOrdinal(schemeCategory10);
+        // Theme Colors
+        const palette = getThemePalette(theme);
+        const color = scaleOrdinal(palette);
 
         const chords = chordGenerator(matrix);
 
@@ -422,7 +422,6 @@ const SkillChordDiagram: React.FC<{
             `)
             .attr("text-anchor", (d: any) => d.angle > Math.PI ? "end" : "start")
             .text((d: any) => {
-                // Shorten label if too long
                 const label = names[d.index] || '';
                 return label.length > 20 ? label.substring(0, 18) + '..' : label;
             })
@@ -505,7 +504,6 @@ const SkillRadarChart: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
 
-        // Initial Centering
         const t = zoomTransform(svg.node() as Element);
         if (t.k === 1 && t.x === 0 && t.y === 0) {
              svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
@@ -523,14 +521,13 @@ const SkillRadarChart: React.FC<{
         };
 
         const radius = Math.min(cfg.w / 2, cfg.h / 2);
-        const axesData = datasets[0].data; // Assuming all datasets have same axes
+        const axesData = datasets[0].data; 
         const angleSlice = Math.PI * 2 / axesData.length;
 
         const rScale = scaleLinear()
             .range([0, radius])
             .domain([0, cfg.maxValue]);
 
-        // Circular grid
         const axisGrid = g.append("g").attr("class", "axisWrapper");
 
         axisGrid.selectAll(".levels")
@@ -539,11 +536,10 @@ const SkillRadarChart: React.FC<{
             .append("circle")
             .attr("class", "gridCircle")
             .attr("r", (d) => radius / cfg.levels * d)
-            .style("fill", "#CDCDCD")
-            .style("stroke", "#CDCDCD")
-            .style("fill-opacity", 0.1);
+            .style("fill", theme.surfaceVariant)
+            .style("stroke", theme.outlineVariant)
+            .style("fill-opacity", 0.3);
 
-        // Axes
         const axis = axisGrid.selectAll(".axis")
             .data(axesData)
             .enter()
@@ -569,7 +565,6 @@ const SkillRadarChart: React.FC<{
             .text((d) => d.axis)
             .style("fill", theme.onSurface);
 
-        // Draw Datasets
         const radarLine = lineRadial<RadarDataPoint>()
             .radius((d) => rScale(d.value))
             .angle((d, i) => i * angleSlice)
@@ -599,7 +594,6 @@ const SkillRadarChart: React.FC<{
                 .style("stroke", dataset.color)
                 .style("fill", "none");
             
-            // Draw points
             g.selectAll(`.radarCircle-${idx}`)
                 .data(dataset.data)
                 .enter().append("circle")
@@ -666,7 +660,6 @@ const SkillRadialTree: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
 
-        // Apply initial center/zoom (using same logic as reset)
         const t = zoomTransform(svg.node() as Element);
         if (t.k === 1 && t.x === 0 && t.y === 0) {
              svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
@@ -676,17 +669,15 @@ const SkillRadialTree: React.FC<{
 
         const layoutRadius = 1600; 
 
-        // Create Hierarchy
         const root = d3Hierarchy(data);
         
-        // Define Tree Layout
         const tree = d3Tree()
             .size([2 * Math.PI, layoutRadius])
             .separation((a, b) => (a.parent === b.parent ? 1 : 2) / (a.depth || 1));
 
         tree(root);
 
-        // Draw Links (Radial)
+        // Draw Links
         g.append("g")
             .attr("fill", "none")
             .attr("stroke", theme.outlineVariant)
@@ -712,12 +703,11 @@ const SkillRadialTree: React.FC<{
             .attr("fill", (d: any) => {
                 if (d.depth === 0) return theme.inverseSurface;
                 if (d.depth === 3) return theme.tertiary;
-                if (d.depth === 4) return theme.secondary;
-                return theme.primary;
+                if (d.depth === 4) return theme.primary;
+                return theme.secondary;
             })
-            .attr("r", (d: any) => d.depth === 4 ? 2.5 : 4);
+            .attr("r", (d: any) => d.depth === 4 ? 3 : 5);
 
-        // Labels
         g.append("g")
             .attr("stroke-linejoin", "round")
             .attr("stroke-width", 3)
@@ -732,7 +722,7 @@ const SkillRadialTree: React.FC<{
             .attr("dy", "0.31em")
             .attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6)
             .attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end")
-            .attr("fill", (d: any) => d.depth === 4 ? theme.secondary : theme.onSurface)
+            .attr("fill", (d: any) => d.depth === 4 ? theme.primary : theme.onSurface)
             .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px")
             .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal")
             .text((d: any) => d.data.name)
@@ -793,7 +783,6 @@ const SkillCirclePacking: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
 
-        // Ensure center
         const t = zoomTransform(svg.node() as Element);
         if (t.k === 1 && t.x === 0 && t.y === 0) {
              // Default center
@@ -805,7 +794,6 @@ const SkillCirclePacking: React.FC<{
             .sum(d => d.value)
             .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
             
-        // Safety check: if no values sum up (empty tree or 0 values), rendering fails
         if (!root.value) {
              g.append("text")
                 .attr("x", width/2)
@@ -816,23 +804,18 @@ const SkillCirclePacking: React.FC<{
              return;
         }
 
-        // Layout
         const pack = d3Pack()
             .size([width, height])
             .padding(3);
 
         pack(root);
 
-        // Custom Color Logic based on depth
         const getColor = (d: any) => {
-            // Leaf nodes (Skills)
-            if (!d.children) return theme.tertiaryContainer; 
-            
-            // Hierarchy nodes
+            if (!d.children) return theme.primaryContainer; 
             switch(d.depth) {
-                case 0: return 'transparent'; // Root
-                case 1: return theme.surfaceContainerHigh; // Macro Category
-                case 2: return theme.primaryContainer; // Category
+                case 0: return 'transparent'; 
+                case 1: return theme.surfaceContainerHigh; 
+                case 2: return theme.secondaryContainer; 
                 default: return theme.surface;
             }
         };
@@ -857,21 +840,21 @@ const SkillCirclePacking: React.FC<{
         node.append("title")
             .text((d: any) => `${d.data.name}\nRisorse: ${d.value}`);
 
-        // Labels (Only if radius allows and it's a leaf)
+        // Labels
         node.filter((d: any) => !d.children && d.r > 15).append("text")
             .attr("dy", "0.3em")
             .style("text-anchor", "middle")
-            .text((d: any) => d.data.name.substring(0, Math.floor(d.r / 3))) // Truncate based on radius
+            .text((d: any) => d.data.name.substring(0, Math.floor(d.r / 3))) 
             .attr("font-size", "10px")
-            .attr("fill", theme.onSurface)
-            .style("pointer-events", "none"); // Prevent text from capturing mouse events
+            .attr("fill", theme.onPrimaryContainer)
+            .style("pointer-events", "none"); 
 
     }, [data, width, height, theme, svgRef]);
 
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
-// 7. Sankey Diagram (Macro -> Category -> Skill)
+// 7. Sankey Diagram (Macro -> Category -> Skill -> Resource)
 const SkillSankeyChart: React.FC<{
     data: { nodes: any[], links: any[] },
     width: number,
@@ -914,7 +897,6 @@ const SkillSankeyChart: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
         
-        // Re-apply zoom
         const t = zoomTransform(svg.node() as Element);
         g.attr("transform", t.toString());
 
@@ -931,7 +913,8 @@ const SkillSankeyChart: React.FC<{
 
         const { nodes, links } = sankeyGenerator(sankeyData as any);
         
-        const color = scaleOrdinal(schemeTableau10);
+        const palette = getThemePalette(theme);
+        const color = scaleOrdinal(palette);
 
         // Links
         g.append("g")
@@ -943,10 +926,10 @@ const SkillSankeyChart: React.FC<{
             .style("mix-blend-mode", "multiply")
             .append("path")
             .attr("d", sankeyLinkHorizontal())
-            .attr("stroke", (d: any) => color(d.source.category || 'default'))
+            .attr("stroke", (d: any) => color(d.source.type || 'default'))
             .attr("stroke-width", (d: any) => Math.max(1, d.width))
             .append("title")
-            .text((d: any) => `${d.source.name} → ${d.target.name}\n${d.value} risorse`);
+            .text((d: any) => `${d.source.name} → ${d.target.name}\n${d.value}`);
 
         // Nodes
         g.append("g")
@@ -957,8 +940,14 @@ const SkillSankeyChart: React.FC<{
             .attr("y", (d: any) => d.y0)
             .attr("height", (d: any) => d.y1 - d.y0)
             .attr("width", (d: any) => d.x1 - d.x0)
-            .attr("fill", (d: any) => color(d.category || 'default'))
-            .attr("stroke", "#000");
+            .attr("fill", (d: any) => {
+                if (d.type === 'resource') return theme.primary;
+                if (d.type === 'skill') return theme.secondary;
+                return color(d.type);
+            })
+            .attr("stroke", theme.outline)
+            .append("title")
+            .text((d: any) => `${d.name} (${d.type})`);
 
         // Text
         g.append("g")
@@ -1012,7 +1001,7 @@ const SkillAnalysisPage: React.FC = () => {
     const categoryOptions = useMemo(() => { const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean))); return cats.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
     const macroCategoryOptions = useMemo(() => { const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean))); return macros.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
 
-    // --- Filter Logic Updates ---
+    // --- Filter Logic ---
 
     const filteredSkills = useMemo(() => {
         return skills.filter(s => {
@@ -1039,7 +1028,6 @@ const SkillAnalysisPage: React.FC = () => {
             // Display Mode Logic for Resources
             const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
             
-            // Check if resource has ANY relevant skill type
             const hasNormalSkills = rSkills.some(rs => {
                 const skill = skills.find(s => s.id === rs.skillId);
                 return skill && !skill.isCertification;
@@ -1057,7 +1045,7 @@ const SkillAnalysisPage: React.FC = () => {
         });
     }, [resources, filters, resourceSkills, skills]);
 
-    // --- Data Preparation (using filtered lists) ---
+    // --- Data Preparation ---
 
     const networkData = useMemo(() => {
         if (view !== 'network') return { nodes: [], links: [] };
@@ -1066,16 +1054,13 @@ const SkillAnalysisPage: React.FC = () => {
         const links: any[] = [];
         const nodeIds = new Set();
 
-        // Add filtered skills as nodes
         filteredSkills.forEach(s => {
             nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
             nodeIds.add(`skill_${s.id}`);
         });
 
-        // Add filtered resources as nodes and link to skills
         filteredResources.forEach(r => {
             const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
-            // Check if resource is connected to at least one VISIBLE skill
             const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`));
             
             if (hasRelevantSkill) {
@@ -1101,11 +1086,9 @@ const SkillAnalysisPage: React.FC = () => {
         filteredResources.forEach(r => {
             filteredSkills.forEach(s => {
                 let days = 0;
-                // Manual Skill
                 const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id);
-                if (manual) days += (manual.level || 1) * 20; // Weight manual higher
+                if (manual) days += (manual.level || 1) * 20; 
                 
-                // Inferred Skill (via Assignments)
                 const rAssignments = assignments.filter(a => a.resourceId === r.id);
                 rAssignments.forEach(a => {
                     if(projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id)) {
@@ -1117,7 +1100,7 @@ const SkillAnalysisPage: React.FC = () => {
                     data.push({
                         resource: r.name,
                         skillLabel: formatSkillLabel(s.name, s.category),
-                        value: Math.min(100, days) // Cap at 100
+                        value: Math.min(100, days)
                     });
                 }
             });
@@ -1129,16 +1112,14 @@ const SkillAnalysisPage: React.FC = () => {
     const chordData = useMemo(() => {
         if (view !== 'chord') return { matrix: [], names: [] };
         
-        // Only skills co-occurring in projects
         const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
         const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
         
         const n = filteredSkills.length;
-        if (n === 0 || n > 50) return { matrix: [], names: [] }; // Too many for chord
+        if (n === 0 || n > 50) return { matrix: [], names: [] }; 
 
         const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
         
-        // Map Project -> Skills
         const projectToSkills = new Map<string, string[]>();
         projectSkills.forEach(ps => {
             if (relevantSkillIds.has(ps.skillId)) {
@@ -1147,7 +1128,6 @@ const SkillAnalysisPage: React.FC = () => {
             }
         });
 
-        // Fill Matrix
         projectToSkills.forEach((skillsInProj) => {
             for (let i = 0; i < skillsInProj.length; i++) {
                 for (let j = 0; j < skillsInProj.length; j++) {
@@ -1167,25 +1147,21 @@ const SkillAnalysisPage: React.FC = () => {
     const radarData = useMemo(() => {
         if (view !== 'radar') return [];
         
-        // Show top 5-8 skills only or specific filtered ones
         const targetSkills = filteredSkills.slice(0, 8);
-        if (targetSkills.length < 3) return []; // Need at least 3 points for a polygon
+        if (targetSkills.length < 3) return []; 
         
         const datasets: any[] = [];
-        const palette = schemeCategory10;
-        const currentPalette = mode === 'dark' ? theme.dark : theme.light; 
+        const palette = getThemePalette(mode === 'dark' ? theme.dark : theme.light);
 
-        // If specific resources selected (small number), show individual
         if (filteredResources.length <= 5) {
             filteredResources.forEach((r, idx) => {
                 const dataPoints = targetSkills.map(s => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 }; // Map level 1-5 to 0-100
+                    return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 }; 
                 });
-                datasets.push({ name: r.name, color: palette[idx % 10], data: dataPoints });
+                datasets.push({ name: r.name, color: palette[idx % palette.length], data: dataPoints });
             });
         } else {
-            // Show Average of Filtered Group
             const avgDataPoints = targetSkills.map(s => {
                 const values = filteredResources.map(r => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
@@ -1194,6 +1170,7 @@ const SkillAnalysisPage: React.FC = () => {
                 const avg = mean(values) || 0;
                 return { axis: formatSkillLabel(s.name, s.category), value: avg };
             });
+            const currentPalette = mode === 'dark' ? theme.dark : theme.light;
             datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints });
         }
 
@@ -1206,7 +1183,6 @@ const SkillAnalysisPage: React.FC = () => {
         const root: any = { name: "Competenze", children: [] };
         const groups = new Map<string, Map<string, Map<string, any[]>>>();
 
-        // Build Hierarchy: Macro -> Category -> Skill -> Resources
         filteredSkills.forEach(skill => {
             const macro = skill.macroCategory || 'Altro';
             const cat = skill.category || 'Generico';
@@ -1224,7 +1200,6 @@ const SkillAnalysisPage: React.FC = () => {
             groups.get(macro)?.get(cat)?.set(skillName, associatedResources);
         });
 
-        // Convert Map to D3 Hierarchy
         groups.forEach((catMap, macroName) => {
             const macroNode: any = { name: macroName, type: 'macro', children: [] };
             catMap.forEach((skillMap, catName) => {
@@ -1284,37 +1259,49 @@ const SkillAnalysisPage: React.FC = () => {
         const nodeMap = new Map<string, number>();
         
         let nodeIdx = 0;
-        const addNode = (name: string, category: string) => {
-            if (!nodeMap.has(name)) {
-                nodes.push({ name: name.replace(/^(macro_|cat_|skill_)/, ''), category });
-                nodeMap.set(name, nodeIdx++);
+        const addNode = (name: string, type: string) => {
+            // Ensure uniqueness across types by using prefix for ID map, but keep clean name
+            const id = `${type}_${name}`;
+            if (!nodeMap.has(id)) {
+                nodes.push({ name: name, type });
+                nodeMap.set(id, nodeIdx++);
             }
-            return nodeMap.get(name)!;
+            return nodeMap.get(id)!;
         };
 
-        const linkMap = new Map<string, number>(); // "sourceIdx-targetIdx" -> value
+        const linkMap = new Map<string, number>(); 
 
         filteredSkills.forEach(skill => {
-            const macroName = `macro_${skill.macroCategory || 'Altro'}`;
-            const catName = `cat_${skill.category || 'Generico'}`;
-            const skillName = `skill_${skill.name}`;
+            const macroName = skill.macroCategory || 'Altro';
+            const catName = skill.category || 'Generico';
+            const skillName = skill.name;
 
-            const resCount = resourceSkills.filter(rs => 
-                rs.skillId === skill.id && 
-                filteredResources.some(r => r.id === rs.resourceId)
-            ).length;
+            // Find connected resources
+            const connectedResources = resourceSkills
+                .filter(rs => rs.skillId === skill.id)
+                .map(rs => filteredResources.find(r => r.id === rs.resourceId))
+                .filter(r => r !== undefined) as any[];
 
-            if (resCount === 0) return;
+            if (connectedResources.length === 0) return;
 
             const mIdx = addNode(macroName, 'macro');
             const cIdx = addNode(catName, 'category');
             const sIdx = addNode(skillName, 'skill');
 
+            // Macro -> Category
             const keyMC = `${mIdx}-${cIdx}`;
-            linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + resCount);
+            linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + connectedResources.length); // Weight by connected resources
 
+            // Category -> Skill
             const keyCS = `${cIdx}-${sIdx}`;
-            linkMap.set(keyCS, (linkMap.get(keyCS) || 0) + resCount);
+            linkMap.set(keyCS, (linkMap.get(keyCS) || 0) + connectedResources.length);
+
+            // Skill -> Resource
+            connectedResources.forEach(res => {
+                const rIdx = addNode(res.name, 'resource');
+                const keySR = `${sIdx}-${rIdx}`;
+                linkMap.set(keySR, (linkMap.get(keySR) || 0) + 1);
+            });
         });
 
         linkMap.forEach((val, key) => {
@@ -1328,7 +1315,7 @@ const SkillAnalysisPage: React.FC = () => {
 
     const currentTheme = mode === 'dark' ? theme.dark : theme.light; 
 
-    // ... (Export handlers remain same)
+    // Export handlers
     const handleExportSVG = () => {
         if (!chartRef.current) return;
         const svgData = new XMLSerializer().serializeToString(chartRef.current);
