@@ -85,6 +85,10 @@ const normalize = (str: any): string => {
     return String(str || '').trim().toLowerCase();
 };
 
+const getSkillKey = (name: any, category: any, macro: any) => {
+    return `${normalize(name)}|${normalize(category)}|${normalize(macro)}`;
+};
+
 // --- IMPORT FUNCTIONS ---
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
@@ -184,7 +188,8 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
         const existingRes = await client.query('SELECT id, email FROM resources');
         existingRes.rows.forEach((r: any) => resourceEmailMap.set(r.email, r.id));
         
-        // Pre-load skills
+        // Pre-load skills (Simple Map for simple list in Resources sheet)
+        // NOTE: This simple map might be ambiguous for duplicates, but Resources sheet only has comma-separated names.
         const existingSkills = await client.query('SELECT id, name FROM skills');
         existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
 
@@ -260,8 +265,6 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
                 // Try to find original casing from input if possible, or just capitalize
                 return [id, norm.charAt(0).toUpperCase() + norm.slice(1)]; 
             });
-            // Changed from ON CONFLICT (name) because the unique constraint is removed. 
-            // We use ON CONFLICT (id) which is always safe for new unique UUIDs.
             await executeBulkInsert(client, 'skills', ['id', 'name'], skillRows, 'ON CONFLICT (id) DO NOTHING');
         }
 
@@ -282,7 +285,6 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 
             // We generate ID based on uniqueness to allow idempotent runs if needed, 
             // but here we just insert new ones. For updates, we'd need to lookup existing projects.
-            // Let's assume names+client are unique enough or we query first.
             // Optimisation: Just try Insert.
             const newId = uuidv4();
             
@@ -467,34 +469,40 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
 
 const importSkills = async (client: any, body: any, warnings: string[]) => {
     const { skills: importedSkills, associations: importedAssociations } = body;
-    const skillNameMap = new Map<string, string>(); // normalized name -> id
-    const skillDefinitions = new Map<string, any>(); // id -> { ...cols } to ensure unique rows for skills table
+    
+    // Map: composite_key -> id
+    // Key format: "normalizedName|normalizedCategory|normalizedMacro"
+    const skillMap = new Map<string, string>(); 
+    const skillDefinitions = new Map<string, any>(); 
 
-    // 1. Load existing skills
-    const existingSkills = await client.query('SELECT id, name FROM skills');
-    existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
+    // 1. Load existing skills from DB
+    const existingSkills = await client.query('SELECT id, name, category, macro_category FROM skills');
+    existingSkills.rows.forEach((s: any) => {
+        const key = getSkillKey(s.name, s.category, s.macro_category);
+        skillMap.set(key, s.id);
+    });
 
     // 2. Process Definitions (Sheet 1)
     if (Array.isArray(importedSkills)) {
         for (const s of importedSkills) {
             const { 'Nome Competenza': name, 'Ambito': category, 'Macro Ambito': macroCategory, Certificazione: isCert } = s;
             if (!name) continue;
-            const normalized = normalize(name);
+            
+            const key = getSkillKey(name, category, macroCategory);
             const isCertification = String(isCert).toUpperCase() === 'SI';
 
-            let id = skillNameMap.get(normalized);
+            let id = skillMap.get(key);
             if (!id) {
                 id = uuidv4();
-                skillNameMap.set(normalized, id);
+                skillMap.set(key, id);
             }
-            // Always overwrite/set definition based on import
-            skillDefinitions.set(id, [id, String(name).trim(), category, macroCategory, isCertification]);
+            // Upsert definition
+            skillDefinitions.set(id, [id, String(name).trim(), category || null, macroCategory || null, isCertification]);
         }
     }
 
     // 3. Process Associations (Sheet 2) to find missing skills
-    // FIX: Use a Map to deduplicate associations before inserting. 
-    // Postgres fails if we try to UPSERT the same (resource_id, skill_id) twice in the same batch.
+    // Use a Map to deduplicate associations before inserting. 
     const assocMap = new Map<string, any[]>();
     
     if (Array.isArray(importedAssociations)) {
@@ -506,17 +514,19 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
              if (!resName || !skillName) continue;
              
              const resourceId = resourceMap.get(normalize(resName));
-             const normalizedSkill = normalize(skillName);
-             let skillId = skillNameMap.get(normalizedSkill);
+             
+             // Identify Skill ID using the composite key
+             const key = getSkillKey(skillName, category, macroCategory);
+             let skillId = skillMap.get(key);
 
              // If skill doesn't exist yet, create it from Association data
              if (!skillId) {
                  skillId = uuidv4();
-                 skillNameMap.set(normalizedSkill, skillId);
-                 // Default isCertification to false.
+                 skillMap.set(key, skillId);
+                 // Create definition from association context
                  skillDefinitions.set(skillId, [skillId, String(skillName).trim(), category || null, macroCategory || null, false]);
              } else {
-                 // If skill exists but wasn't in the Definitions sheet, update it if we have context info
+                 // If skill exists but wasn't in the Definitions sheet (or we want to ensure context is set if missing)
                  if (!skillDefinitions.has(skillId) && (category || macroCategory)) {
                      skillDefinitions.set(skillId, [skillId, String(skillName).trim(), category || null, macroCategory || null, false]); 
                  }
@@ -527,7 +537,8 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
                  const parsed = parseInt(String(level), 10);
                  if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) normalizedLevel = parsed;
 
-                 // Use composite key to deduplicate
+                 // Use composite key to deduplicate (ResourceId + SkillId)
+                 // Different skillIds (even if same name but diff category) will have different uniqueKeys here.
                  const uniqueKey = `${resourceId}_${skillId}`;
                  assocMap.set(uniqueKey, [
                      resourceId, skillId, normalizedLevel, 
@@ -537,7 +548,7 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
         }
     }
 
-    // 4. Execute Skills Upsert (Merging definitions from both sheets)
+    // 4. Execute Skills Upsert
     if (skillDefinitions.size > 0) {
         const skillRows = Array.from(skillDefinitions.values());
         await executeBulkInsert(
@@ -628,8 +639,6 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
         
         const defaultHash = await bcrypt.hash("Staffing2024!", 10);
         const usersToInsert: any[][] = [];
-        const usersToUpdate: any[][] = []; // Can't bulk update disparate rows easily without temp table, so we iterate updates or use specific query structure.
-        // For updates, we fallback to loop or complex CTE. Given users count is low, loop is OK, but let's try to be efficient.
         
         for (const u of users) {
             const { Username, Ruolo, 'Email Risorsa': resourceEmail, 'Stato Attivo': isActive } = u;

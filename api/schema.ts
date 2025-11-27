@@ -465,7 +465,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
     try {
         await db.sql`ALTER TABLE skills DROP CONSTRAINT IF EXISTS skills_name_key;`;
     } catch (e) {
-        // Ignore error if constraint doesn't exist
         console.warn("Could not drop skills_name_key constraint (may not exist):", e);
     }
 
@@ -473,6 +472,17 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_category VARCHAR(255);`;
     await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS is_certification BOOLEAN DEFAULT FALSE;`;
     
+    // MIGRATION: Ensure composite unique constraint exists to prevent exact duplicates (name+cat+macro)
+    // This allows same name with diff category, but not same name/cat/macro twice.
+    try {
+        await db.sql`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_composite_unique 
+            ON skills (name, category, macro_category);
+        `;
+    } catch (e) {
+        console.warn("Could not create unique index on skills:", e);
+    }
+
     await db.sql`
         CREATE TABLE IF NOT EXISTS resource_skills (
             resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
