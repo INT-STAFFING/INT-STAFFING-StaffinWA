@@ -41,6 +41,8 @@ type EnrichedSkillResource = Resource & {
     computedSkills: ComputedSkill[];
 };
 
+type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
+
 const SkillsMapPage: React.FC = () => {
     const { 
         resources, roles, skills, resourceSkills, addResourceSkill, deleteResourceSkill, 
@@ -55,7 +57,7 @@ const SkillsMapPage: React.FC = () => {
         skillIds: [] as string[], 
         category: '', 
         macroCategory: '', 
-        isCertification: '' 
+        displayMode: 'all' as DisplayMode
     });
     
     // Edit Modal State
@@ -141,18 +143,26 @@ const SkillsMapPage: React.FC = () => {
         return allEnrichedResources.filter(r => {
             const matchesRes = !filters.resourceId || r.id === filters.resourceId;
             const matchesRole = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
-            
             const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
             
             // Advanced Filtering
             const matchesCategory = !filters.category || r.computedSkills.some(cs => cs.skill.category === filters.category);
             const matchesMacro = !filters.macroCategory || r.computedSkills.some(cs => cs.skill.macroCategory === filters.macroCategory);
             
-            const matchesCert = filters.isCertification === '' ? true : 
-                                filters.isCertification === 'yes' ? r.computedSkills.some(cs => cs.skill.isCertification && cs.manualDetails) : 
-                                true;
+            // Logic for Display Mode
+            let matchesDisplayMode = true;
+            if (filters.displayMode === 'skills_only') {
+                // Must have at least one normal skill
+                matchesDisplayMode = r.computedSkills.some(cs => !cs.skill.isCertification);
+            } else if (filters.displayMode === 'certs_only') {
+                // Must have at least one certification
+                matchesDisplayMode = r.computedSkills.some(cs => cs.skill.isCertification);
+            } else if (filters.displayMode === 'empty') {
+                // Must have NO skills and NO certifications
+                matchesDisplayMode = r.computedSkills.length === 0;
+            }
 
-            return matchesRes && matchesRole && matchesSkill && matchesCategory && matchesMacro && matchesCert;
+            return matchesRes && matchesRole && matchesSkill && matchesCategory && matchesMacro && matchesDisplayMode;
         });
     }, [allEnrichedResources, filters]);
 
@@ -264,40 +274,59 @@ const SkillsMapPage: React.FC = () => {
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
         { header: 'Macro Ambito Prevalente', sortKey: 'dominantMacro', cell: r => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">{r.dominantMacro}</span> },
         { header: 'Ambito Prevalente', sortKey: 'dominantCategory', cell: r => <span className="text-xs text-on-surface-variant">{r.dominantCategory}</span> },
-        { header: 'Competenze Principali', cell: r => (
-            <div className="flex flex-wrap gap-1">
-                {r.computedSkills.slice(0, 3).map(cs => {
-                    const levelName = SKILL_LEVELS[(cs.manualDetails?.level || cs.inferredLevel || 1) as SkillLevelValue];
-                    const isManual = !!cs.manualDetails;
-                    const isCert = cs.skill.isCertification;
-                    return (
-                        <span 
-                            key={cs.skill.id} 
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
-                                isCert && isManual ? 'bg-yellow-50 text-yellow-800 border-yellow-200' : 
-                                isManual ? 'bg-primary-container text-on-primary-container border-transparent' : 
-                                'bg-surface-variant text-on-surface-variant border-outline-variant'}`}
-                            title={`Livello: ${levelName} ${!isManual ? '(Inferito)' : ''}`}
-                        >
-                            {cs.skill.name} <span className="ml-1 opacity-70 text-[10px]">({levelName.substring(0,3)})</span>
-                            {isCert && <span className="material-symbols-outlined text-[10px] ml-1">verified</span>}
+        { header: 'Competenze Principali', cell: r => {
+            let visibleSkills = r.computedSkills;
+            
+            // Visual Filter Logic based on displayMode
+            if (filters.displayMode === 'skills_only') {
+                visibleSkills = visibleSkills.filter(cs => !cs.skill.isCertification);
+            } else if (filters.displayMode === 'certs_only') {
+                visibleSkills = visibleSkills.filter(cs => cs.skill.isCertification);
+            }
+
+            if (visibleSkills.length === 0 && filters.displayMode === 'empty') {
+                return <span className="text-xs text-on-surface-variant italic">Nessuna competenza</span>;
+            }
+
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {visibleSkills.slice(0, 3).map(cs => {
+                        const levelName = SKILL_LEVELS[(cs.manualDetails?.level || cs.inferredLevel || 1) as SkillLevelValue];
+                        const isManual = !!cs.manualDetails;
+                        const isCert = cs.skill.isCertification;
+                        return (
+                            <span 
+                                key={cs.skill.id} 
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                                    isCert && isManual ? 'bg-yellow-50 text-yellow-800 border-yellow-200' : 
+                                    isManual ? 'bg-primary-container text-on-primary-container border-transparent' : 
+                                    'bg-surface-variant text-on-surface-variant border-outline-variant'}`}
+                                title={`Livello: ${levelName} ${!isManual ? '(Inferito)' : ''}`}
+                            >
+                                {cs.skill.name} <span className="ml-1 opacity-70 text-[10px]">({levelName.substring(0,3)})</span>
+                                {isCert && <span className="material-symbols-outlined text-[10px] ml-1">verified</span>}
+                            </span>
+                        );
+                    })}
+                    {visibleSkills.length > 3 && <span className="text-xs text-on-surface-variant">+{visibleSkills.length - 3}</span>}
+                </div>
+            );
+        }},
+        { header: 'Certificazioni', sortKey: 'certificationCount', cell: r => {
+            if (filters.displayMode === 'skills_only') return <span className="text-xs text-on-surface-variant opacity-50">-</span>;
+            
+            return (
+                <div className="flex items-center gap-2">
+                    <span className={`font-semibold ${r.certificationCount > 0 ? 'text-primary' : 'text-on-surface-variant'}`}>{r.certificationCount}</span>
+                    {r.expiringCertifications > 0 && (
+                        <span className="flex items-center text-xs text-error font-medium" title={`${r.expiringCertifications} in scadenza`}>
+                            <span className="material-symbols-outlined text-sm mr-1">warning</span>
+                            {r.expiringCertifications}
                         </span>
-                    );
-                })}
-                {r.computedSkills.length > 3 && <span className="text-xs text-on-surface-variant">+{r.computedSkills.length - 3}</span>}
-            </div>
-        )},
-        { header: 'Certificazioni', sortKey: 'certificationCount', cell: r => (
-            <div className="flex items-center gap-2">
-                <span className={`font-semibold ${r.certificationCount > 0 ? 'text-primary' : 'text-on-surface-variant'}`}>{r.certificationCount}</span>
-                {r.expiringCertifications > 0 && (
-                    <span className="flex items-center text-xs text-error font-medium" title={`${r.expiringCertifications} in scadenza`}>
-                        <span className="material-symbols-outlined text-sm mr-1">warning</span>
-                        {r.expiringCertifications}
-                    </span>
-                )}
-            </div>
-        )},
+                    )}
+                </div>
+            );
+        }},
     ];
 
     const renderRow = (r: EnrichedSkillResource) => (
@@ -313,54 +342,70 @@ const SkillsMapPage: React.FC = () => {
         </tr>
     );
 
-    const renderCard = (r: EnrichedSkillResource) => (
-        <div key={r.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 relative">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h3 className="font-bold text-lg text-on-surface">{r.name}</h3>
-                    <p className="text-sm text-on-surface-variant">{r.roleName}</p>
-                </div>
-                <button onClick={() => openEditModal(r)} className="p-2 rounded-full hover:bg-surface-container text-primary">
-                    <span className="material-symbols-outlined">edit</span>
-                </button>
-            </div>
-            
-            <div className="flex gap-2 text-xs flex-wrap">
-                <div className="px-2 py-1 bg-surface rounded border border-outline-variant">
-                    <span className="font-semibold">{r.totalSkills}</span> Skills
-                </div>
-                <div className={`px-2 py-1 bg-surface rounded border border-outline-variant ${r.certificationCount > 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : ''} ${r.expiringCertifications > 0 ? 'border-error text-error' : ''}`}>
-                    <span className="font-semibold">{r.certificationCount}</span> Certificazioni
-                </div>
-                <div className="px-2 py-1 bg-surface rounded border border-outline-variant text-primary">
-                    {r.dominantMacro}
-                </div>
-            </div>
+    const renderCard = (r: EnrichedSkillResource) => {
+        let visibleSkills = r.computedSkills;
+        
+        // Visual Filter Logic based on displayMode
+        if (filters.displayMode === 'skills_only') {
+            visibleSkills = visibleSkills.filter(cs => !cs.skill.isCertification);
+        } else if (filters.displayMode === 'certs_only') {
+            visibleSkills = visibleSkills.filter(cs => cs.skill.isCertification);
+        }
 
-            <div className="mt-2">
-                <p className="text-xs font-medium text-on-surface-variant mb-1">Top Skills:</p>
-                <div className="flex flex-wrap gap-1">
-                    {r.computedSkills.slice(0, 5).map(cs => {
-                        const level = cs.manualDetails?.level || cs.inferredLevel || 1;
-                        const isCert = cs.skill.isCertification;
-                        const isManual = !!cs.manualDetails;
-                        return (
-                            <span 
-                                key={cs.skill.id} 
-                                className={`px-2 py-0.5 rounded-full text-[10px] border ${
-                                    isCert && isManual ? 'bg-yellow-50 text-yellow-800 border-yellow-100' :
-                                    cs.manualDetails ? 'bg-primary/10 text-primary border-transparent' : 
-                                    'bg-surface-variant text-on-surface-variant border-transparent'}`}
-                                title={SKILL_LEVELS[level as SkillLevelValue]}
-                            >
-                                {cs.skill.name} {isCert && '★'}
-                            </span>
-                        );
-                    })}
+        return (
+            <div key={r.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 relative">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-lg text-on-surface">{r.name}</h3>
+                        <p className="text-sm text-on-surface-variant">{r.roleName}</p>
+                    </div>
+                    <button onClick={() => openEditModal(r)} className="p-2 rounded-full hover:bg-surface-container text-primary">
+                        <span className="material-symbols-outlined">edit</span>
+                    </button>
+                </div>
+                
+                <div className="flex gap-2 text-xs flex-wrap">
+                    <div className="px-2 py-1 bg-surface rounded border border-outline-variant">
+                        <span className="font-semibold">{r.totalSkills}</span> Skills
+                    </div>
+                    {filters.displayMode !== 'skills_only' && (
+                        <div className={`px-2 py-1 bg-surface rounded border border-outline-variant ${r.certificationCount > 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : ''} ${r.expiringCertifications > 0 ? 'border-error text-error' : ''}`}>
+                            <span className="font-semibold">{r.certificationCount}</span> Certificazioni
+                        </div>
+                    )}
+                    <div className="px-2 py-1 bg-surface rounded border border-outline-variant text-primary">
+                        {r.dominantMacro}
+                    </div>
+                </div>
+
+                <div className="mt-2">
+                    <p className="text-xs font-medium text-on-surface-variant mb-1">Top Skills:</p>
+                    <div className="flex flex-wrap gap-1">
+                        {visibleSkills.slice(0, 5).map(cs => {
+                            const level = cs.manualDetails?.level || cs.inferredLevel || 1;
+                            const isCert = cs.skill.isCertification;
+                            const isManual = !!cs.manualDetails;
+                            return (
+                                <span 
+                                    key={cs.skill.id} 
+                                    className={`px-2 py-0.5 rounded-full text-[10px] border ${
+                                        isCert && isManual ? 'bg-yellow-50 text-yellow-800 border-yellow-100' :
+                                        cs.manualDetails ? 'bg-primary/10 text-primary border-transparent' : 
+                                        'bg-surface-variant text-on-surface-variant border-transparent'}`}
+                                    title={SKILL_LEVELS[level as SkillLevelValue]}
+                                >
+                                    {cs.skill.name} {isCert && '★'}
+                                </span>
+                            );
+                        })}
+                        {visibleSkills.length === 0 && filters.displayMode === 'empty' && (
+                            <span className="text-xs italic text-on-surface-variant">Nessuna competenza assegnata</span>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="space-y-6">
@@ -408,10 +453,22 @@ const SkillsMapPage: React.FC = () => {
                     
                     <div className="flex gap-2">
                         <div className="flex-grow">
-                            <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
+                            <select 
+                                className="form-select text-sm h-full"
+                                value={filters.displayMode}
+                                onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
+                            >
+                                <option value="all">Tutti (Competenze e Cert.)</option>
+                                <option value="skills_only">Solo Competenze (No Cert)</option>
+                                <option value="certs_only">Solo Certificazioni</option>
+                                <option value="empty">Nessuna Competenza</option>
+                            </select>
                         </div>
-                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], category: '', macroCategory: '', isCertification: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
+                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
                     </div>
+                </div>
+                <div className="mt-4">
+                     <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
                 </div>
             </div>
 

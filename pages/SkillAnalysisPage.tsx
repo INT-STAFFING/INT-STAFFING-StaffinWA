@@ -1,3 +1,4 @@
+
 /**
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 7 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey.
@@ -24,9 +25,11 @@ import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import 'd3-transition';
+import { Skill } from '../types';
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
+type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
 
 // --- Helper to format label ---
 const formatSkillLabel = (name: string, context?: string) => {
@@ -777,9 +780,6 @@ const SkillCirclePacking: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            // Reset to identity (assuming packing is centered at 0,0 or handled by layout)
-            // But standard pack puts root at center.
-            // Let's reset to center the whole view.
             svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
         }
     }, [zoomAction, width, height]);
@@ -796,17 +796,25 @@ const SkillCirclePacking: React.FC<{
         // Ensure center
         const t = zoomTransform(svg.node() as Element);
         if (t.k === 1 && t.x === 0 && t.y === 0) {
-             // Center content roughly. Pack generates coordinates relative to size.
-             // We want to center that in our view.
-             // The pack layout will fit into [width, height].
-             // No translation needed if we use the same width/height for layout.
+             // Default center
         } else {
              g.attr("transform", t.toString());
         }
 
         const root = d3Hierarchy(data)
             .sum(d => d.value)
-            .sort((a: any, b: any) => b.value - a.value);
+            .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
+            
+        // Safety check: if no values sum up (empty tree or 0 values), rendering fails
+        if (!root.value) {
+             g.append("text")
+                .attr("x", width/2)
+                .attr("y", height/2)
+                .attr("text-anchor", "middle")
+                .attr("fill", theme.onSurfaceVariant)
+                .text("Nessun dato disponibile per il Packing (0 skills assegnate)");
+             return;
+        }
 
         // Layout
         const pack = d3Pack()
@@ -815,10 +823,19 @@ const SkillCirclePacking: React.FC<{
 
         pack(root);
 
-        const color = scaleLinear<string>()
-            .domain([0, 5])
-            .range([theme.primaryContainer, theme.primary])
-            .interpolate(interpolateBlues as any); // Use D3 interpolator
+        // Custom Color Logic based on depth
+        const getColor = (d: any) => {
+            // Leaf nodes (Skills)
+            if (!d.children) return theme.tertiaryContainer; 
+            
+            // Hierarchy nodes
+            switch(d.depth) {
+                case 0: return 'transparent'; // Root
+                case 1: return theme.surfaceContainerHigh; // Macro Category
+                case 2: return theme.primaryContainer; // Category
+                default: return theme.surface;
+            }
+        };
 
         const node = g.selectAll("g")
             .data(root.descendants())
@@ -827,22 +844,27 @@ const SkillCirclePacking: React.FC<{
 
         node.append("circle")
             .attr("r", (d: any) => d.r)
-            .attr("fill", (d: any) => d.children ? color(d.depth) : theme.tertiaryContainer)
+            .attr("fill", (d: any) => getColor(d))
             .attr("stroke", theme.outlineVariant)
             .attr("stroke-width", 1)
-            .on("mouseover", function() { select(this).attr("stroke", theme.primary).attr("stroke-width", 2); })
-            .on("mouseout", function() { select(this).attr("stroke", theme.outlineVariant).attr("stroke-width", 1); });
+            .on("mouseover", function() { 
+                select(this).attr("stroke", theme.primary).attr("stroke-width", 2); 
+            })
+            .on("mouseout", function() { 
+                select(this).attr("stroke", theme.outlineVariant).attr("stroke-width", 1); 
+            });
 
         node.append("title")
             .text((d: any) => `${d.data.name}\nRisorse: ${d.value}`);
 
-        // Labels (Only if radius allows)
-        node.filter((d: any) => !d.children && d.r > 10).append("text")
+        // Labels (Only if radius allows and it's a leaf)
+        node.filter((d: any) => !d.children && d.r > 15).append("text")
             .attr("dy", "0.3em")
             .style("text-anchor", "middle")
-            .text((d: any) => d.data.name.substring(0, d.r / 3))
+            .text((d: any) => d.data.name.substring(0, Math.floor(d.r / 3))) // Truncate based on radius
             .attr("font-size", "10px")
-            .attr("fill", theme.onSurface);
+            .attr("fill", theme.onSurface)
+            .style("pointer-events", "none"); // Prevent text from capturing mouse events
 
     }, [data, width, height, theme, svgRef]);
 
@@ -962,7 +984,7 @@ const SkillSankeyChart: React.FC<{
 
 const SkillAnalysisPage: React.FC = () => {
     const { resources, skills, projectSkills, resourceSkills, assignments, roles, locations, horizontals } = useEntitiesContext();
-    const { theme, mode } = useTheme(); // Destructure mode
+    const { theme, mode } = useTheme(); 
     
     const [view, setView] = useState<ViewMode>('network');
     const [zoomAction, setZoomAction] = useState<ZoomAction>({ type: 'reset', ts: 0 });
@@ -973,7 +995,7 @@ const SkillAnalysisPage: React.FC = () => {
         skillIds: [] as string[],
         category: '',
         macroCategory: '',
-        isCertification: '',
+        displayMode: 'all' as DisplayMode,
         location: ''
     });
 
@@ -983,7 +1005,6 @@ const SkillAnalysisPage: React.FC = () => {
 
     const chartRef = useRef<SVGSVGElement>(null);
 
-    // ... (Options logic remains identical)
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
@@ -991,80 +1012,238 @@ const SkillAnalysisPage: React.FC = () => {
     const categoryOptions = useMemo(() => { const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean))); return cats.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
     const macroCategoryOptions = useMemo(() => { const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean))); return macros.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
 
-    // ... (Filter logic remains identical)
-    const filteredResources = useMemo(() => {
-        return resources.filter(r => {
-            if (r.resigned) return false;
-            const resMatch = filters.resourceIds.length === 0 || filters.resourceIds.includes(r.id!);
-            const roleMatch = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
-            const locationMatch = !filters.location || r.location === filters.location;
-            return resMatch && roleMatch && locationMatch;
-        });
-    }, [resources, filters]);
+    // --- Filter Logic Updates ---
 
     const filteredSkills = useMemo(() => {
         return skills.filter(s => {
             const skillMatch = filters.skillIds.length === 0 || filters.skillIds.includes(s.id!);
             const catMatch = !filters.category || s.category === filters.category;
             const macroMatch = !filters.macroCategory || s.macroCategory === filters.macroCategory;
-            const certMatch = filters.isCertification === '' ? true : filters.isCertification === 'yes' ? s.isCertification : !s.isCertification;
-            return skillMatch && catMatch && macroMatch && certMatch;
+            
+            // Display Mode Logic for Skills
+            if (filters.displayMode === 'skills_only' && s.isCertification) return false;
+            if (filters.displayMode === 'certs_only' && !s.isCertification) return false;
+            if (filters.displayMode === 'empty') return false; 
+
+            return skillMatch && catMatch && macroMatch;
         });
     }, [skills, filters]);
 
-    // ... (Previous Data Memoization: network, heatmap, chord, radar, dendrogram - reused)
-    // To save space, assuming they are here as per previous file.
-    
-    // --- Re-declaring for context completeness ---
-    const networkData = useMemo(() => { /* ... same logic ... */ 
+    const filteredResources = useMemo(() => {
+        return resources.filter(r => {
+            if (r.resigned) return false;
+            const resMatch = filters.resourceIds.length === 0 || filters.resourceIds.includes(r.id!);
+            const roleMatch = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
+            const locationMatch = !filters.location || r.location === filters.location;
+
+            // Display Mode Logic for Resources
+            const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
+            
+            // Check if resource has ANY relevant skill type
+            const hasNormalSkills = rSkills.some(rs => {
+                const skill = skills.find(s => s.id === rs.skillId);
+                return skill && !skill.isCertification;
+            });
+            const hasCerts = rSkills.some(rs => {
+                const skill = skills.find(s => s.id === rs.skillId);
+                return skill && skill.isCertification;
+            });
+
+            if (filters.displayMode === 'skills_only' && !hasNormalSkills) return false;
+            if (filters.displayMode === 'certs_only' && !hasCerts) return false;
+            if (filters.displayMode === 'empty' && (hasNormalSkills || hasCerts)) return false;
+
+            return resMatch && roleMatch && locationMatch;
+        });
+    }, [resources, filters, resourceSkills, skills]);
+
+    // --- Data Preparation (using filtered lists) ---
+
+    const networkData = useMemo(() => {
         if (view !== 'network') return { nodes: [], links: [] };
-        const nodes: any[] = []; const links: any[] = []; const nodeIds = new Set();
-        filteredSkills.forEach(s => { nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification }); nodeIds.add(`skill_${s.id}`); });
-        filteredResources.forEach(r => { const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id); const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`)); if (hasRelevantSkill) { nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' }); rSkills.forEach(rs => { if (nodeIds.has(`skill_${rs.skillId}`)) links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 }); }); } });
+        
+        const nodes: any[] = [];
+        const links: any[] = [];
+        const nodeIds = new Set();
+
+        // Add filtered skills as nodes
+        filteredSkills.forEach(s => {
+            nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
+            nodeIds.add(`skill_${s.id}`);
+        });
+
+        // Add filtered resources as nodes and link to skills
+        filteredResources.forEach(r => {
+            const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
+            // Check if resource is connected to at least one VISIBLE skill
+            const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`));
+            
+            if (hasRelevantSkill) {
+                nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' });
+                rSkills.forEach(rs => {
+                    if (nodeIds.has(`skill_${rs.skillId}`)) {
+                        links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 });
+                    }
+                });
+            }
+        });
+
         return { nodes, links };
     }, [filteredResources, filteredSkills, resourceSkills, view]);
 
-    const heatmapData = useMemo(() => { /* ... same logic ... */ 
+    const heatmapData = useMemo(() => {
         if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
-        const data: any[] = []; const resList = filteredResources.map(r => r.name); const skillList = filteredSkills.map(s => formatSkillLabel(s.name, s.category)); 
-        filteredResources.forEach(r => { filteredSkills.forEach(s => { let days = 0; const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id); if (manual) days += (manual.level || 1) * 20; const rAssignments = assignments.filter(a => a.resourceId === r.id); rAssignments.forEach(a => { if(projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id)) days += 10; }); if (days > 0) data.push({ resource: r.name, skillLabel: formatSkillLabel(s.name, s.category), value: Math.min(100, days) }); }); });
+        
+        const data: any[] = [];
+        const resList = filteredResources.map(r => r.name);
+        const skillList = filteredSkills.map(s => formatSkillLabel(s.name, s.category)); 
+        
+        filteredResources.forEach(r => {
+            filteredSkills.forEach(s => {
+                let days = 0;
+                // Manual Skill
+                const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id);
+                if (manual) days += (manual.level || 1) * 20; // Weight manual higher
+                
+                // Inferred Skill (via Assignments)
+                const rAssignments = assignments.filter(a => a.resourceId === r.id);
+                rAssignments.forEach(a => {
+                    if(projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id)) {
+                        days += 10;
+                    }
+                });
+
+                if (days > 0) {
+                    data.push({
+                        resource: r.name,
+                        skillLabel: formatSkillLabel(s.name, s.category),
+                        value: Math.min(100, days) // Cap at 100
+                    });
+                }
+            });
+        });
+
         return { data, resources: resList, skills: skillList };
     }, [filteredResources, filteredSkills, assignments, projectSkills, resourceSkills, view]);
 
-    const chordData = useMemo(() => { /* ... same logic ... */ 
+    const chordData = useMemo(() => {
         if (view !== 'chord') return { matrix: [], names: [] };
-        const relevantSkillIds = new Set(filteredSkills.map(s => s.id)); const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
-        const n = filteredSkills.length; if (n === 0 || n > 50) return { matrix: [], names: [] }; const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-        const projectToSkills = new Map<string, string[]>(); projectSkills.forEach(ps => { if (relevantSkillIds.has(ps.skillId)) { if (!projectToSkills.has(ps.projectId)) projectToSkills.set(ps.projectId, []); projectToSkills.get(ps.projectId)?.push(ps.skillId); } });
-        projectToSkills.forEach((skillsInProj) => { for (let i = 0; i < skillsInProj.length; i++) { for (let j = 0; j < skillsInProj.length; j++) { if (i === j) continue; const idx1 = relevantSkillIndices.get(skillsInProj[i]); const idx2 = relevantSkillIndices.get(skillsInProj[j]); if (idx1 !== undefined && idx2 !== undefined) matrix[idx1][idx2]++; } } });
+        
+        // Only skills co-occurring in projects
+        const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
+        const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
+        
+        const n = filteredSkills.length;
+        if (n === 0 || n > 50) return { matrix: [], names: [] }; // Too many for chord
+
+        const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+        
+        // Map Project -> Skills
+        const projectToSkills = new Map<string, string[]>();
+        projectSkills.forEach(ps => {
+            if (relevantSkillIds.has(ps.skillId)) {
+                if (!projectToSkills.has(ps.projectId)) projectToSkills.set(ps.projectId, []);
+                projectToSkills.get(ps.projectId)?.push(ps.skillId);
+            }
+        });
+
+        // Fill Matrix
+        projectToSkills.forEach((skillsInProj) => {
+            for (let i = 0; i < skillsInProj.length; i++) {
+                for (let j = 0; j < skillsInProj.length; j++) {
+                    if (i === j) continue;
+                    const idx1 = relevantSkillIndices.get(skillsInProj[i]);
+                    const idx2 = relevantSkillIndices.get(skillsInProj[j]);
+                    if (idx1 !== undefined && idx2 !== undefined) {
+                        matrix[idx1][idx2]++;
+                    }
+                }
+            }
+        });
+
         return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
     }, [filteredSkills, projectSkills, view]);
 
-    const radarData = useMemo(() => { /* ... same logic ... */
+    const radarData = useMemo(() => {
         if (view !== 'radar') return [];
-        const targetSkills = filteredSkills.slice(0, 8); if (targetSkills.length < 3) return []; 
-        const datasets: any[] = []; const palette = schemeCategory10; const currentPalette = mode === 'dark' ? theme.dark : theme.light; 
-        if (filteredResources.length <= 5) { filteredResources.forEach((r, idx) => { const dataPoints = targetSkills.map(s => { const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id); return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 }; }); datasets.push({ name: r.name, color: palette[idx % 10], data: dataPoints }); }); } 
-        else { const avgDataPoints = targetSkills.map(s => { const values = filteredResources.map(r => { const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id); return (rs?.level || 0) * 20; }); const avg = mean(values) || 0; return { axis: formatSkillLabel(s.name, s.category), value: avg }; }); datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints }); }
+        
+        // Show top 5-8 skills only or specific filtered ones
+        const targetSkills = filteredSkills.slice(0, 8);
+        if (targetSkills.length < 3) return []; // Need at least 3 points for a polygon
+        
+        const datasets: any[] = [];
+        const palette = schemeCategory10;
+        const currentPalette = mode === 'dark' ? theme.dark : theme.light; 
+
+        // If specific resources selected (small number), show individual
+        if (filteredResources.length <= 5) {
+            filteredResources.forEach((r, idx) => {
+                const dataPoints = targetSkills.map(s => {
+                    const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
+                    return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 }; // Map level 1-5 to 0-100
+                });
+                datasets.push({ name: r.name, color: palette[idx % 10], data: dataPoints });
+            });
+        } else {
+            // Show Average of Filtered Group
+            const avgDataPoints = targetSkills.map(s => {
+                const values = filteredResources.map(r => {
+                    const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
+                    return (rs?.level || 0) * 20;
+                });
+                const avg = mean(values) || 0;
+                return { axis: formatSkillLabel(s.name, s.category), value: avg };
+            });
+            datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints });
+        }
+
         return datasets;
     }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]);
 
-    const dendrogramData = useMemo(() => { /* ... same logic ... */
+    const dendrogramData = useMemo(() => {
         if (view !== 'dendrogram') return null;
-        const root: any = { name: "Competenze", children: [] }; const groups = new Map<string, Map<string, Map<string, any[]>>>();
-        filteredSkills.forEach(skill => { const macro = skill.macroCategory || 'Altro'; const cat = skill.category || 'Generico'; const skillName = skill.name;
-            const associatedResources = resourceSkills.filter(rs => rs.skillId === skill.id).map(rs => filteredResources.find(r => r.id === rs.resourceId)).filter(r => r !== undefined).map(r => ({ name: r!.name, type: 'resource' }));
-            if (!groups.has(macro)) groups.set(macro, new Map()); if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, new Map());
-            groups.get(macro)?.get(cat)?.set(skillName, associatedResources); });
-        groups.forEach((catMap, macroName) => { const macroNode: any = { name: macroName, type: 'macro', children: [] }; catMap.forEach((skillMap, catName) => { const catNode: any = { name: catName, type: 'category', children: [] }; skillMap.forEach((resList, skillName) => { const skillNode: any = { name: skillName, type: 'skill', children: resList }; catNode.children.push(skillNode); }); macroNode.children.push(catNode); }); root.children.push(macroNode); });
+        
+        const root: any = { name: "Competenze", children: [] };
+        const groups = new Map<string, Map<string, Map<string, any[]>>>();
+
+        // Build Hierarchy: Macro -> Category -> Skill -> Resources
+        filteredSkills.forEach(skill => {
+            const macro = skill.macroCategory || 'Altro';
+            const cat = skill.category || 'Generico';
+            const skillName = skill.name;
+            
+            const associatedResources = resourceSkills
+                .filter(rs => rs.skillId === skill.id)
+                .map(rs => filteredResources.find(r => r.id === rs.resourceId))
+                .filter(r => r !== undefined)
+                .map(r => ({ name: r!.name, type: 'resource' }));
+
+            if (!groups.has(macro)) groups.set(macro, new Map());
+            if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, new Map());
+            
+            groups.get(macro)?.get(cat)?.set(skillName, associatedResources);
+        });
+
+        // Convert Map to D3 Hierarchy
+        groups.forEach((catMap, macroName) => {
+            const macroNode: any = { name: macroName, type: 'macro', children: [] };
+            catMap.forEach((skillMap, catName) => {
+                const catNode: any = { name: catName, type: 'category', children: [] };
+                skillMap.forEach((resList, skillName) => {
+                    const skillNode: any = { name: skillName, type: 'skill', children: resList };
+                    catNode.children.push(skillNode);
+                });
+                macroNode.children.push(catNode);
+            });
+            root.children.push(macroNode);
+        });
+
         return root;
     }, [filteredSkills, filteredResources, resourceSkills, view]);
 
-    // --- NEW: Packing Data ---
     const packingData = useMemo(() => {
         if (view !== 'packing') return null;
         
-        // Similar to Dendrogram but leaf value = count of resources
         const root: any = { name: "Competenze", children: [] };
         const groups = new Map<string, Map<string, any[]>>();
 
@@ -1072,13 +1251,12 @@ const SkillAnalysisPage: React.FC = () => {
             const macro = skill.macroCategory || 'Altro';
             const cat = skill.category || 'Generico';
             
-            // Count resources with this skill (filtered)
             const count = resourceSkills.filter(rs => 
                 rs.skillId === skill.id && 
                 filteredResources.some(r => r.id === rs.resourceId)
             ).length;
 
-            if (count === 0) return; // Skip empty skills for packing to save space
+            if (count === 0) return;
 
             if (!groups.has(macro)) groups.set(macro, new Map());
             if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, []);
@@ -1098,16 +1276,12 @@ const SkillAnalysisPage: React.FC = () => {
         return root;
     }, [filteredSkills, filteredResources, resourceSkills, view]);
 
-    // --- NEW: Sankey Data ---
     const sankeyData = useMemo(() => {
         if (view !== 'sankey') return { nodes: [], links: [] };
 
         const nodes: any[] = [];
         const links: any[] = [];
         const nodeMap = new Map<string, number>();
-
-        // 1. Create Nodes (Macro -> Category -> Skill)
-        // We use prefixes to ensure uniqueness
         
         let nodeIdx = 0;
         const addNode = (name: string, category: string) => {
@@ -1117,6 +1291,8 @@ const SkillAnalysisPage: React.FC = () => {
             }
             return nodeMap.get(name)!;
         };
+
+        const linkMap = new Map<string, number>(); // "sourceIdx-targetIdx" -> value
 
         filteredSkills.forEach(skill => {
             const macroName = `macro_${skill.macroCategory || 'Altro'}`;
@@ -1134,36 +1310,9 @@ const SkillAnalysisPage: React.FC = () => {
             const cIdx = addNode(catName, 'category');
             const sIdx = addNode(skillName, 'skill');
 
-            // Macro -> Category
-            // Need to aggregate values to avoid duplicate links? d3-sankey handles multiple links but better to aggregate.
-            // Simplified: Just push link objects and let's aggregate manually or rely on uniqueness.
-            // Actually, simpler to accumulate values in a map.
-        });
-
-        // Re-iterate to build aggregated links
-        const linkMap = new Map<string, number>(); // "sourceIdx-targetIdx" -> value
-
-        filteredSkills.forEach(skill => {
-            const macroName = `macro_${skill.macroCategory || 'Altro'}`;
-            const catName = `cat_${skill.category || 'Generico'}`;
-            const skillName = `skill_${skill.name}`;
-
-            const resCount = resourceSkills.filter(rs => 
-                rs.skillId === skill.id && 
-                filteredResources.some(r => r.id === rs.resourceId)
-            ).length;
-
-            if (resCount === 0) return;
-
-            const mIdx = nodeMap.get(macroName)!;
-            const cIdx = nodeMap.get(catName)!;
-            const sIdx = nodeMap.get(skillName)!;
-
-            // Link: Macro -> Cat
             const keyMC = `${mIdx}-${cIdx}`;
             linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + resCount);
 
-            // Link: Cat -> Skill
             const keyCS = `${cIdx}-${sIdx}`;
             linkMap.set(keyCS, (linkMap.get(keyCS) || 0) + resCount);
         });
@@ -1266,15 +1415,16 @@ const SkillAnalysisPage: React.FC = () => {
                     
                     <select 
                         className="form-select text-sm"
-                        value={filters.isCertification}
-                        onChange={e => setFilters(prev => ({ ...prev, isCertification: e.target.value }))}
+                        value={filters.displayMode}
+                        onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
                     >
-                        <option value="">Tutti i tipi</option>
-                        <option value="yes">Solo Certificazioni</option>
-                        <option value="no">Solo Competenze</option>
+                        <option value="all">Tutti (Competenze e Cert.)</option>
+                        <option value="skills_only">Solo Competenze (No Cert)</option>
+                        <option value="certs_only">Solo Certificazioni</option>
+                        <option value="empty">Senza Competenze/Cert</option>
                     </select>
 
-                    <button onClick={() => setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', isCertification: '', location: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
+                    <button onClick={() => setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all', location: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
                         Reset
                     </button>
                 </div>
