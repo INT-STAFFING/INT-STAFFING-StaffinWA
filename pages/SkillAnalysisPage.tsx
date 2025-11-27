@@ -615,6 +615,8 @@ const SkillRadarChart: React.FC<{
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
+// ... (parte precedente del file invariata)
+
 // 5. Radial Dendrogram (Tidy Tree)
 const SkillRadialTree: React.FC<{
     data: any,
@@ -650,7 +652,8 @@ const SkillRadialTree: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.6));
+            // Reset con un livello di zoom molto basso per vedere l'intero albero enorme
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
         }
     }, [zoomAction, width, height]);
 
@@ -663,18 +666,19 @@ const SkillRadialTree: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
 
-        // Apply initial center
-        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.6));
+        // Imposta uno zoom iniziale molto ampio (0.4) perché l'albero è ora molto profondo
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
 
-        const radius = Math.min(width, height) / 2;
+        // Raggio esteso per ospitare il 4° livello (Risorse)
+        const layoutRadius = 1600; 
 
         // Create Hierarchy
         const root = d3Hierarchy(data);
         
         // Define Tree Layout
         const tree = d3Tree()
-            .size([2 * Math.PI, radius * 0.8])
-            .separation((a, b) => (a.parent === b.parent ? 2 : 3) / a.depth);
+            .size([2 * Math.PI, layoutRadius])
+            .separation((a, b) => (a.parent === b.parent ? 1 : 2) / (a.depth || 1));
 
         tree(root);
 
@@ -701,12 +705,17 @@ const SkillRadialTree: React.FC<{
                 rotate(${d.x * 180 / Math.PI - 90})
                 translate(${d.y},0)
             `)
-            .attr("fill", (d: any) => d.children ? theme.primary : theme.tertiary)
-            .attr("r", 4);
+            .attr("fill", (d: any) => {
+                // Color coding per depth/type
+                if (d.depth === 0) return theme.inverseSurface; // Root
+                if (d.depth === 3) return theme.tertiary; // Skill (Level 3)
+                if (d.depth === 4) return theme.secondary; // Resource (Level 4 - Leaf)
+                return theme.primary; // Macro & Category (Level 1 & 2)
+            })
+            .attr("r", (d: any) => d.depth === 4 ? 2.5 : 4); // Smaller dots for resources
 
         // Labels
         g.append("g")
-            .attr("font-size", "10px")
             .attr("stroke-linejoin", "round")
             .attr("stroke-width", 3)
             .selectAll("text")
@@ -718,12 +727,15 @@ const SkillRadialTree: React.FC<{
                 rotate(${d.x >= Math.PI ? 180 : 0})
             `)
             .attr("dy", "0.31em")
-            .attr("x", (d: any) => d.x < Math.PI === !d.children ? 8 : -8)
+            .attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6)
             .attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end")
-            .attr("fill", theme.onSurface)
+            .attr("fill", (d: any) => d.depth === 4 ? theme.secondary : theme.onSurface)
+            .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px") // Smaller font for resources
+            .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal") // Bold for Skills
             .text((d: any) => d.data.name)
             .clone(true).lower()
-            .attr("stroke", theme.surface);
+            .attr("stroke", theme.surface)
+            .attr("stroke-width", 4);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -737,10 +749,10 @@ const SkillAnalysisPage: React.FC = () => {
     const { resources, skills, projectSkills, resourceSkills, assignments, roles, locations, horizontals } = useEntitiesContext();
     const { theme, mode } = useTheme(); // Destructure mode
     
+    // ... (rest of state hooks remain same)
     const [view, setView] = useState<ViewMode>('network');
     const [zoomAction, setZoomAction] = useState<ZoomAction>({ type: 'reset', ts: 0 });
     
-    // Filters State - CHANGED resourceName to resourceIds
     const [filters, setFilters] = useState({
         resourceIds: [] as string[],
         roleIds: [] as string[],
@@ -755,10 +767,9 @@ const SkillAnalysisPage: React.FC = () => {
         setZoomAction({ type, ts: Date.now() });
     };
 
-    // Ref for export
     const chartRef = useRef<SVGSVGElement>(null);
 
-    // --- Options for Filters ---
+    // ... (options and filters logic remain same)
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
@@ -777,15 +788,12 @@ const SkillAnalysisPage: React.FC = () => {
         return macros.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
-    // --- Data Filtering Logic ---
     const filteredResources = useMemo(() => {
         return resources.filter(r => {
             if (r.resigned) return false;
-            // Updated to use MultiSelect logic
             const resMatch = filters.resourceIds.length === 0 || filters.resourceIds.includes(r.id!);
             const roleMatch = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             const locationMatch = !filters.location || r.location === filters.location;
-            
             return resMatch && roleMatch && locationMatch;
         });
     }, [resources, filters]);
@@ -801,36 +809,26 @@ const SkillAnalysisPage: React.FC = () => {
         });
     }, [skills, filters]);
 
-    // --- Chart Data Preparation ---
-
+    // ... (networkData, heatmapData, chordData, radarData remain same)
+    // Re-paste them to ensure context is kept
+    
     const networkData = useMemo(() => {
         if (view !== 'network') return { nodes: [], links: [] };
         const nodes: any[] = [];
         const links: any[] = [];
         const nodeIds = new Set();
 
-        // 1. Add Filtered Skills
         filteredSkills.forEach(s => {
-            nodes.push({ 
-                id: `skill_${s.id}`, 
-                name: formatSkillLabel(s.name, s.category),
-                type: 'skill', 
-                category: s.category,
-                macroCategory: s.macroCategory, 
-                isCertification: s.isCertification 
-            });
+            nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
             nodeIds.add(`skill_${s.id}`);
         });
 
-        // 2. Add Filtered Resources & Create Links
         filteredResources.forEach(r => {
-            // Optimization: Only add resource if it has at least one of the filtered skills
             const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
             const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`));
             
             if (hasRelevantSkill) {
                 nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' });
-                
                 rSkills.forEach(rs => {
                     if (nodeIds.has(`skill_${rs.skillId}`)) {
                         links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 });
@@ -838,58 +836,41 @@ const SkillAnalysisPage: React.FC = () => {
                 });
             }
         });
-
         return { nodes, links };
     }, [filteredResources, filteredSkills, resourceSkills, view]);
 
     const heatmapData = useMemo(() => {
         if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
-        
         const data: { resource: string; skillLabel: string; value: number }[] = [];
         const resList = filteredResources.map(r => r.name);
         const skillList = filteredSkills.map(s => formatSkillLabel(s.name, s.category)); 
 
         filteredResources.forEach(r => {
             filteredSkills.forEach(s => {
-                // Calculate "affinity"
                 let days = 0;
-                
-                // Manual skill weight
                 const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id);
                 if (manual) days += (manual.level || 1) * 20; 
-
-                // Project inference weight
                 const rAssignments = assignments.filter(a => a.resourceId === r.id);
                 rAssignments.forEach(a => {
                     const hasSkill = projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id);
                     if (hasSkill) days += 10;
                 });
-
                 if (days > 0) {
                     data.push({ resource: r.name, skillLabel: formatSkillLabel(s.name, s.category), value: Math.min(100, days) });
                 }
             });
         });
-
         return { data, resources: resList, skills: skillList };
     }, [filteredResources, filteredSkills, assignments, projectSkills, resourceSkills, view]);
 
     const chordData = useMemo(() => {
         if (view !== 'chord') return { matrix: [], names: [] };
-        
-        // Co-occurrence of skills in projects (filtered skills only)
-        // Only consider skills that are in filteredSkills
         const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
         const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
-        
         const n = filteredSkills.length;
-        // Safety guard for performance and rendering
         if (n === 0 || n > 50) return { matrix: [], names: [] }; 
 
         const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-
-        // Iterate all projects to find skill co-occurrences
-        // Optimization: Pre-group skills by project
         const projectToSkills = new Map<string, string[]>();
         projectSkills.forEach(ps => {
             if (relevantSkillIds.has(ps.skillId)) {
@@ -898,12 +879,10 @@ const SkillAnalysisPage: React.FC = () => {
             }
         });
 
-        // Fill Matrix
         projectToSkills.forEach((skillsInProj) => {
-            // For every pair in this project
             for (let i = 0; i < skillsInProj.length; i++) {
                 for (let j = 0; j < skillsInProj.length; j++) {
-                    if (i === j) continue; // Don't link to self
+                    if (i === j) continue; 
                     const idx1 = relevantSkillIndices.get(skillsInProj[i]);
                     const idx2 = relevantSkillIndices.get(skillsInProj[j]);
                     if (idx1 !== undefined && idx2 !== undefined) {
@@ -912,89 +891,84 @@ const SkillAnalysisPage: React.FC = () => {
                 }
             }
         });
-
         return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
     }, [filteredSkills, projectSkills, view]);
 
-    const radarData = useMemo<RadarDataSet[]>(() => {
+    const radarData = useMemo(() => {
         if (view !== 'radar') return [];
-        
-        // Limit skills for radar to keep it readable (max 8)
         const targetSkills = filteredSkills.slice(0, 8); 
-        if (targetSkills.length < 3) return []; // Need at least 3 axes
+        if (targetSkills.length < 3) return []; 
 
-        const datasets: RadarDataSet[] = [];
+        const datasets: any[] = [];
         const palette = schemeCategory10;
-        const currentPalette = mode === 'dark' ? theme.dark : theme.light; // Select palette based on mode
+        const currentPalette = mode === 'dark' ? theme.dark : theme.light; 
 
-        // Mode 1: Compare Individual Resources (up to 5)
         if (filteredResources.length <= 5) {
             filteredResources.forEach((r, idx) => {
                 const dataPoints = targetSkills.map(s => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return {
-                        axis: formatSkillLabel(s.name, s.category),
-                        value: (rs?.level || 0) * 20 // 0-100 scale
-                    };
+                    return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 };
                 });
-                datasets.push({
-                    name: r.name,
-                    color: palette[idx % 10],
-                    data: dataPoints
-                });
+                datasets.push({ name: r.name, color: palette[idx % 10], data: dataPoints });
             });
-        } 
-        // Mode 2: Average of Filtered Resources (Group Profile)
-        else {
+        } else {
             const avgDataPoints = targetSkills.map(s => {
                 const values = filteredResources.map(r => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
                     return (rs?.level || 0) * 20;
                 });
                 const avg = mean(values) || 0;
-                return {
-                    axis: formatSkillLabel(s.name, s.category),
-                    value: avg
-                };
+                return { axis: formatSkillLabel(s.name, s.category), value: avg };
             });
-            datasets.push({
-                name: 'Media Gruppo Filtrato',
-                color: currentPalette.primary, // Fixed access
-                data: avgDataPoints
-            });
+            datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints });
         }
-
         return datasets;
-    }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]); // Added mode to deps
+    }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]);
 
+    // --- UPDATE: New Logic for Dendrogram with Resources ---
     const dendrogramData = useMemo(() => {
         if (view !== 'dendrogram') return null;
 
-        // Build Hierarchical Data
+        // Root
         const root: any = { name: "Competenze", children: [] };
         
-        // Group by MacroCategory -> Category -> Skill
-        const macroGroups = new Map<string, Map<string, any[]>>();
+        // Nested Map: Macro -> Category -> Skill Name -> List of Resources
+        const groups = new Map<string, Map<string, Map<string, any[]>>>();
 
         filteredSkills.forEach(skill => {
             const macro = skill.macroCategory || 'Altro';
             const cat = skill.category || 'Generico';
+            const skillName = skill.name;
             
-            if (!macroGroups.has(macro)) macroGroups.set(macro, new Map());
-            if (!macroGroups.get(macro)?.has(cat)) macroGroups.get(macro)?.set(cat, []);
+            // Find resources that have this skill (using global resource filter)
+            // Filter out resources that are not in the current filteredResources list
+            const associatedResources = resourceSkills
+                .filter(rs => rs.skillId === skill.id)
+                .map(rs => filteredResources.find(r => r.id === rs.resourceId))
+                .filter(r => r !== undefined) // remove undefined if resource filtered out
+                .map(r => ({ name: r!.name, type: 'resource' }));
+
+            // Skip skill if no resources found? (Optional: remove this check to show skills with 0 people)
+            // For a dense tree, maybe we keep it to show gaps.
             
-            macroGroups.get(macro)?.get(cat)?.push({ name: skill.name, isCertification: skill.isCertification });
+            if (!groups.has(macro)) groups.set(macro, new Map());
+            if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, new Map());
+            
+            groups.get(macro)?.get(cat)?.set(skillName, associatedResources);
         });
 
-        // Convert Map to Children Array
-        macroGroups.forEach((catMap, macroName) => {
-            const macroNode: any = { name: macroName, children: [] };
+        // Convert Map to D3 Hierarchy
+        groups.forEach((catMap, macroName) => {
+            const macroNode: any = { name: macroName, type: 'macro', children: [] };
             
-            catMap.forEach((skillsList, catName) => {
-                const catNode: any = { name: catName, children: [] };
-                skillsList.forEach(s => {
-                    catNode.children.push({ name: s.name, value: 1 });
+            catMap.forEach((skillMap, catName) => {
+                const catNode: any = { name: catName, type: 'category', children: [] };
+                
+                skillMap.forEach((resList, skillName) => {
+                    const skillNode: any = { name: skillName, type: 'skill', children: resList };
+                    catNode.children.push(skillNode);
                 });
+                
                 macroNode.children.push(catNode);
             });
             
@@ -1002,11 +976,11 @@ const SkillAnalysisPage: React.FC = () => {
         });
 
         return root;
-    }, [filteredSkills, view]);
+    }, [filteredSkills, filteredResources, resourceSkills, view]);
 
-    const currentTheme = mode === 'dark' ? theme.dark : theme.light; // Use mode
+    const currentTheme = mode === 'dark' ? theme.dark : theme.light; 
 
-    // Export Handlers (Reused)
+    // ... (Export handlers remain same)
     const handleExportSVG = () => {
         if (!chartRef.current) return;
         const svgData = new XMLSerializer().serializeToString(chartRef.current);
@@ -1025,13 +999,11 @@ const SkillAnalysisPage: React.FC = () => {
         const svg = chartRef.current;
         const width = svg.clientWidth || 800;
         const height = svg.clientHeight || 600;
-        
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-
         const svgData = new XMLSerializer().serializeToString(svg);
         const img = new Image();
         img.onload = () => {
@@ -1075,7 +1047,6 @@ const SkillAnalysisPage: React.FC = () => {
             {/* Global Filters */}
             <div className="bg-surface rounded-2xl shadow p-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
-                    {/* Resource Filters (Updated to MultiSelect) */}
                     <div className="md:col-span-2">
                         <MultiSelectDropdown name="resourceIds" selectedValues={filters.resourceIds} onChange={(_, v) => setFilters(f => ({...f, resourceIds: v}))} options={resourceOptions} placeholder="Risorse"/>
                     </div>
@@ -1085,12 +1056,10 @@ const SkillAnalysisPage: React.FC = () => {
                     </div>
                     <SearchableSelect name="location" value={filters.location} onChange={(_, v) => setFilters(f => ({...f, location: v}))} options={locationOptions} placeholder="Sede"/>
                     
-                    {/* Skill Filters */}
                     <div className="md:col-span-2">
                         <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Competenze"/>
                     </div>
                     
-                    {/* Advanced Skill Filters */}
                     <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Ambito"/>
                     <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(f => ({...f, macroCategory: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
                     
