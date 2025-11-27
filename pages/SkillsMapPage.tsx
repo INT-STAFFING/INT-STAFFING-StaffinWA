@@ -33,6 +33,8 @@ const isExpired = (dateStr?: string | null): boolean => {
 type EnrichedSkillResource = Resource & {
     roleName: string;
     primarySkill: string;
+    dominantCategory: string;
+    dominantMacro: string;
     totalSkills: number;
     certificationCount: number;
     expiringCertifications: number;
@@ -47,7 +49,14 @@ const SkillsMapPage: React.FC = () => {
 
     // State
     const [view, setView] = useState<'table' | 'card'>('table');
-    const [filters, setFilters] = useState({ resourceId: '', roleId: '', skillIds: [] as string[], category: '', macroCategory: '', isCertification: '' });
+    const [filters, setFilters] = useState({ 
+        resourceId: '', 
+        roleIds: [] as string[], 
+        skillIds: [] as string[], 
+        category: '', 
+        macroCategory: '', 
+        isCertification: '' 
+    });
     
     // Edit Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,11 +74,25 @@ const SkillsMapPage: React.FC = () => {
             const manualSkills = computed.filter(cs => cs.manualDetails);
             const certifications = manualSkills.filter(cs => cs.skill.isCertification);
             
+            // Calculate Dominant Context
+            const catCounts: Record<string, number> = {};
+            const macroCounts: Record<string, number> = {};
+            
+            computed.forEach(cs => {
+                if(cs.skill.category) catCounts[cs.skill.category] = (catCounts[cs.skill.category] || 0) + 1;
+                if(cs.skill.macroCategory) macroCounts[cs.skill.macroCategory] = (macroCounts[cs.skill.macroCategory] || 0) + 1;
+            });
+
+            const dominantCategory = Object.entries(catCounts).sort((a,b) => b[1] - a[1])[0]?.[0] || '-';
+            const dominantMacro = Object.entries(macroCounts).sort((a,b) => b[1] - a[1])[0]?.[0] || '-';
+
             return {
                 ...resource,
                 roleName: role?.name || 'N/A',
                 computedSkills: computed,
                 primarySkill: computed.length > 0 ? computed[0].skill.name : 'Nessuna',
+                dominantCategory,
+                dominantMacro,
                 totalSkills: computed.length,
                 certificationCount: certifications.length,
                 expiringCertifications: certifications.filter(c => isExpiringSoon(c.manualDetails?.expirationDate)).length
@@ -79,38 +102,45 @@ const SkillsMapPage: React.FC = () => {
 
     const kpis = useMemo(() => {
         const skillCounts: {[key: string]: number} = {};
+        const macroCounts: {[key: string]: number} = {};
+        const catCounts: {[key: string]: number} = {};
+        
         let totalResources = 0;
-        let resourcesWithSkills = 0;
         let expiringCerts = 0;
-        let inferredOnlyGap = 0;
+        let totalCerts = 0;
 
         allEnrichedResources.forEach(r => {
             totalResources++;
-            if (r.totalSkills > 0) resourcesWithSkills++;
             expiringCerts += r.expiringCertifications;
+            totalCerts += r.certificationCount;
             
-            // Count skill popularity
+            // Count skill popularity across ecosystem
             r.computedSkills.forEach(cs => {
                 const name = cs.skill.name;
+                const macro = cs.skill.macroCategory;
+                const cat = cs.skill.category;
+                
                 skillCounts[name] = (skillCounts[name] || 0) + 1;
+                if(macro) macroCounts[macro] = (macroCounts[macro] || 0) + 1;
+                if(cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
             });
-
-            // Gap Analysis: skills used in projects but not manual
-            const inferredOnly = r.computedSkills.filter(cs => !cs.manualDetails && cs.inferredDays > 0).length;
-            inferredOnlyGap += inferredOnly;
         });
 
         const sortedSkills = Object.entries(skillCounts).sort((a,b) => b[1] - a[1]);
-        const topSkill = sortedSkills.length > 0 ? sortedSkills[0][0] : 'N/A';
-        const coverage = totalResources > 0 ? (resourcesWithSkills / totalResources) * 100 : 0;
+        const sortedMacros = Object.entries(macroCounts).sort((a,b) => b[1] - a[1]);
+        const sortedCats = Object.entries(catCounts).sort((a,b) => b[1] - a[1]);
 
-        return { topSkill, expiringCerts, coverage, inferredOnlyGap };
+        const topSkill = sortedSkills.length > 0 ? sortedSkills[0][0] : 'N/A';
+        const topMacro = sortedMacros.length > 0 ? `${sortedMacros[0][0]}` : 'N/A';
+        const topCat = sortedCats.length > 0 ? sortedCats[0][0] : 'N/A';
+
+        return { topSkill, topMacro, topCat, expiringCerts, totalCerts };
     }, [allEnrichedResources]);
 
     const filteredResources = useMemo(() => {
         return allEnrichedResources.filter(r => {
             const matchesRes = !filters.resourceId || r.id === filters.resourceId;
-            const matchesRole = !filters.roleId || r.roleId === filters.roleId;
+            const matchesRole = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             
             const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
             
@@ -232,6 +262,8 @@ const SkillsMapPage: React.FC = () => {
     const columns: ColumnDef<EnrichedSkillResource>[] = [
         { header: 'Risorsa', sortKey: 'name', cell: r => <span className="font-medium text-on-surface">{r.name}</span> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
+        { header: 'Macro Ambito Prevalente', sortKey: 'dominantMacro', cell: r => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">{r.dominantMacro}</span> },
+        { header: 'Ambito Prevalente', sortKey: 'dominantCategory', cell: r => <span className="text-xs text-on-surface-variant">{r.dominantCategory}</span> },
         { header: 'Competenze Principali', cell: r => (
             <div className="flex flex-wrap gap-1">
                 {r.computedSkills.slice(0, 3).map(cs => {
@@ -266,10 +298,6 @@ const SkillsMapPage: React.FC = () => {
                 )}
             </div>
         )},
-        { header: 'Skill Gap (Inferite)', cell: r => {
-            const gap = r.computedSkills.filter(cs => !cs.manualDetails && cs.inferredDays > 0).length;
-            return gap > 0 ? <span className="text-xs font-medium text-tertiary">{gap} da validare</span> : <span className="text-xs text-green-600">Ok</span>;
-        }}
     ];
 
     const renderRow = (r: EnrichedSkillResource) => (
@@ -297,12 +325,15 @@ const SkillsMapPage: React.FC = () => {
                 </button>
             </div>
             
-            <div className="flex gap-2 text-xs">
+            <div className="flex gap-2 text-xs flex-wrap">
                 <div className="px-2 py-1 bg-surface rounded border border-outline-variant">
                     <span className="font-semibold">{r.totalSkills}</span> Skills
                 </div>
                 <div className={`px-2 py-1 bg-surface rounded border border-outline-variant ${r.certificationCount > 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : ''} ${r.expiringCertifications > 0 ? 'border-error text-error' : ''}`}>
                     <span className="font-semibold">{r.certificationCount}</span> Certificazioni
+                </div>
+                <div className="px-2 py-1 bg-surface rounded border border-outline-variant text-primary">
+                    {r.dominantMacro}
                 </div>
             </div>
 
@@ -348,17 +379,20 @@ const SkillsMapPage: React.FC = () => {
                     <p className="text-sm text-on-surface-variant">Top Competenza</p>
                     <p className="text-2xl font-bold text-on-surface truncate" title={kpis.topSkill}>{kpis.topSkill}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error">
-                    <p className="text-sm text-on-surface-variant">Certificazioni in Scadenza (90gg)</p>
-                    <p className="text-2xl font-bold text-error">{kpis.expiringCerts}</p>
-                </div>
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
-                    <p className="text-sm text-on-surface-variant">Copertura Competenze</p>
-                    <p className="text-2xl font-bold text-tertiary">{kpis.coverage.toFixed(0)}%</p>
+                    <p className="text-sm text-on-surface-variant">Top Macro Ambito</p>
+                    <p className="text-xl font-bold text-tertiary truncate" title={kpis.topMacro}>{kpis.topMacro}</p>
                 </div>
-                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
-                    <p className="text-sm text-on-surface-variant">Skill Gap (Solo Inferite)</p>
-                    <p className="text-2xl font-bold text-secondary">{kpis.inferredOnlyGap}</p>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                    <p className="text-sm text-on-surface-variant">Top Ambito Specifico</p>
+                    <p className="text-xl font-bold text-secondary truncate" title={kpis.topCat}>{kpis.topCat}</p>
+                </div>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500">
+                    <p className="text-sm text-on-surface-variant">Certificazioni Totali</p>
+                    <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-on-surface">{kpis.totalCerts}</p>
+                        {kpis.expiringCerts > 0 && <span className="text-xs font-bold text-error bg-error-container px-1.5 py-0.5 rounded">{kpis.expiringCerts} in scad.</span>}
+                    </div>
                 </div>
             </div>
 
@@ -366,17 +400,17 @@ const SkillsMapPage: React.FC = () => {
             <div className="bg-surface rounded-2xl shadow p-4">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
+                    <div className="flex-grow">
+                        <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Filtra per Ruoli..."/>
+                    </div>
                     <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(f => ({...f, macroCategory: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
                     <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Ambito"/>
-                    <select className="form-select" value={filters.isCertification} onChange={(e) => setFilters(prev => ({...prev, isCertification: e.target.value}))}>
-                        <option value="">Tutto</option>
-                        <option value="yes">Ha Certificazioni</option>
-                    </select>
+                    
                     <div className="flex gap-2">
                         <div className="flex-grow">
                             <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
                         </div>
-                        <button onClick={() => setFilters({ resourceId: '', roleId: '', skillIds: [], category: '', macroCategory: '', isCertification: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
+                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], category: '', macroCategory: '', isCertification: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
                     </div>
                 </div>
             </div>
