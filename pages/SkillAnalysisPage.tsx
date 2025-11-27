@@ -28,7 +28,7 @@ import { Skill } from '../types';
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
-type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
+type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty' | 'not_empty';
 
 // --- Helper to format label ---
 const formatSkillLabel = (name: string, context?: string) => {
@@ -1040,6 +1040,7 @@ const SkillAnalysisPage: React.FC = () => {
             if (filters.displayMode === 'skills_only' && !hasNormalSkills) return false;
             if (filters.displayMode === 'certs_only' && !hasCerts) return false;
             if (filters.displayMode === 'empty' && (hasNormalSkills || hasCerts)) return false;
+            if (filters.displayMode === 'not_empty' && !hasNormalSkills && !hasCerts) return false;
 
             return resMatch && roleMatch && locationMatch;
         });
@@ -1406,6 +1407,7 @@ const SkillAnalysisPage: React.FC = () => {
                         onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
                     >
                         <option value="all">Tutti (Competenze e Cert.)</option>
+                        <option value="not_empty">Solo con Competenze/Cert.</option>
                         <option value="skills_only">Solo Competenze (No Cert)</option>
                         <option value="certs_only">Solo Certificazioni</option>
                         <option value="empty">Senza Competenze/Cert</option>
