@@ -17,10 +17,10 @@ import { interpolateBlues, schemeCategory10 } from 'd3-scale-chromatic';
 import { axisLeft, axisTop } from 'd3-axis';
 import { max, descending, mean } from 'd3-array';
 import { chord as d3Chord, ribbon as d3Ribbon } from 'd3-chord';
-import { arc as d3Arc, lineRadial, curveLinearClosed } from 'd3-shape';
+import { arc as d3Arc, lineRadial, curveLinearClosed, linkRadial as d3LinkRadial } from 'd3-shape';
 import { rgb } from 'd3-color';
 // Import aggiuntivi per il Dendrogramma
-import { tree as d3Tree, hierarchy as d3Hierarchy, linkRadial as d3LinkRadial } from 'd3-hierarchy';
+import { tree as d3Tree, hierarchy as d3Hierarchy } from 'd3-hierarchy';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import 'd3-transition';
