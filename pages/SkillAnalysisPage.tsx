@@ -1,7 +1,6 @@
-
 /**
  * @file SkillAnalysisPage.tsx
- * @description Pagina di analisi avanzata delle competenze con 5 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma.
+ * @description Pagina di analisi avanzata delle competenze con 7 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey.
  * Supporta filtri globali e controlli di zoom unificati.
  */
 
@@ -13,19 +12,20 @@ import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear } from 'd3-scale';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY } from 'd3-force';
 import { drag as d3Drag } from 'd3-drag';
-import { interpolateBlues, schemeCategory10 } from 'd3-scale-chromatic';
+import { interpolateBlues, schemeCategory10, schemeTableau10 } from 'd3-scale-chromatic';
 import { axisLeft, axisTop } from 'd3-axis';
 import { max, descending, mean } from 'd3-array';
 import { chord as d3Chord, ribbon as d3Ribbon } from 'd3-chord';
 import { arc as d3Arc, lineRadial, curveLinearClosed, linkRadial as d3LinkRadial } from 'd3-shape';
 import { rgb } from 'd3-color';
-// Import aggiuntivi per il Dendrogramma
-import { tree as d3Tree, hierarchy as d3Hierarchy } from 'd3-hierarchy';
+// Import aggiuntivi
+import { tree as d3Tree, hierarchy as d3Hierarchy, pack as d3Pack } from 'd3-hierarchy';
+import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import 'd3-transition';
 
-type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram';
+type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
 
 // --- Helper to format label ---
@@ -615,8 +615,6 @@ const SkillRadarChart: React.FC<{
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
 
-// ... (parte precedente del file invariata)
-
 // 5. Radial Dendrogram (Tidy Tree)
 const SkillRadialTree: React.FC<{
     data: any,
@@ -652,7 +650,6 @@ const SkillRadialTree: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            // Reset con un livello di zoom molto basso per vedere l'intero albero enorme
             svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
         }
     }, [zoomAction, width, height]);
@@ -666,10 +663,14 @@ const SkillRadialTree: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
 
-        // Imposta uno zoom iniziale molto ampio (0.4) perché l'albero è ora molto profondo
-        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
+        // Apply initial center/zoom (using same logic as reset)
+        const t = zoomTransform(svg.node() as Element);
+        if (t.k === 1 && t.x === 0 && t.y === 0) {
+             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
+        } else {
+             g.attr("transform", t.toString());
+        }
 
-        // Raggio esteso per ospitare il 4° livello (Risorse)
         const layoutRadius = 1600; 
 
         // Create Hierarchy
@@ -706,13 +707,12 @@ const SkillRadialTree: React.FC<{
                 translate(${d.y},0)
             `)
             .attr("fill", (d: any) => {
-                // Color coding per depth/type
-                if (d.depth === 0) return theme.inverseSurface; // Root
-                if (d.depth === 3) return theme.tertiary; // Skill (Level 3)
-                if (d.depth === 4) return theme.secondary; // Resource (Level 4 - Leaf)
-                return theme.primary; // Macro & Category (Level 1 & 2)
+                if (d.depth === 0) return theme.inverseSurface;
+                if (d.depth === 3) return theme.tertiary;
+                if (d.depth === 4) return theme.secondary;
+                return theme.primary;
             })
-            .attr("r", (d: any) => d.depth === 4 ? 2.5 : 4); // Smaller dots for resources
+            .attr("r", (d: any) => d.depth === 4 ? 2.5 : 4);
 
         // Labels
         g.append("g")
@@ -730,12 +730,227 @@ const SkillRadialTree: React.FC<{
             .attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6)
             .attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end")
             .attr("fill", (d: any) => d.depth === 4 ? theme.secondary : theme.onSurface)
-            .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px") // Smaller font for resources
-            .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal") // Bold for Skills
+            .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px")
+            .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal")
             .text((d: any) => d.data.name)
             .clone(true).lower()
             .attr("stroke", theme.surface)
             .attr("stroke-width", 4);
+
+    }, [data, width, height, theme, svgRef]);
+
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
+};
+
+// 6. Circle Packing (Zoomable)
+const SkillCirclePacking: React.FC<{
+    data: any,
+    width: number,
+    height: number,
+    theme: any,
+    zoomAction: ZoomAction,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ data, width, height, theme, zoomAction, svgRef }) => {
+
+    const zoomBehavior = useRef<any>(null);
+    const gRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (!svgRef.current) return;
+        const svg = select(svgRef.current);
+        
+        zoomBehavior.current = d3Zoom()
+            .scaleExtent([0.1, 8])
+            .on("zoom", (event: any) => {
+                if(gRef.current) gRef.current.attr("transform", event.transform);
+            });
+        
+        svg.call(zoomBehavior.current);
+    }, [width, height, svgRef]);
+
+    useEffect(() => {
+        if (!svgRef.current || !zoomBehavior.current) return;
+        const svg = select(svgRef.current);
+        
+        if (zoomAction.type === 'in') {
+            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        } else if (zoomAction.type === 'out') {
+            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        } else if (zoomAction.type === 'reset') {
+            // Reset to identity (assuming packing is centered at 0,0 or handled by layout)
+            // But standard pack puts root at center.
+            // Let's reset to center the whole view.
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
+        }
+    }, [zoomAction, width, height]);
+
+    useEffect(() => {
+        if (!svgRef.current || !data) return;
+
+        const svg = select(svgRef.current);
+        svg.selectAll("g").remove();
+
+        const g = svg.append("g");
+        gRef.current = g;
+
+        // Ensure center
+        const t = zoomTransform(svg.node() as Element);
+        if (t.k === 1 && t.x === 0 && t.y === 0) {
+             // Center content roughly. Pack generates coordinates relative to size.
+             // We want to center that in our view.
+             // The pack layout will fit into [width, height].
+             // No translation needed if we use the same width/height for layout.
+        } else {
+             g.attr("transform", t.toString());
+        }
+
+        const root = d3Hierarchy(data)
+            .sum(d => d.value)
+            .sort((a: any, b: any) => b.value - a.value);
+
+        // Layout
+        const pack = d3Pack()
+            .size([width, height])
+            .padding(3);
+
+        pack(root);
+
+        const color = scaleLinear<string>()
+            .domain([0, 5])
+            .range([theme.primaryContainer, theme.primary])
+            .interpolate(interpolateBlues as any); // Use D3 interpolator
+
+        const node = g.selectAll("g")
+            .data(root.descendants())
+            .join("g")
+            .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+
+        node.append("circle")
+            .attr("r", (d: any) => d.r)
+            .attr("fill", (d: any) => d.children ? color(d.depth) : theme.tertiaryContainer)
+            .attr("stroke", theme.outlineVariant)
+            .attr("stroke-width", 1)
+            .on("mouseover", function() { select(this).attr("stroke", theme.primary).attr("stroke-width", 2); })
+            .on("mouseout", function() { select(this).attr("stroke", theme.outlineVariant).attr("stroke-width", 1); });
+
+        node.append("title")
+            .text((d: any) => `${d.data.name}\nRisorse: ${d.value}`);
+
+        // Labels (Only if radius allows)
+        node.filter((d: any) => !d.children && d.r > 10).append("text")
+            .attr("dy", "0.3em")
+            .style("text-anchor", "middle")
+            .text((d: any) => d.data.name.substring(0, d.r / 3))
+            .attr("font-size", "10px")
+            .attr("fill", theme.onSurface);
+
+    }, [data, width, height, theme, svgRef]);
+
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
+};
+
+// 7. Sankey Diagram (Macro -> Category -> Skill)
+const SkillSankeyChart: React.FC<{
+    data: { nodes: any[], links: any[] },
+    width: number,
+    height: number,
+    theme: any,
+    zoomAction: ZoomAction,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ data, width, height, theme, zoomAction, svgRef }) => {
+
+    const zoomBehavior = useRef<any>(null);
+    const gRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (!svgRef.current) return;
+        const svg = select(svgRef.current);
+        
+        zoomBehavior.current = d3Zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event: any) => {
+                if(gRef.current) gRef.current.attr("transform", event.transform);
+            });
+        
+        svg.call(zoomBehavior.current);
+    }, [width, height, svgRef]);
+
+    useEffect(() => {
+        if (!svgRef.current || !zoomBehavior.current) return;
+        const svg = select(svgRef.current);
+        if (zoomAction.type === 'in') svg.transition().call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') svg.transition().call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') svg.transition().call(zoomBehavior.current.transform, zoomIdentity);
+    }, [zoomAction]);
+
+    useEffect(() => {
+        if (!svgRef.current || data.nodes.length === 0) return;
+
+        const svg = select(svgRef.current);
+        svg.selectAll("g").remove();
+
+        const g = svg.append("g");
+        gRef.current = g;
+        
+        // Re-apply zoom
+        const t = zoomTransform(svg.node() as Element);
+        g.attr("transform", t.toString());
+
+        const sankeyGenerator = d3Sankey()
+            .nodeWidth(15)
+            .nodePadding(10)
+            .extent([[1, 1], [width - 1, height - 6]]);
+
+        // Deep copy because sankey mutates data
+        const sankeyData = {
+            nodes: data.nodes.map(d => ({ ...d })),
+            links: data.links.map(d => ({ ...d }))
+        };
+
+        const { nodes, links } = sankeyGenerator(sankeyData as any);
+        
+        const color = scaleOrdinal(schemeTableau10);
+
+        // Links
+        g.append("g")
+            .attr("fill", "none")
+            .attr("stroke-opacity", 0.5)
+            .selectAll("g")
+            .data(links)
+            .join("g")
+            .style("mix-blend-mode", "multiply")
+            .append("path")
+            .attr("d", sankeyLinkHorizontal())
+            .attr("stroke", (d: any) => color(d.source.category || 'default'))
+            .attr("stroke-width", (d: any) => Math.max(1, d.width))
+            .append("title")
+            .text((d: any) => `${d.source.name} → ${d.target.name}\n${d.value} risorse`);
+
+        // Nodes
+        g.append("g")
+            .selectAll("rect")
+            .data(nodes)
+            .join("rect")
+            .attr("x", (d: any) => d.x0)
+            .attr("y", (d: any) => d.y0)
+            .attr("height", (d: any) => d.y1 - d.y0)
+            .attr("width", (d: any) => d.x1 - d.x0)
+            .attr("fill", (d: any) => color(d.category || 'default'))
+            .attr("stroke", "#000");
+
+        // Text
+        g.append("g")
+            .attr("font-size", "10px")
+            .attr("font-family", "sans-serif")
+            .selectAll("text")
+            .data(nodes)
+            .join("text")
+            .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+            .attr("y", (d: any) => (d.y1 + d.y0) / 2)
+            .attr("dy", "0.35em")
+            .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
+            .text((d: any) => d.name)
+            .attr("fill", theme.onSurface);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -749,7 +964,6 @@ const SkillAnalysisPage: React.FC = () => {
     const { resources, skills, projectSkills, resourceSkills, assignments, roles, locations, horizontals } = useEntitiesContext();
     const { theme, mode } = useTheme(); // Destructure mode
     
-    // ... (rest of state hooks remain same)
     const [view, setView] = useState<ViewMode>('network');
     const [zoomAction, setZoomAction] = useState<ZoomAction>({ type: 'reset', ts: 0 });
     
@@ -769,25 +983,15 @@ const SkillAnalysisPage: React.FC = () => {
 
     const chartRef = useRef<SVGSVGElement>(null);
 
-    // ... (options and filters logic remain same)
+    // ... (Options logic remains identical)
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
-    
-    const skillOptions = useMemo(() => skills.map(s => ({ 
-        value: s.id!, 
-        label: formatSkillLabel(s.name, s.category) 
-    })), [skills]);
-    
-    const categoryOptions = useMemo(() => {
-        const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
-        return cats.sort().map(c => ({ value: c as string, label: c as string }));
-    }, [skills]);
-    const macroCategoryOptions = useMemo(() => {
-        const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean)));
-        return macros.sort().map(c => ({ value: c as string, label: c as string }));
-    }, [skills]);
+    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: formatSkillLabel(s.name, s.category) })), [skills]);
+    const categoryOptions = useMemo(() => { const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean))); return cats.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
+    const macroCategoryOptions = useMemo(() => { const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean))); return macros.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
 
+    // ... (Filter logic remains identical)
     const filteredResources = useMemo(() => {
         return resources.filter(r => {
             if (r.resigned) return false;
@@ -803,180 +1007,175 @@ const SkillAnalysisPage: React.FC = () => {
             const skillMatch = filters.skillIds.length === 0 || filters.skillIds.includes(s.id!);
             const catMatch = !filters.category || s.category === filters.category;
             const macroMatch = !filters.macroCategory || s.macroCategory === filters.macroCategory;
-            const certMatch = filters.isCertification === '' ? true : 
-                              filters.isCertification === 'yes' ? s.isCertification : !s.isCertification;
+            const certMatch = filters.isCertification === '' ? true : filters.isCertification === 'yes' ? s.isCertification : !s.isCertification;
             return skillMatch && catMatch && macroMatch && certMatch;
         });
     }, [skills, filters]);
 
-    // ... (networkData, heatmapData, chordData, radarData remain same)
-    // Re-paste them to ensure context is kept
+    // ... (Previous Data Memoization: network, heatmap, chord, radar, dendrogram - reused)
+    // To save space, assuming they are here as per previous file.
     
-    const networkData = useMemo(() => {
+    // --- Re-declaring for context completeness ---
+    const networkData = useMemo(() => { /* ... same logic ... */ 
         if (view !== 'network') return { nodes: [], links: [] };
-        const nodes: any[] = [];
-        const links: any[] = [];
-        const nodeIds = new Set();
-
-        filteredSkills.forEach(s => {
-            nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
-            nodeIds.add(`skill_${s.id}`);
-        });
-
-        filteredResources.forEach(r => {
-            const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
-            const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`));
-            
-            if (hasRelevantSkill) {
-                nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' });
-                rSkills.forEach(rs => {
-                    if (nodeIds.has(`skill_${rs.skillId}`)) {
-                        links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 });
-                    }
-                });
-            }
-        });
+        const nodes: any[] = []; const links: any[] = []; const nodeIds = new Set();
+        filteredSkills.forEach(s => { nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification }); nodeIds.add(`skill_${s.id}`); });
+        filteredResources.forEach(r => { const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id); const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`)); if (hasRelevantSkill) { nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' }); rSkills.forEach(rs => { if (nodeIds.has(`skill_${rs.skillId}`)) links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 }); }); } });
         return { nodes, links };
     }, [filteredResources, filteredSkills, resourceSkills, view]);
 
-    const heatmapData = useMemo(() => {
+    const heatmapData = useMemo(() => { /* ... same logic ... */ 
         if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
-        const data: { resource: string; skillLabel: string; value: number }[] = [];
-        const resList = filteredResources.map(r => r.name);
-        const skillList = filteredSkills.map(s => formatSkillLabel(s.name, s.category)); 
-
-        filteredResources.forEach(r => {
-            filteredSkills.forEach(s => {
-                let days = 0;
-                const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id);
-                if (manual) days += (manual.level || 1) * 20; 
-                const rAssignments = assignments.filter(a => a.resourceId === r.id);
-                rAssignments.forEach(a => {
-                    const hasSkill = projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id);
-                    if (hasSkill) days += 10;
-                });
-                if (days > 0) {
-                    data.push({ resource: r.name, skillLabel: formatSkillLabel(s.name, s.category), value: Math.min(100, days) });
-                }
-            });
-        });
+        const data: any[] = []; const resList = filteredResources.map(r => r.name); const skillList = filteredSkills.map(s => formatSkillLabel(s.name, s.category)); 
+        filteredResources.forEach(r => { filteredSkills.forEach(s => { let days = 0; const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id); if (manual) days += (manual.level || 1) * 20; const rAssignments = assignments.filter(a => a.resourceId === r.id); rAssignments.forEach(a => { if(projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id)) days += 10; }); if (days > 0) data.push({ resource: r.name, skillLabel: formatSkillLabel(s.name, s.category), value: Math.min(100, days) }); }); });
         return { data, resources: resList, skills: skillList };
     }, [filteredResources, filteredSkills, assignments, projectSkills, resourceSkills, view]);
 
-    const chordData = useMemo(() => {
+    const chordData = useMemo(() => { /* ... same logic ... */ 
         if (view !== 'chord') return { matrix: [], names: [] };
-        const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
-        const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
-        const n = filteredSkills.length;
-        if (n === 0 || n > 50) return { matrix: [], names: [] }; 
-
-        const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-        const projectToSkills = new Map<string, string[]>();
-        projectSkills.forEach(ps => {
-            if (relevantSkillIds.has(ps.skillId)) {
-                if (!projectToSkills.has(ps.projectId)) projectToSkills.set(ps.projectId, []);
-                projectToSkills.get(ps.projectId)?.push(ps.skillId);
-            }
-        });
-
-        projectToSkills.forEach((skillsInProj) => {
-            for (let i = 0; i < skillsInProj.length; i++) {
-                for (let j = 0; j < skillsInProj.length; j++) {
-                    if (i === j) continue; 
-                    const idx1 = relevantSkillIndices.get(skillsInProj[i]);
-                    const idx2 = relevantSkillIndices.get(skillsInProj[j]);
-                    if (idx1 !== undefined && idx2 !== undefined) {
-                        matrix[idx1][idx2]++;
-                    }
-                }
-            }
-        });
+        const relevantSkillIds = new Set(filteredSkills.map(s => s.id)); const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
+        const n = filteredSkills.length; if (n === 0 || n > 50) return { matrix: [], names: [] }; const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
+        const projectToSkills = new Map<string, string[]>(); projectSkills.forEach(ps => { if (relevantSkillIds.has(ps.skillId)) { if (!projectToSkills.has(ps.projectId)) projectToSkills.set(ps.projectId, []); projectToSkills.get(ps.projectId)?.push(ps.skillId); } });
+        projectToSkills.forEach((skillsInProj) => { for (let i = 0; i < skillsInProj.length; i++) { for (let j = 0; j < skillsInProj.length; j++) { if (i === j) continue; const idx1 = relevantSkillIndices.get(skillsInProj[i]); const idx2 = relevantSkillIndices.get(skillsInProj[j]); if (idx1 !== undefined && idx2 !== undefined) matrix[idx1][idx2]++; } } });
         return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
     }, [filteredSkills, projectSkills, view]);
 
-    const radarData = useMemo(() => {
+    const radarData = useMemo(() => { /* ... same logic ... */
         if (view !== 'radar') return [];
-        const targetSkills = filteredSkills.slice(0, 8); 
-        if (targetSkills.length < 3) return []; 
-
-        const datasets: any[] = [];
-        const palette = schemeCategory10;
-        const currentPalette = mode === 'dark' ? theme.dark : theme.light; 
-
-        if (filteredResources.length <= 5) {
-            filteredResources.forEach((r, idx) => {
-                const dataPoints = targetSkills.map(s => {
-                    const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 };
-                });
-                datasets.push({ name: r.name, color: palette[idx % 10], data: dataPoints });
-            });
-        } else {
-            const avgDataPoints = targetSkills.map(s => {
-                const values = filteredResources.map(r => {
-                    const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return (rs?.level || 0) * 20;
-                });
-                const avg = mean(values) || 0;
-                return { axis: formatSkillLabel(s.name, s.category), value: avg };
-            });
-            datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints });
-        }
+        const targetSkills = filteredSkills.slice(0, 8); if (targetSkills.length < 3) return []; 
+        const datasets: any[] = []; const palette = schemeCategory10; const currentPalette = mode === 'dark' ? theme.dark : theme.light; 
+        if (filteredResources.length <= 5) { filteredResources.forEach((r, idx) => { const dataPoints = targetSkills.map(s => { const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id); return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 }; }); datasets.push({ name: r.name, color: palette[idx % 10], data: dataPoints }); }); } 
+        else { const avgDataPoints = targetSkills.map(s => { const values = filteredResources.map(r => { const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id); return (rs?.level || 0) * 20; }); const avg = mean(values) || 0; return { axis: formatSkillLabel(s.name, s.category), value: avg }; }); datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints }); }
         return datasets;
     }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]);
 
-    // --- UPDATE: New Logic for Dendrogram with Resources ---
-    const dendrogramData = useMemo(() => {
+    const dendrogramData = useMemo(() => { /* ... same logic ... */
         if (view !== 'dendrogram') return null;
+        const root: any = { name: "Competenze", children: [] }; const groups = new Map<string, Map<string, Map<string, any[]>>>();
+        filteredSkills.forEach(skill => { const macro = skill.macroCategory || 'Altro'; const cat = skill.category || 'Generico'; const skillName = skill.name;
+            const associatedResources = resourceSkills.filter(rs => rs.skillId === skill.id).map(rs => filteredResources.find(r => r.id === rs.resourceId)).filter(r => r !== undefined).map(r => ({ name: r!.name, type: 'resource' }));
+            if (!groups.has(macro)) groups.set(macro, new Map()); if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, new Map());
+            groups.get(macro)?.get(cat)?.set(skillName, associatedResources); });
+        groups.forEach((catMap, macroName) => { const macroNode: any = { name: macroName, type: 'macro', children: [] }; catMap.forEach((skillMap, catName) => { const catNode: any = { name: catName, type: 'category', children: [] }; skillMap.forEach((resList, skillName) => { const skillNode: any = { name: skillName, type: 'skill', children: resList }; catNode.children.push(skillNode); }); macroNode.children.push(catNode); }); root.children.push(macroNode); });
+        return root;
+    }, [filteredSkills, filteredResources, resourceSkills, view]);
 
-        // Root
-        const root: any = { name: "Competenze", children: [] };
+    // --- NEW: Packing Data ---
+    const packingData = useMemo(() => {
+        if (view !== 'packing') return null;
         
-        // Nested Map: Macro -> Category -> Skill Name -> List of Resources
-        const groups = new Map<string, Map<string, Map<string, any[]>>>();
+        // Similar to Dendrogram but leaf value = count of resources
+        const root: any = { name: "Competenze", children: [] };
+        const groups = new Map<string, Map<string, any[]>>();
 
         filteredSkills.forEach(skill => {
             const macro = skill.macroCategory || 'Altro';
             const cat = skill.category || 'Generico';
-            const skillName = skill.name;
             
-            // Find resources that have this skill (using global resource filter)
-            // Filter out resources that are not in the current filteredResources list
-            const associatedResources = resourceSkills
-                .filter(rs => rs.skillId === skill.id)
-                .map(rs => filteredResources.find(r => r.id === rs.resourceId))
-                .filter(r => r !== undefined) // remove undefined if resource filtered out
-                .map(r => ({ name: r!.name, type: 'resource' }));
+            // Count resources with this skill (filtered)
+            const count = resourceSkills.filter(rs => 
+                rs.skillId === skill.id && 
+                filteredResources.some(r => r.id === rs.resourceId)
+            ).length;
 
-            // Skip skill if no resources found? (Optional: remove this check to show skills with 0 people)
-            // For a dense tree, maybe we keep it to show gaps.
-            
+            if (count === 0) return; // Skip empty skills for packing to save space
+
             if (!groups.has(macro)) groups.set(macro, new Map());
-            if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, new Map());
+            if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, []);
             
-            groups.get(macro)?.get(cat)?.set(skillName, associatedResources);
+            groups.get(macro)?.get(cat)?.push({ name: skill.name, value: count });
         });
 
-        // Convert Map to D3 Hierarchy
         groups.forEach((catMap, macroName) => {
-            const macroNode: any = { name: macroName, type: 'macro', children: [] };
-            
-            catMap.forEach((skillMap, catName) => {
-                const catNode: any = { name: catName, type: 'category', children: [] };
-                
-                skillMap.forEach((resList, skillName) => {
-                    const skillNode: any = { name: skillName, type: 'skill', children: resList };
-                    catNode.children.push(skillNode);
-                });
-                
+            const macroNode: any = { name: macroName, children: [] };
+            catMap.forEach((skillsList, catName) => {
+                const catNode: any = { name: catName, children: skillsList };
                 macroNode.children.push(catNode);
             });
-            
             root.children.push(macroNode);
         });
 
         return root;
     }, [filteredSkills, filteredResources, resourceSkills, view]);
+
+    // --- NEW: Sankey Data ---
+    const sankeyData = useMemo(() => {
+        if (view !== 'sankey') return { nodes: [], links: [] };
+
+        const nodes: any[] = [];
+        const links: any[] = [];
+        const nodeMap = new Map<string, number>();
+
+        // 1. Create Nodes (Macro -> Category -> Skill)
+        // We use prefixes to ensure uniqueness
+        
+        let nodeIdx = 0;
+        const addNode = (name: string, category: string) => {
+            if (!nodeMap.has(name)) {
+                nodes.push({ name: name.replace(/^(macro_|cat_|skill_)/, ''), category });
+                nodeMap.set(name, nodeIdx++);
+            }
+            return nodeMap.get(name)!;
+        };
+
+        filteredSkills.forEach(skill => {
+            const macroName = `macro_${skill.macroCategory || 'Altro'}`;
+            const catName = `cat_${skill.category || 'Generico'}`;
+            const skillName = `skill_${skill.name}`;
+
+            const resCount = resourceSkills.filter(rs => 
+                rs.skillId === skill.id && 
+                filteredResources.some(r => r.id === rs.resourceId)
+            ).length;
+
+            if (resCount === 0) return;
+
+            const mIdx = addNode(macroName, 'macro');
+            const cIdx = addNode(catName, 'category');
+            const sIdx = addNode(skillName, 'skill');
+
+            // Macro -> Category
+            // Need to aggregate values to avoid duplicate links? d3-sankey handles multiple links but better to aggregate.
+            // Simplified: Just push link objects and let's aggregate manually or rely on uniqueness.
+            // Actually, simpler to accumulate values in a map.
+        });
+
+        // Re-iterate to build aggregated links
+        const linkMap = new Map<string, number>(); // "sourceIdx-targetIdx" -> value
+
+        filteredSkills.forEach(skill => {
+            const macroName = `macro_${skill.macroCategory || 'Altro'}`;
+            const catName = `cat_${skill.category || 'Generico'}`;
+            const skillName = `skill_${skill.name}`;
+
+            const resCount = resourceSkills.filter(rs => 
+                rs.skillId === skill.id && 
+                filteredResources.some(r => r.id === rs.resourceId)
+            ).length;
+
+            if (resCount === 0) return;
+
+            const mIdx = nodeMap.get(macroName)!;
+            const cIdx = nodeMap.get(catName)!;
+            const sIdx = nodeMap.get(skillName)!;
+
+            // Link: Macro -> Cat
+            const keyMC = `${mIdx}-${cIdx}`;
+            linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + resCount);
+
+            // Link: Cat -> Skill
+            const keyCS = `${cIdx}-${sIdx}`;
+            linkMap.set(keyCS, (linkMap.get(keyCS) || 0) + resCount);
+        });
+
+        linkMap.forEach((val, key) => {
+            const [source, target] = key.split('-').map(Number);
+            links.push({ source, target, value: val });
+        });
+
+        return { nodes, links };
+    }, [filteredSkills, filteredResources, resourceSkills, view]);
+
 
     const currentTheme = mode === 'dark' ? theme.dark : theme.light; 
 
@@ -1032,6 +1231,8 @@ const SkillAnalysisPage: React.FC = () => {
                     <button onClick={() => setView('chord')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'chord' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Chord</button>
                     <button onClick={() => setView('radar')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'radar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar</button>
                     <button onClick={() => setView('dendrogram')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'dendrogram' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Dendrogramma</button>
+                    <button onClick={() => setView('packing')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'packing' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Packing</button>
+                    <button onClick={() => setView('sankey')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Sankey</button>
                 </div>
 
                 <div className="flex gap-2">
@@ -1098,6 +1299,8 @@ const SkillAnalysisPage: React.FC = () => {
                 {view === 'chord' && <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 {view === 'radar' && <SkillRadarChart datasets={radarData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 {view === 'dendrogram' && <SkillRadialTree data={dendrogramData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                {view === 'packing' && <SkillCirclePacking data={packingData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                {view === 'sankey' && <SkillSankeyChart data={sankeyData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
             </div>
         </div>
     );
