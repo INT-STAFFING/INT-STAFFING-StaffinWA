@@ -1,7 +1,7 @@
 
 /**
  * @file SkillAnalysisPage.tsx
- * @description Pagina di analisi avanzata delle competenze con 4 visualizzazioni: Network, Heatmap, Chord, Radar.
+ * @description Pagina di analisi avanzata delle competenze con 5 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma.
  * Supporta filtri globali e controlli di zoom unificati.
  */
 
@@ -9,7 +9,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { select } from 'd3-selection';
-import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
+import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear } from 'd3-scale';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY } from 'd3-force';
 import { drag as d3Drag } from 'd3-drag';
@@ -19,11 +19,13 @@ import { max, descending, mean } from 'd3-array';
 import { chord as d3Chord, ribbon as d3Ribbon } from 'd3-chord';
 import { arc as d3Arc, lineRadial, curveLinearClosed } from 'd3-shape';
 import { rgb } from 'd3-color';
+// Import aggiuntivi per il Dendrogramma
+import { tree as d3Tree, hierarchy as d3Hierarchy, linkRadial as d3LinkRadial } from 'd3-hierarchy';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import 'd3-transition';
 
-type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar';
+type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
 
 // --- Helper to format label ---
@@ -84,9 +86,15 @@ const SkillForceGraph: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
         
-        // Initial Center
-        // svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.6).translate(-width/2, -height/2));
-
+        // Initial Center: Apply current zoom transform if exists
+        const t = zoomTransform(svg.node() as Element);
+        if (t.k !== 1 || t.x !== 0 || t.y !== 0) {
+             g.attr("transform", t.toString());
+        } else {
+             // Apply default center if no transform
+             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2));
+        }
+        
         // Color mapping
         const macroCategoryColor = scaleOrdinal(schemeCategory10);
 
@@ -103,7 +111,7 @@ const SkillForceGraph: React.FC<{
         const simulation = forceSimulation(nodes)
             .force("link", forceLink(links).id((d: any) => d.id).distance(100))
             .force("charge", forceManyBody().strength(-300))
-            .force("center", forceCenter(width / 2, height / 2))
+            .force("center", forceCenter(0, 0)) // Center at (0,0) because we translate the group to center
             .force("collide", forceCollide(30));
 
         const link = g.append("g")
@@ -228,6 +236,12 @@ const SkillHeatmap: React.FC<{
             .attr("transform", `translate(${margin.left},${margin.top})`);
         
         gRef.current = g;
+        
+        // Re-apply zoom if exists
+        const t = zoomTransform(svg.node() as Element);
+        if (t.k !== 1 || t.x !== 0 || t.y !== 0) {
+             g.attr("transform", t.toString());
+        }
 
         // Scales
         const x = scaleBand()
@@ -324,8 +338,6 @@ const SkillChordDiagram: React.FC<{
             });
         
         svg.call(zoomBehavior.current);
-        // Center initially
-        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
     }, [width, height, svgRef]);
 
     // Handle external zoom actions
@@ -353,11 +365,15 @@ const SkillChordDiagram: React.FC<{
         const g = svg.append("g");
         gRef.current = g;
 
-        // Apply current transform if any (or reset)
-        // Note: The d3.zoom on the SVG handles the transform string, 
-        // we just need to make sure 'g' exists for it to apply to.
-        // We re-apply center here to ensure it starts centered on re-render
-        // (Zoom identity translation is applied by the OTHER useEffect on init/reset)
+        // Apply current transform if any (or reset to center)
+        const t = zoomTransform(svg.node() as Element);
+        if (t.k === 1 && t.x === 0 && t.y === 0) {
+             // Initial Center
+             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        } else {
+             // Maintain current zoom/pan
+             g.attr("transform", t.toString());
+        }
         
         const outerRadius = Math.min(width, height) * 0.5 - 60;
         const innerRadius = outerRadius - 20;
@@ -487,7 +503,12 @@ const SkillRadarChart: React.FC<{
         gRef.current = g;
 
         // Initial Centering
-        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        const t = zoomTransform(svg.node() as Element);
+        if (t.k === 1 && t.x === 0 && t.y === 0) {
+             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        } else {
+             g.attr("transform", t.toString());
+        }
 
         const cfg = {
             w: width - 150,
@@ -590,6 +611,121 @@ const SkillRadarChart: React.FC<{
         });
 
     }, [datasets, width, height, theme, svgRef]);
+
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
+};
+
+// 5. Radial Dendrogram (Tidy Tree)
+const SkillRadialTree: React.FC<{
+    data: any,
+    width: number,
+    height: number,
+    theme: any,
+    zoomAction: ZoomAction,
+    svgRef: React.RefObject<SVGSVGElement>
+}> = ({ data, width, height, theme, zoomAction, svgRef }) => {
+
+    const zoomBehavior = useRef<any>(null);
+    const gRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (!svgRef.current) return;
+        const svg = select(svgRef.current);
+        
+        zoomBehavior.current = d3Zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event: any) => {
+                if(gRef.current) gRef.current.attr("transform", event.transform);
+            });
+        
+        svg.call(zoomBehavior.current);
+    }, [width, height, svgRef]);
+
+    useEffect(() => {
+        if (!svgRef.current || !zoomBehavior.current) return;
+        const svg = select(svgRef.current);
+        
+        if (zoomAction.type === 'in') {
+            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        } else if (zoomAction.type === 'out') {
+            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        } else if (zoomAction.type === 'reset') {
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        }
+    }, [zoomAction, width, height]);
+
+    useEffect(() => {
+        if (!svgRef.current || !data) return;
+
+        const svg = select(svgRef.current);
+        svg.selectAll("g").remove();
+
+        const g = svg.append("g");
+        gRef.current = g;
+
+        // Apply initial center
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+
+        const radius = Math.min(width, height) / 2;
+
+        // Create Hierarchy
+        const root = d3Hierarchy(data);
+        
+        // Define Tree Layout
+        const tree = d3Tree()
+            .size([2 * Math.PI, radius * 0.8])
+            .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
+
+        tree(root);
+
+        // Draw Links (Radial)
+        g.append("g")
+            .attr("fill", "none")
+            .attr("stroke", theme.outlineVariant)
+            .attr("stroke-opacity", 0.4)
+            .attr("stroke-width", 1.5)
+            .selectAll("path")
+            .data(root.links())
+            .join("path")
+            .attr("d", d3LinkRadial()
+                .angle((d: any) => d.x)
+                .radius((d: any) => d.y) as any
+            );
+
+        // Draw Nodes
+        const node = g.append("g")
+            .selectAll("circle")
+            .data(root.descendants())
+            .join("circle")
+            .attr("transform", (d: any) => `
+                rotate(${d.x * 180 / Math.PI - 90})
+                translate(${d.y},0)
+            `)
+            .attr("fill", (d: any) => d.children ? theme.primary : theme.tertiary)
+            .attr("r", 3);
+
+        // Labels
+        g.append("g")
+            .attr("font-size", "10px")
+            .attr("stroke-linejoin", "round")
+            .attr("stroke-width", 3)
+            .selectAll("text")
+            .data(root.descendants())
+            .join("text")
+            .attr("transform", (d: any) => `
+                rotate(${d.x * 180 / Math.PI - 90}) 
+                translate(${d.y},0) 
+                rotate(${d.x >= Math.PI ? 180 : 0})
+            `)
+            .attr("dy", "0.31em")
+            .attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6)
+            .attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end")
+            .attr("fill", theme.onSurface)
+            .text((d: any) => d.data.name)
+            .clone(true).lower()
+            .attr("stroke", theme.surface);
+
+    }, [data, width, height, theme, svgRef]);
 
     return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move" />;
 };
@@ -831,6 +967,43 @@ const SkillAnalysisPage: React.FC = () => {
         return datasets;
     }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]); // Added mode to deps
 
+    const dendrogramData = useMemo(() => {
+        if (view !== 'dendrogram') return null;
+
+        // Build Hierarchical Data
+        const root: any = { name: "Competenze", children: [] };
+        
+        // Group by MacroCategory -> Category -> Skill
+        const macroGroups = new Map<string, Map<string, any[]>>();
+
+        filteredSkills.forEach(skill => {
+            const macro = skill.macroCategory || 'Altro';
+            const cat = skill.category || 'Generico';
+            
+            if (!macroGroups.has(macro)) macroGroups.set(macro, new Map());
+            if (!macroGroups.get(macro)?.has(cat)) macroGroups.get(macro)?.set(cat, []);
+            
+            macroGroups.get(macro)?.get(cat)?.push({ name: skill.name, isCertification: skill.isCertification });
+        });
+
+        // Convert Map to Children Array
+        macroGroups.forEach((catMap, macroName) => {
+            const macroNode: any = { name: macroName, children: [] };
+            
+            catMap.forEach((skillsList, catName) => {
+                const catNode: any = { name: catName, children: [] };
+                skillsList.forEach(s => {
+                    catNode.children.push({ name: s.name, value: 1 });
+                });
+                macroNode.children.push(catNode);
+            });
+            
+            root.children.push(macroNode);
+        });
+
+        return root;
+    }, [filteredSkills, view]);
+
     const currentTheme = mode === 'dark' ? theme.dark : theme.light; // Use mode
 
     // Export Handlers (Reused)
@@ -881,11 +1054,12 @@ const SkillAnalysisPage: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <h1 className="text-3xl font-bold text-on-surface">Analisi Competenze</h1>
                 
-                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                    <button onClick={() => setView('network')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
-                    <button onClick={() => setView('heatmap')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'heatmap' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
-                    <button onClick={() => setView('chord')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'chord' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Chord</button>
-                    <button onClick={() => setView('radar')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${view === 'radar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar</button>
+                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full overflow-x-auto max-w-full">
+                    <button onClick={() => setView('network')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
+                    <button onClick={() => setView('heatmap')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'heatmap' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
+                    <button onClick={() => setView('chord')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'chord' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Chord</button>
+                    <button onClick={() => setView('radar')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'radar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Radar</button>
+                    <button onClick={() => setView('dendrogram')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'dendrogram' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Dendrogramma</button>
                 </div>
 
                 <div className="flex gap-2">
@@ -954,6 +1128,7 @@ const SkillAnalysisPage: React.FC = () => {
                 {view === 'heatmap' && <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 {view === 'chord' && <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 {view === 'radar' && <SkillRadarChart datasets={radarData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                {view === 'dendrogram' && <SkillRadialTree data={dendrogramData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
             </div>
         </div>
     );
