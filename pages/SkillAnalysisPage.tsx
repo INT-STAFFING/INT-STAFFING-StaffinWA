@@ -650,7 +650,7 @@ const SkillRadialTree: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.6));
         }
     }, [zoomAction, width, height]);
 
@@ -664,7 +664,7 @@ const SkillRadialTree: React.FC<{
         gRef.current = g;
 
         // Apply initial center
-        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.6));
 
         const radius = Math.min(width, height) / 2;
 
@@ -674,7 +674,7 @@ const SkillRadialTree: React.FC<{
         // Define Tree Layout
         const tree = d3Tree()
             .size([2 * Math.PI, radius * 0.8])
-            .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
+            .separation((a, b) => (a.parent === b.parent ? 2 : 3) / a.depth);
 
         tree(root);
 
@@ -702,7 +702,7 @@ const SkillRadialTree: React.FC<{
                 translate(${d.y},0)
             `)
             .attr("fill", (d: any) => d.children ? theme.primary : theme.tertiary)
-            .attr("r", 3);
+            .attr("r", 4);
 
         // Labels
         g.append("g")
@@ -718,7 +718,7 @@ const SkillRadialTree: React.FC<{
                 rotate(${d.x >= Math.PI ? 180 : 0})
             `)
             .attr("dy", "0.31em")
-            .attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6)
+            .attr("x", (d: any) => d.x < Math.PI === !d.children ? 8 : -8)
             .attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end")
             .attr("fill", theme.onSurface)
             .text((d: any) => d.data.name)
