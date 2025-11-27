@@ -260,7 +260,9 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
                 // Try to find original casing from input if possible, or just capitalize
                 return [id, norm.charAt(0).toUpperCase() + norm.slice(1)]; 
             });
-            await executeBulkInsert(client, 'skills', ['id', 'name'], skillRows, 'ON CONFLICT (name) DO NOTHING');
+            // Changed from ON CONFLICT (name) because the unique constraint is removed. 
+            // We use ON CONFLICT (id) which is always safe for new unique UUIDs.
+            await executeBulkInsert(client, 'skills', ['id', 'name'], skillRows, 'ON CONFLICT (id) DO NOTHING');
         }
 
         // 3. Resource Skills

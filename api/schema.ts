@@ -456,10 +456,19 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`
         CREATE TABLE IF NOT EXISTS skills (
             id UUID PRIMARY KEY,
-            name VARCHAR(255) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL,
             category VARCHAR(255)
         );
     `;
+    
+    // MIGRATION: Remove UNIQUE constraint on name to allow duplicates across categories
+    try {
+        await db.sql`ALTER TABLE skills DROP CONSTRAINT IF EXISTS skills_name_key;`;
+    } catch (e) {
+        // Ignore error if constraint doesn't exist
+        console.warn("Could not drop skills_name_key constraint (may not exist):", e);
+    }
+
     // UPDATES FOR SKILL MANAGEMENT UPGRADE
     await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_category VARCHAR(255);`;
     await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS is_certification BOOLEAN DEFAULT FALSE;`;

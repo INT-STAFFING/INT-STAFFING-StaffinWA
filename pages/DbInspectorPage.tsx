@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
 
 interface Column {
     column_name: string;
@@ -43,8 +44,19 @@ const DbInspectorPage: React.FC = () => {
     const [queryError, setQueryError] = useState<string | null>(null);
 
     const { addToast } = useToast();
+    const { logout } = useAuth(); // Import Logout to force session clear on 401
 
     const getAuthToken = () => localStorage.getItem('authToken');
+
+    const handleApiError = (error: Error, responseStatus?: number) => {
+        console.error(error);
+        if (responseStatus === 401 || responseStatus === 403) {
+            addToast('Sessione scaduta o permessi insufficienti. Effettua nuovamente il login.', 'error');
+            // Optional: logout(); // Force logout logic if strictly needed, or let user handle it
+        } else {
+            addToast(error.message, 'error');
+        }
+    };
 
     useEffect(() => {
         const fetchTables = async () => {
@@ -53,20 +65,25 @@ const DbInspectorPage: React.FC = () => {
                 const response = await fetch('/api/resources?entity=db_inspector&action=list_tables', {
                     headers: { 'Authorization': `Bearer ${getAuthToken()}` }
                 });
-                if (!response.ok) throw new Error('Failed to fetch table list');
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch table list (${response.status})`);
+                }
+                
                 const data = await response.json();
                 setTables(data);
                 if (data.length > 0) {
                     setSelectedTable(data[0]);
                 }
             } catch (error) {
-                addToast((error as Error).message, 'error');
+                // If checking tables fails immediately, it's likely an auth issue
+                handleApiError(error as Error, (error as any).status || 500);
             } finally {
                 setIsLoading(false);
             }
         };
         fetchTables();
-    }, [addToast]);
+    }, []);
 
     useEffect(() => {
         if (mode !== 'inspector' || !selectedTable) {
@@ -81,17 +98,24 @@ const DbInspectorPage: React.FC = () => {
                 const response = await fetch(`/api/resources?entity=db_inspector&action=get_table_data&table=${selectedTable}`, {
                     headers: { 'Authorization': `Bearer ${getAuthToken()}` }
                 });
-                if (!response.ok) throw new Error(`Failed to fetch data for table ${selectedTable}`);
+                
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error("Accesso negato. Verifica i permessi.");
+                    }
+                    throw new Error(`Failed to fetch data for table ${selectedTable}`);
+                }
+                
                 const data = await response.json();
                 setTableData(data);
             } catch (error) {
-                addToast((error as Error).message, 'error');
+                handleApiError(error as Error);
             } finally {
                 setIsLoading(false);
             }
         };
         fetchTableData();
-    }, [selectedTable, mode, addToast]);
+    }, [selectedTable, mode]);
     
     const handleEdit = (row: any) => {
         setEditingRowId(row.id);
@@ -132,7 +156,7 @@ const DbInspectorPage: React.FC = () => {
             });
             handleCancel();
         } catch (error) {
-            addToast((error as Error).message, 'error');
+            handleApiError(error as Error);
         } finally {
             setIsSaving(false);
         }
@@ -154,7 +178,7 @@ const DbInspectorPage: React.FC = () => {
             setTableData(prev => prev ? { ...prev, rows: [] } : null); // Clear the data locally
             handleCancel(); // Close any inline editing
         } catch (error) {
-            addToast((error as Error).message, 'error');
+            handleApiError(error as Error);
         } finally {
             setIsSaving(false);
             setIsDeleteAllModalOpen(false);
@@ -187,7 +211,7 @@ const DbInspectorPage: React.FC = () => {
             URL.revokeObjectURL(url);
             addToast(`Export ${dialect.toUpperCase()} SQL completato.`, 'success');
         } catch (error) {
-            addToast((error as Error).message, 'error');
+            handleApiError(error as Error);
         } finally {
             if (dialect === 'postgres') setIsExportingPg(false);
             else setIsExportingMysql(false);
@@ -213,6 +237,9 @@ const DbInspectorPage: React.FC = () => {
             const data = await response.json();
             
             if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error("Non autorizzato. Solo gli Admin possono eseguire query RAW.");
+                }
                 throw new Error(data.error || 'Errore esecuzione query');
             }
             setQueryResult(data);

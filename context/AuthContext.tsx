@@ -45,6 +45,28 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
 };
 
 /**
+ * Helper per verificare se un token JWT è scaduto senza librerie esterne.
+ */
+const isTokenExpired = (token: string): boolean => {
+    try {
+        const payloadBase64 = token.split('.')[1];
+        if (!payloadBase64) return true;
+        
+        const decodedJson = atob(payloadBase64);
+        const decoded = JSON.parse(decodedJson);
+        const exp = decoded.exp;
+        
+        // Confronta con il tempo attuale (in secondi)
+        if (exp && Date.now() >= exp * 1000) {
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return true; // Se il parsing fallisce, assumiamo scaduto/invalido
+    }
+};
+
+/**
  * Provider per lo stato di autenticazione.
  */
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -58,8 +80,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const checkAuthState = async () => {
             try {
                 // 1. Check Global Protection Config
-                // This is still useful to know if we should enforce login UI, 
-                // though backend should always verify tokens for secure endpoints.
                 try {
                     const config = await apiFetch('/api/auth-config');
                     setIsLoginProtectionEnabled(config.isEnabled);
@@ -73,8 +93,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const storedUser = localStorage.getItem('authUser');
 
                 if (storedToken && storedUser) {
-                    // Optional: Validate token expiration here or let API call fail 401 later
-                    setUser(JSON.parse(storedUser));
+                    // Check Token Expiration
+                    if (isTokenExpired(storedToken)) {
+                        console.warn("Session expired. Logging out.");
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('authUser');
+                        setUser(null);
+                    } else {
+                        setUser(JSON.parse(storedUser));
+                    }
                 }
             } catch (error) {
                 console.error("Failed to restore auth state:", error);
