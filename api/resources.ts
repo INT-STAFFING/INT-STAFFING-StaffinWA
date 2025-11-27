@@ -412,6 +412,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({ success: true, updatedCount: result.rowCount });
             }
 
+            // BULK PASSWORD RESET
+            if (action === 'bulk_password_reset' && method === 'POST') {
+                const { users } = req.body; // Expects [{username, password}, ...]
+                if (!Array.isArray(users) || users.length === 0) {
+                    return res.status(400).json({ error: 'Invalid input format' });
+                }
+
+                await client.query('BEGIN');
+                let successCount = 0;
+                let failCount = 0;
+
+                for (const user of users) {
+                    if (!user.username || !user.password) continue;
+                    
+                    try {
+                        const hash = await bcrypt.hash(user.password, 10);
+                        // Also force password change on next login
+                        const result = await client.query(
+                            `UPDATE app_users 
+                             SET password_hash = $1, must_change_password = TRUE 
+                             WHERE username = $2 AND username != 'admin'`, 
+                            [hash, user.username]
+                        );
+                        if (result.rowCount > 0) successCount++;
+                        else failCount++;
+                    } catch (e) {
+                        failCount++;
+                    }
+                }
+                
+                await client.query('COMMIT');
+                await logAction(client, currentUser, 'BULK_PASSWORD_RESET', 'app_users', null, { successCount, failCount }, req);
+                
+                return res.status(200).json({ success: true, successCount, failCount });
+            }
+
             if (method === 'GET') {
                 const { rows } = await client.query(`
                     SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName"

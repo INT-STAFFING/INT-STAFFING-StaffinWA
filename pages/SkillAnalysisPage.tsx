@@ -312,6 +312,7 @@ const SkillChordDiagram: React.FC<{
     const zoomBehavior = useRef<any>(null);
     const gRef = useRef<any>(null);
 
+    // Initial and Zoom setup
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
@@ -323,8 +324,11 @@ const SkillChordDiagram: React.FC<{
             });
         
         svg.call(zoomBehavior.current);
-    }, [svgRef]);
+        // Center initially
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+    }, [width, height, svgRef]);
 
+    // Handle external zoom actions
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
@@ -338,21 +342,27 @@ const SkillChordDiagram: React.FC<{
         }
     }, [zoomAction, width, height]);
 
+    // Draw Chart
     useEffect(() => {
-        if (!svgRef.current || matrix.length === 0) return;
+        if (!svgRef.current || matrix.length === 0 || names.length === 0) return;
 
         const svg = select(svgRef.current);
+        // Clear only content groups, keep main logic if needed, but safer to clear internal G
         svg.selectAll("g").remove();
 
-        // Append the Main Group that will be Zoomed/Panned
         const g = svg.append("g");
         gRef.current = g;
 
-        // Initial Centering
-        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
-
-        const outerRadius = Math.min(width, height) * 0.5 - 120;
+        // Apply current transform if any (or reset)
+        // Note: The d3.zoom on the SVG handles the transform string, 
+        // we just need to make sure 'g' exists for it to apply to.
+        // We re-apply center here to ensure it starts centered on re-render
+        // (Zoom identity translation is applied by the OTHER useEffect on init/reset)
+        
+        const outerRadius = Math.min(width, height) * 0.5 - 60;
         const innerRadius = outerRadius - 20;
+
+        if (innerRadius <= 0) return; // Window too small
 
         const chordGenerator = d3Chord()
             .padAngle(0.05)
@@ -369,7 +379,7 @@ const SkillChordDiagram: React.FC<{
 
         const chords = chordGenerator(matrix);
 
-        // Groups (Arcs)
+        // -- Draw Arcs (Nodes) --
         const group = g.append("g")
             .selectAll("g")
             .data(chords.groups)
@@ -378,9 +388,11 @@ const SkillChordDiagram: React.FC<{
         group.append("path")
             .attr("fill", (d: any) => color(d.index.toString()) as string)
             .attr("stroke", (d: any) => rgb(color(d.index.toString()) as string).darker().toString() as string)
-            .attr("d", (d: any) => arcGenerator(d as any) as string);
+            .attr("d", (d: any) => arcGenerator(d as any) as string)
+            .append("title")
+            .text((d: any) => `${names[d.index]}: ${d.value.toFixed(0)} co-occorrenze`);
 
-        // Labels
+        // -- Draw Labels --
         group.append("text")
             .each((d: any) => { d.angle = (d.startAngle + d.endAngle) / 2; })
             .attr("dy", ".35em")
@@ -390,11 +402,15 @@ const SkillChordDiagram: React.FC<{
                 ${d.angle > Math.PI ? "rotate(180)" : ""}
             `)
             .attr("text-anchor", (d: any) => d.angle > Math.PI ? "end" : "start")
-            .text((d: any) => names[d.index] || '')
+            .text((d: any) => {
+                // Shorten label if too long
+                const label = names[d.index] || '';
+                return label.length > 20 ? label.substring(0, 18) + '..' : label;
+            })
             .style("font-size", "10px")
             .style("fill", theme.onSurface);
 
-        // Ribbons (Links)
+        // -- Draw Ribbons (Links) --
         g.append("g")
             .attr("fill-opacity", 0.67)
             .selectAll("path")
@@ -402,7 +418,9 @@ const SkillChordDiagram: React.FC<{
             .join("path")
             .attr("d", ribbonGenerator as any)
             .attr("fill", (d: any) => color(d.target.index.toString()) as string)
-            .attr("stroke", (d: any) => rgb(color(d.target.index.toString()) as string).darker().toString() as string);
+            .attr("stroke", (d: any) => rgb(color(d.target.index.toString()) as string).darker().toString() as string)
+            .append("title")
+            .text((d: any) => `${names[d.source.index]} ↔ ${names[d.target.index]}\nCo-occorrenze: ${d.source.value}`);
 
     }, [matrix, names, width, height, theme, svgRef]);
 
@@ -586,9 +604,9 @@ const SkillAnalysisPage: React.FC = () => {
     const [view, setView] = useState<ViewMode>('network');
     const [zoomAction, setZoomAction] = useState<ZoomAction>({ type: 'reset', ts: 0 });
     
-    // Filters State
+    // Filters State - CHANGED resourceName to resourceIds
     const [filters, setFilters] = useState({
-        resourceName: '',
+        resourceIds: [] as string[],
         roleIds: [] as string[],
         skillIds: [] as string[],
         category: '',
@@ -627,11 +645,12 @@ const SkillAnalysisPage: React.FC = () => {
     const filteredResources = useMemo(() => {
         return resources.filter(r => {
             if (r.resigned) return false;
-            const nameMatch = !filters.resourceName || r.name.toLowerCase().includes(filters.resourceName.toLowerCase());
+            // Updated to use MultiSelect logic
+            const resMatch = filters.resourceIds.length === 0 || filters.resourceIds.includes(r.id!);
             const roleMatch = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             const locationMatch = !filters.location || r.location === filters.location;
             
-            return nameMatch && roleMatch && locationMatch;
+            return resMatch && roleMatch && locationMatch;
         });
     }, [resources, filters]);
 
@@ -723,22 +742,39 @@ const SkillAnalysisPage: React.FC = () => {
         if (view !== 'chord') return { matrix: [], names: [] };
         
         // Co-occurrence of skills in projects (filtered skills only)
-        const skillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
+        // Only consider skills that are in filteredSkills
+        const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
+        const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
+        
         const n = filteredSkills.length;
-        if (n === 0 || n > 50) return { matrix: [], names: [] }; // Performance guard
+        // Safety guard for performance and rendering
+        if (n === 0 || n > 50) return { matrix: [], names: [] }; 
 
         const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
 
-        projectSkills.forEach(ps1 => {
-            projectSkills.forEach(ps2 => {
-                if (ps1.projectId === ps2.projectId && ps1.skillId !== ps2.skillId) {
-                    const i = skillIndices.get(ps1.skillId);
-                    const j = skillIndices.get(ps2.skillId);
-                    if (i !== undefined && j !== undefined) {
-                        matrix[i][j]++;
+        // Iterate all projects to find skill co-occurrences
+        // Optimization: Pre-group skills by project
+        const projectToSkills = new Map<string, string[]>();
+        projectSkills.forEach(ps => {
+            if (relevantSkillIds.has(ps.skillId)) {
+                if (!projectToSkills.has(ps.projectId)) projectToSkills.set(ps.projectId, []);
+                projectToSkills.get(ps.projectId)?.push(ps.skillId);
+            }
+        });
+
+        // Fill Matrix
+        projectToSkills.forEach((skillsInProj) => {
+            // For every pair in this project
+            for (let i = 0; i < skillsInProj.length; i++) {
+                for (let j = 0; j < skillsInProj.length; j++) {
+                    if (i === j) continue; // Don't link to self
+                    const idx1 = relevantSkillIndices.get(skillsInProj[i]);
+                    const idx2 = relevantSkillIndices.get(skillsInProj[j]);
+                    if (idx1 !== undefined && idx2 !== undefined) {
+                        matrix[idx1][idx2]++;
                     }
                 }
-            });
+            }
         });
 
         return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
@@ -865,15 +901,12 @@ const SkillAnalysisPage: React.FC = () => {
             {/* Global Filters */}
             <div className="bg-surface rounded-2xl shadow p-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
-                    {/* Resource Filters */}
-                    <input 
-                        type="text" 
-                        placeholder="Risorsa..." 
-                        className="form-input text-sm"
-                        value={filters.resourceName}
-                        onChange={e => setFilters(prev => ({ ...prev, resourceName: e.target.value }))}
-                    />
+                    {/* Resource Filters (Updated to MultiSelect) */}
                     <div className="md:col-span-2">
+                        <MultiSelectDropdown name="resourceIds" selectedValues={filters.resourceIds} onChange={(_, v) => setFilters(f => ({...f, resourceIds: v}))} options={resourceOptions} placeholder="Risorse"/>
+                    </div>
+                    
+                    <div className="md:col-span-1">
                         <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Ruoli"/>
                     </div>
                     <SearchableSelect name="location" value={filters.location} onChange={(_, v) => setFilters(f => ({...f, location: v}))} options={locationOptions} placeholder="Sede"/>
@@ -897,7 +930,7 @@ const SkillAnalysisPage: React.FC = () => {
                         <option value="no">Solo Competenze</option>
                     </select>
 
-                    <button onClick={() => setFilters({ resourceName: '', roleIds: [], skillIds: [], category: '', macroCategory: '', isCertification: '', location: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
+                    <button onClick={() => setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', isCertification: '', location: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
                         Reset
                     </button>
                 </div>

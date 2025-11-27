@@ -23,7 +23,7 @@ interface QueryResult {
     command: string;
 }
 
-type ViewMode = 'inspector' | 'query';
+type ViewMode = 'inspector' | 'query' | 'bulk_password';
 
 const DbInspectorPage: React.FC = () => {
     const [mode, setMode] = useState<ViewMode>('inspector');
@@ -42,6 +42,10 @@ const DbInspectorPage: React.FC = () => {
     const [sqlQuery, setSqlQuery] = useState('');
     const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
     const [queryError, setQueryError] = useState<string | null>(null);
+
+    // Bulk Password Mode State
+    const [bulkPasswordsInput, setBulkPasswordsInput] = useState('');
+    const [bulkPassLoading, setBulkPassLoading] = useState(false);
 
     const { addToast } = useToast();
     const { logout } = useAuth(); // Import Logout to force session clear on 401
@@ -250,6 +254,45 @@ const DbInspectorPage: React.FC = () => {
         }
     };
 
+    const handleBulkPasswordUpdate = async () => {
+        if (!bulkPasswordsInput.trim()) return;
+        
+        const lines = bulkPasswordsInput.split('\n').filter(l => l.trim().length > 0);
+        const users = lines.map(line => {
+            const [username, password] = line.split(',').map(s => s.trim());
+            return { username, password };
+        }).filter(u => u.username && u.password);
+
+        if (users.length === 0) {
+            addToast('Nessuna coppia username/password valida trovata.', 'error');
+            return;
+        }
+
+        if (!confirm(`Stai per reimpostare la password per ${users.length} utenti. Confermi?`)) return;
+
+        setBulkPassLoading(true);
+        try {
+            const response = await fetch('/api/resources?entity=app-users&action=bulk_password_reset', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthToken()}` 
+                },
+                body: JSON.stringify({ users })
+            });
+
+            if (!response.ok) throw new Error('Errore durante l\'aggiornamento massivo.');
+            
+            const data = await response.json();
+            addToast(`Operazione completata: ${data.successCount} successi, ${data.failCount} errori.`, 'success');
+            setBulkPasswordsInput('');
+        } catch (e) {
+            addToast((e as Error).message, 'error');
+        } finally {
+            setBulkPassLoading(false);
+        }
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, colName: string, colType: string) => {
         if (!editingRowData) return;
         let value: any = e.target.value;
@@ -343,6 +386,12 @@ const DbInspectorPage: React.FC = () => {
                     className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${mode === 'query' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
                 >
                     <span className="material-symbols-outlined text-sm">terminal</span> SQL Editor
+                </button>
+                <button 
+                    onClick={() => setMode('bulk_password')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${mode === 'bulk_password' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+                >
+                    <span className="material-symbols-outlined text-sm">password</span> Bulk Password
                 </button>
             </div>
 
@@ -523,6 +572,37 @@ const DbInspectorPage: React.FC = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {mode === 'bulk_password' && (
+                <div className="animate-fade-in space-y-4">
+                    <div className="bg-surface rounded-2xl shadow p-6">
+                        <h2 className="text-xl font-bold text-on-surface mb-4">Importazione Bulk Password</h2>
+                        <p className="text-sm text-on-surface-variant mb-4">
+                            Inserisci qui sotto l'elenco delle coppie <strong>Username, Password</strong> (una per riga, separate da virgola).
+                            <br />
+                            Le password verranno crittografate (hash) e aggiornate nel database. Gli utenti saranno costretti a cambiare password al prossimo accesso.
+                        </p>
+                        
+                        <textarea 
+                            value={bulkPasswordsInput}
+                            onChange={e => setBulkPasswordsInput(e.target.value)}
+                            className="form-textarea font-mono text-sm w-full h-64 bg-surface-container text-on-surface border-outline-variant focus:ring-primary"
+                            placeholder="mario.rossi, Password123!&#10;luigi.verdi, Segreta2024&#10;..."
+                        ></textarea>
+                        
+                        <div className="mt-4 flex justify-end">
+                            <button 
+                                onClick={handleBulkPasswordUpdate}
+                                disabled={bulkPassLoading || !bulkPasswordsInput.trim()}
+                                className="px-6 py-2 bg-tertiary-container text-on-tertiary-container font-semibold rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {bulkPassLoading ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">upload</span>}
+                                Aggiorna Password
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
             
