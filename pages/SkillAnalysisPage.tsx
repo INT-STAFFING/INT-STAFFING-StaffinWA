@@ -28,7 +28,7 @@ import { Skill } from '../types';
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
-type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty' | 'not_empty';
+type DisplayMode = 'all' | 'skills_only' | 'certs_only'; // Removed 'empty' and 'not_empty' as they are replaced by the new flag
 
 // --- Helper to format label ---
 const formatSkillLabel = (name: string, context?: string) => {
@@ -105,9 +105,11 @@ const SkillForceGraph: React.FC<{
              svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2));
         }
         
-        // Use Theme Colors
-        const palette = getThemePalette(theme);
-        const macroCategoryColor = scaleOrdinal(palette);
+        // Use Theme Colors but EXCLUDE PRIMARY for Skills to prevent confusion with Resources
+        const fullPalette = getThemePalette(theme);
+        // Filter out the primary color from the scale used for skills
+        const skillPalette = fullPalette.filter(c => c !== theme.primary);
+        const macroCategoryColor = scaleOrdinal(skillPalette);
 
         const getNodeColor = (d: any) => {
             if (d.type === 'resource') return theme.primary;
@@ -647,7 +649,8 @@ const SkillRadialTree: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
+            // Updated scale to match tighter layout
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
         }
     }, [zoomAction, width, height]);
 
@@ -662,12 +665,13 @@ const SkillRadialTree: React.FC<{
 
         const t = zoomTransform(svg.node() as Element);
         if (t.k === 1 && t.x === 0 && t.y === 0) {
-             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.4));
+             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
         } else {
              g.attr("transform", t.toString());
         }
 
-        const layoutRadius = 1600; 
+        // REDUCED LAYOUT RADIUS FOR COMPACTNESS
+        const layoutRadius = 600; 
 
         const root = d3Hierarchy(data);
         
@@ -987,6 +991,8 @@ const SkillAnalysisPage: React.FC = () => {
         displayMode: 'all' as DisplayMode,
         location: ''
     });
+    // New specific state for excluding resources without relevant skills
+    const [hideEmptyRows, setHideEmptyRows] = useState(false);
 
     const handleZoom = (type: 'in' | 'out' | 'reset') => {
         setZoomAction({ type, ts: Date.now() });
@@ -1012,39 +1018,32 @@ const SkillAnalysisPage: React.FC = () => {
             // Display Mode Logic for Skills
             if (filters.displayMode === 'skills_only' && s.isCertification) return false;
             if (filters.displayMode === 'certs_only' && !s.isCertification) return false;
-            if (filters.displayMode === 'empty') return false; 
 
             return skillMatch && catMatch && macroMatch;
         });
     }, [skills, filters]);
 
     const filteredResources = useMemo(() => {
+        // Create a Set of valid skill IDs based on current filters for O(1) lookup
+        const validSkillIds = new Set(filteredSkills.map(s => s.id));
+
         return resources.filter(r => {
             if (r.resigned) return false;
             const resMatch = filters.resourceIds.length === 0 || filters.resourceIds.includes(r.id!);
             const roleMatch = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             const locationMatch = !filters.location || r.location === filters.location;
 
-            // Display Mode Logic for Resources
-            const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
-            
-            const hasNormalSkills = rSkills.some(rs => {
-                const skill = skills.find(s => s.id === rs.skillId);
-                return skill && !skill.isCertification;
-            });
-            const hasCerts = rSkills.some(rs => {
-                const skill = skills.find(s => s.id === rs.skillId);
-                return skill && skill.isCertification;
-            });
-
-            if (filters.displayMode === 'skills_only' && !hasNormalSkills) return false;
-            if (filters.displayMode === 'certs_only' && !hasCerts) return false;
-            if (filters.displayMode === 'empty' && (hasNormalSkills || hasCerts)) return false;
-            if (filters.displayMode === 'not_empty' && !hasNormalSkills && !hasCerts) return false;
+            // Strict intersection filter: if resource has NO skills in the filtered set, exclude it
+            if (hideEmptyRows) {
+                const hasRelevantSkill = resourceSkills.some(rs => 
+                    rs.resourceId === r.id && validSkillIds.has(rs.skillId)
+                );
+                if (!hasRelevantSkill) return false;
+            }
 
             return resMatch && roleMatch && locationMatch;
         });
-    }, [resources, filters, resourceSkills, skills]);
+    }, [resources, filters, resourceSkills, filteredSkills, hideEmptyRows]);
 
     // --- Data Preparation ---
 
@@ -1407,13 +1406,24 @@ const SkillAnalysisPage: React.FC = () => {
                         onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
                     >
                         <option value="all">Tutti (Competenze e Cert.)</option>
-                        <option value="not_empty">Solo con Competenze/Cert.</option>
                         <option value="skills_only">Solo Competenze (No Cert)</option>
                         <option value="certs_only">Solo Certificazioni</option>
-                        <option value="empty">Senza Competenze/Cert</option>
                     </select>
 
-                    <button onClick={() => setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all', location: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
+                    <div className="flex items-center gap-2 bg-surface-container px-2 py-2 rounded h-full">
+                        <input 
+                            type="checkbox" 
+                            id="hideEmptyRows" 
+                            checked={hideEmptyRows} 
+                            onChange={e => setHideEmptyRows(e.target.checked)} 
+                            className="form-checkbox"
+                        />
+                        <label htmlFor="hideEmptyRows" className="text-xs text-on-surface whitespace-nowrap cursor-pointer select-none">
+                            Nascondi righe vuote
+                        </label>
+                    </div>
+
+                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
                         Reset
                     </button>
                 </div>
