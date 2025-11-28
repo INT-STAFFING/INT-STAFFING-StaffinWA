@@ -1,4 +1,5 @@
 
+
 /**
  * @file SkillsMapPage.tsx
  * @description Pagina per la visualizzazione, ricerca e gestione delle competenze delle risorse.
@@ -54,7 +55,7 @@ const SkillsMapPage: React.FC = () => {
     const [filters, setFilters] = useState({ 
         resourceId: '', 
         roleIds: [] as string[], 
-        skillIds: [] as string[], 
+        skillNames: [] as string[], // Changed from skillIds to skillNames for aggregation
         category: '', 
         macroCategory: '', 
         displayMode: 'all' as DisplayMode
@@ -143,7 +144,9 @@ const SkillsMapPage: React.FC = () => {
         return allEnrichedResources.filter(r => {
             const matchesRes = !filters.resourceId || r.id === filters.resourceId;
             const matchesRole = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
-            const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
+            
+            // Text-based filtering for aggregation
+            const matchesSkill = filters.skillNames.length === 0 || r.computedSkills.some(cs => filters.skillNames.includes(cs.skill.name));
             
             // Advanced Filtering
             const matchesCategory = !filters.category || r.computedSkills.some(cs => cs.skill.category === filters.category);
@@ -254,8 +257,17 @@ const SkillsMapPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
-    // Updated skillOptions with disambiguation
-    const skillOptions = useMemo(() => skills.map(s => ({ 
+    // Updated skillOptions to be Unique Names
+    const skillOptions = useMemo(() => {
+        const uniqueNames = new Set(skills.map(s => s.name));
+        return Array.from(uniqueNames).sort().map(name => ({
+            value: name, // Use Name as value for filtering
+            label: name
+        }));
+    }, [skills]);
+    
+    // Skill options for EDITING (must include ID and context for disambiguation)
+    const editSkillOptions = useMemo(() => skills.map(s => ({ 
         value: s.id!, 
         label: `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})` 
     })), [skills]);
@@ -464,11 +476,11 @@ const SkillsMapPage: React.FC = () => {
                                 <option value="empty">Nessuna Competenza</option>
                             </select>
                         </div>
-                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
+                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillNames: [], category: '', macroCategory: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
                     </div>
                 </div>
                 <div className="mt-4">
-                     <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
+                     <MultiSelectDropdown name="skillNames" selectedValues={filters.skillNames} onChange={(_, v) => setFilters(f => ({...f, skillNames: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
                 </div>
             </div>
 
@@ -506,7 +518,7 @@ const SkillsMapPage: React.FC = () => {
                                         name="tempSkillId"
                                         value={tempSkillId}
                                         onChange={(_, val) => setTempSkillId(val)}
-                                        options={skillOptions.filter(s => !editingSkills.some(sd => sd.skillId === s.value))}
+                                        options={editSkillOptions.filter(s => !editingSkills.some(sd => sd.skillId === s.value))}
                                         placeholder="Aggiungi nuova competenza..."
                                     />
                                 </div>
