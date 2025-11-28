@@ -1,5 +1,4 @@
 
-
 /**
  * @file SkillsPage.tsx
  * @description Pagina per la gestione delle Competenze (Skills) - CRUD, Dashboard e Visualizzazione.
@@ -21,9 +20,6 @@ type EnrichedSkill = Skill & {
     resourceCount: number;
     projectCount: number;
     totalUsage: number;
-    // Aggregation support
-    ids: string[];
-    isAggregated: boolean;
 };
 
 const SkillsPage: React.FC = () => {
@@ -51,8 +47,8 @@ const SkillsPage: React.FC = () => {
     // Assignment Modal State
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
     const [assignmentData, setAssignmentData] = useState<{
-        targetSkill: Skill | null; 
-        selectedSkillIds: string[]; 
+        targetSkill: Skill | null; // Se presente, stiamo assegnando QUESTA skill specifica (da riga)
+        selectedSkillIds: string[]; // Usato se targetSkill è null (assegnazione massiva)
         selectedResourceIds: string[];
         acquisitionDate: string;
         expirationDate: string;
@@ -78,8 +74,7 @@ const SkillsPage: React.FC = () => {
 
     // --- Data Processing ---
 
-    // Aggregate skills by Name + Category + Macro
-    const aggregatedSkills = useMemo<EnrichedSkill[]>(() => {
+    const enrichedSkills = useMemo<EnrichedSkill[]>(() => {
         const resCountMap = new Map<string, number>();
         resourceSkills.forEach(rs => {
             resCountMap.set(rs.skillId, (resCountMap.get(rs.skillId) || 0) + 1);
@@ -90,60 +85,43 @@ const SkillsPage: React.FC = () => {
             projCountMap.set(ps.skillId, (projCountMap.get(ps.skillId) || 0) + 1);
         });
 
-        const groupMap = new Map<string, EnrichedSkill>();
-
-        skills.forEach(skill => {
+        return skills.map(skill => {
             const rCount = resCountMap.get(skill.id!) || 0;
             const pCount = projCountMap.get(skill.id!) || 0;
-            
-            // Create a composite key to group duplicates
-            const key = `${skill.name.trim().toLowerCase()}|${(skill.category || '').trim().toLowerCase()}|${(skill.macroCategory || '').trim().toLowerCase()}`;
-            
-            if (groupMap.has(key)) {
-                const existing = groupMap.get(key)!;
-                existing.resourceCount += rCount;
-                existing.projectCount += pCount;
-                existing.totalUsage += (rCount + pCount);
-                if (skill.id) existing.ids.push(skill.id);
-                existing.isAggregated = true;
-            } else {
-                groupMap.set(key, {
-                    ...skill,
-                    resourceCount: rCount,
-                    projectCount: pCount,
-                    totalUsage: rCount + pCount,
-                    ids: skill.id ? [skill.id] : [],
-                    isAggregated: false
-                });
-            }
+            return {
+                ...skill,
+                resourceCount: rCount,
+                projectCount: pCount,
+                totalUsage: rCount + pCount
+            };
         });
-
-        return Array.from(groupMap.values());
     }, [skills, resourceSkills, projectSkills]);
 
     const kpis = useMemo(() => {
-        const totalSkills = aggregatedSkills.length;
+        const totalSkills = enrichedSkills.length;
         
-        const categories = new Set(aggregatedSkills.map(s => s.category).filter(Boolean));
+        const categories = new Set(enrichedSkills.map(s => s.category).filter(Boolean));
         const totalCategories = categories.size;
 
+        // Most popular Macro Category
         const macroCounts: Record<string, number> = {};
         let totalCerts = 0;
 
-        aggregatedSkills.forEach(s => {
+        enrichedSkills.forEach(s => {
             if (s.macroCategory) macroCounts[s.macroCategory] = (macroCounts[s.macroCategory] || 0) + 1;
             if (s.isCertification) totalCerts++;
         });
         const topMacroEntry = Object.entries(macroCounts).sort((a, b) => b[1] - a[1])[0];
         const topMacroCategory = topMacroEntry ? `${topMacroEntry[0]} (${topMacroEntry[1]})` : 'N/A';
 
-        const unusedSkills = aggregatedSkills.filter(s => s.totalUsage === 0).length;
+        // Unused skills
+        const unusedSkills = enrichedSkills.filter(s => s.totalUsage === 0).length;
 
         return { totalSkills, totalCategories, topMacroCategory, unusedSkills, totalCerts };
-    }, [aggregatedSkills]);
+    }, [enrichedSkills]);
 
     const filteredSkills = useMemo(() => {
-        return aggregatedSkills.filter(s => {
+        return enrichedSkills.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
             const catMatch = !filters.category || s.category === filters.category;
             const macroMatch = !filters.macroCategory || s.macroCategory === filters.macroCategory;
@@ -154,7 +132,7 @@ const SkillsPage: React.FC = () => {
             
             return nameMatch && catMatch && macroMatch && certMatch && unusedMatch;
         });
-    }, [aggregatedSkills, filters]);
+    }, [enrichedSkills, filters]);
 
     const categoryOptions = useMemo(() => {
         const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
@@ -168,19 +146,16 @@ const SkillsPage: React.FC = () => {
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     
-    // Updated skillOptions with disambiguation and deduplication for assignment dropdown
-    const skillOptions = useMemo(() => {
-        const unique = new Map();
-        skills.forEach(s => {
-            const label = `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})`;
-            if(!unique.has(label)) unique.set(label, { value: s.id!, label });
-        });
-        return Array.from(unique.values());
-    }, [skills]);
+    // Updated skillOptions with disambiguation
+    const skillOptions = useMemo(() => skills.map(s => ({ 
+        value: s.id!, 
+        label: `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})` 
+    })), [skills]);
 
     // --- Handlers ---
 
     const handleOpenModal = (skill?: Skill) => {
+        // Ensure fields are initialized to empty strings/false to prevent uncontrolled input warnings
         if (skill) {
             setEditingSkill({
                 ...skill,
@@ -204,6 +179,7 @@ const SkillsPage: React.FC = () => {
         if (!editingSkill) return;
 
         try {
+            // Sanitization: Explicitly select fields to avoid sending computed props (like resourceCount) to API
             const payload: any = {
                 name: editingSkill.name,
                 category: editingSkill.category || null,
@@ -229,17 +205,10 @@ const SkillsPage: React.FC = () => {
     const handleDelete = async () => {
         if (!skillToDelete) return;
         try {
-            // Delete ONLY the representative ID (user understands duplicates exist if they see aggregation)
-            // Or ideally, iterate and delete all IDs in the group.
-            if (skillToDelete.ids && skillToDelete.ids.length > 0) {
-                await Promise.all(skillToDelete.ids.map(id => deleteSkill(id)));
-            } else {
-                await deleteSkill(skillToDelete.id!);
-            }
+            await deleteSkill(skillToDelete.id!);
             setSkillToDelete(null);
-            addToast('Competenza eliminata.', 'success');
         } catch (error) {
-            addToast('Errore durante l\'eliminazione.', 'error');
+            // Error handled by context toast
         }
     };
 
@@ -255,9 +224,6 @@ const SkillsPage: React.FC = () => {
     // --- Assignment Handlers ---
 
     const openAssignmentModal = (skill: Skill | null = null) => {
-        // If skill is aggregated, we pick the first ID as representative target
-        // Ideally we should assign to ALL IDs in the group, but assigning to one is sufficient for mapping.
-        // Or better: The backend logic creates resource_skill link.
         setAssignmentData({
             targetSkill: skill,
             selectedSkillIds: skill ? [skill.id!] : [],
@@ -306,7 +272,6 @@ const SkillsPage: React.FC = () => {
             <div className="flex items-center gap-2 sticky left-0 bg-inherit pl-6">
                 {s.isCertification && <span className="material-symbols-outlined text-yellow-600 text-sm" title="Certificazione">verified</span>}
                 <span className="font-medium text-on-surface">{s.name}</span>
-                {s.isAggregated && <span className="text-xs text-primary bg-primary/10 px-1 rounded" title="Valori aggregati da duplicati">Aggregato</span>}
             </div>
         ) },
         { header: 'Ambito', sortKey: 'category', cell: s => <span className="text-sm text-on-surface-variant">{s.category || '-'}</span> },
@@ -396,7 +361,7 @@ const SkillsPage: React.FC = () => {
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary">
-                    <p className="text-sm text-on-surface-variant">Totale Skills (Unique)</p>
+                    <p className="text-sm text-on-surface-variant">Totale Skills</p>
                     <p className="text-3xl font-bold text-on-surface">{kpis.totalSkills}</p>
                 </div>
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-yellow-500">
@@ -658,8 +623,6 @@ const SkillsPage: React.FC = () => {
                     message={
                         <>
                             Sei sicuro di voler eliminare la competenza <strong>{skillToDelete.name}</strong>?
-                            {skillToDelete.isAggregated && <br/>}
-                            {skillToDelete.isAggregated && <span className="text-error font-bold">Attenzione: verranno eliminati tutti i duplicati di questa competenza.</span>}
                             <br/>
                             <span className="text-error text-sm">Verrà rimossa da {skillToDelete.resourceCount} risorse e {skillToDelete.projectCount} progetti.</span>
                         </>

@@ -1,5 +1,3 @@
-
-
 /**
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey, Bubble.
@@ -1138,7 +1136,7 @@ const SkillAnalysisPage: React.FC = () => {
     const [filters, setFilters] = useState({
         resourceIds: [] as string[],
         roleIds: [] as string[],
-        skillNames: [] as string[], // Changed to names for aggregation
+        skillIds: [] as string[],
         category: '',
         macroCategory: '',
         displayMode: 'all' as DisplayMode,
@@ -1156,23 +1154,15 @@ const SkillAnalysisPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
-    
-    // Skill options unique by Name
-    const skillOptions = useMemo(() => {
-        const uniqueNames = new Set(skills.map(s => s.name));
-        return Array.from(uniqueNames).sort().map(name => ({ value: name, label: name }));
-    }, [skills]);
-
+    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: formatSkillLabel(s.name, s.category) })), [skills]);
     const categoryOptions = useMemo(() => { const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean))); return cats.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
     const macroCategoryOptions = useMemo(() => { const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean))); return macros.sort().map(c => ({ value: c as string, label: c as string })); }, [skills]);
 
     // --- Filter Logic ---
 
-    // Deduplicate skills by Name+Category+Macro for visualization
     const filteredSkills = useMemo(() => {
-        const seen = new Set();
         return skills.filter(s => {
-            const skillMatch = filters.skillNames.length === 0 || filters.skillNames.includes(s.name);
+            const skillMatch = filters.skillIds.length === 0 || filters.skillIds.includes(s.id!);
             const catMatch = !filters.category || s.category === filters.category;
             const macroMatch = !filters.macroCategory || s.macroCategory === filters.macroCategory;
             
@@ -1180,20 +1170,13 @@ const SkillAnalysisPage: React.FC = () => {
             if (filters.displayMode === 'skills_only' && s.isCertification) return false;
             if (filters.displayMode === 'certs_only' && !s.isCertification) return false;
 
-            if (skillMatch && catMatch && macroMatch) {
-                const key = `${s.name}|${s.category}|${s.macroCategory}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            }
-            return false;
+            return skillMatch && catMatch && macroMatch;
         });
     }, [skills, filters]);
 
     const filteredResources = useMemo(() => {
         // Create a Set of valid skill IDs based on current filters for O(1) lookup
-        // We match by NAME because user selects names
-        const validSkillNames = new Set(filters.skillNames);
+        const validSkillIds = new Set(filteredSkills.map(s => s.id));
 
         return resources.filter(r => {
             if (r.resigned) return false;
@@ -1203,16 +1186,15 @@ const SkillAnalysisPage: React.FC = () => {
 
             // Strict intersection filter: if resource has NO skills in the filtered set, exclude it
             if (hideEmptyRows || filters.displayMode === 'not_empty') {
-                const hasRelevantSkill = resourceSkills.some(rs => {
-                    const skill = skills.find(s => s.id === rs.skillId);
-                    return skill && (validSkillNames.size === 0 || validSkillNames.has(skill.name));
-                });
+                const hasRelevantSkill = resourceSkills.some(rs => 
+                    rs.resourceId === r.id && validSkillIds.has(rs.skillId)
+                );
                 if (!hasRelevantSkill) return false;
             }
 
             return resMatch && roleMatch && locationMatch;
         });
-    }, [resources, filters, resourceSkills, skills, hideEmptyRows]);
+    }, [resources, filters, resourceSkills, filteredSkills, hideEmptyRows]);
 
     // --- Data Preparation ---
 
@@ -1223,41 +1205,27 @@ const SkillAnalysisPage: React.FC = () => {
         const links: any[] = [];
         const nodeIds = new Set();
 
-        // Add Skill Nodes (Deduplicated list)
         filteredSkills.forEach(s => {
-            // Using a unique ID based on properties to ensure duplicates don't create multiple nodes visually
-            const nodeId = `skill_${s.name}_${s.category || ''}_${s.macroCategory || ''}`;
-            if (!nodeIds.has(nodeId)) {
-                nodes.push({ id: nodeId, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
-                nodeIds.add(nodeId);
-            }
+            nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
+            nodeIds.add(`skill_${s.id}`);
         });
 
         filteredResources.forEach(r => {
             const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
-            // Map skill usage to the deduplicated nodes
-            const connectedNodes = new Set<string>();
+            const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`));
             
-            rSkills.forEach(rs => {
-                const skillDef = skills.find(s => s.id === rs.skillId);
-                if (skillDef) {
-                    const nodeId = `skill_${skillDef.name}_${skillDef.category || ''}_${skillDef.macroCategory || ''}`;
-                    if (nodeIds.has(nodeId)) {
-                        connectedNodes.add(nodeId);
-                    }
-                }
-            });
-            
-            if (connectedNodes.size > 0) {
+            if (hasRelevantSkill) {
                 nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' });
-                connectedNodes.forEach(targetId => {
-                    links.push({ source: `res_${r.id}`, target: targetId, value: 1 });
+                rSkills.forEach(rs => {
+                    if (nodeIds.has(`skill_${rs.skillId}`)) {
+                        links.push({ source: `res_${r.id}`, target: `skill_${rs.skillId}`, value: 1 });
+                    }
                 });
             }
         });
 
         return { nodes, links };
-    }, [filteredResources, filteredSkills, resourceSkills, view, skills]);
+    }, [filteredResources, filteredSkills, resourceSkills, view]);
 
     const heatmapData = useMemo(() => {
         if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
@@ -1269,17 +1237,12 @@ const SkillAnalysisPage: React.FC = () => {
         filteredResources.forEach(r => {
             filteredSkills.forEach(s => {
                 let days = 0;
-                // Find ANY skill ID that matches this skill definition (Name+Cat)
-                const matchingSkillIds = skills
-                    .filter(sk => sk.name === s.name && sk.category === s.category && sk.macroCategory === s.macroCategory)
-                    .map(sk => sk.id);
-
-                const manual = resourceSkills.find(rs => rs.resourceId === r.id && matchingSkillIds.includes(rs.skillId));
+                const manual = resourceSkills.find(rs => rs.resourceId === r.id && rs.skillId === s.id);
                 if (manual) days += (manual.level || 1) * 20; 
                 
                 const rAssignments = assignments.filter(a => a.resourceId === r.id);
                 rAssignments.forEach(a => {
-                    if(projectSkills.some(ps => ps.projectId === a.projectId && matchingSkillIds.includes(ps.skillId))) {
+                    if(projectSkills.some(ps => ps.projectId === a.projectId && ps.skillId === s.id)) {
                         days += 10;
                     }
                 });
@@ -1295,17 +1258,13 @@ const SkillAnalysisPage: React.FC = () => {
         });
 
         return { data, resources: resList, skills: skillList };
-    }, [filteredResources, filteredSkills, assignments, projectSkills, resourceSkills, view, skills]);
+    }, [filteredResources, filteredSkills, assignments, projectSkills, resourceSkills, view]);
 
     const chordData = useMemo(() => {
         if (view !== 'chord') return { matrix: [], names: [] };
         
-        // Map filtered skills to indices
-        const skillIndexMap = new Map<string, number>();
-        filteredSkills.forEach((s, i) => {
-            const key = `${s.name}|${s.category}|${s.macroCategory}`;
-            skillIndexMap.set(key, i);
-        });
+        const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
+        const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
         
         const n = filteredSkills.length;
         if (n === 0 || n > 50) return { matrix: [], names: [] }; 
@@ -1314,26 +1273,14 @@ const SkillAnalysisPage: React.FC = () => {
         
         // Count co-occurrences in Resources (Resource X has both Skill A and Skill B)
         filteredResources.forEach(r => {
-            const rSkillKeys = new Set<string>();
-            
-            // Collect all unique skill keys this resource has
-            resourceSkills
-                .filter(rs => rs.resourceId === r.id)
-                .forEach(rs => {
-                    const skill = skills.find(s => s.id === rs.skillId);
-                    if (skill) {
-                        const key = `${skill.name}|${skill.category}|${skill.macroCategory}`;
-                        if (skillIndexMap.has(key)) {
-                            rSkillKeys.add(key);
-                        }
-                    }
-                });
+            const rSkillIds = resourceSkills
+                .filter(rs => rs.resourceId === r.id && relevantSkillIds.has(rs.skillId))
+                .map(rs => rs.skillId);
 
-            const keysArray = Array.from(rSkillKeys);
-            for (let i = 0; i < keysArray.length; i++) {
-                for (let j = i + 1; j < keysArray.length; j++) {
-                    const idx1 = skillIndexMap.get(keysArray[i]);
-                    const idx2 = skillIndexMap.get(keysArray[j]);
+            for (let i = 0; i < rSkillIds.length; i++) {
+                for (let j = i + 1; j < rSkillIds.length; j++) {
+                    const idx1 = relevantSkillIndices.get(rSkillIds[i]);
+                    const idx2 = relevantSkillIndices.get(rSkillIds[j]);
                     if (idx1 !== undefined && idx2 !== undefined) {
                         matrix[idx1][idx2]++;
                         matrix[idx2][idx1]++; // Symmetry
@@ -1343,7 +1290,7 @@ const SkillAnalysisPage: React.FC = () => {
         });
 
         return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
-    }, [filteredSkills, resourceSkills, filteredResources, view, skills]);
+    }, [filteredSkills, resourceSkills, filteredResources, view]);
 
     const radarData = useMemo(() => {
         if (view !== 'radar') return [];
@@ -1357,24 +1304,15 @@ const SkillAnalysisPage: React.FC = () => {
         if (filteredResources.length <= 5) {
             filteredResources.forEach((r, idx) => {
                 const dataPoints = targetSkills.map(s => {
-                    // Match any skill ID with same properties
-                    const matchingSkillIds = skills
-                        .filter(sk => sk.name === s.name && sk.category === s.category)
-                        .map(sk => sk.id);
-                        
-                    const rs = resourceSkills.find(x => x.resourceId === r.id && matchingSkillIds.includes(x.skillId));
+                    const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
                     return { axis: formatSkillLabel(s.name, s.category), value: rs?.level || 0 }; 
                 });
                 datasets.push({ name: r.name, color: palette[idx % palette.length], data: dataPoints });
             });
         } else {
             const avgDataPoints = targetSkills.map(s => {
-                const matchingSkillIds = skills
-                        .filter(sk => sk.name === s.name && sk.category === s.category)
-                        .map(sk => sk.id);
-
                 const values = filteredResources.map(r => {
-                    const rs = resourceSkills.find(x => x.resourceId === r.id && matchingSkillIds.includes(x.skillId));
+                    const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
                     return rs?.level || 0;
                 });
                 const avg = mean(values) || 0;
@@ -1385,7 +1323,7 @@ const SkillAnalysisPage: React.FC = () => {
         }
 
         return datasets;
-    }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode, skills]);
+    }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]);
 
     const dendrogramData = useMemo(() => {
         if (view !== 'dendrogram') return null;
@@ -1398,25 +1336,16 @@ const SkillAnalysisPage: React.FC = () => {
             const cat = skill.category || 'Generico';
             const skillName = skill.name;
             
-            // Find associated resources using ALL matching IDs
-            const matchingSkillIds = skills
-                .filter(sk => sk.name === skill.name && sk.category === skill.category && sk.macroCategory === skill.macroCategory)
-                .map(sk => sk.id);
-
             const associatedResources = resourceSkills
-                .filter(rs => matchingSkillIds.includes(rs.skillId))
+                .filter(rs => rs.skillId === skill.id)
                 .map(rs => filteredResources.find(r => r.id === rs.resourceId))
                 .filter(r => r !== undefined)
                 .map(r => ({ name: r!.name, type: 'resource' }));
-            
-            // Deduplicate resources (in case multiple IDs map to same resource)
-            const uniqueResources = Array.from(new Set(associatedResources.map(r => r.name)))
-                                         .map(name => ({ name, type: 'resource' }));
 
             if (!groups.has(macro)) groups.set(macro, new Map());
             if (!groups.get(macro)?.has(cat)) groups.get(macro)?.set(cat, new Map());
             
-            groups.get(macro)?.get(cat)?.set(skillName, uniqueResources);
+            groups.get(macro)?.get(cat)?.set(skillName, associatedResources);
         });
 
         groups.forEach((catMap, macroName) => {
@@ -1433,7 +1362,7 @@ const SkillAnalysisPage: React.FC = () => {
         });
 
         return root;
-    }, [filteredSkills, filteredResources, resourceSkills, view, skills]);
+    }, [filteredSkills, filteredResources, resourceSkills, view]);
 
     const packingData = useMemo(() => {
         if (view !== 'packing') return null;
@@ -1445,14 +1374,10 @@ const SkillAnalysisPage: React.FC = () => {
             const macro = skill.macroCategory || 'Altro';
             const cat = skill.category || 'Generico';
             
-            const matchingSkillIds = skills
-                .filter(sk => sk.name === skill.name && sk.category === skill.category && sk.macroCategory === skill.macroCategory)
-                .map(sk => sk.id);
-
             const count = resourceSkills.filter(rs => 
-                matchingSkillIds.includes(rs.skillId) && 
+                rs.skillId === skill.id && 
                 filteredResources.some(r => r.id === rs.resourceId)
-            ).length; // Note: this might double count if user has 2 IDs of same skill. Acceptable approximation or requires deeper dedup.
+            ).length;
 
             if (count === 0) return;
 
@@ -1472,7 +1397,7 @@ const SkillAnalysisPage: React.FC = () => {
         });
 
         return root;
-    }, [filteredSkills, filteredResources, resourceSkills, view, skills]);
+    }, [filteredSkills, filteredResources, resourceSkills, view]);
 
     const sankeyData = useMemo(() => {
         if (view !== 'sankey') return { nodes: [], links: [] };
@@ -1483,6 +1408,7 @@ const SkillAnalysisPage: React.FC = () => {
         
         let nodeIdx = 0;
         const addNode = (name: string, type: string) => {
+            // Ensure uniqueness across types by using prefix for ID map, but keep clean name
             const id = `${type}_${name}`;
             if (!nodeMap.has(id)) {
                 nodes.push({ name: name, type });
@@ -1498,12 +1424,9 @@ const SkillAnalysisPage: React.FC = () => {
             const catName = skill.category || 'Generico';
             const skillName = skill.name;
 
-            const matchingSkillIds = skills
-                .filter(sk => sk.name === skill.name && sk.category === skill.category && sk.macroCategory === skill.macroCategory)
-                .map(sk => sk.id);
-
+            // Find connected resources
             const connectedResources = resourceSkills
-                .filter(rs => matchingSkillIds.includes(rs.skillId))
+                .filter(rs => rs.skillId === skill.id)
                 .map(rs => filteredResources.find(r => r.id === rs.resourceId))
                 .filter(r => r !== undefined) as any[];
 
@@ -1515,7 +1438,7 @@ const SkillAnalysisPage: React.FC = () => {
 
             // Macro -> Category
             const keyMC = `${mIdx}-${cIdx}`;
-            linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + connectedResources.length); 
+            linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + connectedResources.length); // Weight by connected resources
 
             // Category -> Skill
             const keyCS = `${cIdx}-${sIdx}`;
@@ -1535,7 +1458,7 @@ const SkillAnalysisPage: React.FC = () => {
         });
 
         return { nodes, links };
-    }, [filteredSkills, filteredResources, resourceSkills, view, skills]);
+    }, [filteredSkills, filteredResources, resourceSkills, view]);
 
     const bubbleData = useMemo(() => {
         if (view !== 'bubble') return null;
@@ -1549,7 +1472,7 @@ const SkillAnalysisPage: React.FC = () => {
                 // Find skill definition
                 const skill = skills.find(s => s.id === rs.skillId);
                 // Also check if skill is in filteredSkills (respects category filters)
-                if (skill && filteredSkills.some(fs => fs.name === skill.name)) {
+                if (skill && filteredSkills.some(fs => fs.id === skill.id)) {
                     const name = skill.name;
                     counts.set(name, (counts.get(name) || 0) + 1);
                 }
@@ -1643,7 +1566,7 @@ const SkillAnalysisPage: React.FC = () => {
                     <SearchableSelect name="location" value={filters.location} onChange={(_, v) => setFilters(f => ({...f, location: v}))} options={locationOptions} placeholder="Sede"/>
                     
                     <div className="md:col-span-2">
-                        <MultiSelectDropdown name="skillNames" selectedValues={filters.skillNames} onChange={(_, v) => setFilters(f => ({...f, skillNames: v}))} options={skillOptions} placeholder="Competenze (Nome)"/>
+                        <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Competenze"/>
                     </div>
                     
                     <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Ambito"/>
@@ -1673,7 +1596,7 @@ const SkillAnalysisPage: React.FC = () => {
                         </label>
                     </div>
 
-                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillNames: [], category: '', macroCategory: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
+                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
                         Reset
                     </button>
                 </div>

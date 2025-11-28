@@ -1,5 +1,4 @@
 
-
 import type { VercelPool } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -472,11 +471,18 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_category VARCHAR(255);`;
     await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS is_certification BOOLEAN DEFAULT FALSE;`;
     
-    // MIGRATION: REMOVE UNIQUE INDEX TO ALLOW DUPLICATES AS REQUESTED
+    // MIGRATION: Ensure correct unique constraint
     try {
+        // Drop old composite index if exists
         await db.sql`DROP INDEX IF EXISTS idx_skills_composite_unique;`;
+        
+        // Create stricter index on (name, category)
+        await db.sql`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_name_category_unique 
+            ON skills (name, category);
+        `;
     } catch (e) {
-        console.warn("Could not drop unique index on skills:", e);
+        console.warn("Could not update indices on skills:", e);
     }
 
     await db.sql`
