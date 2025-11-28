@@ -210,7 +210,7 @@ const WorkloadPage: React.FC = () => {
                 const startOfWeek = new Date(d);
                 const endOfWeek = addDays(new Date(d), 6);
                 cols.push({
-                    label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`,
+                    label: `${formatDateSynthetic(startOfWeek)} - ${formatDateSynthetic(endOfWeek)}`,
                     subLabel: '',
                     startDate: startOfWeek,
                     endDate: endOfWeek,

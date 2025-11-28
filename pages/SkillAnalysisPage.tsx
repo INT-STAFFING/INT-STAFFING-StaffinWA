@@ -9,7 +9,7 @@ import { useEntitiesContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { select } from 'd3-selection';
 import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
-import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear } from 'd3-scale';
+import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear, scaleSqrt } from 'd3-scale';
 import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY } from 'd3-force';
 import { drag as d3Drag } from 'd3-drag';
 import { interpolate } from 'd3-interpolate';
@@ -27,7 +27,7 @@ import { Skill } from '../types';
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey' | 'bubble';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
-type DisplayMode = 'all' | 'skills_only' | 'certs_only';
+type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'not_empty';
 
 // --- Helper to format label ---
 const formatSkillLabel = (name: string, context?: string) => {
@@ -120,11 +120,35 @@ const SkillForceGraph: React.FC<{
             return theme.surfaceVariant;
         };
 
+        // --- Calculate Degree (Number of connections) ---
+        const degreeMap = new Map<string, number>();
+        nodes.forEach(n => degreeMap.set(n.id, 0));
+        links.forEach(l => {
+            // Handle both object references (if simulation ran before) and raw IDs
+            const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+            const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+            
+            degreeMap.set(sourceId, (degreeMap.get(sourceId) || 0) + 1);
+            degreeMap.set(targetId, (degreeMap.get(targetId) || 0) + 1);
+        });
+
+        // Attach degree to node data
+        nodes.forEach(n => {
+            n.degree = degreeMap.get(n.id) || 0;
+        });
+
+        const maxDegree = Math.max(...Array.from(degreeMap.values()), 1);
+
+        // Scale for node radius based on degree (using Sqrt for area proportionality)
+        const radiusScale = scaleSqrt()
+            .domain([0, maxDegree])
+            .range([5, 25]); // Min radius 5px, Max radius 25px
+
         const simulation = forceSimulation(nodes)
             .force("link", forceLink(links).id((d: any) => d.id).distance(100))
             .force("charge", forceManyBody().strength(-300))
             .force("center", forceCenter(0, 0))
-            .force("collide", forceCollide(30));
+            .force("collide", forceCollide((d: any) => radiusScale(d.degree) + 5)); // Dynamic collision radius
 
         const link = g.append("g")
             .attr("stroke", theme.outline)
@@ -157,14 +181,19 @@ const SkillForceGraph: React.FC<{
             );
 
         node.append("circle")
-            .attr("r", (d: any) => d.type === 'skill' ? (d.isCertification ? 10 : 8) : d.type === 'project' ? 12 : 6)
+            .attr("r", (d: any) => {
+                // Base size on degree
+                const baseRadius = radiusScale(d.degree);
+                // Slight boost for projects to act as hubs visually
+                return d.type === 'project' ? baseRadius * 1.2 : baseRadius;
+            })
             .attr("fill", (d: any) => getNodeColor(d))
             .attr("stroke", theme.surface)
             .attr("stroke-width", 1.5);
 
         node.append("text")
             .text((d: any) => d.name)
-            .attr("x", 12)
+            .attr("x", (d: any) => radiusScale(d.degree) + 4) // Offset based on radius
             .attr("y", 4)
             .attr("font-size", "10px")
             .attr("fill", theme.onSurface)
@@ -172,8 +201,9 @@ const SkillForceGraph: React.FC<{
 
         node.append("title")
             .text((d: any) => {
-                if (d.type === 'skill') return `SKILL: ${d.name}\nAmbito: ${d.category || '-'}\nMacro: ${d.macroCategory || '-'}`;
-                return d.name;
+                let tooltip = d.name;
+                if (d.type === 'skill') tooltip = `SKILL: ${d.name}\nAmbito: ${d.category || '-'}\nMacro: ${d.macroCategory || '-'}`;
+                return `${tooltip}\nConnessioni: ${d.degree}`;
             });
 
         simulation.on("tick", () => {
@@ -362,7 +392,10 @@ const SkillChordDiagram: React.FC<{
     }, [zoomAction, width, height]);
 
     useEffect(() => {
-        if (!svgRef.current || matrix.length === 0 || names.length === 0) return;
+        if (!svgRef.current || matrix.length === 0 || names.length === 0) {
+            if(svgRef.current) select(svgRef.current).selectAll("g").remove();
+            return;
+        }
 
         const svg = select(svgRef.current);
         svg.selectAll("g").remove();
@@ -516,7 +549,7 @@ const SkillRadarChart: React.FC<{
             w: width - 150,
             h: height - 150,
             levels: 5,
-            maxValue: 100,
+            maxValue: 5, // FIXED: Max level is 5
             labelFactor: 1.25,
             opacityArea: 0.25,
         };
@@ -531,6 +564,7 @@ const SkillRadarChart: React.FC<{
 
         const axisGrid = g.append("g").attr("class", "axisWrapper");
 
+        // Draw concentric circles
         axisGrid.selectAll(".levels")
             .data(Array.from({ length: cfg.levels }, (_, i) => i + 1).reverse())
             .enter()
@@ -540,6 +574,18 @@ const SkillRadarChart: React.FC<{
             .style("fill", theme.surfaceVariant)
             .style("stroke", theme.outlineVariant)
             .style("fill-opacity", 0.3);
+
+        // Draw axis text (levels)
+        axisGrid.selectAll(".axisLabel")
+            .data(Array.from({ length: cfg.levels }, (_, i) => i + 1).reverse())
+            .enter().append("text")
+            .attr("class", "axisLabel")
+            .attr("x", 4)
+            .attr("y", (d) => -radius / cfg.levels * d)
+            .attr("dy", "0.4em")
+            .style("font-size", "10px")
+            .attr("fill", theme.onSurfaceVariant)
+            .text((d) => d);
 
         const axis = axisGrid.selectAll(".axis")
             .data(axesData)
@@ -605,7 +651,7 @@ const SkillRadarChart: React.FC<{
                 .style("fill", dataset.color)
                 .style("fill-opacity", 0.9)
                 .append("title")
-                .text((d) => `${dataset.name}: ${d.value}`);
+                .text((d) => `${dataset.name}: Livello ${d.value.toFixed(1)}`);
         });
 
     }, [datasets, width, height, theme, svgRef]);
@@ -1139,7 +1185,7 @@ const SkillAnalysisPage: React.FC = () => {
             const locationMatch = !filters.location || r.location === filters.location;
 
             // Strict intersection filter: if resource has NO skills in the filtered set, exclude it
-            if (hideEmptyRows) {
+            if (hideEmptyRows || filters.displayMode === 'not_empty') {
                 const hasRelevantSkill = resourceSkills.some(rs => 
                     rs.resourceId === r.id && validSkillIds.has(rs.skillId)
                 );
@@ -1225,29 +1271,26 @@ const SkillAnalysisPage: React.FC = () => {
 
         const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
         
-        const projectToSkills = new Map<string, string[]>();
-        projectSkills.forEach(ps => {
-            if (relevantSkillIds.has(ps.skillId)) {
-                if (!projectToSkills.has(ps.projectId)) projectToSkills.set(ps.projectId, []);
-                projectToSkills.get(ps.projectId)?.push(ps.skillId);
-            }
-        });
+        // Count co-occurrences in Resources (Resource X has both Skill A and Skill B)
+        filteredResources.forEach(r => {
+            const rSkillIds = resourceSkills
+                .filter(rs => rs.resourceId === r.id && relevantSkillIds.has(rs.skillId))
+                .map(rs => rs.skillId);
 
-        projectToSkills.forEach((skillsInProj) => {
-            for (let i = 0; i < skillsInProj.length; i++) {
-                for (let j = 0; j < skillsInProj.length; j++) {
-                    if (i === j) continue;
-                    const idx1 = relevantSkillIndices.get(skillsInProj[i]);
-                    const idx2 = relevantSkillIndices.get(skillsInProj[j]);
+            for (let i = 0; i < rSkillIds.length; i++) {
+                for (let j = i + 1; j < rSkillIds.length; j++) {
+                    const idx1 = relevantSkillIndices.get(rSkillIds[i]);
+                    const idx2 = relevantSkillIndices.get(rSkillIds[j]);
                     if (idx1 !== undefined && idx2 !== undefined) {
                         matrix[idx1][idx2]++;
+                        matrix[idx2][idx1]++; // Symmetry
                     }
                 }
             }
         });
 
         return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
-    }, [filteredSkills, projectSkills, view]);
+    }, [filteredSkills, resourceSkills, filteredResources, view]);
 
     const radarData = useMemo(() => {
         if (view !== 'radar') return [];
@@ -1262,7 +1305,7 @@ const SkillAnalysisPage: React.FC = () => {
             filteredResources.forEach((r, idx) => {
                 const dataPoints = targetSkills.map(s => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return { axis: formatSkillLabel(s.name, s.category), value: (rs?.level || 0) * 20 }; 
+                    return { axis: formatSkillLabel(s.name, s.category), value: rs?.level || 0 }; 
                 });
                 datasets.push({ name: r.name, color: palette[idx % palette.length], data: dataPoints });
             });
@@ -1270,7 +1313,7 @@ const SkillAnalysisPage: React.FC = () => {
             const avgDataPoints = targetSkills.map(s => {
                 const values = filteredResources.map(r => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return (rs?.level || 0) * 20;
+                    return rs?.level || 0;
                 });
                 const avg = mean(values) || 0;
                 return { axis: formatSkillLabel(s.name, s.category), value: avg };
@@ -1537,6 +1580,7 @@ const SkillAnalysisPage: React.FC = () => {
                         <option value="all">Tutti (Competenze e Cert.)</option>
                         <option value="skills_only">Solo Competenze (No Cert)</option>
                         <option value="certs_only">Solo Certificazioni</option>
+                        <option value="not_empty">Solo con Competenze/Cert.</option>
                     </select>
 
                     <div className="flex items-center gap-2 bg-surface-container px-2 py-2 rounded h-full">

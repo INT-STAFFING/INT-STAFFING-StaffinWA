@@ -561,7 +561,7 @@ export const StaffingPage: React.FC = () => {
             const dateIso = formatDate(day, 'iso');
             const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
             cols.push({ 
-                label: formatDate(day, 'day') + ' ' + formatDate(day, 'short'), 
+                label: formatDate(day, 'day') + ' ' + formatDateSynthetic(day), 
                 subLabel: '', 
                 startDate: day, 
                 endDate: day, 
@@ -579,7 +579,7 @@ export const StaffingPage: React.FC = () => {
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const dateIso = formatDate(day, 'iso');
         const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
-        return { label: formatDate(day, 'short'), subLabel: formatDate(day, 'day'), startDate: day, endDate: day, isNonWorkingDay: isWeekend || !!holiday, dateIso };
+        return { label: formatDateSynthetic(day), subLabel: formatDate(day, 'day'), startDate: day, endDate: day, isNonWorkingDay: isWeekend || !!holiday, dateIso };
       });
     }
     if (viewMode === 'week') {
@@ -587,7 +587,7 @@ export const StaffingPage: React.FC = () => {
       for (let i = 0; i < 12; i++) {
         const startOfWeek = new Date(d);
         const endOfWeek = addDays(new Date(d), 6);
-        cols.push({ label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`, subLabel: '', startDate: startOfWeek, endDate: endOfWeek, isNonWorkingDay: false, dateIso: '' });
+        cols.push({ label: `${formatDateSynthetic(startOfWeek)} - ${formatDateSynthetic(endOfWeek)}`, subLabel: '', startDate: startOfWeek, endDate: endOfWeek, isNonWorkingDay: false, dateIso: '' });
         d.setDate(d.getDate() + 7);
       }
     } else {
