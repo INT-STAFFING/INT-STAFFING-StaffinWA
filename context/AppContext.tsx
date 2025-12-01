@@ -24,6 +24,7 @@ const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
 
     { path: "/resources", label: "Risorse", icon: "person", section: "Risorse" },
     { path: "/skills", label: "Competenze", icon: "school", section: "Risorse" },
+    { path: "/certifications", label: "Certificazioni", icon: "verified", section: "Risorse" },
     { path: "/skill-analysis", label: "Analisi Competenze", icon: "insights", section: "Risorse" },
     { path: "/roles", label: "Ruoli", icon: "badge", section: "Risorse" },
     { path: "/leaves", label: "Assenze", icon: "event_busy", section: "Risorse" },

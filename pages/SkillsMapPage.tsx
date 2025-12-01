@@ -46,7 +46,8 @@ type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
 const SkillsMapPage: React.FC = () => {
     const { 
         resources, roles, skills, resourceSkills, addResourceSkill, deleteResourceSkill, 
-        getResourceComputedSkills, loading, isActionLoading 
+        getResourceComputedSkills, loading, isActionLoading,
+        skillCategories, skillMacroCategories
     } = useEntitiesContext();
 
     // State
@@ -55,8 +56,8 @@ const SkillsMapPage: React.FC = () => {
         resourceId: '', 
         roleIds: [] as string[], 
         skillIds: [] as string[], 
-        category: '', 
-        macroCategory: '', 
+        categoryId: '', 
+        macroCategoryId: '', 
         displayMode: 'all' as DisplayMode
     });
     
@@ -151,9 +152,17 @@ const SkillsMapPage: React.FC = () => {
             const matchesRole = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
             
-            // Advanced Filtering using .includes for string checks
-            const matchesCategory = !filters.category || r.computedSkills.some(cs => cs.skill.category?.includes(filters.category));
-            const matchesMacro = !filters.macroCategory || r.computedSkills.some(cs => cs.skill.macroCategory?.includes(filters.macroCategory));
+            // Advanced Filtering using IDs
+            const matchesCategory = !filters.categoryId || r.computedSkills.some(cs => cs.skill.categoryIds?.includes(filters.categoryId));
+            
+            const matchesMacro = !filters.macroCategoryId || r.computedSkills.some(cs => {
+                if (!cs.skill.categoryIds) return false;
+                // Check if any of the skill's categories belong to the selected macro
+                return cs.skill.categoryIds.some(catId => {
+                    const cat = skillCategories.find(c => c.id === catId);
+                    return cat?.macroCategoryIds?.includes(filters.macroCategoryId);
+                });
+            });
             
             // Logic for Display Mode
             let matchesDisplayMode = true;
@@ -170,7 +179,7 @@ const SkillsMapPage: React.FC = () => {
 
             return matchesRes && matchesRole && matchesSkill && matchesCategory && matchesMacro && matchesDisplayMode;
         });
-    }, [allEnrichedResources, filters]);
+    }, [allEnrichedResources, filters, skillCategories]);
 
 
     // --- Handlers ---
@@ -260,20 +269,10 @@ const SkillsMapPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
-    // Updated skillOptions with disambiguation
-    const skillOptions = useMemo(() => skills.map(s => ({ 
-        value: s.id!, 
-        label: `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})` 
-    })), [skills]);
-
-    const categoryOptions = useMemo(() => {
-        const cats = Array.from(new Set(skills.flatMap(s => s.category?.split(', ') || []).filter(Boolean)));
-        return cats.sort().map(c => ({ value: c as string, label: c as string }));
-    }, [skills]);
-    const macroCategoryOptions = useMemo(() => {
-        const macros = Array.from(new Set(skills.flatMap(s => s.macroCategory?.split(', ') || []).filter(Boolean)));
-        return macros.sort().map(c => ({ value: c as string, label: c as string }));
-    }, [skills]);
+    // Updated Options - Clean Labels & ID Values
+    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: s.name })), [skills]);
+    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillCategories]);
+    const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillMacroCategories]);
 
     const columns: ColumnDef<EnrichedSkillResource>[] = [
         { header: 'Risorsa', sortKey: 'name', cell: r => <span className="font-medium text-on-surface">{r.name}</span> },
@@ -454,8 +453,8 @@ const SkillsMapPage: React.FC = () => {
                     <div className="flex-grow">
                         <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Filtra per Ruoli..."/>
                     </div>
-                    <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(f => ({...f, macroCategory: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
-                    <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Ambito"/>
+                    <SearchableSelect name="macroCategoryId" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
+                    <SearchableSelect name="categoryId" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
                     
                     <div className="flex gap-2">
                         <div className="flex-grow">
@@ -470,7 +469,7 @@ const SkillsMapPage: React.FC = () => {
                                 <option value="empty">Nessuna Competenza</option>
                             </select>
                         </div>
-                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
+                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
                     </div>
                 </div>
                 <div className="mt-4">

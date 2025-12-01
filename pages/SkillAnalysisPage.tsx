@@ -1193,7 +1193,7 @@ const SkillAnalysisPage: React.FC = () => {
         const nodeIds = new Set();
 
         filteredSkills.forEach(s => {
-            nodes.push({ id: `skill_${s.id}`, name: formatSkillLabel(s.name, s.category), type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
+            nodes.push({ id: `skill_${s.id}`, name: s.name, type: 'skill', category: s.category, macroCategory: s.macroCategory, isCertification: s.isCertification });
             nodeIds.add(`skill_${s.id}`);
         });
 

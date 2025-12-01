@@ -1,3 +1,4 @@
+
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
@@ -39,6 +40,7 @@ const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
 const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
 const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
+const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
 const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 const LeavePage = lazy(() => import('./pages/LeavePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
@@ -69,6 +71,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case 'simple-user-manual': return 'Guida Assenze';
       case 'test-staffing': return 'Test Staffing Mobile';
       case 'notifications': return 'Notifiche';
+      case 'certifications': return 'Certificazioni';
       default: return 'Staffing Planner';
     }
   };
@@ -176,6 +179,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
               <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
               <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />
+              <Route path="/certifications" element={<DynamicRoute path="/certifications"><CertificationsPage /></DynamicRoute>} />
               <Route path="/projects" element={<DynamicRoute path="/projects"><ProjectsPage /></DynamicRoute>} />
               <Route path="/clients" element={<DynamicRoute path="/clients"><ClientsPage /></DynamicRoute>} />
               <Route path="/roles" element={<DynamicRoute path="/roles"><RolesPage /></DynamicRoute>} />

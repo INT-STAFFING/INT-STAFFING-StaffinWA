@@ -1,6 +1,7 @@
+
 /**
- * @file SkillsPage.tsx
- * @description Pagina per la gestione delle Competenze (Skills) - CRUD, Dashboard e Visualizzazione.
+ * @file CertificationsPage.tsx
+ * @description Pagina dedicata alla gestione delle Certificazioni (Skills con isCertification=true).
  */
 
 import React, { useState, useMemo } from 'react';
@@ -15,19 +16,29 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 
 // --- Types ---
-type EnrichedSkill = Skill & {
+type EnrichedCertification = Skill & {
     resourceCount: number;
     projectCount: number;
-    totalUsage: number;
+    expiringCount: number; // Numero di risorse con questa cert in scadenza
 };
 
-const SkillsPage: React.FC = () => {
+const isExpiringSoon = (dateStr?: string | null): boolean => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    const today = new Date();
+    const diffTime = date.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 90;
+};
+
+const CertificationsPage: React.FC = () => {
     const { 
         skills, 
         resources,
         resourceSkills, 
         projectSkills, 
         skillCategories,
+        skillMacroCategories,
         addSkill, 
         updateSkill, 
         deleteSkill, 
@@ -42,20 +53,18 @@ const SkillsPage: React.FC = () => {
     const [view, setView] = useState<'table' | 'card'>('table');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSkill, setEditingSkill] = useState<Skill | Omit<Skill, 'id'> | null>(null);
-    const [skillToDelete, setSkillToDelete] = useState<EnrichedSkill | null>(null);
+    const [skillToDelete, setSkillToDelete] = useState<EnrichedCertification | null>(null);
     
     // Assignment Modal State
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
     const [assignmentData, setAssignmentData] = useState<{
-        targetSkill: Skill | null; // Se presente, stiamo assegnando QUESTA skill specifica (da riga)
-        selectedSkillIds: string[]; // Usato se targetSkill è null (assegnazione massiva)
+        targetSkill: Skill | null;
         selectedResourceIds: string[];
         acquisitionDate: string;
         expirationDate: string;
         level: number;
     }>({
         targetSkill: null,
-        selectedSkillIds: [],
         selectedResourceIds: [],
         acquisitionDate: '',
         expirationDate: '',
@@ -63,24 +72,28 @@ const SkillsPage: React.FC = () => {
     });
 
     // Filter State
-    // Removed isCertification filter as this page is for skills only
-    const [filters, setFilters] = useState({ name: '', category: '', macroCategory: '', unusedOnly: false });
+    const [filters, setFilters] = useState({ name: '', categoryId: '', macroCategoryId: '' });
 
     const emptySkill: Omit<Skill, 'id'> = {
         name: '',
         categoryIds: [],
-        isCertification: false
+        isCertification: true // Always true for this page
     };
 
     // --- Data Processing ---
 
-    const enrichedSkills = useMemo<EnrichedSkill[]>(() => {
-        // FILTER: Only show non-certifications
-        const skillsOnly = skills.filter(s => !s.isCertification);
+    const enrichedCertifications = useMemo<EnrichedCertification[]>(() => {
+        // Filter only certifications
+        const certsOnly = skills.filter(s => s.isCertification);
 
         const resCountMap = new Map<string, number>();
+        const expiringMap = new Map<string, number>();
+
         resourceSkills.forEach(rs => {
             resCountMap.set(rs.skillId, (resCountMap.get(rs.skillId) || 0) + 1);
+            if (isExpiringSoon(rs.expirationDate)) {
+                expiringMap.set(rs.skillId, (expiringMap.get(rs.skillId) || 0) + 1);
+            }
         });
 
         const projCountMap = new Map<string, number>();
@@ -88,78 +101,58 @@ const SkillsPage: React.FC = () => {
             projCountMap.set(ps.skillId, (projCountMap.get(ps.skillId) || 0) + 1);
         });
 
-        return skillsOnly.map(skill => {
+        return certsOnly.map(skill => {
             const rCount = resCountMap.get(skill.id!) || 0;
             const pCount = projCountMap.get(skill.id!) || 0;
+            const eCount = expiringMap.get(skill.id!) || 0;
             return {
                 ...skill,
                 resourceCount: rCount,
                 projectCount: pCount,
-                totalUsage: rCount + pCount
+                expiringCount: eCount
             };
         });
     }, [skills, resourceSkills, projectSkills]);
 
     const kpis = useMemo(() => {
-        const totalSkills = enrichedSkills.length;
+        const totalTypes = enrichedCertifications.length;
+        const totalAssigned = enrichedCertifications.reduce((acc, curr) => acc + curr.resourceCount, 0);
+        const totalExpiring = enrichedCertifications.reduce((acc, curr) => acc + curr.expiringCount, 0);
         
-        // Count distinct categories used
-        const usedCats = new Set();
-        enrichedSkills.forEach(s => s.categoryIds?.forEach(id => usedCats.add(id)));
-        const totalCategories = usedCats.size;
-
-        // Most popular Macro Category
+        // Most popular Macro Category for Certs
         const macroCounts: Record<string, number> = {};
-
-        enrichedSkills.forEach(s => {
+        enrichedCertifications.forEach(s => {
             if (s.macroCategory) {
-                // macroCategory is a comma joined string now, split it to count accurately
                 s.macroCategory.split(', ').forEach(m => {
                     macroCounts[m] = (macroCounts[m] || 0) + 1;
                 });
             }
         });
         const topMacroEntry = Object.entries(macroCounts).sort((a, b) => b[1] - a[1])[0];
-        const topMacroCategory = topMacroEntry ? `${topMacroEntry[0]} (${topMacroEntry[1]})` : 'N/A';
+        const topMacroCategory = topMacroEntry ? `${topMacroEntry[0]}` : 'N/A';
 
-        // Unused skills
-        const unusedSkills = enrichedSkills.filter(s => s.totalUsage === 0).length;
+        return { totalTypes, totalAssigned, totalExpiring, topMacroCategory };
+    }, [enrichedCertifications]);
 
-        return { totalSkills, totalCategories, topMacroCategory, unusedSkills };
-    }, [enrichedSkills]);
-
-    const filteredSkills = useMemo(() => {
-        return enrichedSkills.filter(s => {
+    const filteredData = useMemo(() => {
+        return enrichedCertifications.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
-            const catMatch = !filters.category || (s.category && s.category.includes(filters.category));
-            const macroMatch = !filters.macroCategory || (s.macroCategory && s.macroCategory.includes(filters.macroCategory));
             
-            const unusedMatch = !filters.unusedOnly || s.totalUsage === 0;
+            // Advanced Filtering using IDs
+            const matchesCategory = !filters.categoryId || s.categoryIds?.includes(filters.categoryId);
             
-            return nameMatch && catMatch && macroMatch && unusedMatch;
+            const matchesMacro = !filters.macroCategoryId || (s.categoryIds && s.categoryIds.some(catId => {
+                const cat = skillCategories.find(c => c.id === catId);
+                return cat?.macroCategoryIds?.includes(filters.macroCategoryId);
+            }));
+
+            return nameMatch && matchesCategory && matchesMacro;
         });
-    }, [enrichedSkills, filters]);
+    }, [enrichedCertifications, filters, skillCategories]);
 
-    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })), [skillCategories]);
-    
-    // Filter options based on strings from the current visible set (enrichedSkills already filtered by !isCertification)
-    const categoryFilterOptions = useMemo(() => {
-        const cats = Array.from(new Set(skills.filter(s => !s.isCertification).flatMap(s => s.category?.split(', ') || []).filter(Boolean)));
-        return cats.sort().map(c => ({ value: c as string, label: c as string }));
-    }, [skills]);
-
-    const macroCategoryFilterOptions = useMemo(() => {
-        const macros = Array.from(new Set(skills.filter(s => !s.isCertification).flatMap(s => s.macroCategory?.split(', ') || []).filter(Boolean)));
-        return macros.sort().map(c => ({ value: c as string, label: c as string }));
-    }, [skills]);
-
+    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillCategories]);
+    const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillMacroCategories]);
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
-    
-    // Updated skillOptions with disambiguation, only showing non-certs
-    const skillOptions = useMemo(() => skills.filter(s => !s.isCertification).map(s => ({ 
-        value: s.id!, 
-        label: `${s.name} (${s.category || 'N/A'})` 
-    })), [skills]);
 
     // --- Handlers ---
 
@@ -168,7 +161,7 @@ const SkillsPage: React.FC = () => {
             setEditingSkill({
                 ...skill,
                 categoryIds: skill.categoryIds || [],
-                isCertification: false
+                isCertification: true
             });
         } else {
             setEditingSkill(emptySkill);
@@ -186,24 +179,22 @@ const SkillsPage: React.FC = () => {
         if (!editingSkill) return;
 
         try {
-            // Send IDs
             const payload: any = {
                 name: editingSkill.name,
                 categoryIds: editingSkill.categoryIds,
-                isCertification: false // Force false for this page
+                isCertification: true // Force true
             };
 
             if ('id' in editingSkill && editingSkill.id) {
                 payload.id = editingSkill.id;
                 await updateSkill(payload as Skill);
-                addToast('Competenza aggiornata.', 'success');
+                addToast('Certificazione aggiornata.', 'success');
             } else {
                 await addSkill(payload as Omit<Skill, 'id'>);
-                addToast('Competenza creata.', 'success');
+                addToast('Certificazione creata.', 'success');
             }
             handleCloseModal();
         } catch (error) {
-            console.error("Failed to save skill:", error);
             addToast('Errore durante il salvataggio.', 'error');
         }
     };
@@ -221,10 +212,7 @@ const SkillsPage: React.FC = () => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!editingSkill) return;
         const { name, value } = e.target;
-        setEditingSkill({ 
-            ...editingSkill, 
-            [name]: value 
-        });
+        setEditingSkill({ ...editingSkill, [name]: value });
     };
 
     const handleCategoryChange = (name: string, selectedIds: string[]) => {
@@ -234,10 +222,9 @@ const SkillsPage: React.FC = () => {
 
     // --- Assignment Handlers ---
 
-    const openAssignmentModal = (skill: Skill | null = null) => {
+    const openAssignmentModal = (skill: Skill) => {
         setAssignmentData({
             targetSkill: skill,
-            selectedSkillIds: skill ? [skill.id!] : [],
             selectedResourceIds: [],
             acquisitionDate: '',
             expirationDate: '',
@@ -248,51 +235,58 @@ const SkillsPage: React.FC = () => {
 
     const handleAssignmentSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { selectedResourceIds, selectedSkillIds, acquisitionDate, expirationDate, level } = assignmentData;
+        const { selectedResourceIds, targetSkill, acquisitionDate, expirationDate, level } = assignmentData;
 
-        if (selectedResourceIds.length === 0 || selectedSkillIds.length === 0) {
-            addToast('Seleziona almeno una risorsa e una competenza.', 'error');
+        if (!targetSkill || selectedResourceIds.length === 0) {
+            addToast('Seleziona almeno una risorsa.', 'error');
             return;
         }
 
         try {
-            const promises = [];
-            for (const resourceId of selectedResourceIds) {
-                for (const skillId of selectedSkillIds) {
-                    promises.push(addResourceSkill({
-                        resourceId,
-                        skillId,
-                        acquisitionDate: acquisitionDate || null,
-                        expirationDate: expirationDate || null,
-                        level
-                    }));
-                }
-            }
+            const promises = selectedResourceIds.map(resourceId => 
+                addResourceSkill({
+                    resourceId,
+                    skillId: targetSkill.id!,
+                    acquisitionDate: acquisitionDate || null,
+                    expirationDate: expirationDate || null,
+                    level
+                })
+            );
+            
             await Promise.all(promises);
-            addToast(`${promises.length} associazioni salvate con successo.`, 'success');
+            addToast(`${promises.length} certificazioni assegnate con successo.`, 'success');
             setIsAssignmentModalOpen(false);
         } catch (error) {
-            addToast('Errore durante l\'assegnazione delle competenze.', 'error');
+            addToast('Errore durante l\'assegnazione.', 'error');
         }
     };
 
     // --- Render Helpers ---
 
-    const columns: ColumnDef<EnrichedSkill>[] = [
-        { header: 'Nome Competenza', sortKey: 'name', cell: s => (
+    const columns: ColumnDef<EnrichedCertification>[] = [
+        { header: 'Nome Certificazione', sortKey: 'name', cell: s => (
             <div className="flex items-center gap-2 sticky left-0 bg-inherit pl-6">
+                <span className="material-symbols-outlined text-yellow-600 text-sm">verified</span>
                 <span className="font-medium text-on-surface">{s.name}</span>
             </div>
         ) },
-        { header: 'Ambiti', sortKey: 'category', cell: s => <span className="text-sm text-on-surface-variant">{s.category || '-'}</span> },
-        { header: 'Macro Ambiti', sortKey: 'macroCategory', cell: s => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant">{s.macroCategory || '-'}</span> },
-        { header: 'Utilizzo Risorse', sortKey: 'resourceCount', cell: s => <span className="text-center block font-semibold">{s.resourceCount}</span> },
-        { header: 'Utilizzo Progetti', sortKey: 'projectCount', cell: s => <span className="text-center block font-semibold">{s.projectCount}</span> },
+        { header: 'Macro Area', sortKey: 'macroCategory', cell: s => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant">{s.macroCategory || '-'}</span> },
+        { header: 'Ambito Specifico', sortKey: 'category', cell: s => <span className="text-sm text-on-surface-variant">{s.category || '-'}</span> },
+        { header: 'Risorse Certificate', sortKey: 'resourceCount', cell: s => (
+            <div className="flex items-center gap-2">
+                <span className="font-semibold">{s.resourceCount}</span>
+                {s.expiringCount > 0 && (
+                    <span className="text-xs bg-error-container text-on-error-container px-2 py-0.5 rounded flex items-center gap-1" title="In scadenza">
+                        <span className="material-symbols-outlined text-[10px]">warning</span> {s.expiringCount}
+                    </span>
+                )}
+            </div>
+        ) },
     ];
 
-    const renderRow = (skill: EnrichedSkill) => (
+    const renderRow = (skill: EnrichedCertification) => (
         <tr key={skill.id} className="hover:bg-surface-container group">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit overflow-hidden text-ellipsis max-w-[200px]" title={String(col.sortKey ? (skill as any)[col.sortKey] : '')}>{col.cell(skill)}</td>)}
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit overflow-hidden text-ellipsis max-w-[200px]">{col.cell(skill)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
                     <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary" title="Assegna a Risorse">
@@ -309,14 +303,15 @@ const SkillsPage: React.FC = () => {
         </tr>
     );
 
-    const renderCard = (skill: EnrichedSkill) => (
-        <div key={skill.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 border-l-4 border-primary">
+    const renderCard = (skill: EnrichedCertification) => (
+        <div key={skill.id} className="bg-surface-container-low p-4 rounded-2xl shadow flex flex-col gap-3 border-l-4 border-yellow-500">
             <div className="flex justify-between items-start">
                 <div>
                     <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg text-on-surface">{skill.name}</h3>
+                        <span className="material-symbols-outlined text-yellow-600 text-sm">verified</span>
                     </div>
-                    <p className="text-xs text-on-surface-variant mt-1">{skill.category || 'Generica'}</p>
+                    <p className="text-xs text-on-surface-variant mt-1">{skill.macroCategory || 'Generica'}</p>
                 </div>
                 <div className="flex gap-1">
                      <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-tertiary">
@@ -330,14 +325,11 @@ const SkillsPage: React.FC = () => {
                     </button>
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-2 border-t border-outline-variant pt-2 text-sm">
-                <div className="text-center p-2 bg-surface rounded">
-                    <div className="font-bold text-lg">{skill.resourceCount}</div>
-                    <div className="text-xs text-on-surface-variant">Risorse</div>
-                </div>
-                <div className="text-center p-2 bg-surface rounded">
-                    <div className="font-bold text-lg">{skill.projectCount}</div>
-                    <div className="text-xs text-on-surface-variant">Progetti</div>
+            <div className="flex justify-between items-center mt-2 border-t border-outline-variant pt-2 text-sm">
+                <span className="text-on-surface-variant">{skill.category}</span>
+                <div className="flex items-center gap-2">
+                    <span className="font-bold">{skill.resourceCount}</span> Risorse
+                    {skill.expiringCount > 0 && <span className="text-error text-xs">({skill.expiringCount} scad.)</span>}
                 </div>
             </div>
         </div>
@@ -346,42 +338,35 @@ const SkillsPage: React.FC = () => {
     return (
         <div className="space-y-6">
              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-3xl font-bold text-on-surface">Gestione Competenze</h1>
+                <h1 className="text-3xl font-bold text-on-surface">Gestione Certificazioni</h1>
                 <div className="flex items-center gap-4 w-full md:w-auto">
                      <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
                         <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
                         <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
                     </div>
-                    <button onClick={() => openAssignmentModal(null)} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-lg">group_add</span>
-                        Assegna
+                    <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                        <span className="material-symbols-outlined">add_verified</span> Nuova Certificazione
                     </button>
-                    <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Skill</button>
                 </div>
             </div>
 
             {/* Dashboard Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary">
-                    <p className="text-sm text-on-surface-variant">Totale Skills</p>
-                    <p className="text-3xl font-bold text-on-surface">{kpis.totalSkills}</p>
+                    <p className="text-sm text-on-surface-variant">Tipi di Certificazione</p>
+                    <p className="text-3xl font-bold text-on-surface">{kpis.totalTypes}</p>
+                </div>
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-yellow-500">
+                    <p className="text-sm text-on-surface-variant">Assegnazioni Totali</p>
+                    <p className="text-3xl font-bold text-on-surface">{kpis.totalAssigned}</p>
+                </div>
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error">
+                    <p className="text-sm text-on-surface-variant">In Scadenza (90gg)</p>
+                    <p className="text-3xl font-bold text-on-surface">{kpis.totalExpiring}</p>
                 </div>
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-tertiary">
-                    <p className="text-sm text-on-surface-variant">Top Macro Ambito</p>
+                    <p className="text-sm text-on-surface-variant">Macro Area Top</p>
                     <p className="text-xl font-bold text-on-surface truncate" title={kpis.topMacroCategory}>{kpis.topMacroCategory}</p>
-                </div>
-                <div 
-                    className={`bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error cursor-pointer hover:shadow-lg transition-all ${filters.unusedOnly ? 'ring-2 ring-error' : ''}`}
-                    onClick={() => setFilters(prev => ({ ...prev, unusedOnly: !prev.unusedOnly }))}
-                >
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <p className="text-sm text-on-surface-variant">Inutilizzate</p>
-                            <p className="text-3xl font-bold text-on-surface">{kpis.unusedSkills}</p>
-                        </div>
-                        {filters.unusedOnly && <span className="material-symbols-outlined text-error">filter_alt</span>}
-                    </div>
-                    {filters.unusedOnly && <p className="text-xs text-error mt-1 font-medium">Filtro attivo</p>}
                 </div>
             </div>
 
@@ -397,20 +382,19 @@ const SkillsPage: React.FC = () => {
                     />
                     <SearchableSelect 
                         name="macroCategory" 
-                        value={filters.macroCategory} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} 
-                        options={macroCategoryFilterOptions} 
-                        placeholder="Macro Ambito"
+                        value={filters.macroCategoryId} 
+                        onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategoryId: v }))} 
+                        options={macroCategoryOptions} 
+                        placeholder="Macro Area"
                     />
                     <SearchableSelect 
                         name="category" 
-                        value={filters.category} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} 
-                        options={categoryFilterOptions} 
-                        placeholder="Ambito"
+                        value={filters.categoryId} 
+                        onChange={(_, v) => setFilters(prev => ({ ...prev, categoryId: v }))} 
+                        options={categoryOptions} 
+                        placeholder="Ambito Specifico"
                     />
-                    
-                    <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
+                    <button onClick={() => setFilters({ name: '', categoryId: '', macroCategoryId: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
                         Reset
                     </button>
                 </div>
@@ -418,10 +402,10 @@ const SkillsPage: React.FC = () => {
 
             {/* Content */}
              {view === 'table' ? (
-                 <DataTable<EnrichedSkill>
+                 <DataTable<EnrichedCertification>
                     title=""
                     addNewButtonLabel=""
-                    data={filteredSkills}
+                    data={filteredData}
                     columns={columns}
                     filtersNode={<></>}
                     onAddNew={() => {}}
@@ -430,21 +414,21 @@ const SkillsPage: React.FC = () => {
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    numActions={3} // ASSEGNA, MODIFICA, ELIMINA
+                    numActions={3}
                 />
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredSkills.map(renderCard)}
-                    {filteredSkills.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna skill trovata.</p>}
+                    {filteredData.map(renderCard)}
+                    {filteredData.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna certificazione trovata.</p>}
                 </div>
             )}
 
-            {/* Add/Edit Skill Modal */}
+            {/* Add/Edit Modal */}
             {isModalOpen && editingSkill && (
-                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingSkill ? 'Modifica Competenza' : 'Nuova Competenza'}>
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingSkill ? 'Modifica Certificazione' : 'Nuova Certificazione'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome Competenza *</label>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome Certificazione *</label>
                             <input 
                                 type="text" 
                                 name="name" 
@@ -452,12 +436,12 @@ const SkillsPage: React.FC = () => {
                                 onChange={handleInputChange} 
                                 required 
                                 className="form-input"
-                                placeholder="es. React, Project Management..."
+                                placeholder="es. AWS Solutions Architect..."
                             />
                         </div>
                         
                         <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambiti (Categorie)</label>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambiti / Categorie</label>
                             <MultiSelectDropdown 
                                 name="categoryIds" 
                                 selectedValues={editingSkill.categoryIds || []} 
@@ -465,7 +449,12 @@ const SkillsPage: React.FC = () => {
                                 options={categoryOptions} 
                                 placeholder="Seleziona Ambiti..."
                             />
-                            <p className="text-xs text-on-surface-variant mt-1">Puoi gestire le opzioni in "Opzioni - Configurazione Competenze"</p>
+                        </div>
+
+                        {/* Hidden field note: isCertification is implicitly true */}
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">info</span>
+                            Questo elemento verrà salvato automaticamente come Certificazione.
                         </div>
 
                          <div className="flex justify-end space-x-3 pt-4">
@@ -489,23 +478,10 @@ const SkillsPage: React.FC = () => {
             )}
             
             {/* Assignment Modal */}
-            {isAssignmentModalOpen && (
-                <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)} title={assignmentData.targetSkill ? `Assegna ${assignmentData.targetSkill.name}` : 'Assegnazione Competenze Massiva'}>
-                    <form onSubmit={handleAssignmentSubmit} className="space-y-4 flex flex-col h-[70vh]">
+            {isAssignmentModalOpen && assignmentData.targetSkill && (
+                <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)} title={`Assegna ${assignmentData.targetSkill.name}`}>
+                    <form onSubmit={handleAssignmentSubmit} className="space-y-4 flex flex-col h-[60vh]">
                         <div className="flex-grow space-y-4 overflow-y-auto p-1">
-                             {!assignmentData.targetSkill && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Competenze da Assegnare</label>
-                                    <MultiSelectDropdown 
-                                        name="selectedSkillIds" 
-                                        selectedValues={assignmentData.selectedSkillIds} 
-                                        onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedSkillIds: v }))} 
-                                        options={skillOptions} 
-                                        placeholder="Seleziona una o più skills..."
-                                    />
-                                </div>
-                            )}
-                            
                             <div>
                                 <label className="block text-sm font-medium mb-1 text-on-surface-variant">Risorse Destinatarie</label>
                                 <MultiSelectDropdown 
@@ -515,19 +491,6 @@ const SkillsPage: React.FC = () => {
                                     options={resourceOptions} 
                                     placeholder="Seleziona una o più risorse..."
                                 />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Livello Competenza</label>
-                                <select 
-                                    className="form-select"
-                                    value={assignmentData.level}
-                                    onChange={(e) => setAssignmentData(prev => ({ ...prev, level: parseInt(e.target.value, 10) }))}
-                                >
-                                    {Object.entries(SKILL_LEVELS).map(([val, label]) => (
-                                        <option key={val} value={val}>{label}</option>
-                                    ))}
-                                </select>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -558,7 +521,7 @@ const SkillsPage: React.FC = () => {
                             </button>
                             <button
                                 type="submit"
-                                disabled={assignmentData.selectedResourceIds.length === 0 || assignmentData.selectedSkillIds.length === 0}
+                                disabled={assignmentData.selectedResourceIds.length === 0}
                                 className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
                             >
                                 Assegna
@@ -576,9 +539,9 @@ const SkillsPage: React.FC = () => {
                     title="Conferma Eliminazione"
                     message={
                         <>
-                            Sei sicuro di voler eliminare la competenza <strong>{skillToDelete.name}</strong>?
+                            Sei sicuro di voler eliminare la certificazione <strong>{skillToDelete.name}</strong>?
                             <br/>
-                            <span className="text-error text-sm">Verrà rimossa da {skillToDelete.resourceCount} risorse e {skillToDelete.projectCount} progetti.</span>
+                            <span className="text-error text-sm">Verrà rimossa da {skillToDelete.resourceCount} risorse.</span>
                         </>
                     }
                     isConfirming={isActionLoading(`deleteSkill-${skillToDelete.id}`)}
@@ -588,4 +551,4 @@ const SkillsPage: React.FC = () => {
     );
 };
 
-export default SkillsPage;
+export default CertificationsPage;
