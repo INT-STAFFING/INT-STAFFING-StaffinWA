@@ -1,7 +1,7 @@
 
 /**
  * @file SkillAnalysisPage.tsx
- * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey, Bubble.
+ * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni.
  * Supporta filtri globali e controlli di zoom unificati.
  */
 
@@ -30,9 +30,11 @@ type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'pack
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
 type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'not_empty';
 
-// --- Helper to format label ---
-const formatSkillLabel = (name: string, context?: string) => {
-    return context ? `${name} (${context})` : name;
+// --- Helper to truncate label ---
+const truncateLabel = (str: string, maxLength: number = 15) => {
+    if (!str) return '';
+    if (str.length <= maxLength) return str;
+    return str.substring(0, maxLength) + '...';
 };
 
 // --- Helper for Theme Colors ---
@@ -186,7 +188,7 @@ const SkillForceGraph: React.FC<{
             .attr("stroke-width", 1.5);
 
         node.append("text")
-            .text((d: any) => d.name)
+            .text((d: any) => truncateLabel(d.name, 15))
             .attr("x", (d: any) => radiusScale(d.degree) + 4)
             .attr("y", 4)
             .attr("font-size", "10px")
@@ -292,14 +294,14 @@ const SkillHeatmap: React.FC<{
 
         // Rows (Resources)
         g.append("g")
-            .call(axisLeft(y))
+            .call(axisLeft(y).tickFormat((d) => truncateLabel(d, 20)))
             .selectAll("text")
             .attr("fill", theme.onSurface)
             .style("font-size", "11px");
 
         // Columns (Skills)
         g.append("g")
-            .call(axisTop(x))
+            .call(axisTop(x).tickFormat((d) => truncateLabel(d, 20)))
             .selectAll("text")
             .attr("transform", "rotate(-45)")
             .style("text-anchor", "start")
@@ -443,10 +445,7 @@ const SkillChordDiagram: React.FC<{
                 ${d.angle > Math.PI ? "rotate(180)" : ""}
             `)
             .attr("text-anchor", (d: any) => d.angle > Math.PI ? "end" : "start")
-            .text((d: any) => {
-                const label = names[d.index] || '';
-                return label.length > 20 ? label.substring(0, 18) + '..' : label;
-            })
+            .text((d: any) => truncateLabel(names[d.index], 15))
             .style("font-size", "10px")
             .style("fill", theme.onSurface);
 
@@ -594,8 +593,10 @@ const SkillRadarChart: React.FC<{
             .attr("dy", "0.35em")
             .attr("x", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.cos(angleSlice * i - Math.PI / 2))
             .attr("y", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.sin(angleSlice * i - Math.PI / 2))
-            .text((d) => d.axis)
-            .style("fill", theme.onSurface);
+            .text((d) => truncateLabel(d.axis, 15))
+            .style("fill", theme.onSurface)
+            .append("title")
+            .text(d => d.axis);
 
         const radarLine = lineRadial<RadarDataPoint>()
             .radius((d) => rScale(d.value))
@@ -755,10 +756,11 @@ const SkillRadialTree: React.FC<{
             .attr("fill", (d: any) => d.depth === 4 ? theme.primary : theme.onSurface)
             .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px")
             .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal")
-            .text((d: any) => d.data.name)
+            .text((d: any) => truncateLabel(d.data.name, 20))
             .clone(true).lower()
             .attr("stroke", theme.surface)
-            .attr("stroke-width", 4);
+            .attr("stroke-width", 4)
+            .select(function() { return this.parentNode; }).append("title").text((d: any) => d.data.name);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -874,7 +876,7 @@ const SkillCirclePacking: React.FC<{
         node.filter((d: any) => !d.children && d.r > 15).append("text")
             .attr("dy", "0.3em")
             .style("text-anchor", "middle")
-            .text((d: any) => d.data.name.substring(0, Math.floor(d.r / 3))) 
+            .text((d: any) => truncateLabel(d.data.name, Math.floor(d.r / 3))) 
             .attr("font-size", "10px")
             .attr("fill", theme.onPrimaryContainer)
             .style("pointer-events", "none"); 
@@ -986,8 +988,10 @@ const SkillSankeyChart: React.FC<{
             .attr("y", (d: any) => (d.y1 + d.y0) / 2)
             .attr("dy", "0.35em")
             .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
-            .text((d: any) => d.name)
-            .attr("fill", theme.onSurface);
+            .text((d: any) => truncateLabel(d.name, 15))
+            .attr("fill", theme.onSurface)
+            .append("title")
+            .text((d: any) => d.name);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -1082,7 +1086,7 @@ const SkillBubbleChart: React.FC<{
             .attr("dy", "-0.2em")
             .style("font-weight", "bold")
             .style("font-size", (d: any) => `${Math.max(8, Math.min(d.r / 2.5, 14))}px`) 
-            .text((d: any) => d.data.name);
+            .text((d: any) => truncateLabel(d.data.name, Math.floor(d.r / 3)));
 
         textGroup.append("tspan")
             .attr("x", 0)
@@ -1219,7 +1223,7 @@ const SkillAnalysisPage: React.FC = () => {
         
         const data: any[] = [];
         const resList = filteredResources.map(r => r.name);
-        const skillList = filteredSkills.map(s => formatSkillLabel(s.name, s.category)); 
+        const skillList = filteredSkills.map(s => s.name); 
         
         filteredResources.forEach(r => {
             filteredSkills.forEach(s => {
@@ -1237,7 +1241,7 @@ const SkillAnalysisPage: React.FC = () => {
                 if (days > 0) {
                     data.push({
                         resource: r.name,
-                        skillLabel: formatSkillLabel(s.name, s.category),
+                        skillLabel: s.name,
                         value: Math.min(100, days)
                     });
                 }
@@ -1275,7 +1279,7 @@ const SkillAnalysisPage: React.FC = () => {
             }
         });
 
-        return { matrix, names: filteredSkills.map(s => formatSkillLabel(s.name, s.category)) };
+        return { matrix, names: filteredSkills.map(s => s.name) };
     }, [filteredSkills, resourceSkills, filteredResources, view]);
 
     const radarData = useMemo(() => {
@@ -1291,7 +1295,7 @@ const SkillAnalysisPage: React.FC = () => {
             filteredResources.forEach((r, idx) => {
                 const dataPoints = targetSkills.map(s => {
                     const rs = resourceSkills.find(x => x.resourceId === r.id && x.skillId === s.id);
-                    return { axis: formatSkillLabel(s.name, s.category), value: rs?.level || 0 }; 
+                    return { axis: s.name, value: rs?.level || 0 }; 
                 });
                 datasets.push({ name: r.name, color: palette[idx % palette.length], data: dataPoints });
             });
@@ -1302,7 +1306,7 @@ const SkillAnalysisPage: React.FC = () => {
                     return rs?.level || 0;
                 });
                 const avg = mean(values) || 0;
-                return { axis: formatSkillLabel(s.name, s.category), value: avg };
+                return { axis: s.name, value: avg };
             });
             const currentPalette = mode === 'dark' ? theme.dark : theme.light;
             datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints });
