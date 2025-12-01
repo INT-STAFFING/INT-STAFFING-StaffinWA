@@ -1,5 +1,4 @@
 
-
 /**
  * @file exportUtils.ts
  * @description Funzioni di utilità per esportare dati in formato Excel.
@@ -187,11 +186,12 @@ export const exportSkills = (data: EntitiesContextType) => {
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Competenze Definition
+    // Usiamo le proprietà 'hydrated' (category, macroCategory) che sono già stringhe concatenate
     const skillsData = skills.map(s => ({
         'Nome Competenza': s.name,
-        'Ambito': s.category || '', // Ex Categoria
-        'Macro Ambito': s.macroCategory || '', // Nuovo Campo
-        'Certificazione': s.isCertification ? 'SI' : 'NO' // Nuovo Campo
+        'Ambito (Categorie)': s.category || '', // E.g. "Backend, Frontend"
+        'Macro Ambito': s.macroCategory || '', // E.g. "Sviluppo, Cloud"
+        'Certificazione': s.isCertification ? 'SI' : 'NO'
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(skillsData), 'Competenze');
 
@@ -203,7 +203,7 @@ export const exportSkills = (data: EntitiesContextType) => {
         return {
             'Nome Risorsa': res.name,
             'Nome Competenza': skill.name,
-            'Ambito': skill.category || '', 
+            'Ambito (Categorie)': skill.category || '', 
             'Macro Ambito': skill.macroCategory || '',
             'Livello': rs.level || 1,
             'Data Conseguimento': formatDateForExport(rs.acquisitionDate),
@@ -318,8 +318,8 @@ export const exportTemplate = (type: ExportType) => {
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["candidateName", "candidateSurname", "birthDate", "horizontal", "roleName", "cv_summary", "interviewersNames", "interviewDate", "feedback", "notes", "hiringStatus", "entryDate", "status"]]), 'Colloqui');
             break;
         case 'skills':
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Ambito", "Macro Ambito", "Certificazione"]]), 'Competenze');
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Ambito", "Macro Ambito", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Competenza", "Ambito (Categorie)", "Macro Ambito", "Certificazione"]]), 'Competenze');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Nome Competenza", "Ambito (Categorie)", "Macro Ambito", "Livello", "Data Conseguimento", "Data Scadenza"]]), 'Associazioni_Risorse');
             break;
         case 'leaves':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Nome Risorsa", "Tipologia Assenza", "Data Inizio", "Data Fine", "Approvatori", "Stato", "Note"]]), 'Assenze');
