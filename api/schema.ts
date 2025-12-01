@@ -460,9 +460,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
     
-    // Clean up old columns if they exist (safe to run even if dropped)
-    // Note: Data migration logic is separate. This just defines final schema state.
-    
+    // New Relational Tables for Skills
     await db.sql`
         CREATE TABLE IF NOT EXISTS skill_macro_categories (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

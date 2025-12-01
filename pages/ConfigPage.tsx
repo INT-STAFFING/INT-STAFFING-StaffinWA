@@ -338,11 +338,11 @@ const SkillConfigSection: React.FC = () => {
             {modalMode === 'macro' && (
                 <Modal isOpen={true} onClose={closeModal} title={editingItem.id ? 'Modifica Macro Ambito' : 'Nuovo Macro Ambito'}>
                     <form onSubmit={handleMacroSubmit}>
-                        <label className="block text-sm font-medium mb-2">Nome</label>
+                        <label className="block text-sm font-medium mb-2 text-on-surface-variant">Nome</label>
                         <input type="text" value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})} className="form-input w-full" required />
                         <div className="flex justify-end gap-2 mt-4">
-                            <button type="button" onClick={closeModal} className="btn-secondary">Annulla</button>
-                            <button type="submit" className="btn-primary">Salva</button>
+                            <button type="button" onClick={closeModal} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold text-sm hover:bg-surface-container-low">Annulla</button>
+                            <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold text-sm hover:opacity-90">Salva</button>
                         </div>
                     </form>
                 </Modal>
@@ -352,11 +352,11 @@ const SkillConfigSection: React.FC = () => {
                 <Modal isOpen={true} onClose={closeModal} title={editingItem.id ? 'Modifica Ambito' : 'Nuovo Ambito'}>
                     <form onSubmit={handleCatSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium mb-2">Nome</label>
+                            <label className="block text-sm font-medium mb-2 text-on-surface-variant">Nome</label>
                             <input type="text" value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})} className="form-input w-full" required />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-2">Macro Ambiti Collegati</label>
+                            <label className="block text-sm font-medium mb-2 text-on-surface-variant">Macro Ambiti Collegati</label>
                             <MultiSelectDropdown 
                                 name="macroCategoryIds" 
                                 selectedValues={editingItem.macroCategoryIds || []}
@@ -366,8 +366,8 @@ const SkillConfigSection: React.FC = () => {
                             />
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
-                            <button type="button" onClick={closeModal} className="btn-secondary">Annulla</button>
-                            <button type="submit" className="btn-primary">Salva</button>
+                            <button type="button" onClick={closeModal} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold text-sm hover:bg-surface-container-low">Annulla</button>
+                            <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold text-sm hover:opacity-90">Salva</button>
                         </div>
                     </form>
                 </Modal>

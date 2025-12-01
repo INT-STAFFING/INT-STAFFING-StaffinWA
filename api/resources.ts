@@ -816,7 +816,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const validTables = [
             'resources', 'projects', 'clients', 'roles', 'company_calendar', 
             'interviews', 'contracts', 'resource_skills', 'project_skills',
-            'skill_categories', 'skill_macro_categories' // Added generic access
+            'skill_macro_categories' // Keep macro here, handled generically
         ];
         
         if (validTables.includes(entity as string)) {
