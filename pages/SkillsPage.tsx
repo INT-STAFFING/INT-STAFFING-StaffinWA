@@ -481,7 +481,7 @@ const SkillsPage: React.FC = () => {
                                 options={categoryOptions} 
                                 placeholder="Seleziona Ambiti..."
                             />
-                            <p className="text-xs text-on-surface-variant mt-1">Puoi gestire le opzioni in "Opzioni > Configurazione Competenze"</p>
+                            <p className="text-xs text-on-surface-variant mt-1">Puoi gestire le opzioni in "Opzioni - Configurazione Competenze"</p>
                         </div>
 
                         <div className="flex items-center gap-3 p-3 bg-surface-container-low rounded border border-outline-variant">
