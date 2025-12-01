@@ -1,3 +1,4 @@
+
 /**
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni: Network, Heatmap, Chord, Radar, Dendrogramma, Circle Packing, Sankey, Bubble.
@@ -1111,8 +1112,8 @@ const SkillAnalysisPage: React.FC = () => {
         resourceIds: [] as string[],
         roleIds: [] as string[],
         skillIds: [] as string[],
-        category: '',
-        macroCategory: '',
+        categoryId: '', // Changed to ID
+        macroCategoryId: '', // Changed to ID
         displayMode: 'all' as DisplayMode,
         location: ''
     });
@@ -1127,31 +1128,40 @@ const SkillAnalysisPage: React.FC = () => {
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
-    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: formatSkillLabel(s.name, s.category) })), [skills]);
     
-    // Updated options using entities
-    const categoryOptions = useMemo(() => 
-        skillCategories.map(c => ({ value: c.name, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)), 
-    [skillCategories]);
-
-    const macroCategoryOptions = useMemo(() => 
-        skillMacroCategories.map(m => ({ value: m.name, label: m.name })).sort((a, b) => a.label.localeCompare(b.label)), 
-    [skillMacroCategories]);
+    // Updated Options - Clean Labels & ID Values
+    const skillOptions = useMemo(() => skills.map(s => ({ value: s.id!, label: s.name })), [skills]);
+    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillCategories]);
+    const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillMacroCategories]);
 
     // --- Filter Logic ---
 
     const filteredSkills = useMemo(() => {
         return skills.filter(s => {
-            const skillMatch = filters.skillIds.length === 0 || filters.skillIds.includes(s.id!);
-            const catMatch = !filters.category || (s.category && s.category.includes(filters.category));
-            const macroMatch = !filters.macroCategory || (s.macroCategory && s.macroCategory.includes(filters.macroCategory));
+            // 1. Skill ID Filter
+            if (filters.skillIds.length > 0 && !filters.skillIds.includes(s.id!)) return false;
+
+            // 2. Category ID Filter (Ambito)
+            if (filters.categoryId) {
+                if (!s.categoryIds?.includes(filters.categoryId)) return false;
+            }
+
+            // 3. Macro Category ID Filter
+            if (filters.macroCategoryId) {
+                // Check if any of the skill's categories belong to the selected macro
+                const belongsToMacro = s.categoryIds?.some(catId => {
+                    const cat = skillCategories.find(c => c.id === catId);
+                    return cat?.macroCategoryIds?.includes(filters.macroCategoryId);
+                });
+                if (!belongsToMacro) return false;
+            }
             
             if (filters.displayMode === 'skills_only' && s.isCertification) return false;
             if (filters.displayMode === 'certs_only' && !s.isCertification) return false;
 
-            return skillMatch && catMatch && macroMatch;
+            return true;
         });
-    }, [skills, filters]);
+    }, [skills, filters, skillCategories]);
 
     const filteredResources = useMemo(() => {
         const validSkillIds = new Set(filteredSkills.map(s => s.id));
@@ -1584,8 +1594,8 @@ const SkillAnalysisPage: React.FC = () => {
                         <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Competenze"/>
                     </div>
                     
-                    <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(f => ({...f, category: v}))} options={categoryOptions} placeholder="Ambito"/>
-                    <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(f => ({...f, macroCategory: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
+                    <SearchableSelect name="category" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
+                    <SearchableSelect name="macroCategory" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
                     
                     <select 
                         className="form-select text-sm"
@@ -1611,7 +1621,7 @@ const SkillAnalysisPage: React.FC = () => {
                         </label>
                     </div>
 
-                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], category: '', macroCategory: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
+                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
                         Reset
                     </button>
                 </div>
