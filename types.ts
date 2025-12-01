@@ -357,6 +357,26 @@ export interface Interview {
 }
 
 /**
+ * @interface SkillMacroCategory
+ * @description Rappresenta un macro ambito di competenze (es. "Backend", "Frontend").
+ */
+export interface SkillMacroCategory {
+    id: string;
+    name: string;
+}
+
+/**
+ * @interface SkillCategory
+ * @description Rappresenta una categoria di competenze (es. "Java", "React") che può appartenere a più macro categorie.
+ */
+export interface SkillCategory {
+    id: string;
+    name: string;
+    /** @property {string[]} macroCategoryIds - ID delle macro categorie a cui appartiene. */
+    macroCategoryIds?: string[];
+}
+
+/**
  * @interface Skill
  * @description Rappresenta una competenza tecnica o soft skill.
  */
@@ -365,10 +385,16 @@ export interface Skill {
     id?: string;
     /** @property {string} name - Nome della competenza. */
     name: string;
-    /** @property {string} [category] - Ambito della competenza (ex Categoria). */
+    
+    /** @property {string[]} categoryIds - ID delle categorie associate. */
+    categoryIds?: string[];
+    
+    // Campi "Hydrated" per facilità d'uso nel frontend
+    /** @property {string} [category] - Stringa concatenata per retrocompatibilità/visualizzazione (es. "Java, Database"). */
     category?: string;
-    /** @property {string} [macroCategory] - Macro Ambito della competenza (es. "Backend", "Frontend", "Project Mgmt"). */
+    /** @property {string} [macroCategory] - Stringa concatenata per retrocompatibilità/visualizzazione. */
     macroCategory?: string;
+    
     /** @property {boolean} [isCertification] - Se true, questa skill rappresenta una certificazione ufficiale. */
     isCertification?: boolean;
 }

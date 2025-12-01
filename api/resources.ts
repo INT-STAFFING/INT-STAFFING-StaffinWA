@@ -182,6 +182,105 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
 
     try {
+        // --- CUSTOM HANDLER FOR SKILLS (M:N Relations) ---
+        if (entity === 'skills') {
+            if (method === 'POST') {
+                const { name, isCertification, categoryIds } = req.body;
+                const newId = uuidv4();
+                
+                await client.query('BEGIN');
+                await client.query(
+                    `INSERT INTO skills (id, name, is_certification) VALUES ($1, $2, $3)`,
+                    [newId, name, isCertification || false]
+                );
+                
+                if (Array.isArray(categoryIds) && categoryIds.length > 0) {
+                    for (const catId of categoryIds) {
+                        await client.query(
+                            `INSERT INTO skill_skill_category_map (skill_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                            [newId, catId]
+                        );
+                    }
+                }
+                await client.query('COMMIT');
+                
+                await logAction(client, currentUser, 'CREATE_SKILL', 'skills', newId, { name, categoryIds }, req);
+                return res.status(201).json({ id: newId, name, isCertification, categoryIds: categoryIds || [] });
+            }
+            
+            if (method === 'PUT') {
+                const { name, isCertification, categoryIds } = req.body;
+                
+                await client.query('BEGIN');
+                await client.query(
+                    `UPDATE skills SET name = $1, is_certification = $2 WHERE id = $3`,
+                    [name, isCertification || false, id]
+                );
+                
+                // Sync Categories: Delete all then re-insert
+                if (categoryIds !== undefined) {
+                    await client.query(`DELETE FROM skill_skill_category_map WHERE skill_id = $1`, [id]);
+                    if (Array.isArray(categoryIds) && categoryIds.length > 0) {
+                        for (const catId of categoryIds) {
+                            await client.query(
+                                `INSERT INTO skill_skill_category_map (skill_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                                [id, catId]
+                            );
+                        }
+                    }
+                }
+                await client.query('COMMIT');
+                
+                await logAction(client, currentUser, 'UPDATE_SKILL', 'skills', id as string, req.body, req);
+                return res.status(200).json({ id, ...req.body });
+            }
+        }
+
+        // --- CUSTOM HANDLER FOR SKILL CATEGORIES (M:N with Macros) ---
+        if (entity === 'skill_categories') {
+            if (method === 'POST') {
+                const { name, macroCategoryIds } = req.body;
+                const newId = uuidv4();
+                
+                await client.query('BEGIN');
+                await client.query(
+                    `INSERT INTO skill_categories (id, name) VALUES ($1, $2)`,
+                    [newId, name]
+                );
+                if (Array.isArray(macroCategoryIds) && macroCategoryIds.length > 0) {
+                    for (const mId of macroCategoryIds) {
+                        await client.query(
+                            `INSERT INTO skill_category_macro_map (category_id, macro_category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                            [newId, mId]
+                        );
+                    }
+                }
+                await client.query('COMMIT');
+                return res.status(201).json({ id: newId, name, macroCategoryIds: macroCategoryIds || [] });
+            }
+            if (method === 'PUT') {
+                const { name, macroCategoryIds } = req.body;
+                await client.query('BEGIN');
+                await client.query(
+                    `UPDATE skill_categories SET name = $1 WHERE id = $2`,
+                    [name, id]
+                );
+                if (macroCategoryIds !== undefined) {
+                    await client.query(`DELETE FROM skill_category_macro_map WHERE category_id = $1`, [id]);
+                    if (Array.isArray(macroCategoryIds) && macroCategoryIds.length > 0) {
+                        for (const mId of macroCategoryIds) {
+                            await client.query(
+                                `INSERT INTO skill_category_macro_map (category_id, macro_category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+                                [id, mId]
+                            );
+                        }
+                    }
+                }
+                await client.query('COMMIT');
+                return res.status(200).json({ id, ...req.body });
+            }
+        }
+
         // --- ANALYTICS CACHE MANAGEMENT ---
         if (entity === 'analytics_cache') {
             // Allow roles: ADMIN, MANAGER, SENIOR MANAGER, MANAGING DIRECTOR
@@ -715,8 +814,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- GENERIC CRUD ---
         const validTables = [
-            'resources', 'projects', 'clients', 'roles', 'skills', 'company_calendar', 
-            'interviews', 'contracts', 'resource_skills', 'project_skills'
+            'resources', 'projects', 'clients', 'roles', 'company_calendar', 
+            'interviews', 'contracts', 'resource_skills', 'project_skills',
+            'skill_categories', 'skill_macro_categories' // Added generic access
         ];
         
         if (validTables.includes(entity as string)) {

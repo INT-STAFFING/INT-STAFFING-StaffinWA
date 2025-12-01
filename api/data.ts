@@ -1,3 +1,4 @@
+
 /**
  * @file api/data.ts
  * @description Endpoint API Dispatcher per recuperare i dati in base allo scope (metadata, planning, all).
@@ -7,7 +8,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest, SkillCategory, SkillMacroCategory } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -75,7 +76,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarSectionsRes,
                 sidebarSectionColorsRes,
                 dashboardLayoutRes,
-                analyticsRes // FETCH ANALYTICS CACHE
+                analyticsRes,
+                // New Skill Tables
+                skillCatsRes,
+                skillMacrosRes,
+                skillMapRes,
+                catMacroMapRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -98,7 +104,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_sections_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_section_colors';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'dashboard_layout_v2';`,
-                db.sql`SELECT * FROM analytics_cache WHERE key = 'dashboard_kpi_current';`
+                db.sql`SELECT * FROM analytics_cache WHERE key = 'dashboard_kpi_current';`,
+                db.sql`SELECT * FROM skill_categories;`,
+                db.sql`SELECT * FROM skill_macro_categories;`,
+                db.sql`SELECT * FROM skill_skill_category_map;`,
+                db.sql`SELECT * FROM skill_category_macro_map;`
             ]);
 
              // Formatta le date del calendario
@@ -124,54 +134,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 skillThresholds[key] = parseFloat(row.value);
             });
 
-            // Sidebar Config
+            // Sidebar & Config Logic (simplified)
             let sidebarConfig = null;
-            if (sidebarConfigRes.rows.length > 0) {
-                try {
-                    sidebarConfig = JSON.parse(sidebarConfigRes.rows[0].value);
-                } catch (e) {
-                    console.error("Error parsing sidebar config", e);
-                }
-            }
-
-            // Sidebar Sections
-            let sidebarSections = null;
-            if (sidebarSectionsRes.rows.length > 0) {
-                try {
-                    sidebarSections = JSON.parse(sidebarSectionsRes.rows[0].value);
-                } catch (e) {
-                    console.error("Error parsing sidebar sections", e);
-                }
-            }
-
-            // Sidebar Section Colors
-            let sidebarSectionColors = {};
-            if (sidebarSectionColorsRes.rows.length > 0) {
-                try {
-                    sidebarSectionColors = JSON.parse(sidebarSectionColorsRes.rows[0].value);
-                } catch (e) {
-                    console.error("Error parsing sidebar section colors", e);
-                }
-            }
-
-            // Dashboard Layout
-            let dashboardLayout = null;
-            if (dashboardLayoutRes.rows.length > 0) {
-                try {
-                    dashboardLayout = JSON.parse(dashboardLayoutRes.rows[0].value);
-                } catch (e) {
-                    console.error("Error parsing dashboard layout", e);
-                }
-            }
+            if (sidebarConfigRes.rows.length > 0) { try { sidebarConfig = JSON.parse(sidebarConfigRes.rows[0].value); } catch (e) {} }
             
-            // Analytics Cache
-            let analyticsCache = {};
-            if (analyticsRes.rows.length > 0) {
-                analyticsCache = analyticsRes.rows[0].data;
-            }
+            let sidebarSections = null;
+            if (sidebarSectionsRes.rows.length > 0) { try { sidebarSections = JSON.parse(sidebarSectionsRes.rows[0].value); } catch (e) {} }
 
-            // Mappa Manager (Resource IDs)
+            let sidebarSectionColors = {};
+            if (sidebarSectionColorsRes.rows.length > 0) { try { sidebarSectionColors = JSON.parse(sidebarSectionColorsRes.rows[0].value); } catch (e) {} }
+
+            let dashboardLayout = null;
+            if (dashboardLayoutRes.rows.length > 0) { try { dashboardLayout = JSON.parse(dashboardLayoutRes.rows[0].value); } catch (e) {} }
+            
+            let analyticsCache = {};
+            if (analyticsRes.rows.length > 0) analyticsCache = analyticsRes.rows[0].data;
+
             const managerResourceIds = managersRes.rows.map(r => r.resource_id);
+
+            // --- SKILL HYDRATION LOGIC ---
+            // 1. Build Lookup Maps
+            const categories = skillCatsRes.rows.map(toCamelCase) as SkillCategory[];
+            const macros = skillMacrosRes.rows.map(toCamelCase) as SkillMacroCategory[];
+            
+            const catMap = new Map(categories.map(c => [c.id, c]));
+            const macroMap = new Map(macros.map(m => [m.id, m]));
+
+            // 2. Map Category -> Macros
+            const catMacroMap = new Map<string, Set<string>>(); // catId -> Set of macroIds
+            catMacroMapRes.rows.forEach(r => {
+                if (!catMacroMap.has(r.category_id)) catMacroMap.set(r.category_id, new Set());
+                catMacroMap.get(r.category_id)?.add(r.macro_category_id);
+            });
+
+            // 3. Map Skill -> Categories
+            const skillCatMap = new Map<string, Set<string>>(); // skillId -> Set of catIds
+            skillMapRes.rows.forEach(r => {
+                if (!skillCatMap.has(r.skill_id)) skillCatMap.set(r.skill_id, new Set());
+                skillCatMap.get(r.skill_id)?.add(r.category_id);
+            });
+
+            // 4. Hydrate Skill Objects
+            const skills = skillsRes.rows.map(row => {
+                const skill = toCamelCase(row);
+                
+                // Get Categories for this skill
+                const catIds = Array.from(skillCatMap.get(skill.id) || []);
+                const skillCategories = catIds.map(id => catMap.get(id)).filter(Boolean) as SkillCategory[];
+                
+                // Get Macros derived from Categories
+                const macroIds = new Set<string>();
+                catIds.forEach(catId => {
+                    const mIds = catMacroMap.get(catId);
+                    if (mIds) mIds.forEach(mId => macroIds.add(mId));
+                });
+                const skillMacros = Array.from(macroIds).map(id => macroMap.get(id)).filter(Boolean) as SkillMacroCategory[];
+
+                // Backward Compatibility Strings
+                const categoryString = skillCategories.map(c => c.name).join(', ');
+                const macroString = skillMacros.map(m => m.name).join(', ');
+
+                return {
+                    ...skill,
+                    categoryIds: catIds, // IDs array
+                    category: categoryString, // Joined string
+                    macroCategory: macroString // Joined string
+                };
+            }) as Skill[];
+
+            // Attach macros to categories for convenience
+            const hydratedCategories = categories.map(cat => ({
+                ...cat,
+                macroCategoryIds: Array.from(catMacroMap.get(cat.id) || [])
+            }));
 
             Object.assign(data, {
                 clients: clientsRes.rows.map(toCamelCase) as Client[],
@@ -195,7 +230,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 clientSectors: clientSectorsRes.rows as ConfigOption[],
                 locations: locationsRes.rows as ConfigOption[],
                 companyCalendar,
-                skills: skillsRes.rows.map(toCamelCase) as Skill[],
+                skills, // Hydrated
+                skillCategories: hydratedCategories, // New
+                skillMacroCategories: macros, // New
                 resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
                 pageVisibility,
                 skillThresholds,
@@ -205,7 +242,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarSections,
                 sidebarSectionColors,
                 dashboardLayout,
-                analyticsCache // Pass cached analytics to frontend
+                analyticsCache
             });
         }
 

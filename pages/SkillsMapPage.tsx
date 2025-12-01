@@ -81,8 +81,13 @@ const SkillsMapPage: React.FC = () => {
             const macroCounts: Record<string, number> = {};
             
             computed.forEach(cs => {
-                if(cs.skill.category) catCounts[cs.skill.category] = (catCounts[cs.skill.category] || 0) + 1;
-                if(cs.skill.macroCategory) macroCounts[cs.skill.macroCategory] = (macroCounts[cs.skill.macroCategory] || 0) + 1;
+                // Split joined strings for counting
+                if(cs.skill.category) {
+                    cs.skill.category.split(', ').forEach(c => catCounts[c] = (catCounts[c] || 0) + 1);
+                }
+                if(cs.skill.macroCategory) {
+                    cs.skill.macroCategory.split(', ').forEach(m => macroCounts[m] = (macroCounts[m] || 0) + 1);
+                }
             });
 
             const dominantCategory = Object.entries(catCounts).sort((a,b) => b[1] - a[1])[0]?.[0] || '-';
@@ -119,12 +124,13 @@ const SkillsMapPage: React.FC = () => {
             // Count skill popularity across ecosystem
             r.computedSkills.forEach(cs => {
                 const name = cs.skill.name;
-                const macro = cs.skill.macroCategory;
-                const cat = cs.skill.category;
+                const macroStr = cs.skill.macroCategory;
+                const catStr = cs.skill.category;
                 
                 skillCounts[name] = (skillCounts[name] || 0) + 1;
-                if(macro) macroCounts[macro] = (macroCounts[macro] || 0) + 1;
-                if(cat) catCounts[cat] = (catCounts[cat] || 0) + 1;
+                
+                if(macroStr) macroStr.split(', ').forEach(m => macroCounts[m] = (macroCounts[m] || 0) + 1);
+                if(catStr) catStr.split(', ').forEach(c => catCounts[c] = (catCounts[c] || 0) + 1);
             });
         });
 
@@ -145,9 +151,9 @@ const SkillsMapPage: React.FC = () => {
             const matchesRole = filters.roleIds.length === 0 || filters.roleIds.includes(r.roleId);
             const matchesSkill = filters.skillIds.length === 0 || r.computedSkills.some(cs => filters.skillIds.includes(cs.skill.id!));
             
-            // Advanced Filtering
-            const matchesCategory = !filters.category || r.computedSkills.some(cs => cs.skill.category === filters.category);
-            const matchesMacro = !filters.macroCategory || r.computedSkills.some(cs => cs.skill.macroCategory === filters.macroCategory);
+            // Advanced Filtering using .includes for string checks
+            const matchesCategory = !filters.category || r.computedSkills.some(cs => cs.skill.category?.includes(filters.category));
+            const matchesMacro = !filters.macroCategory || r.computedSkills.some(cs => cs.skill.macroCategory?.includes(filters.macroCategory));
             
             // Logic for Display Mode
             let matchesDisplayMode = true;
@@ -261,11 +267,11 @@ const SkillsMapPage: React.FC = () => {
     })), [skills]);
 
     const categoryOptions = useMemo(() => {
-        const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
+        const cats = Array.from(new Set(skills.flatMap(s => s.category?.split(', ') || []).filter(Boolean)));
         return cats.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
     const macroCategoryOptions = useMemo(() => {
-        const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean)));
+        const macros = Array.from(new Set(skills.flatMap(s => s.macroCategory?.split(', ') || []).filter(Boolean)));
         return macros.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 

@@ -451,39 +451,47 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // New Skills Tables
+    // --- SKILLS TABLES V2 ---
     await db.sql`
         CREATE TABLE IF NOT EXISTS skills (
             id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            category VARCHAR(255)
+            is_certification BOOLEAN DEFAULT FALSE
         );
     `;
     
-    // MIGRATION: Remove UNIQUE constraint on name to allow duplicates across categories
-    try {
-        await db.sql`ALTER TABLE skills DROP CONSTRAINT IF EXISTS skills_name_key;`;
-    } catch (e) {
-        console.warn("Could not drop skills_name_key constraint (may not exist):", e);
-    }
-
-    // UPDATES FOR SKILL MANAGEMENT UPGRADE
-    await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS macro_category VARCHAR(255);`;
-    await db.sql`ALTER TABLE skills ADD COLUMN IF NOT EXISTS is_certification BOOLEAN DEFAULT FALSE;`;
+    // Clean up old columns if they exist (safe to run even if dropped)
+    // Note: Data migration logic is separate. This just defines final schema state.
     
-    // MIGRATION: Ensure correct unique constraint
-    try {
-        // Drop old composite index if exists
-        await db.sql`DROP INDEX IF EXISTS idx_skills_composite_unique;`;
-        
-        // Create stricter index on (name, category)
-        await db.sql`
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_name_category_unique 
-            ON skills (name, category);
-        `;
-    } catch (e) {
-        console.warn("Could not update indices on skills:", e);
-    }
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS skill_macro_categories (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            name VARCHAR(255) NOT NULL UNIQUE
+        );
+    `;
+
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS skill_categories (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            name VARCHAR(255) NOT NULL UNIQUE
+        );
+    `;
+
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS skill_category_macro_map (
+            category_id UUID REFERENCES skill_categories(id) ON DELETE CASCADE,
+            macro_category_id UUID REFERENCES skill_macro_categories(id) ON DELETE CASCADE,
+            PRIMARY KEY (category_id, macro_category_id)
+        );
+    `;
+
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS skill_skill_category_map (
+            skill_id UUID REFERENCES skills(id) ON DELETE CASCADE,
+            category_id UUID REFERENCES skill_categories(id) ON DELETE CASCADE,
+            PRIMARY KEY (skill_id, category_id)
+        );
+    `;
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS resource_skills (

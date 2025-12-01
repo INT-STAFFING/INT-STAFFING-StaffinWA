@@ -28,6 +28,7 @@ const SkillsPage: React.FC = () => {
         resources,
         resourceSkills, 
         projectSkills, 
+        skillCategories,
         addSkill, 
         updateSkill, 
         deleteSkill, 
@@ -67,8 +68,7 @@ const SkillsPage: React.FC = () => {
 
     const emptySkill: Omit<Skill, 'id'> = {
         name: '',
-        category: '',
-        macroCategory: '',
+        categoryIds: [],
         isCertification: false
     };
 
@@ -100,15 +100,22 @@ const SkillsPage: React.FC = () => {
     const kpis = useMemo(() => {
         const totalSkills = enrichedSkills.length;
         
-        const categories = new Set(enrichedSkills.map(s => s.category).filter(Boolean));
-        const totalCategories = categories.size;
+        // Count distinct categories used
+        const usedCats = new Set();
+        enrichedSkills.forEach(s => s.categoryIds?.forEach(id => usedCats.add(id)));
+        const totalCategories = usedCats.size;
 
         // Most popular Macro Category
         const macroCounts: Record<string, number> = {};
         let totalCerts = 0;
 
         enrichedSkills.forEach(s => {
-            if (s.macroCategory) macroCounts[s.macroCategory] = (macroCounts[s.macroCategory] || 0) + 1;
+            if (s.macroCategory) {
+                // macroCategory is a comma joined string now, split it to count accurately
+                s.macroCategory.split(', ').forEach(m => {
+                    macroCounts[m] = (macroCounts[m] || 0) + 1;
+                });
+            }
             if (s.isCertification) totalCerts++;
         });
         const topMacroEntry = Object.entries(macroCounts).sort((a, b) => b[1] - a[1])[0];
@@ -123,8 +130,8 @@ const SkillsPage: React.FC = () => {
     const filteredSkills = useMemo(() => {
         return enrichedSkills.filter(s => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
-            const catMatch = !filters.category || s.category === filters.category;
-            const macroMatch = !filters.macroCategory || s.macroCategory === filters.macroCategory;
+            const catMatch = !filters.category || (s.category && s.category.includes(filters.category));
+            const macroMatch = !filters.macroCategory || (s.macroCategory && s.macroCategory.includes(filters.macroCategory));
             const certMatch = filters.isCertification === '' ? true : 
                               filters.isCertification === 'yes' ? s.isCertification : !s.isCertification;
             
@@ -134,13 +141,16 @@ const SkillsPage: React.FC = () => {
         });
     }, [enrichedSkills, filters]);
 
-    const categoryOptions = useMemo(() => {
-        const cats = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
+    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })), [skillCategories]);
+    
+    // Filter options based on strings
+    const categoryFilterOptions = useMemo(() => {
+        const cats = Array.from(new Set(skills.flatMap(s => s.category?.split(', ') || []).filter(Boolean)));
         return cats.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
-    const macroCategoryOptions = useMemo(() => {
-        const macros = Array.from(new Set(skills.map(s => s.macroCategory).filter(Boolean)));
+    const macroCategoryFilterOptions = useMemo(() => {
+        const macros = Array.from(new Set(skills.flatMap(s => s.macroCategory?.split(', ') || []).filter(Boolean)));
         return macros.sort().map(c => ({ value: c as string, label: c as string }));
     }, [skills]);
 
@@ -149,18 +159,16 @@ const SkillsPage: React.FC = () => {
     // Updated skillOptions with disambiguation
     const skillOptions = useMemo(() => skills.map(s => ({ 
         value: s.id!, 
-        label: `${s.name} (${s.category || 'N/A'} | ${s.macroCategory || 'N/A'})` 
+        label: `${s.name} (${s.category || 'N/A'})` 
     })), [skills]);
 
     // --- Handlers ---
 
     const handleOpenModal = (skill?: Skill) => {
-        // Ensure fields are initialized to empty strings/false to prevent uncontrolled input warnings
         if (skill) {
             setEditingSkill({
                 ...skill,
-                category: skill.category || '',
-                macroCategory: skill.macroCategory || '',
+                categoryIds: skill.categoryIds || [],
                 isCertification: skill.isCertification || false
             });
         } else {
@@ -179,11 +187,10 @@ const SkillsPage: React.FC = () => {
         if (!editingSkill) return;
 
         try {
-            // Sanitization: Explicitly select fields to avoid sending computed props (like resourceCount) to API
+            // Send IDs
             const payload: any = {
                 name: editingSkill.name,
-                category: editingSkill.category || null,
-                macroCategory: editingSkill.macroCategory || null,
+                categoryIds: editingSkill.categoryIds,
                 isCertification: !!editingSkill.isCertification
             };
 
@@ -219,6 +226,11 @@ const SkillsPage: React.FC = () => {
             ...editingSkill, 
             [name]: type === 'checkbox' ? checked : value 
         });
+    };
+
+    const handleCategoryChange = (name: string, selectedIds: string[]) => {
+        if (!editingSkill) return;
+        setEditingSkill({ ...editingSkill, categoryIds: selectedIds });
     };
 
     // --- Assignment Handlers ---
@@ -274,15 +286,15 @@ const SkillsPage: React.FC = () => {
                 <span className="font-medium text-on-surface">{s.name}</span>
             </div>
         ) },
-        { header: 'Ambito', sortKey: 'category', cell: s => <span className="text-sm text-on-surface-variant">{s.category || '-'}</span> },
-        { header: 'Macro Ambito', sortKey: 'macroCategory', cell: s => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant">{s.macroCategory || '-'}</span> },
+        { header: 'Ambiti', sortKey: 'category', cell: s => <span className="text-sm text-on-surface-variant">{s.category || '-'}</span> },
+        { header: 'Macro Ambiti', sortKey: 'macroCategory', cell: s => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-surface-variant text-on-surface-variant">{s.macroCategory || '-'}</span> },
         { header: 'Utilizzo Risorse', sortKey: 'resourceCount', cell: s => <span className="text-center block font-semibold">{s.resourceCount}</span> },
         { header: 'Utilizzo Progetti', sortKey: 'projectCount', cell: s => <span className="text-center block font-semibold">{s.projectCount}</span> },
     ];
 
     const renderRow = (skill: EnrichedSkill) => (
         <tr key={skill.id} className="hover:bg-surface-container group">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(skill)}</td>)}
+            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit overflow-hidden text-ellipsis max-w-[200px]" title={String(col.sortKey ? (skill as any)[col.sortKey] : '')}>{col.cell(skill)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
                     <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary" title="Assegna a Risorse">
@@ -307,14 +319,7 @@ const SkillsPage: React.FC = () => {
                         <h3 className="font-bold text-lg text-on-surface">{skill.name}</h3>
                         {skill.isCertification && <span className="material-symbols-outlined text-yellow-600 text-sm">verified</span>}
                     </div>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-variant text-on-surface-variant mt-1 mr-2">
-                        {skill.category || 'Generica'}
-                    </span>
-                    {skill.macroCategory && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border border-outline-variant text-on-surface-variant mt-1">
-                            {skill.macroCategory}
-                        </span>
-                    )}
+                    <p className="text-xs text-on-surface-variant mt-1">{skill.category || 'Generica'}</p>
                 </div>
                 <div className="flex gap-1">
                      <button onClick={() => openAssignmentModal(skill)} className="p-2 rounded-full hover:bg-surface-container text-tertiary">
@@ -401,14 +406,14 @@ const SkillsPage: React.FC = () => {
                         name="macroCategory" 
                         value={filters.macroCategory} 
                         onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} 
-                        options={macroCategoryOptions} 
+                        options={macroCategoryFilterOptions} 
                         placeholder="Macro Ambito"
                     />
                     <SearchableSelect 
                         name="category" 
                         value={filters.category} 
                         onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} 
-                        options={categoryOptions} 
+                        options={categoryFilterOptions} 
                         placeholder="Ambito"
                     />
                     <select 
@@ -467,37 +472,16 @@ const SkillsPage: React.FC = () => {
                             />
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Macro Ambito</label>
-                                <input 
-                                    type="text" 
-                                    name="macroCategory" 
-                                    value={editingSkill.macroCategory || ''} 
-                                    onChange={handleInputChange} 
-                                    className="form-input"
-                                    placeholder="es. Tech, Lingue..."
-                                    list="macro-suggestions"
-                                />
-                                <datalist id="macro-suggestions">
-                                    {macroCategoryOptions.map(opt => <option key={opt.value} value={opt.value} />)}
-                                </datalist>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambito</label>
-                                <input 
-                                    type="text" 
-                                    name="category" 
-                                    value={editingSkill.category || ''} 
-                                    onChange={handleInputChange} 
-                                    className="form-input"
-                                    placeholder="es. Frontend, Soft Skill..."
-                                    list="category-suggestions"
-                                />
-                                <datalist id="category-suggestions">
-                                    {categoryOptions.map(opt => <option key={opt.value} value={opt.value} />)}
-                                </datalist>
-                            </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambiti (Categorie)</label>
+                            <MultiSelectDropdown 
+                                name="categoryIds" 
+                                selectedValues={editingSkill.categoryIds || []} 
+                                onChange={handleCategoryChange} 
+                                options={categoryOptions} 
+                                placeholder="Seleziona Ambiti..."
+                            />
+                            <p className="text-xs text-on-surface-variant mt-1">Puoi gestire le opzioni in "Opzioni > Configurazione Competenze"</p>
                         </div>
 
                         <div className="flex items-center gap-3 p-3 bg-surface-container-low rounded border border-outline-variant">

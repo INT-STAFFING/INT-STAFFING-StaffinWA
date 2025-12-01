@@ -5,7 +5,7 @@ import {
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification, DashboardCategory
+    Notification, DashboardCategory, SkillCategory, SkillMacroCategory
 } from '../types';
 import { useToast } from './ToastContext';
 
@@ -80,6 +80,8 @@ export interface EntitiesContextType {
     resourceRequests: ResourceRequest[];
     interviews: Interview[];
     skills: Skill[];
+    skillCategories: SkillCategory[];
+    skillMacroCategories: SkillMacroCategory[];
     resourceSkills: ResourceSkill[];
     projectSkills: ProjectSkill[];
     pageVisibility: PageVisibility;
@@ -150,7 +152,15 @@ export interface EntitiesContextType {
     updateSidebarSections: (sections: string[]) => Promise<void>;
     updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
     updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
-    forceRecalculateAnalytics: () => Promise<void>; // New Method
+    forceRecalculateAnalytics: () => Promise<void>; 
+    // Skill Category CRUD
+    addSkillCategory: (cat: Omit<SkillCategory, 'id'>) => Promise<void>;
+    updateSkillCategory: (cat: SkillCategory) => Promise<void>;
+    deleteSkillCategory: (id: string) => Promise<void>;
+    // Macro CRUD
+    addSkillMacro: (macro: { name: string }) => Promise<void>;
+    updateSkillMacro: (id: string, name: string) => Promise<void>;
+    deleteSkillMacro: (id: string) => Promise<void>;
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
@@ -200,6 +210,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
     const [interviews, setInterviews] = useState<Interview[]>([]);
     const [skills, setSkills] = useState<Skill[]>([]);
+    const [skillCategories, setSkillCategories] = useState<SkillCategory[]>([]);
+    const [skillMacroCategories, setSkillMacroCategories] = useState<SkillMacroCategory[]>([]);
     const [resourceSkills, setResourceSkills] = useState<ResourceSkill[]>([]);
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
     const [pageVisibility, setPageVisibility] = useState<PageVisibility>({});
@@ -212,7 +224,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
     const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [analyticsCache, setAnalyticsCache] = useState<any>({}); // Init empty
+    const [analyticsCache, setAnalyticsCache] = useState<any>({}); 
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -237,6 +249,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setLocations(metaData.locations || []);
             setCompanyCalendar(metaData.companyCalendar || []);
             setSkills(metaData.skills || []);
+            setSkillCategories(metaData.skillCategories || []);
+            setSkillMacroCategories(metaData.skillMacroCategories || []);
             setResourceSkills(metaData.resourceSkills || []);
             setPageVisibility(metaData.pageVisibility || {});
             setLeaveTypes(metaData.leaveTypes || []);
@@ -679,18 +693,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`recalculateBacklog-${id}`, false); }
     };
 
+    // --- SKILLS & CATEGORIES CRUD ---
+
     const addSkill = async (skill: Omit<Skill, 'id'>) => {
         setActionLoading('addSkill', true);
         try {
             const newSkill = await apiFetch('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) });
             setSkills(prev => [...prev, newSkill]);
+            await fetchData(); // Refresh to get hydration
         } finally { setActionLoading('addSkill', false); }
     };
     const updateSkill = async (skill: Skill) => {
         setActionLoading(`updateSkill-${skill.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
-            setSkills(prev => prev.map(s => s.id === skill.id ? updated : s));
+            await apiFetch(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
+            await fetchData(); // Refresh to get hydration
         } finally { setActionLoading(`updateSkill-${skill.id}`, false); }
     };
     const deleteSkill = async (id: string) => {
@@ -700,6 +717,47 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setSkills(prev => prev.filter(s => s.id !== id));
         } finally { setActionLoading(`deleteSkill-${id}`, false); }
     };
+
+    // Skill Category CRUD
+    const addSkillCategory = async (cat: Omit<SkillCategory, 'id'>) => {
+        try {
+            await apiFetch('/api/resources?entity=skill_categories', { method: 'POST', body: JSON.stringify(cat) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const updateSkillCategory = async (cat: SkillCategory) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_categories&id=${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const deleteSkillCategory = async (id: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_categories&id=${id}`, { method: 'DELETE' });
+            setSkillCategories(prev => prev.filter(c => c.id !== id));
+        } catch(e) { console.error(e); }
+    };
+
+    // Macro CRUD (generic table use)
+    const addSkillMacro = async (macro: { name: string }) => {
+        try {
+            await apiFetch('/api/resources?entity=skill_macro_categories', { method: 'POST', body: JSON.stringify(macro) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const updateSkillMacro = async (id: string, name: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const deleteSkillMacro = async (id: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'DELETE' });
+            setSkillMacroCategories(prev => prev.filter(m => m.id !== id));
+        } catch(e) { console.error(e); }
+    };
+
 
     const addResourceSkill = async (rs: ResourceSkill) => {
         setActionLoading(`addResourceSkill-${rs.resourceId}`, true);
@@ -885,7 +943,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         <EntitiesContext.Provider value={{
             clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
             assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
-            wbsTasks, resourceRequests, interviews, skills, resourceSkills, projectSkills, pageVisibility, skillThresholds,
+            wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
             leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout,
             notifications, analyticsCache, loading, isActionLoading,
             fetchData, fetchNotifications, markNotificationAsRead,
@@ -907,7 +965,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addLeaveType, updateLeaveType, deleteLeaveType,
             addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
             updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout,
-            forceRecalculateAnalytics
+            forceRecalculateAnalytics,
+            addSkillCategory, updateSkillCategory, deleteSkillCategory,
+            addSkillMacro, updateSkillMacro, deleteSkillMacro
         }}>
             <AllocationsContext.Provider value={{ allocations, updateAllocation, bulkUpdateAllocations }}>
                 {children}
