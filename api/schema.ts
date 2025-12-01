@@ -209,7 +209,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
 
 
     const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
-    const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/projects', '/clients', '/contracts'];
+    const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/certifications', '/projects', '/clients', '/contracts'];
 
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;
     if (permsCheck.rows[0].count === '0') {
@@ -235,9 +235,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
 
     // --- PERMISSION HARDENING MIGRATION ---
     // Fix for issue where SIMPLE users see manager pages due to old permissive seeds.
-    // This forces restricted pages to FALSE for SIMPLE role.
     const restrictedPagesForSimple = [
-        '/staffing', '/resources', '/skills', '/projects', '/contracts',
+        '/staffing', '/resources', '/skills', '/certifications', '/projects', '/contracts',
         '/clients', '/roles', '/config', '/calendar', '/import', '/export',
         '/test-staffing', '/forecasting', '/gantt', '/reports',
         '/skill-analysis', '/staffing-visualization', '/resource-requests',
@@ -253,22 +252,22 @@ export async function ensureDbTablesExist(db: VercelPool) {
         `
     ));
 
-    // --- MIGRATION: Ensure Notification permissions exist ---
-    await db.sql`
-        INSERT INTO role_permissions (role, page_path, is_allowed)
-        VALUES ('SIMPLE', '/notifications', TRUE)
-        ON CONFLICT (role, page_path) DO NOTHING;
-    `;
-    await db.sql`
-        INSERT INTO role_permissions (role, page_path, is_allowed)
-        VALUES ('MANAGER', '/notifications', TRUE)
-        ON CONFLICT (role, page_path) DO NOTHING;
-    `;
-    // Add notifications for new roles as well
-    for (const role of ['SENIOR MANAGER', 'MANAGING DIRECTOR']) {
+    // --- MIGRATION: Ensure Notification & Certifications permissions exist ---
+    const rolesToUpdate = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
+    for (const role of rolesToUpdate) {
         await db.sql`
             INSERT INTO role_permissions (role, page_path, is_allowed)
             VALUES (${role}, '/notifications', TRUE)
+            ON CONFLICT (role, page_path) DO NOTHING;
+        `;
+    }
+    
+    // Certifications for Managers
+    const certRoles = ['MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
+    for (const role of certRoles) {
+        await db.sql`
+            INSERT INTO role_permissions (role, page_path, is_allowed)
+            VALUES (${role}, '/certifications', TRUE)
             ON CONFLICT (role, page_path) DO NOTHING;
         `;
     }
@@ -535,15 +534,17 @@ export async function ensureDbTablesExist(db: VercelPool) {
         ON CONFLICT (key) DO NOTHING;
     `;
 
-    // --- MIGRATION: Ensure Sidebar Config has Notifications (if custom config exists) ---
+    // --- MIGRATION: Ensure Sidebar Config has Notifications & Certifications ---
     try {
         const sidebarConfigRes = await db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1'`;
         if (sidebarConfigRes.rows.length > 0) {
             const currentConfig = JSON.parse(sidebarConfigRes.rows[0].value);
-            const hasNotifications = currentConfig.some((item: any) => item.path === '/notifications');
+            let needsUpdate = false;
+            let newConfig = [...currentConfig];
+
+            // 1. Check Notifications
+            const hasNotifications = newConfig.some((item: any) => item.path === '/notifications');
             if (!hasNotifications) {
-                const newConfig = [...currentConfig];
-                // Insert after Dashboard if exists, else at start
                 const dashboardIdx = newConfig.findIndex((item: any) => item.path === '/dashboard');
                 const insertIdx = dashboardIdx >= 0 ? dashboardIdx + 1 : 0;
                 newConfig.splice(insertIdx, 0, { 
@@ -552,7 +553,24 @@ export async function ensureDbTablesExist(db: VercelPool) {
                     icon: "notifications", 
                     section: "Principale" 
                 });
-                
+                needsUpdate = true;
+            }
+
+            // 2. Check Certifications
+            const hasCerts = newConfig.some((item: any) => item.path === '/certifications');
+            if (!hasCerts) {
+                const skillsIdx = newConfig.findIndex((item: any) => item.path === '/skills');
+                const insertIdx = skillsIdx >= 0 ? skillsIdx + 1 : newConfig.length;
+                newConfig.splice(insertIdx, 0, { 
+                    path: "/certifications", 
+                    label: "Certificazioni", 
+                    icon: "verified", 
+                    section: "Risorse" 
+                });
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
                 await db.sql`UPDATE app_config SET value = ${JSON.stringify(newConfig)} WHERE key = 'sidebar_layout_v1'`;
             }
         }

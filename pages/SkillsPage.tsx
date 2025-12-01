@@ -1,3 +1,4 @@
+
 /**
  * @file SkillsPage.tsx
  * @description Pagina per la gestione delle Competenze (Skills) - CRUD, Dashboard e Visualizzazione.
@@ -140,7 +141,7 @@ const SkillsPage: React.FC = () => {
         });
     }, [enrichedSkills, filters]);
 
-    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })), [skillCategories]);
+    const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillCategories]);
     
     // Filter options based on strings from the current visible set (enrichedSkills already filtered by !isCertification)
     const categoryFilterOptions = useMemo(() => {
