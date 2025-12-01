@@ -739,7 +739,8 @@ const SkillRadialTree: React.FC<{
             })
             .attr("r", (d: any) => d.depth === 4 ? 3 : 5);
 
-        g.append("g")
+        // Fixed typescript error by avoiding "this.parentNode" selector logic
+        const labels = g.append("g")
             .attr("stroke-linejoin", "round")
             .attr("stroke-width", 3)
             .selectAll("text")
@@ -756,11 +757,15 @@ const SkillRadialTree: React.FC<{
             .attr("fill", (d: any) => d.depth === 4 ? theme.primary : theme.onSurface)
             .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px")
             .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal")
-            .text((d: any) => truncateLabel(d.data.name, 20))
-            .clone(true).lower()
+            .text((d: any) => truncateLabel(d.data.name, 20));
+
+        // Add background stroke for readability
+        labels.clone(true).lower()
             .attr("stroke", theme.surface)
-            .attr("stroke-width", 4)
-            .select(function() { return this.parentNode; }).append("title").text((d: any) => d.data.name);
+            .attr("stroke-width", 4);
+            
+        // Add title to the original labels (foreground)
+        labels.append("title").text((d: any) => d.data.name);
 
     }, [data, width, height, theme, svgRef]);
 
