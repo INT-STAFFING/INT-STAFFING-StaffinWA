@@ -656,10 +656,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const newContract = await apiFetch('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) });
             setContracts(prev => [...prev, newContract]);
-            
-            // Associations... (simplified for brevity, would need separate endpoints or robust backend logic)
-            // Assuming backend handles or we implement specific endpoints for associations
-            // For now, just refreshing data to be safe as Contract logic is complex
             await fetchData(); 
         } finally { setActionLoading('addContract', false); }
     };
@@ -668,7 +664,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const updated = await apiFetch(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) });
             setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
-            await fetchData(); // Refresh for associations
+            await fetchData(); 
         } finally { setActionLoading(`updateContract-${contract.id}`, false); }
     };
     const deleteContract = async (id: string) => {
@@ -681,8 +677,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const recalculateContractBacklog = async (id: string) => {
         setActionLoading(`recalculateBacklog-${id}`, true);
         try {
-            // Backend trigger needed? Or frontend calculation?
-            // Let's assume frontend calculation and update
             const contract = contracts.find(c => c.id === id);
             if (!contract) return;
             
@@ -701,14 +695,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             const newSkill = await apiFetch('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) });
             setSkills(prev => [...prev, newSkill]);
-            await fetchData(); // Refresh to get hydration
+            await fetchData(); 
         } finally { setActionLoading('addSkill', false); }
     };
     const updateSkill = async (skill: Skill) => {
         setActionLoading(`updateSkill-${skill.id}`, true);
         try {
             await apiFetch(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
-            await fetchData(); // Refresh to get hydration
+            await fetchData(); 
         } finally { setActionLoading(`updateSkill-${skill.id}`, false); }
     };
     const deleteSkill = async (id: string) => {
@@ -763,22 +757,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addResourceSkill = async (rs: ResourceSkill) => {
         setActionLoading(`addResourceSkill-${rs.resourceId}`, true);
         try {
-            await apiFetch('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
-            await fetchData();
+            // OPTIMIZED: Update local state immediately with returned value
+            const savedSkill = await apiFetch('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
+            setResourceSkills(prev => {
+                const index = prev.findIndex(item => item.resourceId === rs.resourceId && item.skillId === rs.skillId);
+                if (index >= 0) {
+                    const newSkills = [...prev];
+                    newSkills[index] = savedSkill;
+                    return newSkills;
+                }
+                return [...prev, savedSkill];
+            });
         } finally { setActionLoading(`addResourceSkill-${rs.resourceId}`, false); }
     };
+    
     const deleteResourceSkill = async (resourceId: string, skillId: string) => {
         try {
             await apiFetch(`/api/resources?entity=resource_skills&resourceId=${resourceId}&skillId=${skillId}`, { method: 'DELETE' });
+            // OPTIMIZED: Update local state immediately
             setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId)));
         } catch (e) { console.error(e); }
     };
+    
     const addProjectSkill = async (ps: ProjectSkill) => {
         try {
-            await apiFetch('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) });
-            setProjectSkills(prev => [...prev, ps]);
+            const savedPs = await apiFetch('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) });
+            setProjectSkills(prev => {
+                const exists = prev.some(item => item.projectId === ps.projectId && item.skillId === ps.skillId);
+                if (exists) return prev; 
+                return [...prev, savedPs];
+            });
         } catch (e) { console.error(e); }
     };
+    
     const deleteProjectSkill = async (projectId: string, skillId: string) => {
         try {
             await apiFetch(`/api/resources?entity=project_skills&projectId=${projectId}&skillId=${skillId}`, { method: 'DELETE' });
@@ -800,7 +811,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const manualSkills = resourceSkills.filter(rs => rs.resourceId === resourceId);
         const resourceAssignments = assignments.filter(a => a.resourceId === resourceId);
         
-        const inferredSkillsMap = new Map<string, number>(); // skillId -> totalDays
+        const inferredSkillsMap = new Map<string, number>(); 
         
         resourceAssignments.forEach(assignment => {
             const pSkills = projectSkills.filter(ps => ps.projectId === assignment.projectId);
@@ -826,7 +837,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const manual = manualSkills.find(ms => ms.skillId === skillId);
             const inferredDays = inferredSkillsMap.get(skillId) || 0;
             
-            // Calculate Inferred Level
             let inferredLevel = 1;
             if (inferredDays >= skillThresholds.EXPERT) inferredLevel = 5;
             else if (inferredDays >= skillThresholds.SENIOR) inferredLevel = 4;
@@ -838,12 +848,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 manualDetails: manual,
                 inferredDays,
                 inferredLevel,
-                projectCount: 0 // TBD
+                projectCount: 0 
             };
         }).filter(Boolean) as any[];
     }, [resourceSkills, assignments, projectSkills, allocations, skills, skillThresholds]);
 
-    // Leave Types
     const addLeaveType = async (type: Omit<LeaveType, 'id'>) => {
         setActionLoading('addLeaveType', true);
         try {
@@ -866,7 +875,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteLeaveType-${id}`, false); }
     };
 
-    // Leave Requests
     const addLeaveRequest = async (req: Omit<LeaveRequest, 'id'>) => {
         setActionLoading('addLeaveRequest', true);
         try {
@@ -896,7 +904,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteLeaveRequest-${id}`, false); }
     };
 
-    // --- Configuration Handlers ---
     const updateSidebarConfig = async (config: SidebarItem[]) => {
         setActionLoading('updateSidebarConfig', true);
         try {
