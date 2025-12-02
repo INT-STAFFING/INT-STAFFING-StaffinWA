@@ -6,12 +6,12 @@
 
 import React, { useState } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves, exportUsersPermissions } from '../utils/exportUtils';
+import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves, exportUsersPermissions, exportTutorMapping } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
 import { AppUser, RolePermission } from '../types';
 
-type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users';
+type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users' | 'tutor';
 
 interface ExportCardProps {
     title: string;
@@ -85,6 +85,9 @@ const ExportPage: React.FC = () => {
                     break;
                 case 'users':
                     await handleExportUsers();
+                    break;
+                case 'tutor':
+                    await exportTutorMapping(allData);
                     break;
             }
         } catch (error) {
@@ -165,6 +168,13 @@ const ExportPage: React.FC = () => {
                     onExport={() => handleExport('leaves')}
                     isExporting={exportingType === 'leaves'}
                     icon="event_busy"
+                />
+                <ExportCard
+                    title="Mappatura Tutor"
+                    description="Esporta un elenco di tutte le risorse e il loro Tutor assegnato."
+                    onExport={() => handleExport('tutor')}
+                    isExporting={exportingType === 'tutor'}
+                    icon="supervisor_account"
                 />
                 {isAdmin && (
                     <ExportCard

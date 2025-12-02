@@ -93,14 +93,13 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     const roleNameMap = new Map<string, string>();
     const clientNameMap = new Map<string, string>();
     const resourceEmailMap = new Map<string, string>();
+    const resourceNameMap = new Map<string, string>();
     const skillNameMap = new Map<string, string>();
     
     // --- 1. CONFIGURATIONS (Bulk) ---
     const importConfig = async (tableName: string, items: { Valore: string }[]) => {
         if (!Array.isArray(items) || items.length === 0) return;
         
-        // Pre-fetch existing to avoid ID churn (though ON CONFLICT handles uniqueness, we need stable IDs if referenced elsewhere, not here though)
-        // For config tables, just insert new ones.
         const rowsToInsert = items
             .filter(item => item.Valore)
             .map(item => [uuidv4(), item.Valore]);
@@ -153,8 +152,6 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
                 const dailyExpenses = (Number(dailyCost) || 0) * 0.035;
                 newRoleRows.push([newId, name, seniorityLevel, dailyCost, standardCost, dailyExpenses]);
                 roleNameMap.set(name, newId);
-            } else {
-                // Optional: Update logic could go here if needed via separate UPDATE or Upsert
             }
         }
         await executeBulkInsert(client, 'roles', ['id', 'name', 'seniority_level', 'daily_cost', 'standard_cost', 'daily_expenses'], newRoleRows);
@@ -180,11 +177,12 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 
     // --- 5. RESOURCES & SKILLS ---
     if (Array.isArray(importedResources)) {
-        const existingRes = await client.query('SELECT id, email FROM resources');
-        existingRes.rows.forEach((r: any) => resourceEmailMap.set(r.email, r.id));
+        const existingRes = await client.query('SELECT id, email, name FROM resources');
+        existingRes.rows.forEach((r: any) => {
+            resourceEmailMap.set(r.email, r.id);
+            resourceNameMap.set(normalize(r.name), r.id);
+        });
         
-        // Simple skill import within Resources sheet is limited (cannot define categories), 
-        // but we'll try to link if skill exists.
         const existingSkills = await client.query('SELECT id, name FROM skills');
         existingSkills.rows.forEach((s: any) => skillNameMap.set(normalize(s.name), s.id));
 
@@ -193,7 +191,7 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
         const resourceSkillRows: any[][] = [];
 
         for (const res of importedResources) {
-            const { Nome: name, Email: email, Ruolo: roleName, Horizontal: horizontal, Sede: location, 'Data Assunzione': hireDate, 'Anzianità (anni)': workSeniority, Note: notes, Competenze: skillsString } = res;
+            const { Nome: name, Email: email, Ruolo: roleName, Horizontal: horizontal, Sede: location, 'Data Assunzione': hireDate, 'Anzianità (anni)': workSeniority, Note: notes, Competenze: skillsString, Tutor: tutorName } = res;
             if (!name || !email) {
                 warnings.push(`Risorsa '${name}' saltata: dati mancanti.`);
                 continue;
@@ -204,15 +202,30 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 
             let resourceId = resourceEmailMap.get(email);
             
-            // Prepare Resource Row (Upsert)
             if (!resourceId) {
                 resourceId = uuidv4();
                 resourceEmailMap.set(email, resourceId);
+                // Also update Name map for Tutors reference within same batch
+                resourceNameMap.set(normalize(name), resourceId);
+            }
+            
+            // Try to resolve Tutor immediately. 
+            // NOTE: If Tutor is in the same import file but further down, this will be null.
+            // A perfect solution requires 2 passes or a separate import.
+            // We use best-effort here.
+            let tutorId = null;
+            if (tutorName) {
+                tutorId = resourceNameMap.get(normalize(tutorName));
+                if (!tutorId) {
+                    // Try to find if tutor is in the list being imported but not processed yet
+                    // This is simple name matching for simplicity
+                    // If complex, use "Mappatura Tutor" specific import
+                }
             }
             
             resourceRows.push([
                 resourceId, name, email, roleId, horizontal, location, 
-                formatDateForDB(parseDate(hireDate)), workSeniority, notes
+                formatDateForDB(parseDate(hireDate)), workSeniority, notes, tutorId
             ]);
 
             // Prepare Skills (Simple String List)
@@ -223,7 +236,6 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
                     let skillId = skillNameMap.get(normName);
                     
                     if (!skillId) {
-                        // Check if we already queued it for creation
                         if (newSkillsToInsert.has(normName)) {
                             skillId = newSkillsToInsert.get(normName);
                         } else {
@@ -244,18 +256,17 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
         await executeBulkInsert(
             client, 
             'resources', 
-            ['id', 'name', 'email', 'role_id', 'horizontal', 'location', 'hire_date', 'work_seniority', 'notes'],
+            ['id', 'name', 'email', 'role_id', 'horizontal', 'location', 'hire_date', 'work_seniority', 'notes', 'tutor_id'],
             resourceRows,
             `ON CONFLICT (id) DO UPDATE SET 
                 name = EXCLUDED.name, role_id = EXCLUDED.role_id, horizontal = EXCLUDED.horizontal, 
                 location = EXCLUDED.location, hire_date = EXCLUDED.hire_date, 
-                work_seniority = EXCLUDED.work_seniority, notes = EXCLUDED.notes`
+                work_seniority = EXCLUDED.work_seniority, notes = EXCLUDED.notes, tutor_id = EXCLUDED.tutor_id`
         );
 
         // 2. New Skills (Simple)
         if (newSkillsToInsert.size > 0) {
             const skillRows = Array.from(newSkillsToInsert.entries()).map(([norm, id]) => {
-                // Try to find original casing from input if possible, or just capitalize
                 return [id, norm.charAt(0).toUpperCase() + norm.slice(1)]; 
             });
             await executeBulkInsert(client, 'skills', ['id', 'name'], skillRows, 'ON CONFLICT (id) DO NOTHING');
@@ -379,6 +390,9 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
 
     for (const req of importedRequests) {
         const { projectName, roleName, requestorName, startDate, endDate, commitmentPercentage, isUrgent, isTechRequest, notes, status } = req;
+        // Parse new OSR columns
+        const isOsrOpen = String(req['OSR Aperta']).toUpperCase() === 'SI' || req['OSR Aperta'] === true;
+        const osrNumber = req['Numero OSR'] || null;
         
         if (!projectName || !roleName || !startDate || !endDate) continue;
 
@@ -406,6 +420,8 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
             String(isUrgent).toLowerCase() === 'si' || isUrgent === true, 
             isLongTerm, 
             String(isTechRequest).toLowerCase() === 'si' || isTechRequest === true, 
+            isOsrOpen,
+            isOsrOpen ? osrNumber : null, // Ensure osrNumber is only saved if open
             notes, status
         ]);
     }
@@ -413,7 +429,7 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
     await executeBulkInsert(
         client, 
         'resource_requests', 
-        ['id', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_long_term', 'is_tech_request', 'notes', 'status'],
+        ['id', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_long_term', 'is_tech_request', 'is_osr_open', 'osr_number', 'notes', 'status'],
         rowsToInsert
     );
 };
@@ -764,6 +780,53 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     }
 };
 
+const importTutorMapping = async (client: any, body: any, warnings: string[]) => {
+    const { mapping } = body;
+    if (!Array.isArray(mapping) || mapping.length === 0) return;
+
+    // Load Maps
+    // Prioritize Email for uniqueness, fallback to name
+    const emailMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(r.email), r.id]));
+    const nameMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+
+    const updates: any[][] = [];
+
+    for (const row of mapping) {
+        const { 'Risorsa': rName, 'Email Risorsa': rEmail, 'Tutor': tName, 'Email Tutor': tEmail } = row;
+        
+        let resourceId = rEmail ? emailMap.get(normalize(rEmail)) : null;
+        if (!resourceId && rName) resourceId = nameMap.get(normalize(rName));
+
+        if (!resourceId) {
+            warnings.push(`Risorsa non trovata: ${rEmail || rName}`);
+            continue;
+        }
+
+        let tutorId = null;
+        if (tEmail) tutorId = emailMap.get(normalize(tEmail));
+        if (!tutorId && tName) tutorId = nameMap.get(normalize(tName));
+
+        if ((tEmail || tName) && !tutorId) {
+            warnings.push(`Tutor non trovato per ${rName}: ${tEmail || tName}`);
+            // Continue but set tutor to null (assuming user wants to clear it if not found, or just skip update? 
+            // Better to skip update if intent unclear, but for "mapping" implies setting state. 
+            // If explicit empty string in excel, we clear. If invalid string, we warn.)
+            continue; 
+        }
+        
+        // Prevent self-tutor loop
+        if (resourceId === tutorId) {
+            warnings.push(`Auto-referenza ignorata per: ${rName}`);
+            tutorId = null;
+        }
+
+        // Add to batch for update
+        // We use a temporary table strategy or simple loop updates since UPDATE FROM VALUES is complex in standard SQL for just one field
+        // Simple loop is acceptable here as volume is usually low (<1000)
+        await client.query(`UPDATE resources SET tutor_id = $1 WHERE id = $2`, [tutorId, resourceId]);
+    }
+};
+
 
 // --- HANDLER ---
 
@@ -803,6 +866,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 break;
             case 'users_permissions':
                 await importUsersPermissions(client, req.body, warnings);
+                break;
+            case 'tutor_mapping':
+                await importTutorMapping(client, req.body, warnings);
                 break;
             default:
                 throw new Error('Tipo di importazione non valido.');

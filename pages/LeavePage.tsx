@@ -41,10 +41,14 @@ const LeavePage: React.FC = () => {
             if (isAdmin) return true;
             // User can see own requests
             if (req.resourceId === user?.resourceId) return true;
+            
             // Approvers can see requests assigned to them
             if (req.approverIds?.includes(user?.resourceId || '')) return true;
-            // Everyone can see APPROVED requests (public calendar), but not details/notes if not theirs
-            if (req.status === 'APPROVED') return true;
+            
+            // Public Calendar Logic: 
+            // Managers/Directors can see APPROVED requests of everyone (Team Calendar).
+            // SIMPLE users can ONLY see their own requests (already filtered above).
+            if (user?.role !== 'SIMPLE' && req.status === 'APPROVED') return true;
             
             return false;
         });

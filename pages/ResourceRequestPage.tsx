@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
@@ -46,6 +47,8 @@ export const ResourceRequestPage: React.FC = () => {
         isUrgent: false,
         isLongTerm: false,
         isTechRequest: false,
+        isOsrOpen: false,
+        osrNumber: '',
         notes: '',
         status: 'ATTIVA',
     };
@@ -138,7 +141,15 @@ export const ResourceRequestPage: React.FC = () => {
             const endDate = new Date(editingRequest.endDate);
             const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            const requestToSave = { ...editingRequest, isLongTerm: diffDays > 60 };
+            
+            // Clean up OSR number if flag is false
+            const osrNumber = editingRequest.isOsrOpen ? editingRequest.osrNumber : null;
+
+            const requestToSave = { 
+                ...editingRequest, 
+                isLongTerm: diffDays > 60,
+                osrNumber 
+            };
 
             try {
                 if ('id' in requestToSave) {
@@ -195,7 +206,7 @@ export const ResourceRequestPage: React.FC = () => {
         { header: 'Periodo', sortKey: 'startDate', cell: r => `${formatDateFull(r.startDate)} - ${formatDateFull(r.endDate)}` },
         { header: 'Impegno', sortKey: 'commitmentPercentage', cell: r => `${r.commitmentPercentage}%` },
         { header: 'Stato', sortKey: 'status', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(r.status)}`}>{r.status}</span> },
-        { header: 'Urgenza', sortKey: 'isUrgent', cell: r => r.isUrgent ? <span className="text-error font-bold">Sì</span> : 'No' },
+        { header: 'OSR', cell: r => r.isOsrOpen ? <span className="px-2 py-0.5 rounded text-xs font-semibold bg-primary-container text-on-primary-container" title={`OSR: ${r.osrNumber || 'N/D'}`}>OSR {r.osrNumber}</span> : '-' },
     ];
 
     const renderRow = (request: EnrichedRequest) => (
@@ -224,12 +235,19 @@ export const ResourceRequestPage: React.FC = () => {
                     <div><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDateFull(request.startDate)} - {formatDateFull(request.endDate)}</p></div>
                     <div><p className="text-on-surface-variant">Impegno</p><p className="font-medium text-on-surface">{request.commitmentPercentage}%</p></div>
                     <div className="col-span-2"><p className="text-on-surface-variant">Richiedente</p><p className="font-medium text-on-surface">{request.requestorName || 'N/A'}</p></div>
+                    {request.isOsrOpen && (
+                        <div className="col-span-2 mt-2">
+                            <span className="px-2 py-1 rounded text-xs font-semibold bg-primary-container text-on-primary-container">
+                                OSR Aperta: {request.osrNumber || 'N/D'}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="flex flex-col items-start md:items-end justify-between flex-shrink-0 md:pl-4 md:border-l border-outline-variant md:w-48">
                 <div className="flex flex-col md:items-end gap-2 w-full">
                     <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-2 mt-1 flex-wrap justify-end">
                         {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-on-error-container bg-error-container rounded-full">URGENTE</span>}
                         {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-on-secondary-container bg-secondary-container rounded-full">TECH</span>}
                     </div>
@@ -383,6 +401,28 @@ export const ResourceRequestPage: React.FC = () => {
                             <label className="block text-sm font-medium mb-1">Impegno % ({editingRequest.commitmentPercentage}%)</label>
                             <input type="range" min="0" max="100" step="10" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
                         </div>
+                        
+                        {/* OSR Fields */}
+                        <div className="bg-surface-container-low p-3 rounded border border-outline-variant">
+                            <div className="flex items-center gap-2 mb-2">
+                                <input type="checkbox" name="isOsrOpen" checked={editingRequest.isOsrOpen || false} onChange={handleChange} className="form-checkbox"/>
+                                <label className="text-sm font-semibold">OSR Aperta</label>
+                            </div>
+                            {editingRequest.isOsrOpen && (
+                                <div>
+                                    <label className="block text-xs font-medium mb-1 text-on-surface-variant">Numero OSR</label>
+                                    <input 
+                                        type="text" 
+                                        name="osrNumber" 
+                                        value={editingRequest.osrNumber || ''} 
+                                        onChange={handleChange} 
+                                        className="form-input text-sm py-1"
+                                        placeholder="Inserisci numero OSR..."
+                                    />
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex gap-4">
                             <div className="flex items-center gap-2">
                                 <input type="checkbox" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox"/>

@@ -164,6 +164,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100 NOT NULL;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
+    // Add tutor_id self-reference
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
 
     // --- USER AUTHENTICATION TABLES (Phase 1) ---
     await db.sql`
@@ -426,6 +428,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
     `;
     await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
     await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS request_code TEXT UNIQUE;`;
+    // MIGRATION: Add OSR fields
+    await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS is_osr_open BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS osr_number VARCHAR(255);`;
 
 
     // New Interviews Table

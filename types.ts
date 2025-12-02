@@ -93,6 +93,8 @@ export interface Resource {
     resigned: boolean;
     /** @property {string | null} lastDayOfWork - L'ultimo giorno di lavoro della risorsa (YYYY-MM-DD). */
     lastDayOfWork: string | null;
+    /** @property {string | null} tutorId - L'ID della risorsa che funge da Tutor. */
+    tutorId?: string | null;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
 }
@@ -295,6 +297,10 @@ export interface ResourceRequest {
     isLongTerm: boolean;
     /** @property {boolean} isTechRequest - Flag "richiesta TECH". */
     isTechRequest: boolean;
+    /** @property {boolean} [isOsrOpen] - Flag "OSR Aperta". */
+    isOsrOpen?: boolean;
+    /** @property {string} [osrNumber] - Numero OSR (solo se OSR Aperta è true). */
+    osrNumber?: string;
     /** @property {string} [notes] - Note facoltative. */
     notes?: string;
     /** @property {ResourceRequestStatus} status - Stato della richiesta (es. 'ATTIVA', 'STANDBY', 'CHIUSA'). */

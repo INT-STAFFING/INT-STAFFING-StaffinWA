@@ -6,7 +6,7 @@ import { SpinnerIcon } from '../components/icons';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../context/AuthContext';
 
-type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions';
+type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
 
 const importOptions: { value: ImportType; label: string; sheetName: string; adminOnly?: boolean }[] = [
     { value: 'core_entities', label: 'Entità Principali (Risorse, Progetti, etc.)', sheetName: 'Multiple' },
@@ -16,6 +16,7 @@ const importOptions: { value: ImportType; label: string; sheetName: string; admi
     { value: 'skills', label: 'Competenze e Associazioni', sheetName: 'Competenze' },
     { value: 'leaves', label: 'Assenze (Leaves)', sheetName: 'Assenze' },
     { value: 'users_permissions', label: 'Utenti e Permessi (Admin)', sheetName: 'Utenti', adminOnly: true },
+    { value: 'tutor_mapping', label: 'Mappatura Tutor', sheetName: 'Mappatura_Tutor' },
 ];
 
 const ImportPage: React.FC = () => {
@@ -96,6 +97,11 @@ const ImportPage: React.FC = () => {
                         body = {
                             users: XLSX.utils.sheet_to_json(workbook.Sheets['Utenti'] || {}),
                             permissions: XLSX.utils.sheet_to_json(workbook.Sheets['Permessi'] || {})
+                        };
+                        break;
+                    case 'tutor_mapping':
+                        body = {
+                            mapping: XLSX.utils.sheet_to_json(workbook.Sheets['Mappatura_Tutor'] || {})
                         };
                         break;
                 }

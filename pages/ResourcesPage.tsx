@@ -1,3 +1,4 @@
+
 /**
  * @file ResourcesPage.tsx
  * @description Pagina per la gestione delle risorse umane (CRUD e visualizzazione).
@@ -23,6 +24,7 @@ type EnrichedResource = Resource & {
     isAssigned: boolean;
     activeProjects: number;
     seniority: number;
+    tutorName: string;
 };
 
 // --- Component ---
@@ -32,7 +34,7 @@ const ResourcesPage: React.FC = () => {
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
-    const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active' });
+    const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active', tutorId: '' });
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
     // State for skills management in modal
@@ -60,6 +62,7 @@ const ResourcesPage: React.FC = () => {
         hireDate: '', workSeniority: 0, notes: '', maxStaffingPercentage: 100,
         resigned: false,
         lastDayOfWork: null,
+        tutorId: null
     };
 
     // KPI Calculations
@@ -122,7 +125,9 @@ const ResourcesPage: React.FC = () => {
             const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
             const locationMatch = filters.location ? resource.location === filters.location : true;
             const statusMatch = filters.status === 'all' ? true : filters.status === 'active' ? !resource.resigned : resource.resigned;
-            return nameMatch && roleMatch && horizontalMatch && locationMatch && statusMatch;
+            const tutorMatch = filters.tutorId ? resource.tutorId === filters.tutorId : true;
+            
+            return nameMatch && roleMatch && horizontalMatch && locationMatch && statusMatch && tutorMatch;
         });
 
         return filtered.map(resource => {
@@ -130,6 +135,7 @@ const ResourcesPage: React.FC = () => {
             const activeProjects = assignments.filter(a => a.resourceId === resource.id).length;
             const hireDate = new Date(resource.hireDate);
             const seniority = !isNaN(hireDate.getTime()) ? (new Date().getTime() - hireDate.getTime()) / (1000 * 3600 * 24 * 365.25) : 0;
+            const tutor = resources.find(r => r.id === resource.tutorId);
 
             return {
                 ...resource,
@@ -139,6 +145,7 @@ const ResourcesPage: React.FC = () => {
                 isAssigned: assignedResourceIds.has(resource.id!),
                 activeProjects,
                 seniority,
+                tutorName: tutor?.name || '-'
             };
         });
     }, [resources, filters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
@@ -146,7 +153,7 @@ const ResourcesPage: React.FC = () => {
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => {
-        setFilters({ name: '', roleId: '', horizontal: '', location: '', status: 'active' });
+        setFilters({ name: '', roleId: '', horizontal: '', location: '', status: 'active', tutorId: '' });
         setShowOnlyUnassigned(false);
     };
     
@@ -210,7 +217,8 @@ const ResourcesPage: React.FC = () => {
             maxStaffingPercentage: editingResource.maxStaffingPercentage,
             resigned: editingResource.resigned,
             lastDayOfWork: editingResource.lastDayOfWork || null, // Converti stringa vuota in null
-            notes: editingResource.notes
+            notes: editingResource.notes,
+            tutorId: editingResource.tutorId || null
         };
 
         // Se stiamo modificando, aggiungiamo l'ID
@@ -337,12 +345,14 @@ const ResourcesPage: React.FC = () => {
     const locationOptions = useMemo(() => locations.sort((a,b)=> a.value.localeCompare(b.value)).map(l => ({ value: l.value, label: l.value })), [locations]);
     const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
+    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [resources]);
 
 
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
         { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-on-surface-variant">{r.location}</span> },
+        { header: 'Tutor', sortKey: 'tutorName', cell: r => <span className="text-sm text-on-surface-variant">{r.tutorName}</span> },
         { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
         // Updated Date Format
         { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-on-surface-variant">{formatDateFull(r.lastDayOfWork)}</span> },
@@ -364,6 +374,7 @@ const ResourcesPage: React.FC = () => {
                     <td className="px-6 py-4 sticky left-0 bg-inherit"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede" /></td>
+                    <td className="px-6 py-4 bg-inherit"><SearchableSelect name="tutorId" value={inlineEditingData!.tutorId || ''} onChange={handleInlineSelectChange} options={resourceOptions.filter(o => o.value !== resource.id)} placeholder="Seleziona tutor" /></td>
                     <td className="px-6 py-4 bg-inherit">{columns.find(c => c.header === 'Stato')?.cell(resource)}</td>
                     <td className="px-6 py-4 bg-inherit">{columns.find(c => c.header === 'Ultimo Giorno')?.cell(resource)}</td>
                     <td className={`px-6 py-4 text-sm bg-inherit ${getAllocationColor(resource.allocation)}`}>{resource.allocation}%</td>
@@ -414,6 +425,7 @@ const ResourcesPage: React.FC = () => {
                 <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-on-surface-variant">Ruolo</p><p className="text-on-surface font-medium">{resource.roleName}</p></div>
                     <div><p className="text-on-surface-variant">Sede</p><p className="text-on-surface font-medium">{resource.location}</p></div>
+                    <div><p className="text-on-surface-variant">Tutor</p><p className="text-on-surface font-medium">{resource.tutorName}</p></div>
                     <div>
                         <p className="text-on-surface-variant">Alloc. Media</p>
                         {resource.isAssigned && !resource.resigned
@@ -436,6 +448,7 @@ const ResourcesPage: React.FC = () => {
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
             <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
+            <SearchableSelect name="tutorId" value={filters.tutorId} onChange={handleFilterSelectChange} options={resourceOptions} placeholder="Filtra per Tutor" />
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
             <div className="flex items-center">
                 <label htmlFor="unassigned-filter" className="flex items-center cursor-pointer">
@@ -533,6 +546,18 @@ const ResourcesPage: React.FC = () => {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
                                     <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                                 </div>
+                            </div>
+
+                            {/* Tutor Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tutor</label>
+                                <SearchableSelect 
+                                    name="tutorId" 
+                                    value={editingResource.tutorId || ''} 
+                                    onChange={handleSelectChange} 
+                                    options={resourceOptions.filter(o => o.value !== ('id' in editingResource ? editingResource.id : ''))} 
+                                    placeholder="Seleziona un Tutor" 
+                                />
                             </div>
                             
                             {/* Skills Section */}

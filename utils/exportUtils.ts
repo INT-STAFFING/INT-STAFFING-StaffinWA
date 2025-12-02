@@ -8,7 +8,7 @@ import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
 import { EntitiesContextType } from '../context/AppContext';
 import * as XLSX from 'xlsx';
 
-type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions';
+type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
 
 const formatDateForExport = (date: Date | string | null | undefined): string => {
     if (!date) return '';
@@ -37,6 +37,8 @@ export const exportCoreEntities = (data: EntitiesContextType) => {
             .map(rs => skills.find(s => s.id === rs.skillId)?.name)
             .filter(Boolean)
             .join(', ');
+        
+        const tutor = resources.find(t => t.id === r.tutorId);
 
         return { 
             'Nome': r.name, 
@@ -44,6 +46,7 @@ export const exportCoreEntities = (data: EntitiesContextType) => {
             'Sede': r.location, 
             'Ruolo': roles.find(role => role.id === r.roleId)?.name || 'N/A', 
             'Horizontal': r.horizontal, 
+            'Tutor': tutor ? tutor.name : '',
             'Competenze': associatedSkills,
             'Data Assunzione': formatDateForExport(r.hireDate), 
             'Anzianità (anni)': r.workSeniority, 
@@ -143,6 +146,8 @@ export const exportResourceRequests = (data: EntitiesContextType) => {
         "Impegno %": req.commitmentPercentage,
         "Urgent": req.isUrgent ? 'SI' : 'NO',
         "Tech": req.isTechRequest ? 'SI' : 'NO',
+        "OSR Aperta": req.isOsrOpen ? 'SI' : 'NO',
+        "Numero OSR": req.osrNumber || '',
         "Note": req.notes,
         "Stato": req.status,
     }));
@@ -274,6 +279,27 @@ export const exportUsersPermissions = (users: AppUser[], permissions: RolePermis
     XLSX.writeFile(wb, `Staffing_Export_Utenti_Permessi_${formatDateForExport(new Date())}.xlsx`);
 };
 
+/**
+ * Esporta la mappatura Risorsa-Tutor.
+ */
+export const exportTutorMapping = (data: EntitiesContextType) => {
+    const { resources } = data;
+    const wb = XLSX.utils.book_new();
+
+    const sheetData = resources.filter(r => !r.resigned).map(r => {
+        const tutor = resources.find(t => t.id === r.tutorId);
+        return {
+            'Risorsa': r.name,
+            'Email Risorsa': r.email,
+            'Tutor': tutor ? tutor.name : '',
+            'Email Tutor': tutor ? tutor.email : ''
+        };
+    });
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Mappatura_Tutor');
+    XLSX.writeFile(wb, `Staffing_Export_Tutor_Mapping_${formatDateForExport(new Date())}.xlsx`);
+};
+
 
 /**
  * Genera e avvia il download di un template Excel vuoto basato sul tipo di importazione.
@@ -299,7 +325,7 @@ export const exportTemplate = (type: ExportType) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "sector", "contactEmail"]]), 'Clienti');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "seniorityLevel", "dailyCost", "standardCost"]]), 'Ruoli');
             // Added "Competenze" column to Resources template
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "email", "roleName", "horizontal", "location", "Competenze", "hireDate", "workSeniority", "notes"]]), 'Risorse');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "email", "roleName", "horizontal", "location", "Tutor", "Competenze", "hireDate", "workSeniority", "notes"]]), 'Risorse');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "clientName", "status", "budget", "realizationPercentage", "startDate", "endDate", "projectManager", "notes"]]), 'Progetti');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "date", "type", "location"]]), 'Calendario');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["value"]]), 'Config_Horizontals');
@@ -312,7 +338,7 @@ export const exportTemplate = (type: ExportType) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Resource Name", "Project Name", "YYYY-MM-DD"]]), 'Staffing');
             break;
         case 'resource_requests':
-             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["projectName", "roleName", "requestorName", "startDate", "endDate", "commitmentPercentage", "isUrgent", "isTechRequest", "notes", "status"]]), 'Richieste_Risorse');
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["projectName", "roleName", "requestorName", "startDate", "endDate", "commitmentPercentage", "isUrgent", "isTechRequest", "OSR Aperta", "Numero OSR", "notes", "status"]]), 'Richieste_Risorse');
             break;
         case 'interviews':
              XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["candidateName", "candidateSurname", "birthDate", "horizontal", "roleName", "cv_summary", "interviewersNames", "interviewDate", "feedback", "notes", "hiringStatus", "entryDate", "status"]]), 'Colloqui');
@@ -327,6 +353,9 @@ export const exportTemplate = (type: ExportType) => {
         case 'users_permissions':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Username", "Ruolo", "Email Risorsa", "Stato Attivo"]]), 'Utenti');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Ruolo", "Pagina", "Accesso Consentito"]]), 'Permessi');
+            break;
+        case 'tutor_mapping':
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Risorsa", "Email Risorsa", "Tutor", "Email Tutor"]]), 'Mappatura_Tutor');
             break;
     }
 
