@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -848,6 +849,88 @@ const DashboardConfigSection: React.FC = () => {
     );
 };
 
+// --- NEW SECTION: Role Home Page Editor ---
+const RoleHomePageEditor: React.FC = () => {
+    const { roleHomePages, updateRoleHomePages, isActionLoading } = useEntitiesContext();
+    const [localConfig, setLocalConfig] = useState(roleHomePages);
+    const [hasChanges, setHasChanges] = useState(false);
+    const { addToast } = useToast();
+
+    // Available Roles
+    const roles: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR', 'ADMIN'];
+    
+    // Available Pages (simplified list)
+    const availablePages = [
+        { path: '/dashboard', label: 'Dashboard' },
+        { path: '/staffing', label: 'Staffing' },
+        { path: '/workload', label: 'Carico Risorse' },
+        { path: '/projects', label: 'Progetti' },
+        { path: '/resources', label: 'Risorse' },
+        { path: '/resource-requests', label: 'Richieste Risorse' },
+        { path: '/interviews', label: 'Colloqui' },
+        { path: '/leaves', label: 'Assenze' },
+        { path: '/notifications', label: 'Notifiche' },
+        { path: '/simple-user-manual', label: 'Guida Assenze' },
+        { path: '/manuale-utente', label: 'Manuale Utente' }
+    ];
+
+    useEffect(() => {
+        if (roleHomePages) setLocalConfig(roleHomePages);
+    }, [roleHomePages]);
+
+    const handleChange = (role: string, path: string) => {
+        setLocalConfig(prev => ({ ...prev, [role]: path }));
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        try {
+            await updateRoleHomePages(localConfig);
+            addToast('Home Page configurate con successo.', 'success');
+            setHasChanges(false);
+        } catch (e) {
+            addToast('Errore durante il salvataggio.', 'error');
+        }
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6 mt-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Home Page per Ruolo</h2>
+                    <p className="text-xs text-on-surface-variant">Definisci la pagina di atterraggio dopo il login per ciascun ruolo.</p>
+                </div>
+                {hasChanges && (
+                    <button 
+                        onClick={handleSave} 
+                        disabled={isActionLoading('updateRoleHomePages')}
+                        className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isActionLoading('updateRoleHomePages') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Configurazione</>}
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {roles.map(role => (
+                    <div key={role} className="bg-surface-container-low p-3 rounded-lg border border-outline-variant">
+                        <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase">{role}</label>
+                        <select 
+                            value={localConfig[role] || '/staffing'} 
+                            onChange={(e) => handleChange(role, e.target.value)}
+                            className="form-select w-full text-sm"
+                        >
+                            {availablePages.map(page => (
+                                <option key={page.path} value={page.path}>{page.label} ({page.path})</option>
+                            ))}
+                        </select>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // --- NEW SECTION: Cache Control ---
 const CacheControlSection: React.FC = () => {
     const { forceRecalculateAnalytics, isActionLoading } = useEntitiesContext();
@@ -924,7 +1007,12 @@ const AdminSettingsPage: React.FC = () => {
                     </div>
                 )}
                 {activeTab === 'audit' && <AuditLogSection />}
-                {activeTab === 'menu' && <MenuConfigurationEditor />}
+                {activeTab === 'menu' && (
+                    <>
+                        <MenuConfigurationEditor />
+                        <RoleHomePageEditor />
+                    </>
+                )}
                 {activeTab === 'business' && (
                     <div className="space-y-6">
                         <SkillThresholdsEditor />

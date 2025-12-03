@@ -55,6 +55,14 @@ const DEFAULT_DASHBOARD_LAYOUT: DashboardCategory[] = [
     { id: 'contratti', label: 'Contratti', cards: ['monthlyClientCost', 'averageDailyRate', 'costForecast'] }
 ];
 
+const DEFAULT_ROLE_HOME_PAGES: Record<string, string> = {
+    'SIMPLE': '/dashboard',
+    'MANAGER': '/staffing',
+    'SENIOR MANAGER': '/staffing',
+    'MANAGING DIRECTOR': '/staffing',
+    'ADMIN': '/staffing'
+};
+
 export interface AllocationsContextType {
     allocations: Allocation;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
@@ -94,6 +102,7 @@ export interface EntitiesContextType {
     sidebarSections: string[]; 
     sidebarSectionColors: SidebarSectionColors; 
     dashboardLayout: DashboardCategory[]; 
+    roleHomePages: Record<string, string>;
     notifications: Notification[];
     analyticsCache: any; // New property
     loading: boolean;
@@ -153,6 +162,7 @@ export interface EntitiesContextType {
     updateSidebarSections: (sections: string[]) => Promise<void>;
     updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
     updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
+    updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
     forceRecalculateAnalytics: () => Promise<void>; 
     // Skill Category CRUD
     addSkillCategory: (cat: Omit<SkillCategory, 'id'>) => Promise<void>;
@@ -224,6 +234,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
     const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT);
+    const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<any>({}); 
 
@@ -264,6 +275,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (metaData.sidebarSections) setSidebarSections(metaData.sidebarSections);
             if (metaData.sidebarSectionColors) setSidebarSectionColors(metaData.sidebarSectionColors);
             if (metaData.dashboardLayout) setDashboardLayout(metaData.dashboardLayout);
+            if (metaData.roleHomePages) setRoleHomePages(metaData.roleHomePages);
 
             // 2. Planning - Calculate Window (6 months back, 18 months forward)
             const today = new Date();
@@ -947,12 +959,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading('updateDashboardLayout', false); }
     };
 
+    const updateRoleHomePages = async (config: Record<string, string>) => {
+        setActionLoading('updateRoleHomePages', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: 'role_home_pages_v1', value: JSON.stringify(config) }] })
+            });
+            setRoleHomePages(config);
+        } finally { setActionLoading('updateRoleHomePages', false); }
+    };
+
     return (
         <EntitiesContext.Provider value={{
             clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
             assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
             wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-            leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout,
+            leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
             notifications, analyticsCache, loading, isActionLoading,
             fetchData, fetchNotifications, markNotificationAsRead,
             addResource, updateResource, deleteResource,
@@ -972,7 +995,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             updateSkillThresholds, getResourceComputedSkills,
             addLeaveType, updateLeaveType, deleteLeaveType,
             addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
-            updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout,
+            updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout, updateRoleHomePages,
             forceRecalculateAnalytics,
             addSkillCategory, updateSkillCategory, deleteSkillCategory,
             addSkillMacro, updateSkillMacro, deleteSkillMacro

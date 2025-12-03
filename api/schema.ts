@@ -539,6 +539,20 @@ export async function ensureDbTablesExist(db: VercelPool) {
         ON CONFLICT (key) DO NOTHING;
     `;
 
+    // --- SEED DEFAULT ROLE HOME PAGES ---
+    const defaultRoleHomePages = {
+        'SIMPLE': '/dashboard',
+        'MANAGER': '/staffing',
+        'SENIOR MANAGER': '/staffing',
+        'MANAGING DIRECTOR': '/staffing',
+        'ADMIN': '/staffing'
+    };
+    await db.sql`
+        INSERT INTO app_config (key, value)
+        VALUES ('role_home_pages_v1', ${JSON.stringify(defaultRoleHomePages)})
+        ON CONFLICT (key) DO NOTHING;
+    `;
+
     // --- MIGRATION: Ensure Sidebar Config has Notifications & Certifications ---
     try {
         const sidebarConfigRes = await db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1'`;

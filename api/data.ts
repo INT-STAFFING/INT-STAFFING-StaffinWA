@@ -76,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarSectionsRes,
                 sidebarSectionColorsRes,
                 dashboardLayoutRes,
+                roleHomePagesRes,
                 analyticsRes,
                 // New Skill Tables
                 skillCatsRes,
@@ -104,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_sections_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_section_colors';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'dashboard_layout_v2';`,
+                db.sql`SELECT value FROM app_config WHERE key = 'role_home_pages_v1';`,
                 db.sql`SELECT * FROM analytics_cache WHERE key = 'dashboard_kpi_current';`,
                 db.sql`SELECT * FROM skill_categories;`,
                 db.sql`SELECT * FROM skill_macro_categories;`,
@@ -147,6 +149,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let dashboardLayout = null;
             if (dashboardLayoutRes.rows.length > 0) { try { dashboardLayout = JSON.parse(dashboardLayoutRes.rows[0].value); } catch (e) {} }
             
+            let roleHomePages = null;
+            if (roleHomePagesRes.rows.length > 0) { try { roleHomePages = JSON.parse(roleHomePagesRes.rows[0].value); } catch (e) {} }
+
             let analyticsCache = {};
             if (analyticsRes.rows.length > 0) analyticsCache = analyticsRes.rows[0].data;
 
@@ -242,6 +247,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarSections,
                 sidebarSectionColors,
                 dashboardLayout,
+                roleHomePages,
                 analyticsCache
             });
         }

@@ -156,6 +156,26 @@ const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = (
   return children;
 };
 
+// Dynamic Home Redirect Component
+const HomeRedirect: React.FC = () => {
+    const { user, isLoginProtectionEnabled } = useAuth();
+    const { roleHomePages, loading } = useEntitiesContext();
+
+    if (loading) return loadingSpinner;
+
+    if (!isLoginProtectionEnabled) {
+        return <Navigate to="/staffing" replace />;
+    }
+
+    if (!user) {
+        return <Navigate to="/login" replace />;
+    }
+
+    // Determine target based on role configuration
+    const target = roleHomePages[user.role] || '/staffing';
+    return <Navigate to={target} replace />;
+};
+
 interface AppContentProps {
   onToggleSidebar: () => void;
 }
@@ -175,7 +195,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
         <div className="w-full max-w-none px-3 sm:px-4 md:px-6 py-4 sm:py-6">
           <Suspense fallback={loadingSpinner}>
             <Routes>
-              <Route path="/" element={<Navigate to="/staffing" replace />} />
+              <Route path="/" element={<HomeRedirect />} />
               <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
               <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
               <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />
@@ -208,7 +228,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/admin-settings" element={<AdminRoute><AdminSettingsPage /></AdminRoute>} />
               <Route path="/db-inspector" element={<AdminRoute><DbInspectorPage /></AdminRoute>} />
 
-              <Route path="*" element={<Navigate to="/staffing" replace />} />
+              <Route path="*" element={<HomeRedirect />} />
             </Routes>
           </Suspense>
         </div>
