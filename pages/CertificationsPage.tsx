@@ -335,21 +335,43 @@ const CertificationsPage: React.FC = () => {
         </div>
     );
 
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <input 
+                type="text" 
+                placeholder="Cerca per nome..." 
+                className="form-input"
+                value={filters.name}
+                onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}
+            />
+            <SearchableSelect 
+                name="macroCategory" 
+                value={filters.macroCategoryId} 
+                onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategoryId: v }))} 
+                options={macroCategoryOptions} 
+                placeholder="Macro Area"
+            />
+            <SearchableSelect 
+                name="category" 
+                value={filters.categoryId} 
+                onChange={(_, v) => setFilters(prev => ({ ...prev, categoryId: v }))} 
+                options={categoryOptions} 
+                placeholder="Ambito Specifico"
+            />
+            <div className="flex gap-2">
+                <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
+                </div>
+                <button onClick={() => setFilters({ name: '', categoryId: '', macroCategoryId: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
+                    Reset
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-6">
-             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-3xl font-bold text-on-surface">Gestione Certificazioni</h1>
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
-                    </div>
-                    <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                        <span className="material-symbols-outlined">add_verified</span> Nuova Certificazione
-                    </button>
-                </div>
-            </div>
-
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary">
@@ -370,45 +392,14 @@ const CertificationsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filters */}
-             <div className="bg-surface rounded-2xl shadow p-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input 
-                        type="text" 
-                        placeholder="Cerca per nome..." 
-                        className="form-input"
-                        value={filters.name}
-                        onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                    <SearchableSelect 
-                        name="macroCategory" 
-                        value={filters.macroCategoryId} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategoryId: v }))} 
-                        options={macroCategoryOptions} 
-                        placeholder="Macro Area"
-                    />
-                    <SearchableSelect 
-                        name="category" 
-                        value={filters.categoryId} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, categoryId: v }))} 
-                        options={categoryOptions} 
-                        placeholder="Ambito Specifico"
-                    />
-                    <button onClick={() => setFilters({ name: '', categoryId: '', macroCategoryId: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
-                        Reset
-                    </button>
-                </div>
-            </div>
-
-            {/* Content */}
-             {view === 'table' ? (
+            {view === 'table' ? (
                  <DataTable<EnrichedCertification>
-                    title=""
-                    addNewButtonLabel=""
+                    title="Gestione Certificazioni"
+                    addNewButtonLabel="Nuova Certificazione"
                     data={filteredData}
                     columns={columns}
-                    filtersNode={<></>}
-                    onAddNew={() => {}}
+                    filtersNode={filtersNode}
+                    onAddNew={() => handleOpenModal()}
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
                     initialSortKey="name"
@@ -417,10 +408,25 @@ const CertificationsPage: React.FC = () => {
                     numActions={3}
                 />
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredData.map(renderCard)}
-                    {filteredData.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna certificazione trovata.</p>}
-                </div>
+                <>
+                    {/* Header Manuale per la vista Card */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <h1 className="text-3xl font-bold text-on-surface">Gestione Certificazioni</h1>
+                        <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                            <span className="material-symbols-outlined">add_verified</span> Nuova Certificazione
+                        </button>
+                    </div>
+
+                    {/* Filtri per la vista Card (riutilizziamo filtersNode in un container) */}
+                    <div className="bg-surface rounded-2xl shadow p-4">
+                        {filtersNode}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredData.map(renderCard)}
+                        {filteredData.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna certificazione trovata.</p>}
+                    </div>
+                </>
             )}
 
             {/* Add/Edit Modal */}

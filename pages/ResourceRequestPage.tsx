@@ -352,7 +352,7 @@ export const ResourceRequestPage: React.FC = () => {
                         "
                     >
                         <DataTable<EnrichedRequest>
-                            title=""
+                            title="Richiesta Risorse"
                             addNewButtonLabel="Nuova Richiesta"
                             data={dataForTable}
                             columns={columns}

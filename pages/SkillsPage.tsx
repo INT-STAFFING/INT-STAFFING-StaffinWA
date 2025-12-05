@@ -344,23 +344,57 @@ const SkillsPage: React.FC = () => {
         </div>
     );
 
-    return (
-        <div className="space-y-6">
-             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-3xl font-bold text-on-surface">Gestione Competenze</h1>
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
-                    </div>
-                    <button onClick={() => openAssignmentModal(null)} className="px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-lg">group_add</span>
-                        Assegna
-                    </button>
-                    <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Skill</button>
+    const filtersNode = (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-3">
+                <input 
+                    type="text" 
+                    placeholder="Cerca per nome..." 
+                    className="form-input w-full"
+                    value={filters.name}
+                    onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}
+                />
+            </div>
+            <div className="md:col-span-2">
+                <SearchableSelect 
+                    name="macroCategory" 
+                    value={filters.macroCategory} 
+                    onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} 
+                    options={macroCategoryFilterOptions} 
+                    placeholder="Macro Ambito"
+                />
+            </div>
+            <div className="md:col-span-2">
+                <SearchableSelect 
+                    name="category" 
+                    value={filters.category} 
+                    onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} 
+                    options={categoryFilterOptions} 
+                    placeholder="Ambito"
+                />
+            </div>
+            
+            <div className="md:col-span-2">
+                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
+                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
                 </div>
             </div>
 
+            <div className="md:col-span-3 flex gap-2 justify-end">
+                 <button onClick={() => openAssignmentModal(null)} className="px-3 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2" title="Assegnazione Massiva">
+                    <span className="material-symbols-outlined text-lg">group_add</span>
+                    <span className="hidden xl:inline text-sm">Assegna</span>
+                </button>
+                <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
+                    Reset
+                </button>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="space-y-6">
             {/* Dashboard Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary">
@@ -386,46 +420,15 @@ const SkillsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filters */}
-             <div className="bg-surface rounded-2xl shadow p-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <input 
-                        type="text" 
-                        placeholder="Cerca per nome..." 
-                        className="form-input"
-                        value={filters.name}
-                        onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                    <SearchableSelect 
-                        name="macroCategory" 
-                        value={filters.macroCategory} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} 
-                        options={macroCategoryFilterOptions} 
-                        placeholder="Macro Ambito"
-                    />
-                    <SearchableSelect 
-                        name="category" 
-                        value={filters.category} 
-                        onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} 
-                        options={categoryFilterOptions} 
-                        placeholder="Ambito"
-                    />
-                    
-                    <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
-                        Reset
-                    </button>
-                </div>
-            </div>
-
             {/* Content */}
              {view === 'table' ? (
                  <DataTable<EnrichedSkill>
-                    title=""
-                    addNewButtonLabel=""
+                    title="Gestione Competenze"
+                    addNewButtonLabel="Nuova Competenza"
                     data={filteredSkills}
                     columns={columns}
-                    filtersNode={<></>}
-                    onAddNew={() => {}}
+                    filtersNode={filtersNode}
+                    onAddNew={() => handleOpenModal()}
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
                     initialSortKey="name"
@@ -434,10 +437,23 @@ const SkillsPage: React.FC = () => {
                     numActions={3} // ASSEGNA, MODIFICA, ELIMINA
                 />
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredSkills.map(renderCard)}
-                    {filteredSkills.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna skill trovata.</p>}
-                </div>
+                <>
+                    {/* Header Manuale per vista Card */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <h1 className="text-3xl font-bold text-on-surface">Gestione Competenze</h1>
+                        <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Competenza</button>
+                    </div>
+
+                    {/* Filtri manuali per vista Card */}
+                    <div className="bg-surface rounded-2xl shadow p-4">
+                        {filtersNode}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredSkills.map(renderCard)}
+                        {filteredSkills.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna skill trovata.</p>}
+                    </div>
+                </>
             )}
 
             {/* Add/Edit Skill Modal */}

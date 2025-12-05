@@ -275,7 +275,7 @@ const SkillsMapPage: React.FC = () => {
     const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillMacroCategories]);
 
     const columns: ColumnDef<EnrichedSkillResource>[] = [
-        { header: 'Risorsa', sortKey: 'name', cell: r => <span className="font-medium text-on-surface">{r.name}</span> },
+        { header: 'Risorsa', sortKey: 'name', cell: r => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</span> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
         { header: 'Macro Ambito Prevalente', sortKey: 'dominantMacro', cell: r => <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">{r.dominantMacro}</span> },
         { header: 'Ambito Prevalente', sortKey: 'dominantCategory', cell: r => <span className="text-xs text-on-surface-variant">{r.dominantCategory}</span> },
@@ -412,17 +412,50 @@ const SkillsMapPage: React.FC = () => {
         );
     };
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-3xl font-bold text-on-surface">Mappa Competenze</h1>
-                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
+    const filtersNode = (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
+                <div className="flex-grow">
+                    <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Filtra per Ruoli..."/>
+                </div>
+                <SearchableSelect name="macroCategoryId" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
+                <SearchableSelect name="categoryId" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
+                
+                <div className="flex gap-2">
+                    <div className="flex-grow">
+                        <select 
+                            className="form-select text-sm h-full"
+                            value={filters.displayMode}
+                            onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
+                        >
+                            <option value="all">Tutti (Competenze e Cert.)</option>
+                            <option value="skills_only">Solo Competenze (No Cert)</option>
+                            <option value="certs_only">Solo Certificazioni</option>
+                            <option value="empty">Nessuna Competenza</option>
+                        </select>
+                    </div>
                 </div>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                 <div className="md:col-span-8">
+                     <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
+                 </div>
+                 <div className="md:col-span-2">
+                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
+                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
+                    </div>
+                 </div>
+                 <div className="md:col-span-2">
+                    <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
+                 </div>
+            </div>
+        </div>
+    );
 
+    return (
+        <div className="space-y-6">
             {/* Dashboard KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
@@ -446,45 +479,14 @@ const SkillsMapPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-surface rounded-2xl shadow p-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-                    <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
-                    <div className="flex-grow">
-                        <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Filtra per Ruoli..."/>
-                    </div>
-                    <SearchableSelect name="macroCategoryId" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
-                    <SearchableSelect name="categoryId" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
-                    
-                    <div className="flex gap-2">
-                        <div className="flex-grow">
-                            <select 
-                                className="form-select text-sm h-full"
-                                value={filters.displayMode}
-                                onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
-                            >
-                                <option value="all">Tutti (Competenze e Cert.)</option>
-                                <option value="skills_only">Solo Competenze (No Cert)</option>
-                                <option value="certs_only">Solo Certificazioni</option>
-                                <option value="empty">Nessuna Competenza</option>
-                            </select>
-                        </div>
-                        <button onClick={() => setFilters({ resourceId: '', roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">Reset</button>
-                    </div>
-                </div>
-                <div className="mt-4">
-                     <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Filtra per Skills..."/>
-                </div>
-            </div>
-
             {/* Main Content */}
             {view === 'table' ? (
                  <DataTable<EnrichedSkillResource>
-                    title=""
+                    title="Mappa Competenze"
                     addNewButtonLabel=""
                     data={filteredResources}
                     columns={columns}
-                    filtersNode={<></>}
+                    filtersNode={filtersNode}
                     onAddNew={() => {}} // No add new resource here
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
@@ -494,10 +496,22 @@ const SkillsMapPage: React.FC = () => {
                     numActions={1}
                 />
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredResources.map(renderCard)}
-                    {filteredResources.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna risorsa trovata.</p>}
-                </div>
+                <>
+                    {/* Header Manuale per vista Card */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <h1 className="text-3xl font-bold text-on-surface">Mappa Competenze</h1>
+                    </div>
+
+                    {/* Filtri manuali per vista Card */}
+                    <div className="bg-surface rounded-2xl shadow p-4">
+                        {filtersNode}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {filteredResources.map(renderCard)}
+                        {filteredResources.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna risorsa trovata.</p>}
+                    </div>
+                </>
             )}
 
             {/* Edit Modal */}
