@@ -303,7 +303,7 @@ export const ResourceRequestPage: React.FC = () => {
                 </div>
             </div>
             
-             //<div className="mb-6 p-4 bg-surface rounded-2xl shadow">
+             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 {filtersNode}
                 
             </div>
@@ -349,15 +349,14 @@ export const ResourceRequestPage: React.FC = () => {
             </div>
 
             {view === 'table' ? (
-                //<div className="bg-surface rounded-2xl shadow">
-                   
-                    <div
-                        className="
+                <div className="
                             max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8)
                             overflow-y-auto  // scroll verticale SOLO sul contenuto della tabella
                             overflow-x-auto  // scroll orizzontale quando necessario
                         "
-                    >
+                        >
+                   
+                    <div className="bg-surface rounded-2xl shadow" >
                         <DataTable<EnrichedRequest>
                             title=""
                             addNewButtonLabel=""
@@ -382,7 +381,7 @@ export const ResourceRequestPage: React.FC = () => {
                             numActions={2} // MODIFICA, ELIMINA
                         />
                     </div>
-                //</div>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
                     {dataForTable.length > 0 ? (
