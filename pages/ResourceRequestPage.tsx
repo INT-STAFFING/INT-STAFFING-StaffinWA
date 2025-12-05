@@ -348,7 +348,7 @@ export const ResourceRequestPage: React.FC = () => {
             </div>
 
             {view === 'table' ? (
-                <div className="bg-surface rounded-2xl shadow">
+                //<div className="bg-surface rounded-2xl shadow">
                    
                     <div
                         className="
@@ -381,7 +381,7 @@ export const ResourceRequestPage: React.FC = () => {
                             numActions={2} // MODIFICA, ELIMINA
                         />
                     </div>
-                </div>
+                //</div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
                     {dataForTable.length > 0 ? (
