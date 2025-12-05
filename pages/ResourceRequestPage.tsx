@@ -348,22 +348,24 @@ export const ResourceRequestPage: React.FC = () => {
                 </div>
             </div>
 
+
             {view === 'table' ? (
-                <div className="
+                //<div className="bg-surface rounded-2xl shadow">
+                   
+                    <div
+                        className="
                             max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8)
                             overflow-y-auto  // scroll verticale SOLO sul contenuto della tabella
                             overflow-x-auto  // scroll orizzontale quando necessario
                         "
-                        >
-                   
-                    <div className="bg-surface rounded-2xl shadow" >
+                    >
                         <DataTable<EnrichedRequest>
-                            title=""
-                            addNewButtonLabel=""
+                            title="Richiesta Risorse"
+                            addNewButtonLabel="Nuova Richiesta"
                             data={dataForTable}
                             columns={columns}
-                            filtersNode={<></>}
-                            onAddNew={() => {}}
+                            filtersNode={filtersNode}
+                            onAddNew={openModalForNew}
                             renderRow={renderRow}
                             renderMobileCard={renderCard}
                             initialSortKey="startDate"
@@ -381,7 +383,7 @@ export const ResourceRequestPage: React.FC = () => {
                             numActions={2} // MODIFICA, ELIMINA
                         />
                     </div>
-                </div>
+                //</div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
                     {dataForTable.length > 0 ? (
