@@ -293,20 +293,20 @@ export const ResourceRequestPage: React.FC = () => {
     return (
         <div>
              <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-on-surface self-start">Richieste Risorse</h1>
+                //<h1 className="text-3xl font-bold text-on-surface self-start">Richieste Risorse</h1>
                  <div className="flex items-center gap-4 w-full md:w-auto">
                      <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
                         <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
                         <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
                     </div>
-                    <button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Richiesta</button>
+                    //<button onClick={openModalForNew} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Richiesta</button>
                 </div>
             </div>
             
-             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
-                {filtersNode}
+            //<div className="mb-6 p-4 bg-surface rounded-2xl shadow">
+            //    {filtersNode}
                 
-            </div>
+            //</div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-surface-container-low rounded-2xl shadow p-6 border-l-4 border-primary">
@@ -354,13 +354,13 @@ export const ResourceRequestPage: React.FC = () => {
                    
                     <div
                         className="
-                            max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8)
+                            //max-h-[640px]    // ≈ 20 righe se la riga è ~32px (h-8)
                             overflow-y-auto  // scroll verticale SOLO sul contenuto della tabella
                             overflow-x-auto  // scroll orizzontale quando necessario
                         "
                     >
                         <DataTable<EnrichedRequest>
-                            title="Richiesta Risorse"
+                            title=""
                             addNewButtonLabel="Nuova Richiesta"
                             data={dataForTable}
                             columns={columns}
