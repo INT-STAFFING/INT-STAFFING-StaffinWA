@@ -303,8 +303,9 @@ export const ResourceRequestPage: React.FC = () => {
                 </div>
             </div>
             
-             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
+             //<div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 {filtersNode}
+                
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
