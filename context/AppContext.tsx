@@ -622,21 +622,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addResourceRequest = async (req: Omit<ResourceRequest, 'id'>) => {
         setActionLoading('addResourceRequest', true);
         try {
-            const newReq = await apiFetch('/api/resources?entity=resource_requests', { method: 'POST', body: JSON.stringify(req) });
+            // FIX: Pointing to specific endpoint for Resource Requests to handle ID generation
+            const newReq = await apiFetch('/api/resource-requests', { method: 'POST', body: JSON.stringify(req) });
             setResourceRequests(prev => [...prev, newReq]);
         } finally { setActionLoading('addResourceRequest', false); }
     };
     const updateResourceRequest = async (req: ResourceRequest) => {
         setActionLoading(`updateResourceRequest-${req.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=resource_requests&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
+            // FIX: Pointing to specific endpoint
+            const updated = await apiFetch(`/api/resource-requests?id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setResourceRequests(prev => prev.map(r => r.id === req.id ? updated : r));
         } finally { setActionLoading(`updateResourceRequest-${req.id}`, false); }
     };
     const deleteResourceRequest = async (id: string) => {
         setActionLoading(`deleteResourceRequest-${id}`, true);
         try {
-            await apiFetch(`/api/resources?entity=resource_requests&id=${id}`, { method: 'DELETE' });
+            // FIX: Pointing to specific endpoint
+            await apiFetch(`/api/resource-requests?id=${id}`, { method: 'DELETE' });
             setResourceRequests(prev => prev.filter(r => r.id !== id));
         } finally { setActionLoading(`deleteResourceRequest-${id}`, false); }
     };
