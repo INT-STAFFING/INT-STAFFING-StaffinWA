@@ -8,6 +8,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatDateFull } from '../utils/dateUtils';
+import { useToast } from '../context/ToastContext';
 
 // --- Types ---
 type EnrichedRequest = ResourceRequest & {
@@ -30,6 +31,7 @@ export const ResourceRequestPage: React.FC = () => {
         resourceRequests, projects, roles, resources, 
         addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading, loading
     } = useEntitiesContext();
+    const { addToast } = useToast();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRequest, setEditingRequest] = useState<ResourceRequest | Omit<ResourceRequest, 'id'> | null>(null);
@@ -136,6 +138,13 @@ export const ResourceRequestPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingRequest) {
+            
+            // Validazione manuale dei campi obbligatori (dato che i required su input hidden non sempre bloccano il submit)
+            if (!editingRequest.projectId || !editingRequest.roleId) {
+                addToast('Compila tutti i campi obbligatori (Progetto, Ruolo).', 'error');
+                return;
+            }
+
             // Calculate isLongTerm
             const startDate = new Date(editingRequest.startDate);
             const endDate = new Date(editingRequest.endDate);
@@ -154,12 +163,15 @@ export const ResourceRequestPage: React.FC = () => {
             try {
                 if ('id' in requestToSave) {
                     await updateResourceRequest(requestToSave as ResourceRequest);
+                    addToast('Richiesta aggiornata con successo.', 'success');
                 } else {
                     await addResourceRequest(requestToSave as Omit<ResourceRequest, 'id'>);
+                    addToast('Richiesta creata con successo.', 'success');
                 }
                 handleCloseModal();
             } catch (err) {
-                // error is handled by context
+                console.error(err);
+                addToast('Errore durante il salvataggio della richiesta.', 'error');
             }
         }
     };
@@ -184,8 +196,13 @@ export const ResourceRequestPage: React.FC = () => {
 
     const handleDelete = async () => {
         if (requestToDelete) {
-            await deleteResourceRequest(requestToDelete.id!);
-            setRequestToDelete(null);
+            try {
+                await deleteResourceRequest(requestToDelete.id!);
+                addToast('Richiesta eliminata con successo.', 'success');
+                setRequestToDelete(null);
+            } catch (e) {
+                addToast('Errore durante l\'eliminazione.', 'error');
+            }
         }
     };
 
