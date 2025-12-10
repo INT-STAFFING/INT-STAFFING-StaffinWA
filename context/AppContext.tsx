@@ -588,7 +588,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const currentDate = new Date(start);
 
             while (currentDate <= end) {
-                const day = currentDate.getDay();
+                // FIX: Use getUTCDay() to ensure consistency with toISOString() (which is UTC).
+                // Using getDay() (Local) caused offsets in timezones west of UTC, skipping Fridays or including Saturdays incorrectly.
+                const day = currentDate.getUTCDay();
                 if (day !== 0 && day !== 6) { 
                     const dateStr = currentDate.toISOString().split('T')[0];
                     updates.push({ assignmentId, date: dateStr, percentage });
