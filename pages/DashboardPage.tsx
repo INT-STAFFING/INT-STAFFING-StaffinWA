@@ -146,7 +146,7 @@ const LeavesOverviewCard: React.FC<{ navigate: (path: string) => void }> = ({ na
     
     const today = new Date().toISOString().split('T')[0];
     const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
+    nextWeek.setUTCDate(nextWeek.getUTCDate() + 7);
     const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
     const absentToday = useMemo(() => {
@@ -766,16 +766,19 @@ const DashboardPage: React.FC = () => {
     const [avgAllocFilter, setAvgAllocFilter] = useState({ resourceId: '' });
     const [fteFilter, setFteFilter] = useState({ clientId: '' });
     const [budgetFilter, setBudgetFilter] = useState({ clientId: '' });
+    
+    // Corrected UTC date initialization for filters
     const [temporalBudgetFilter, setTemporalBudgetFilter] = useState({
         clientId: '',
-        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
-        endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+        startDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10),
+        endDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0)).toISOString().slice(0, 10),
     });
     const [avgDailyRateFilter, setAvgDailyRateFilter] = useState({
         clientId: '',
-        startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
-        endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+        startDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString().slice(0, 10),
+        endDate: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0)).toISOString().slice(0, 10),
     });
+    
     const [underutilizedFilter, setUnderutilizedFilter] = useState(new Date().toISOString().slice(0, 7));
     const [trendResource, setTrendResource] = useState<string>('');
 
@@ -783,7 +786,7 @@ const DashboardPage: React.FC = () => {
 
     const overallKPIs = useMemo(() => {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setUTCHours(0, 0, 0, 0);
 
         // --- Resources ---
         const totalActiveResources = activeResources.length;
@@ -820,8 +823,8 @@ const DashboardPage: React.FC = () => {
 
     const currentMonthKPIs = useMemo(() => {
         const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
         let totalCost = 0;
         let totalPersonDays = 0;
         const costByClient: { [clientId: string]: { id: string; name: string; cost: number } } = {};
@@ -839,7 +842,7 @@ const DashboardPage: React.FC = () => {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = parseISODate(dateStr);
                     if (allocDate >= firstDay && allocDate <= lastDay) {
-                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                             const personDayFraction = (assignmentAllocations[dateStr] / 100);
                             
                             // Use historical cost
@@ -880,8 +883,8 @@ const DashboardPage: React.FC = () => {
         return filteredResources.map(resource => {
             const calculateAvgForMonth = (monthOffset: number) => {
                 const now = new Date();
-                const firstDay = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
-                const lastDay = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0);
+                const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
+                const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset + 1, 0));
                 const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
                 if (workingDays === 0) return 0;
                 
@@ -892,7 +895,7 @@ const DashboardPage: React.FC = () => {
                     if(assignmentAllocations){
                         for(const dateStr in assignmentAllocations){
                             const allocDate = parseISODate(dateStr);
-                            if(allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6){
+                            if(allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6){
                                 totalPersonDays += (assignmentAllocations[dateStr] / 100);
                             }
                         }
@@ -933,7 +936,7 @@ const DashboardPage: React.FC = () => {
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = parseISODate(dateStr);
-                        if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                        if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
                     }
@@ -960,7 +963,7 @@ const DashboardPage: React.FC = () => {
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = parseISODate(dateStr);
-                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                             const dailyRate = getRoleCost(resource.roleId, allocDate);
                             estimatedCost += ((assignmentAllocations[dateStr] / 100) * dailyRate);
                         }
@@ -1015,7 +1018,7 @@ const DashboardPage: React.FC = () => {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = parseISODate(dateStr);
                         if (allocDate >= filterStartDate && allocDate <= filterEndDate) {
-                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 const dailyRate = getRoleCost(resource.roleId, allocDate);
                                 estimatedCost += ((assignmentAllocations[dateStr] / 100) * dailyRate);
                             }
@@ -1054,16 +1057,17 @@ const DashboardPage: React.FC = () => {
                 const assignmentAllocations = allocations[assignment.id!];
                 if (assignmentAllocations) {
                     let currentDate = new Date(filterStartDate);
-                    while (currentDate <= filterEndDate) {
+                    // Use getTime comparison for safety
+                    while (currentDate.getTime() <= filterEndDate.getTime()) {
                         const dateStr = currentDate.toISOString().slice(0, 10);
-                        if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+                        if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) {
                             const personDayFraction = (assignmentAllocations[dateStr] / 100);
                             const dailyRate = getRoleCost(resource.roleId, currentDate);
                             
                             totalPersonDays += personDayFraction;
                             totalCost += personDayFraction * dailyRate * (project.realizationPercentage / 100);
                         }
-                        currentDate.setDate(currentDate.getDate() + 1);
+                        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
                     }
                 }
             });
@@ -1081,8 +1085,8 @@ const DashboardPage: React.FC = () => {
     
     const underutilizedResourcesData = useMemo(() => {
         const [year, monthNum] = underutilizedFilter.split('-').map(Number);
-        const firstDay = new Date(year, monthNum - 1, 1);
-        const lastDay = new Date(year, monthNum, 0);
+        const firstDay = new Date(Date.UTC(year, monthNum - 1, 1));
+        const lastDay = new Date(Date.UTC(year, monthNum, 0));
 
         return activeResources.map(resource => {
             const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
@@ -1095,7 +1099,7 @@ const DashboardPage: React.FC = () => {
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = parseISODate(dateStr);
-                        if(allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6){
+                        if(allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6){
                            totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
                     }
@@ -1117,7 +1121,7 @@ const DashboardPage: React.FC = () => {
             if(assignmentAllocations) {
                 for(const dateStr in assignmentAllocations) {
                     const allocDate = parseISODate(dateStr);
-                     if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                     if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                         data[resource.horizontal] += (assignmentAllocations[dateStr] / 100);
                     }
                 }
@@ -1128,8 +1132,8 @@ const DashboardPage: React.FC = () => {
 
     const analysisByLocationData = useMemo(() => {
         const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
         return locations.map(location => {
             const resourcesInLocation = activeResources.filter(r => r.location === location.value);
@@ -1149,7 +1153,7 @@ const DashboardPage: React.FC = () => {
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = parseISODate(dateStr);
-                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 allocatedDays += (assignmentAllocations[dateStr] / 100);
                             }
                         }
@@ -1175,9 +1179,9 @@ const DashboardPage: React.FC = () => {
         const data = [];
         const today = new Date();
         for (let i = -6; i <= 3; i++) {
-            const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
-            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + i, 1));
+            const firstDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+            const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 
             const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
             let totalPersonDays = 0;
@@ -1189,7 +1193,7 @@ const DashboardPage: React.FC = () => {
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = parseISODate(dateStr);
-                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                             if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 totalPersonDays += (assignmentAllocations[dateStr] / 100);
                             }
                         }
@@ -1204,8 +1208,8 @@ const DashboardPage: React.FC = () => {
      const monthlyCostForecastData = useMemo(() => {
         const calculateCostForMonth = (monthOffset: number): number => {
             const now = new Date();
-            const firstDay = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
-            const lastDay = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0);
+            const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset, 1));
+            const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + monthOffset + 1, 0));
             let totalCost = 0;
             
             for (const assignment of assignments) {
@@ -1219,7 +1223,7 @@ const DashboardPage: React.FC = () => {
                 if (assignmentAllocations) {
                     for (const dateStr in assignmentAllocations) {
                         const allocDate = parseISODate(dateStr);
-                        if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                        if (allocDate >= firstDay && allocDate <= lastDay && !isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                             const dailyRate = getRoleCost(resource.roleId, allocDate);
                             totalCost += ((assignmentAllocations[dateStr] / 100) * dailyRate * realization);
                         }
@@ -1234,7 +1238,8 @@ const DashboardPage: React.FC = () => {
 
         const forecastData = [];
         for (let i = 0; i <= 3; i++) {
-            const date = new Date(new Date().getFullYear(), new Date().getMonth() + i, 1);
+            const n = new Date();
+            const date = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + i, 1));
             forecastData.push({
                 month: date,
                 historic: avgHistoricCost,

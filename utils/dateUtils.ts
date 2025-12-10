@@ -2,18 +2,20 @@
 /**
  * @file dateUtils.ts
  * @description Funzioni di utilità per la manipolazione e formattazione delle date.
+ * NOTA: Tutte le operazioni sono forzate in UTC per garantire consistenza con i dati salvati nel DB (ISO String UTC).
  */
 import { CalendarEvent, LeaveRequest, LeaveType } from '../types';
 
 /**
  * Aggiunge o sottrae un numero specificato di giorni a una data.
+ * Utilizza metodi UTC per evitare problemi con i cambi di ora legale.
  * @param {Date} date - La data di partenza.
  * @param {number} days - Il numero di giorni da aggiungere (può essere negativo per sottrarre).
  * @returns {Date} Una nuova istanza di Date con il calcolo applicato.
  */
 export const addDays = (date: Date, days: number): Date => {
     const result = new Date(date);
-    result.setDate(result.getDate() + days);
+    result.setUTCDate(result.getUTCDate() + days);
     return result;
 };
 
@@ -26,21 +28,21 @@ export const addDays = (date: Date, days: number): Date => {
 export const getCalendarDays = (startDate: Date, count: number): Date[] => {
     const days: Date[] = [];
     let currentDate = new Date(startDate);
-    while (days.length < count) {
+    for (let i = 0; i < count; i++) {
         days.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
     return days;
 };
 
 /**
- * Helper interno per formattare una data in YYYY-MM-DD usando l'ora locale.
- * Evita i problemi di shift dovuti a toISOString() (UTC).
+ * Helper interno per formattare una data in YYYY-MM-DD usando componenti UTC.
+ * Garantisce che la stringa generata corrisponda alla data UTC, ignorando il fuso orario locale.
  */
-const toLocalISOString = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+const toUTCISOString = (date: Date): string => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
 
@@ -52,8 +54,8 @@ const toLocalISOString = (date: Date): string => {
  * @returns {boolean} True se la data è un giorno non lavorativo, altrimenti false.
  */
 export const isHoliday = (date: Date, resourceLocation: string | null, companyCalendar: CalendarEvent[]): boolean => {
-    // FIX: Usa data locale per evitare shift di fuso orario
-    const dateStr = toLocalISOString(date);
+    // Usa helper UTC per evitare shift
+    const dateStr = toUTCISOString(date);
     
     return companyCalendar.some(event => {
         if (event.date !== dateStr) return false;
@@ -66,6 +68,7 @@ export const isHoliday = (date: Date, resourceLocation: string | null, companyCa
 
 /**
  * Calcola il numero di giorni lavorativi (lunedì-venerdì, escluse festività) tra due date (inclusive).
+ * Utilizza aritmetica UTC pura.
  * @param {Date} startDate - La data di inizio.
  * @param {Date} endDate - La data di fine.
  * @param {CalendarEvent[]} companyCalendar - L'array di eventi del calendario per escludere i giorni non lavorativi.
@@ -81,13 +84,15 @@ export const getWorkingDaysBetween = (startDate: Date, endDate: Date, companyCal
     // Safety break for extremely long ranges
     let safetyCounter = 0;
     
-    while (currentDate <= endDate && safetyCounter < 10000) {
-        const dayOfWeek = currentDate.getDay();
+    // Use numeric comparison for safety
+    while (currentDate.getTime() <= endDate.getTime() && safetyCounter < 10000) {
+        const dayOfWeek = currentDate.getUTCDay(); // 0 = Sunday, 6 = Saturday (UTC)
         const isNonWorkingDay = dayOfWeek === 0 || dayOfWeek === 6 || isHoliday(currentDate, resourceLocation, companyCalendar);
         if (!isNonWorkingDay) {
             count++;
         }
-        currentDate.setDate(currentDate.getDate() + 1);
+        // Increment using UTC methods
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         safetyCounter++;
     }
     return count;
@@ -117,8 +122,7 @@ export const getLeaveDurationInWorkingDays = (
     // Se non c'è sovrapposizione
     if (start > end) return 0;
 
-    // Se è una mezza giornata, conta sempre 0.5, indipendentemente dall'intervallo (dato che start == end per definizione)
-    // Ma solo se il giorno stesso è lavorativo.
+    // Se è una mezza giornata, conta sempre 0.5 se il giorno è lavorativo
     if (leave.isHalfDay) {
         const workingDays = getWorkingDaysBetween(start, end, companyCalendar, resourceLocation);
         return workingDays > 0 ? 0.5 : 0;
@@ -130,7 +134,7 @@ export const getLeaveDurationInWorkingDays = (
 
 /**
  * Formatta una data nel formato standard europeo completo GG/MM/AAAA.
- * Forza l'interpretazione manuale per garantire il formato esatto.
+ * Usa componenti UTC per coerenza.
  * @param {Date | string | null | undefined} date - La data da formattare.
  * @returns {string} La data formattata es. "31/12/2024" o "N/A" se nulla/invalida.
  */
@@ -138,26 +142,19 @@ export const formatDateFull = (date: Date | string | null | undefined): string =
     if (!date) return 'N/A';
     
     let d: Date;
-    let isUtc = false;
 
     if (typeof date === 'string') {
-        // Se è una stringa YYYY-MM-DD pura, la trattiamo come UTC per evitare shift di fuso orario
-        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            d = new Date(date);
-            isUtc = true;
-        } else {
-            d = new Date(date);
-        }
+        d = new Date(date);
     } else {
         d = date;
     }
 
     if (isNaN(d.getTime())) return 'N/A';
     
-    // Estrazione manuale componenti per formato DD/MM/YYYY
-    const day = isUtc ? d.getUTCDate() : d.getDate();
-    const month = isUtc ? d.getUTCMonth() + 1 : d.getMonth() + 1;
-    const year = isUtc ? d.getUTCFullYear() : d.getFullYear();
+    // Estrazione UTC components per formato DD/MM/YYYY
+    const day = d.getUTCDate();
+    const month = d.getUTCMonth() + 1;
+    const year = d.getUTCFullYear();
 
     return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
 };
@@ -171,23 +168,17 @@ export const formatDateSynthetic = (date: Date | string | null | undefined): str
     if (!date) return 'N/A';
     
     let d: Date;
-    let isUtc = false;
 
     if (typeof date === 'string') {
-        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            d = new Date(date);
-            isUtc = true;
-        } else {
-            d = new Date(date);
-        }
+        d = new Date(date);
     } else {
         d = date;
     }
 
     if (isNaN(d.getTime())) return 'N/A';
     
-    const day = isUtc ? d.getUTCDate() : d.getDate();
-    const month = isUtc ? d.getUTCMonth() + 1 : d.getMonth() + 1;
+    const day = d.getUTCDate();
+    const month = d.getUTCMonth() + 1;
 
     return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`;
 };
@@ -204,11 +195,10 @@ export const formatDateSynthetic = (date: Date | string | null | undefined): str
  */
 export const formatDate = (date: Date, format: 'iso' | 'short' | 'day' | 'full'): string => {
     if (format === 'iso') {
-        // FIX: Usa helper locale per evitare shift UTC
-        return toLocalISOString(date);
+        return toUTCISOString(date);
     }
     if (format === 'day') {
-        return date.toLocaleDateString('it-IT', { weekday: 'short' });
+        return date.toLocaleDateString('it-IT', { weekday: 'short' }); // Weekday names are locale dependent, safe to use browser locale
     }
     if (format === 'full' || format === 'short') {
         return formatDateFull(date);

@@ -139,7 +139,7 @@ export const ResourceRequestPage: React.FC = () => {
         e.preventDefault();
         if (editingRequest) {
             
-            // Validazione manuale dei campi obbligatori (dato che i required su input hidden non sempre bloccano il submit)
+            // Validazione manuale dei campi obbligatori
             if (!editingRequest.projectId || !editingRequest.roleId) {
                 addToast('Compila tutti i campi obbligatori (Progetto, Ruolo).', 'error');
                 return;
@@ -281,27 +281,33 @@ export const ResourceRequestPage: React.FC = () => {
     
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
-            <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
-            <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
-            <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions.map(s => ({ value: s.value, label: s.label }))} placeholder="Tutti gli Stati"/>
-            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+            <div className="md:col-span-3">
+                <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
+            </div>
+            <div className="md:col-span-3">
+                <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
+            </div>
+            <div className="md:col-span-2">
+                <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions.map(s => ({ value: s.value, label: s.label }))} placeholder="Stato"/>
+            </div>
+            
+            <div className="md:col-span-2">
+                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
+                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
+                </div>
+            </div>
+
+            <div className="md:col-span-2">
+                <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">Reset</button>
+            </div>
         </div>
     );
     
     return (
         <div>
-             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                 <div className="flex items-center gap-4 w-full md:w-auto">
-                     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                        <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                        <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
-                    </div>
-                </div>
-            </div>
-            
-
+            {/* KPI Summary */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-surface-container-low rounded-2xl shadow p-6 border-l-4 border-primary">
                     <h2 className="text-lg font-semibold text-on-surface mb-4">Riepilogo Risorse Richieste (FTE)</h2>
@@ -342,47 +348,55 @@ export const ResourceRequestPage: React.FC = () => {
                 </div>
             </div>
 
-
             {view === 'table' ? (
-                   
-                    <div
-                        className="
-                            overflow-y-auto  // scroll verticale SOLO sul contenuto della tabella
-                            overflow-x-auto  // scroll orizzontale quando necessario
-                        "
-                    >
-                        <DataTable<EnrichedRequest>
-                            title="Richiesta Risorse"
-                            addNewButtonLabel="Nuova Richiesta"
-                            data={dataForTable}
-                            columns={columns}
-                            filtersNode={filtersNode}
-                            onAddNew={openModalForNew}
-                            renderRow={renderRow}
-                            renderMobileCard={renderCard}
-                            initialSortKey="startDate"
-                            isLoading={loading}
-                            tableLayout={{
-                                dense: true,
-                                striped: true,
-                                headerSticky: true,
-                                headerBackground: true,
-                                headerBorder: true,
-                            }}
-                            tableClassNames={{
-                                base: 'w-full text-sm',
-                            }}
-                            numActions={2} // MODIFICA, ELIMINA
-                        />
-                    </div>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-                    {dataForTable.length > 0 ? (
-                        dataForTable.map(renderCard)
-                    ) : (
-                        <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna richiesta trovata.</p>
-                    )}
+                <div className="overflow-y-auto overflow-x-auto">
+                    <DataTable<EnrichedRequest>
+                        title="Richiesta Risorse"
+                        addNewButtonLabel="Nuova Richiesta"
+                        data={dataForTable}
+                        columns={columns}
+                        filtersNode={filtersNode}
+                        onAddNew={openModalForNew}
+                        renderRow={renderRow}
+                        renderMobileCard={renderCard}
+                        initialSortKey="startDate"
+                        isLoading={loading}
+                        tableLayout={{
+                            dense: true,
+                            striped: true,
+                            headerSticky: true,
+                            headerBackground: true,
+                            headerBorder: true,
+                        }}
+                        tableClassNames={{
+                            base: 'w-full text-sm',
+                        }}
+                        numActions={2} 
+                    />
                 </div>
+            ) : (
+                <>
+                    {/* Header Manuale per Vista Card */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                        <h1 className="text-3xl font-bold text-on-surface">Richiesta Risorse</h1>
+                        <button onClick={openModalForNew} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                            <span className="material-symbols-outlined">add</span> Nuova Richiesta
+                        </button>
+                    </div>
+
+                    {/* Filtri Manuali per Vista Card */}
+                    <div className="bg-surface rounded-2xl shadow p-4 mb-6">
+                        {filtersNode}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+                        {dataForTable.length > 0 ? (
+                            dataForTable.map(renderCard)
+                        ) : (
+                            <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna richiesta trovata.</p>
+                        )}
+                    </div>
+                </>
             )}
 
             {/* Modals */}
@@ -412,7 +426,6 @@ export const ResourceRequestPage: React.FC = () => {
                             <input type="range" min="0" max="100" step="10" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
                         </div>
                         
-                        {/* OSR Fields */}
                         <div className="bg-surface-container-low p-3 rounded border border-outline-variant">
                             <div className="flex items-center gap-2 mb-2">
                                 <input type="checkbox" name="isOsrOpen" checked={editingRequest.isOsrOpen || false} onChange={handleChange} className="form-checkbox"/>

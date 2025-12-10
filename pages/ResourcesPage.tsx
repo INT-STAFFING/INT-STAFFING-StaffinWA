@@ -84,11 +84,13 @@ const ResourcesPage: React.FC = () => {
     
     const calculateResourceAllocation = useCallback((resource: Resource): number => {
         const now = new Date();
-        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
         
         const effectiveLastDay = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
-        if(firstDay > effectiveLastDay) return 0;
+        
+        // Use getTime for numeric comparison of Dates
+        if(firstDay.getTime() > effectiveLastDay.getTime()) return 0;
         
         const workingDaysInMonth = getWorkingDaysBetween(firstDay, effectiveLastDay, companyCalendar, resource.location);
 
@@ -102,8 +104,10 @@ const ResourcesPage: React.FC = () => {
             if (assignmentAllocations) {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = new Date(dateStr);
-                    if (allocDate >= firstDay && allocDate <= effectiveLastDay) {
-                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getDay() !== 0 && allocDate.getDay() !== 6) {
+                    // Use UTC comparison
+                    if (allocDate.getTime() >= firstDay.getTime() && allocDate.getTime() <= effectiveLastDay.getTime()) {
+                         // Check holiday and weekends using UTC methods
+                         if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
                     }

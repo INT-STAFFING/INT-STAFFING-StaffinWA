@@ -74,16 +74,18 @@ const ForecastingPage: React.FC = () => {
         return false;
     };
 
-    // Optimized getWorkingDays using the map
+    // Optimized getWorkingDays using the map and UTC methods
     const getWorkingDaysOptimized = (startDate: Date, endDate: Date, location: string | null): number => {
         let count = 0;
         const currentDate = new Date(startDate.getTime());
-        while (currentDate <= endDate) {
-            const dayOfWeek = currentDate.getDay();
+        // Use numeric comparison for safety and performance
+        while (currentDate.getTime() <= endDate.getTime()) {
+            const dayOfWeek = currentDate.getUTCDay(); // 0 = Sunday, 6 = Saturday
             if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(currentDate, location)) {
                 count++;
             }
-            currentDate.setDate(currentDate.getDate() + 1);
+            // Advance by exactly one day in UTC
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         }
         return count;
     };
@@ -128,7 +130,7 @@ const ForecastingPage: React.FC = () => {
     const forecastData = useMemo(() => {
         const results = [];
         const today = new Date();
-        today.setHours(0,0,0,0);
+        today.setUTCHours(0,0,0,0);
 
         // Pre-filter resources and assignments to reduce inner loop iterations
         let filteredResources = resources.filter(r => !r.resigned);
@@ -175,10 +177,13 @@ const ForecastingPage: React.FC = () => {
 
 
         for (let i = 0; i < forecastHorizon; i++) {
-            const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
-            const monthName = date.toLocaleString('it-IT', { month: 'long', year: 'numeric' });
-            const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-            const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            // Construct Month Boundaries using UTC
+            const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + i, 1));
+            // Format month name (ensure timezone consistency)
+            const monthName = date.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+            
+            const firstDayOfMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+            const lastDayOfMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 
             // 1. Calcolo Capacità (Available Person Days)
             let availablePersonDays = 0;
@@ -239,8 +244,8 @@ const ForecastingPage: React.FC = () => {
                         for (const dateStr in assignmentAllocations) {
                             const allocDate = new Date(dateStr);
                             if (allocDate >= firstDayOfMonth && allocDate <= lastDayOfMonth) {
-                                // Check holiday optimized
-                                const dayOfWeek = allocDate.getDay();
+                                // Check holiday optimized using UTC Day
+                                const dayOfWeek = allocDate.getUTCDay();
                                 if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(allocDate, resource.location)) {
                                     allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
                                     hasHardBookingInMonth = true;
@@ -257,13 +262,7 @@ const ForecastingPage: React.FC = () => {
                         
                         if (avgPercent > 0) {
                             const potentialWorkingDays = getWorkingDaysOptimized(activeStart, effectiveEnd, resource.location);
-                            // Subtract leaves from projection base too? Usually projections assume availability unless hard booked.
-                            // For accuracy, we SHOULD reduce projection if we know they are on leave.
-                            // But calculating leave overlap for every project assignment projection is heavy.
                             // Approximation: Reduce by % of capacity lost.
-                            // Let's keep it simple for now: Projections use working days. 
-                            // If capacity drops (due to leave), Utilization % will skyrocket (Allocated / Available), which correctly signals overbooking risk.
-                            
                             const projectedLoad = potentialWorkingDays * (avgPercent / 100);
                             allocatedPersonDays += projectedLoad;
                             projectedPersonDays += projectedLoad;

@@ -1,4 +1,9 @@
 
+/**
+ * @file LeavePage.tsx
+ * @description Pagina per la gestione delle richieste di ferie e assenze.
+ */
+
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -94,34 +99,36 @@ const LeavePage: React.FC = () => {
     // --- Calendar Logic ---
     
     const calendarGrid = useMemo(() => {
-        const year = calendarDate.getFullYear();
-        const month = calendarDate.getMonth();
+        // Use UTC components to ensure month grid is stable across timezones
+        const year = calendarDate.getUTCFullYear();
+        const month = calendarDate.getUTCMonth();
         
-        const firstDayOfMonth = new Date(year, month, 1);
+        const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
         
         // Calculate start date (Monday)
         const startDate = new Date(firstDayOfMonth);
-        const dayOfWeek = startDate.getDay(); 
-        const diff = startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-        startDate.setDate(diff);
+        const dayOfWeek = startDate.getUTCDay(); 
+        const diff = startDate.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        startDate.setUTCDate(diff);
 
         const days = [];
         const currentDay = new Date(startDate);
         
         // 6 weeks grid
         for (let i = 0; i < 42; i++) {
-            const y = currentDay.getFullYear();
-            const m = String(currentDay.getMonth() + 1).padStart(2, '0');
-            const d = String(currentDay.getDate()).padStart(2, '0');
+            const y = currentDay.getUTCFullYear();
+            const m = String(currentDay.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(currentDay.getUTCDate()).padStart(2, '0');
             const dateIso = `${y}-${m}-${d}`;
 
-            const isCurrentMonth = currentDay.getMonth() === month;
+            const isCurrentMonth = currentDay.getUTCMonth() === month;
             
             // Find leaves for this day
             const dayLeaves = filteredRequests.filter(req => 
                 dateIso >= req.startDate && dateIso <= req.endDate && req.status !== 'REJECTED'
             );
 
+            // isHoliday helper already uses UTC internally
             const holiday = isHoliday(currentDay, null, companyCalendar);
             
             days.push({
@@ -130,18 +137,25 @@ const LeavePage: React.FC = () => {
                 isCurrentMonth,
                 leaves: dayLeaves,
                 isHoliday: holiday,
-                isWeekend: currentDay.getDay() === 0 || currentDay.getDay() === 6
+                isWeekend: currentDay.getUTCDay() === 0 || currentDay.getUTCDay() === 6
             });
-            currentDay.setDate(currentDay.getDate() + 1);
+            // Increment by exactly 24 hours in UTC terms
+            currentDay.setUTCDate(currentDay.getUTCDate() + 1);
         }
         return days;
     }, [calendarDate, filteredRequests, companyCalendar]);
 
     // --- Handlers ---
 
-    const handlePrevMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
-    const handleNextMonth = () => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
-    const handleToday = () => setCalendarDate(new Date());
+    // Navigation uses pure UTC arithmetic
+    const handlePrevMonth = () => setCalendarDate(new Date(Date.UTC(calendarDate.getUTCFullYear(), calendarDate.getUTCMonth() - 1, 1)));
+    const handleNextMonth = () => setCalendarDate(new Date(Date.UTC(calendarDate.getUTCFullYear(), calendarDate.getUTCMonth() + 1, 1)));
+    
+    // Reset to "Today" - Extract current UTC components to set state
+    const handleToday = () => {
+        const now = new Date();
+        setCalendarDate(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
+    };
 
     const openNewRequestModal = () => {
         setEditingRequest({
@@ -317,22 +331,19 @@ const LeavePage: React.FC = () => {
     );
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({ ...f, resourceId: v }))} options={resourceOptions} placeholder="Tutte le Risorse" />
             <SearchableSelect name="typeId" value={filters.typeId} onChange={(_, v) => setFilters(f => ({ ...f, typeId: v }))} options={typeOptions} placeholder="Tutti i Tipi" />
+            <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
+                <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
+                <button onClick={() => setView('calendar')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Calendario</button>
+            </div>
             <button onClick={() => setFilters({ resourceId: '', typeId: '', status: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
-                <button onClick={openNewRequestModal} className="px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                    <span className="material-symbols-outlined">add</span> Nuova Richiesta
-                </button>
-            </div>
-
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div 
@@ -362,73 +373,81 @@ const LeavePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* View Toggle */}
-            <div className="flex justify-end mb-4">
-                <div className="flex items-center bg-surface-container p-1 rounded-full">
-                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                    <button onClick={() => setView('calendar')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Calendario</button>
-                </div>
-            </div>
-
             {view === 'table' && (
                 <DataTable<typeof enrichedRequests[0]>
-                    title=""
-                    addNewButtonLabel=""
+                    title="Gestione Assenze"
+                    addNewButtonLabel="Nuova Richiesta"
                     data={enrichedRequests}
                     columns={columns}
                     filtersNode={filtersNode}
-                    onAddNew={() => {}}
+                    onAddNew={openNewRequestModal}
                     renderRow={renderRow}
                     renderMobileCard={renderMobileCard}
                     initialSortKey="startDate"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    // Increase action count for admins to accommodate up to 4 buttons
                     numActions={isAdmin ? 4 : 2}
                 />
             )}
 
             {view === 'calendar' && (
-                <div className="bg-surface rounded-2xl shadow p-4 overflow-hidden">
-                    <div className="flex justify-between items-center mb-4">
-                        <button onClick={handlePrevMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_left</span></button>
-                        <h2 className="text-xl font-bold text-on-surface capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}</h2>
-                        <button onClick={handleNextMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_right</span></button>
-                        <button onClick={handleToday} className="ml-2 px-3 py-1 text-sm bg-secondary-container text-on-secondary-container rounded-full">Oggi</button>
+                <>
+                    {/* Header Manuale per Vista Calendario */}
+                    <div className="flex justify-between items-center mb-6">
+                        <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
+                        <button onClick={openNewRequestModal} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                            <span className="material-symbols-outlined">add</span> Nuova Richiesta
+                        </button>
                     </div>
-                    <div className="grid grid-cols-7 gap-px bg-outline-variant border border-outline-variant rounded-lg overflow-hidden text-sm">
-                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-                            <div key={day} className="bg-surface-container text-center py-2 font-bold text-on-surface-variant">{day}</div>
-                        ))}
-                        {calendarGrid.map((day, i) => (
-                            <div 
-                                key={i} 
-                                className={`min-h-[100px] bg-surface p-2 flex flex-col gap-1 
-                                    ${!day.isCurrentMonth ? 'bg-surface-container-low/50 text-on-surface-variant/50' : ''}
-                                    ${(day.isWeekend || day.isHoliday) ? 'bg-surface-container' : ''} 
-                                `}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <span className={`text-xs font-semibold ${day.dateIso === new Date().toISOString().split('T')[0] ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>{day.date.getDate()}</span>
-                                    {day.isHoliday && <span className="material-symbols-outlined text-xs text-tertiary" title="Festivo">star</span>}
-                                </div>
-                                <div className="flex-grow overflow-y-auto space-y-1 max-h-[80px]">
-                                    {day.leaves.map(leave => (
-                                        <div 
-                                            key={leave.id} 
-                                            onClick={() => openEditRequestModal(leave)}
-                                            className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 border-l-2"
-                                            style={{ backgroundColor: `${leave.typeColor}30`, borderLeftColor: leave.typeColor, color: '#191c1e' }}
-                                            title={`${leave.resourceName} - ${leave.typeName}`}
-                                        >
-                                            {leave.resourceName}
-                                        </div>
-                                    ))}
-                                </div>
+
+                    {/* Filtri Manuali per Vista Calendario */}
+                    <div className="bg-surface rounded-2xl shadow p-4 mb-6">
+                        {filtersNode}
+                    </div>
+
+                    <div className="bg-surface rounded-2xl shadow p-4 overflow-hidden">
+                        <div className="flex justify-between items-center mb-4">
+                            <button onClick={handlePrevMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_left</span></button>
+                            <h2 className="text-xl font-bold text-on-surface capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
+                            <div className="flex items-center">
+                                <button onClick={handleNextMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_right</span></button>
+                                <button onClick={handleToday} className="ml-2 px-3 py-1 text-sm bg-secondary-container text-on-secondary-container rounded-full">Oggi</button>
                             </div>
-                        ))}
+                        </div>
+                        <div className="grid grid-cols-7 gap-px bg-outline-variant border border-outline-variant rounded-lg overflow-hidden text-sm">
+                            {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
+                                <div key={day} className="bg-surface-container text-center py-2 font-bold text-on-surface-variant">{day}</div>
+                            ))}
+                            {calendarGrid.map((day, i) => (
+                                <div 
+                                    key={i} 
+                                    className={`min-h-[100px] bg-surface p-2 flex flex-col gap-1 
+                                        ${!day.isCurrentMonth ? 'bg-surface-container-low/50 text-on-surface-variant/50' : ''}
+                                        ${(day.isWeekend || day.isHoliday) ? 'bg-surface-container' : ''} 
+                                    `}
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <span className={`text-xs font-semibold ${day.dateIso === new Date().toISOString().split('T')[0] ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>{day.date.getUTCDate()}</span>
+                                        {day.isHoliday && <span className="material-symbols-outlined text-xs text-tertiary" title="Festivo">star</span>}
+                                    </div>
+                                    <div className="flex-grow overflow-y-auto space-y-1 max-h-[80px]">
+                                        {day.leaves.map(leave => (
+                                            <div 
+                                                key={leave.id} 
+                                                onClick={() => openEditRequestModal(leave)}
+                                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 border-l-2"
+                                                style={{ backgroundColor: `${leave.typeColor}30`, borderLeftColor: leave.typeColor, color: '#191c1e' }}
+                                                title={`${leave.resourceName} - ${leave.typeName}`}
+                                            >
+                                                {leave.resourceName}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Edit Modal */}

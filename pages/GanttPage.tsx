@@ -1,3 +1,4 @@
+
 /**
  * @file GanttPage.tsx
  * @description Pagina con vista Gantt interattiva per i progetti, con legenda e righe di riepilogo.
@@ -98,18 +99,19 @@ const GanttPage: React.FC = () => {
                     return date.toLocaleString('it-IT', {
                         month: 'short',
                         year: '2-digit',
+                        timeZone: 'UTC' // Important: Format date in UTC
                     });
                 }
                 if (zoomLevel === 'quarter') {
-                    return `Q${Math.floor(date.getMonth() / 3) + 1} ${date.getFullYear()}`;
+                    return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
                 }
-                return date.getFullYear().toString();
+                return date.getUTCFullYear().toString();
             };
 
             const incrementDate = (date: Date) => {
-                if (zoomLevel === 'month') date.setMonth(date.getMonth() + 1);
-                else if (zoomLevel === 'quarter') date.setMonth(date.getMonth() + 3);
-                else date.setFullYear(date.getFullYear() + 1);
+                if (zoomLevel === 'month') date.setUTCMonth(date.getUTCMonth() + 1);
+                else if (zoomLevel === 'quarter') date.setUTCMonth(date.getUTCMonth() + 3);
+                else date.setUTCFullYear(date.getUTCFullYear() + 1);
             };
 
             let currentStart = new Date(minDate);
@@ -136,8 +138,8 @@ const GanttPage: React.FC = () => {
         const today = new Date();
 
         if (validProjects.length === 0) {
-            const startOfYear = new Date(today.getFullYear(), 0, 1);
-            const endOfYear = new Date(today.getFullYear(), 11, 31);
+            const startOfYear = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+            const endOfYear = new Date(Date.UTC(today.getUTCFullYear(), 11, 31));
             const { scale, days } = buildScale(startOfYear, endOfYear, 'month');
             return {
                 timeScale: scale,
@@ -153,19 +155,22 @@ const GanttPage: React.FC = () => {
         let minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
         let maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
 
-        // allineo a inizio mese / margine
-        minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-        maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0); // margine
+        // allineo a inizio mese / margine usando UTC
+        minDate = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+        maxDate = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth() + 2, 0)); // margine
 
         // estendo per includere sempre "oggi"
-        if (today < minDate) {
-            const extendedMin = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        // Use UTC components for today as well to ensure comparison logic holds
+        const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+
+        if (todayUTC.getTime() < minDate.getTime()) {
+            const extendedMin = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth() - 1, 1));
             if (extendedMin < minDate) {
                 minDate = extendedMin;
             }
         }
-        if (today > maxDate) {
-            const extendedMax = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+        if (todayUTC.getTime() > maxDate.getTime()) {
+            const extendedMax = new Date(Date.UTC(todayUTC.getUTCFullYear(), todayUTC.getUTCMonth() + 2, 0));
             if (extendedMax > maxDate) {
                 maxDate = extendedMax;
             }
@@ -202,8 +207,11 @@ const GanttPage: React.FC = () => {
 
     const todayPosition = useMemo(() => {
         if (totalDays <= 0) return -1;
+        const today = new Date();
+        const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        
         const startOffset =
-            (new Date().getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
+            (todayUTC.getTime() - ganttStartDate.getTime()) / (1000 * 3600 * 24);
         return startOffset * pixelsPerDay;
     }, [ganttStartDate, totalDays, pixelsPerDay]);
 
@@ -292,10 +300,11 @@ const GanttPage: React.FC = () => {
         if (timeScale.length === 0) return;
 
         const today = new Date();
+        const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
 
         // Trovo il segmento che contiene "oggi"
         let todaySegmentIndex = timeScale.findIndex(
-            seg => today >= seg.start && today < seg.end
+            seg => todayUTC >= seg.start && todayUTC < seg.end
         );
 
         if (todaySegmentIndex < 0) {

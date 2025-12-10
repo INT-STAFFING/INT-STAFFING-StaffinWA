@@ -1,3 +1,4 @@
+
 /**
  * @file StaffingPage.tsx
  * @description Pagina principale per la visualizzazione e la gestione dello staffing delle risorse sui progetti.
@@ -133,7 +134,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
       resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
         ? new Date(resource.lastDayOfWork)
         : endDate;
-    if (startDate > effectiveEndDate) return 0;
+    // Use getTime to compare Date objects accurately
+    if (startDate.getTime() > effectiveEndDate.getTime()) return 0;
 
     const workingDays = getWorkingDaysBetween(
       startDate,
@@ -147,19 +149,21 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     const assignmentAllocations = allocations[assignment.id!];
 
     if (assignmentAllocations) {
-      let currentDate = new Date(startDate);
-      while (currentDate <= effectiveEndDate) {
+      let currentDate = new Date(startDate.getTime()); // Copy
+      while (currentDate.getTime() <= effectiveEndDate.getTime()) {
         const dateStr = formatDate(currentDate, 'iso');
         if (assignmentAllocations[dateStr]) {
+          const day = currentDate.getUTCDay();
           if (
             !isHoliday(currentDate, resource.location, companyCalendar) &&
-            currentDate.getDay() !== 0 &&
-            currentDate.getDay() !== 6
+            day !== 0 &&
+            day !== 6
           ) {
             totalPersonDays += assignmentAllocations[dateStr] / 100;
           }
         }
-        currentDate = addDays(currentDate, 1);
+        // Iterate safely using UTC
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
     }
 
@@ -290,7 +294,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
       resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
         ? new Date(resource.lastDayOfWork)
         : endDate;
-    if (startDate > effectiveEndDate) return 0;
+    if (startDate.getTime() > effectiveEndDate.getTime()) return 0;
 
     const workingDays = getWorkingDaysBetween(
       startDate,
@@ -306,19 +310,20 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     resourceAssignments.forEach((assignment) => {
       const assignmentAllocations = allocations[assignment.id!];
       if (assignmentAllocations) {
-        let currentDate = new Date(startDate);
-        while (currentDate <= effectiveEndDate) {
+        let currentDate = new Date(startDate.getTime()); // Copy for safety
+        while (currentDate.getTime() <= effectiveEndDate.getTime()) {
           const dateStr = formatDate(currentDate, 'iso');
           if (assignmentAllocations[dateStr]) {
+            const day = currentDate.getUTCDay();
             if (
               !isHoliday(currentDate, resource.location, companyCalendar) &&
-              currentDate.getDay() !== 0 &&
-              currentDate.getDay() !== 6
+              day !== 0 &&
+              day !== 6
             ) {
               totalPersonDays += assignmentAllocations[dateStr] / 100;
             }
           }
-          currentDate = addDays(currentDate, 1);
+          currentDate.setUTCDate(currentDate.getUTCDate() + 1);
         }
       }
     });
@@ -546,17 +551,19 @@ export const StaffingPage: React.FC = () => {
     if (isMobile) {
         let daysToGenerate = 1;
         if (viewMode === 'week') {
-             d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+             const day = d.getUTCDay();
+             const diff = day === 0 ? 6 : day - 1;
+             d.setUTCDate(d.getUTCDate() - diff);
              daysToGenerate = 7;
         } else if (viewMode === 'month') {
-             d.setDate(1);
-             daysToGenerate = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+             d.setUTCDate(1);
+             daysToGenerate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
         }
 
         for (let i = 0; i < daysToGenerate; i++) {
             const day = new Date(d);
-            day.setDate(d.getDate() + i);
-            const dayOfWeek = day.getDay();
+            day.setUTCDate(d.getUTCDate() + i);
+            const dayOfWeek = day.getUTCDay();
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             const dateIso = formatDate(day, 'iso');
             const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
@@ -575,7 +582,7 @@ export const StaffingPage: React.FC = () => {
     // Desktop Logic
     if (viewMode === 'day') {
       return getCalendarDays(d, 14).map((day) => {
-        const dayOfWeek = day.getDay();
+        const dayOfWeek = day.getUTCDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const dateIso = formatDate(day, 'iso');
         const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
@@ -583,20 +590,25 @@ export const StaffingPage: React.FC = () => {
       });
     }
     if (viewMode === 'week') {
-      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+      const day = d.getUTCDay();
+      const diff = day === 0 ? 6 : day - 1;
+      d.setUTCDate(d.getUTCDate() - diff);
+      
       for (let i = 0; i < 12; i++) {
         const startOfWeek = new Date(d);
         const endOfWeek = addDays(new Date(d), 6);
         cols.push({ label: `${formatDateSynthetic(startOfWeek)} - ${formatDateSynthetic(endOfWeek)}`, subLabel: '', startDate: startOfWeek, endDate: endOfWeek, isNonWorkingDay: false, dateIso: '' });
-        d.setDate(d.getDate() + 7);
+        d.setUTCDate(d.getUTCDate() + 7);
       }
     } else {
-      d.setDate(1);
+      d.setUTCDate(1);
       for (let i = 0; i < 12; i++) {
-        const startOfMonth = new Date(d);
-        const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        cols.push({ label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }), subLabel: '', startDate: startOfMonth, endDate: endOfMonth, isNonWorkingDay: false, dateIso: '' });
-        d.setMonth(d.getMonth() + 1);
+        const startOfMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+        const endOfMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+        
+        // Month name uses local locale but based on UTC date object
+        cols.push({ label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' }), subLabel: '', startDate: startOfMonth, endDate: endOfMonth, isNonWorkingDay: false, dateIso: '' });
+        d.setUTCMonth(d.getUTCMonth() + 1);
       }
     }
     return cols;
@@ -604,17 +616,17 @@ export const StaffingPage: React.FC = () => {
 
   const handlePrev = useCallback(() => setCurrentDate(prev => {
     const newDate = new Date(prev);
-    if (viewMode === 'week') newDate.setDate(newDate.getDate() - 7);
-    else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() - 1);
-    else newDate.setDate(newDate.getDate() - 1);
+    if (viewMode === 'week') newDate.setUTCDate(newDate.getUTCDate() - 7);
+    else if (viewMode === 'month') newDate.setUTCMonth(newDate.getUTCMonth() - 1);
+    else newDate.setUTCDate(newDate.getUTCDate() - 1);
     return newDate;
   }), [viewMode]);
 
   const handleNext = useCallback(() => setCurrentDate(prev => {
     const newDate = new Date(prev);
-    if (viewMode === 'week') newDate.setDate(newDate.getDate() + 7);
-    else if (viewMode === 'month') newDate.setMonth(newDate.getMonth() + 1);
-    else newDate.setDate(newDate.getDate() + 1);
+    if (viewMode === 'week') newDate.setUTCDate(newDate.getUTCDate() + 7);
+    else if (viewMode === 'month') newDate.setUTCMonth(newDate.getUTCMonth() + 1);
+    else newDate.setUTCDate(newDate.getUTCDate() + 1);
     return newDate;
   }), [viewMode]);
 
@@ -692,7 +704,9 @@ export const StaffingPage: React.FC = () => {
       
       filteredAssignments.forEach(a => {
           if (visibleIds.has(a.resourceId)) {
-              if (!map.has(a.resourceId)) map.set(a.resourceId, []);
+              if (!map.has(a.resourceId)) {
+                  map.set(a.resourceId, []);
+              }
               map.get(a.resourceId)!.push(a);
           }
       });
@@ -726,14 +740,14 @@ export const StaffingPage: React.FC = () => {
           const end = new Date(req.endDate);
           
           // Optimization: Clamp start/end to visible range
-          if (d < rangeStart) d = new Date(rangeStart);
-          const effectiveEnd = end > rangeEnd ? rangeEnd : end;
+          if (d.getTime() < rangeStart.getTime()) d = new Date(rangeStart.getTime());
+          const effectiveEnd = end.getTime() > rangeEnd.getTime() ? rangeEnd : end;
 
-          while (d <= effectiveEnd) {
+          while (d.getTime() <= effectiveEnd.getTime()) {
               const dateStr = d.toISOString().split('T')[0];
               const key = getLeaveKey(req.resourceId, dateStr);
               map.set(key, { request: req, type });
-              d.setDate(d.getDate() + 1);
+              d.setUTCDate(d.getUTCDate() + 1);
           }
       });
       return map;
