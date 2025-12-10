@@ -587,15 +587,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const updates = [];
             const currentDate = new Date(start);
 
-            while (currentDate <= end) {
-                // FIX: Use getUTCDay() to ensure consistency with toISOString() (which is UTC).
-                // Using getDay() (Local) caused offsets in timezones west of UTC, skipping Fridays or including Saturdays incorrectly.
+            // FIX: Use strict UTC arithmetic to prevent DST shifting issues
+            // This ensures we iterate exactly 24h steps in UTC without local time interference
+            while (currentDate.getTime() <= end.getTime()) {
                 const day = currentDate.getUTCDay();
                 if (day !== 0 && day !== 6) { 
                     const dateStr = currentDate.toISOString().split('T')[0];
                     updates.push({ assignmentId, date: dateStr, percentage });
                 }
-                currentDate.setDate(currentDate.getDate() + 1);
+                // IMPORTANT: Use setUTCDate to jump exactly 24h in UTC terms, ignoring local DST transitions
+                currentDate.setUTCDate(currentDate.getUTCDate() + 1);
             }
 
             setAllocations(prev => {
