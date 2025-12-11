@@ -5,6 +5,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import ErrorBoundary from '../components/ErrorBoundary'; // NEW IMPORT
 
 interface Column {
     column_name: string;
@@ -121,6 +122,7 @@ const DbInspectorPage: React.FC = () => {
         fetchTableData();
     }, [selectedTable, mode]);
     
+    // ... (All existing helper functions like handleEdit, handleCancel, handleSave, handleDeleteAll, handleExport, handleRunQuery, handleBulkPasswordUpdate, handleInputChange, renderInputField, renderCellContent remain unchanged)
     const handleEdit = (row: any) => {
         setEditingRowId(row.id);
         setEditingRowData({ ...row });
@@ -448,56 +450,58 @@ const DbInspectorPage: React.FC = () => {
                     )}
                     
                     {tableData && (
-                        <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
-                            {(isLoading || isSaving) && (
-                                <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
-                                    <SpinnerIcon className="w-8 h-8 text-primary" />
-                                </div>
-                            )}
-                            <table className="min-w-full divide-y divide-outline-variant">
-                                <thead className="bg-surface-container-low">
-                                    <tr>
-                                        {tableData.columns.map(col => (
-                                            <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                                {col.column_name}
-                                                <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
-                                            </th>
-                                        ))}
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-outline-variant">
-                                    {tableData.rows.map(row => (
-                                        <tr key={row.id} className="hover:bg-surface-container">
+                        <ErrorBoundary label="Errore Visualizzazione Tabella">
+                            <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
+                                {(isLoading || isSaving) && (
+                                    <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
+                                        <SpinnerIcon className="w-8 h-8 text-primary" />
+                                    </div>
+                                )}
+                                <table className="min-w-full divide-y divide-outline-variant">
+                                    <thead className="bg-surface-container-low">
+                                        <tr>
                                             {tableData.columns.map(col => (
-                                                <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
-                                                    {editingRowId === row.id && col.column_name !== 'id' ? (
-                                                        renderInputField(col, editingRowData[col.column_name])
+                                                <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                                    {col.column_name}
+                                                    <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
+                                                </th>
+                                            ))}
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-outline-variant">
+                                        {tableData.rows.map(row => (
+                                            <tr key={row.id} className="hover:bg-surface-container">
+                                                {tableData.columns.map(col => (
+                                                    <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
+                                                        {editingRowId === row.id && col.column_name !== 'id' ? (
+                                                            renderInputField(col, editingRowData[col.column_name])
+                                                        ) : (
+                                                            renderCellContent(row[col.column_name], col.column_name)
+                                                        )}
+                                                    </td>
+                                                ))}
+                                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                    {editingRowId === row.id ? (
+                                                        <div className="flex items-center justify-end space-x-2">
+                                                            <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
+                                                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
+                                                            </button>
+                                                            <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
+                                                        </div>
                                                     ) : (
-                                                        renderCellContent(row[col.column_name], col.column_name)
+                                                        <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
                                                     )}
                                                 </td>
-                                            ))}
-                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                                {editingRowId === row.id ? (
-                                                    <div className="flex items-center justify-end space-x-2">
-                                                        <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
-                                                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
-                                                        </button>
-                                                        <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
-                                                    </div>
-                                                ) : (
-                                                    <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                             {tableData.rows.length === 0 && (
-                                <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
-                            )}
-                        </div>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {tableData.rows.length === 0 && (
+                                    <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
+                                )}
+                            </div>
+                        </ErrorBoundary>
                     )}
                 </div>
             )}
@@ -537,45 +541,48 @@ const DbInspectorPage: React.FC = () => {
                     )}
 
                     {queryResult && (
-                        <div className="bg-surface rounded-2xl shadow overflow-hidden">
-                            <div className="p-4 bg-surface-container border-b border-outline-variant flex justify-between items-center">
-                                <span className="text-sm font-bold text-on-surface">Risultati Query</span>
-                                <span className="text-xs text-on-surface-variant bg-surface px-2 py-1 rounded">Rows: {queryResult.rowCount} | Cmd: {queryResult.command}</span>
-                            </div>
-                            <div className="overflow-x-auto max-h-[500px]">
-                                <table className="min-w-full divide-y divide-outline-variant">
-                                    <thead className="bg-surface-container-low sticky top-0">
-                                        <tr>
-                                            {queryResult.fields.map((field: any) => (
-                                                <th key={field.name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                                    {field.name}
-                                                    <span className="block text-[10px] opacity-50 normal-case">ID: {field.dataTypeID}</span>
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-outline-variant bg-surface">
-                                        {queryResult.rows.map((row, i) => (
-                                            <tr key={i} className="hover:bg-surface-container">
+                        <ErrorBoundary label="Errore Risultati Query">
+                            <div className="bg-surface rounded-2xl shadow overflow-hidden">
+                                <div className="p-4 bg-surface-container border-b border-outline-variant flex justify-between items-center">
+                                    <span className="text-sm font-bold text-on-surface">Risultati Query</span>
+                                    <span className="text-xs text-on-surface-variant bg-surface px-2 py-1 rounded">Rows: {queryResult.rowCount} | Cmd: {queryResult.command}</span>
+                                </div>
+                                <div className="overflow-x-auto max-h-[500px]">
+                                    <table className="min-w-full divide-y divide-outline-variant">
+                                        <thead className="bg-surface-container-low sticky top-0">
+                                            <tr>
                                                 {queryResult.fields.map((field: any) => (
-                                                    <td key={field.name} className="px-4 py-2 whitespace-nowrap text-sm text-on-surface font-mono">
-                                                        {renderCellContent(row[field.name])}
-                                                    </td>
+                                                    <th key={field.name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                                        {field.name}
+                                                        <span className="block text-[10px] opacity-50 normal-case">ID: {field.dataTypeID}</span>
+                                                    </th>
                                                 ))}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {queryResult.rows.length === 0 && (
-                                    <p className="text-center text-on-surface-variant py-8">Nessun risultato restituito.</p>
-                                )}
+                                        </thead>
+                                        <tbody className="divide-y divide-outline-variant bg-surface">
+                                            {queryResult.rows.map((row, i) => (
+                                                <tr key={i} className="hover:bg-surface-container">
+                                                    {queryResult.fields.map((field: any) => (
+                                                        <td key={field.name} className="px-4 py-2 whitespace-nowrap text-sm text-on-surface font-mono">
+                                                            {renderCellContent(row[field.name])}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {queryResult.rows.length === 0 && (
+                                        <p className="text-center text-on-surface-variant py-8">Nessun risultato restituito.</p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        </ErrorBoundary>
                     )}
                 </div>
             )}
 
             {mode === 'bulk_password' && (
+                // ... (Existing bulk password UI unchanged)
                 <div className="animate-fade-in space-y-4">
                     <div className="bg-surface rounded-2xl shadow p-6">
                         <h2 className="text-xl font-bold text-on-surface mb-4">Importazione Bulk Password</h2>

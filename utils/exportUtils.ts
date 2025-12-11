@@ -6,7 +6,6 @@
 
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType, AppUser, RolePermission } from '../types';
 import { EntitiesContextType } from '../context/AppContext';
-import * as XLSX from 'xlsx';
 
 type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
 
@@ -20,7 +19,8 @@ const formatDateForExport = (date: Date | string | null | undefined): string => 
 /**
  * Esporta le entità principali (Risorse, Progetti, Clienti, etc.) in un file Excel.
  */
-export const exportCoreEntities = (data: EntitiesContextType) => {
+export const exportCoreEntities = async (data: EntitiesContextType) => {
+    const XLSX = await import('xlsx');
     const { clients, roles, resources, projects, companyCalendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, resourceSkills, skills } = data;
     const wb = XLSX.utils.book_new();
 
@@ -76,7 +76,8 @@ export const exportCoreEntities = (data: EntitiesContextType) => {
 /**
  * Esporta la griglia di staffing in un formato ottimizzato per la re-importazione.
  */
-export const exportStaffing = (data: EntitiesContextType & { allocations: Allocation }) => {
+export const exportStaffing = async (data: EntitiesContextType & { allocations: Allocation }) => {
+    const XLSX = await import('xlsx');
     const { resources, projects, assignments, allocations } = data;
     const wb = XLSX.utils.book_new();
     const staffingData: any[] = [];
@@ -133,7 +134,8 @@ export const exportStaffing = (data: EntitiesContextType & { allocations: Alloca
 /**
  * Esporta le richieste di risorse in un file Excel.
  */
-export const exportResourceRequests = (data: EntitiesContextType) => {
+export const exportResourceRequests = async (data: EntitiesContextType) => {
+    const XLSX = await import('xlsx');
     const { resourceRequests, projects, roles, resources } = data;
     const wb = XLSX.utils.book_new();
 
@@ -159,7 +161,8 @@ export const exportResourceRequests = (data: EntitiesContextType) => {
 /**
  * Esporta i dati dei colloqui in un file Excel.
  */
-export const exportInterviews = (data: EntitiesContextType) => {
+export const exportInterviews = async (data: EntitiesContextType) => {
+    const XLSX = await import('xlsx');
     const { interviews, roles, resources } = data;
     const wb = XLSX.utils.book_new();
 
@@ -186,7 +189,8 @@ export const exportInterviews = (data: EntitiesContextType) => {
 /**
  * Esporta le competenze e le associazioni con le risorse.
  */
-export const exportSkills = (data: EntitiesContextType) => {
+export const exportSkills = async (data: EntitiesContextType) => {
+    const XLSX = await import('xlsx');
     const { skills, resources, resourceSkills } = data;
     const wb = XLSX.utils.book_new();
 
@@ -223,7 +227,8 @@ export const exportSkills = (data: EntitiesContextType) => {
 /**
  * Esporta i dati delle assenze in un file Excel.
  */
-export const exportLeaves = (data: EntitiesContextType) => {
+export const exportLeaves = async (data: EntitiesContextType) => {
+    const XLSX = await import('xlsx');
     const { leaveRequests, resources, leaveTypes } = data;
     const wb = XLSX.utils.book_new();
 
@@ -253,7 +258,8 @@ export const exportLeaves = (data: EntitiesContextType) => {
  * Esporta gli utenti e la matrice dei permessi.
  * NOTA: Le password NON vengono esportate per sicurezza.
  */
-export const exportUsersPermissions = (users: AppUser[], permissions: RolePermission[], resources: Resource[]) => {
+export const exportUsersPermissions = async (users: AppUser[], permissions: RolePermission[], resources: Resource[]) => {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Utenti
@@ -282,7 +288,8 @@ export const exportUsersPermissions = (users: AppUser[], permissions: RolePermis
 /**
  * Esporta la mappatura Risorsa-Tutor.
  */
-export const exportTutorMapping = (data: EntitiesContextType) => {
+export const exportTutorMapping = async (data: EntitiesContextType) => {
+    const XLSX = await import('xlsx');
     const { resources } = data;
     const wb = XLSX.utils.book_new();
 
@@ -304,7 +311,8 @@ export const exportTutorMapping = (data: EntitiesContextType) => {
 /**
  * Genera e avvia il download di un template Excel vuoto basato sul tipo di importazione.
  */
-export const exportTemplate = (type: ExportType) => {
+export const exportTemplate = async (type: ExportType) => {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
     let fileName = `Staffing_Template_${type}.xlsx`;
 

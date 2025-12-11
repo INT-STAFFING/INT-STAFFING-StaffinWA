@@ -3,7 +3,6 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
-import * as XLSX from 'xlsx';
 import { useAuth } from '../context/AuthContext';
 
 type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
@@ -51,87 +50,97 @@ const ImportPage: React.FC = () => {
         setIsImporting(true);
         setImportResult(null);
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const data = new Uint8Array(e.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                
-                let body: any = {};
-                
-                // Extract data based on the selected import type
-                switch(importType) {
-                    case 'core_entities':
-                        body = {
-                            clients: XLSX.utils.sheet_to_json(workbook.Sheets['Clienti'] || {}),
-                            roles: XLSX.utils.sheet_to_json(workbook.Sheets['Ruoli'] || {}),
-                            resources: XLSX.utils.sheet_to_json(workbook.Sheets['Risorse'] || {}),
-                            projects: XLSX.utils.sheet_to_json(workbook.Sheets['Progetti'] || {}),
-                            calendar: XLSX.utils.sheet_to_json(workbook.Sheets['Calendario'] || {}),
-                            horizontals: XLSX.utils.sheet_to_json(workbook.Sheets['Config_Horizontals'] || {}),
-                            seniorityLevels: XLSX.utils.sheet_to_json(workbook.Sheets['Config_Seniority'] || {}),
-                            projectStatuses: XLSX.utils.sheet_to_json(workbook.Sheets['Config_ProjectStatus'] || {}),
-                            clientSectors: XLSX.utils.sheet_to_json(workbook.Sheets['Config_ClientSectors'] || {}),
-                            locations: XLSX.utils.sheet_to_json(workbook.Sheets['Config_Locations'] || {}),
-                        };
-                        break;
-                    case 'staffing':
-                        body = { staffing: XLSX.utils.sheet_to_json(workbook.Sheets['Staffing'] || {}) };
-                        break;
-                    case 'resource_requests':
-                        body = { resource_requests: XLSX.utils.sheet_to_json(workbook.Sheets['Richieste_Risorse'] || {}) };
-                        break;
-                    case 'interviews':
-                        body = { interviews: XLSX.utils.sheet_to_json(workbook.Sheets['Colloqui'] || {}) };
-                        break;
-                    case 'skills':
-                        body = { 
-                            skills: XLSX.utils.sheet_to_json(workbook.Sheets['Competenze'] || {}),
-                            associations: XLSX.utils.sheet_to_json(workbook.Sheets['Associazioni_Risorse'] || {}) 
-                        };
-                        break;
-                    case 'leaves':
-                        body = { leaves: XLSX.utils.sheet_to_json(workbook.Sheets['Assenze'] || {}) };
-                        break;
-                    case 'users_permissions':
-                        body = {
-                            users: XLSX.utils.sheet_to_json(workbook.Sheets['Utenti'] || {}),
-                            permissions: XLSX.utils.sheet_to_json(workbook.Sheets['Permessi'] || {})
-                        };
-                        break;
-                    case 'tutor_mapping':
-                        body = {
-                            mapping: XLSX.utils.sheet_to_json(workbook.Sheets['Mappatura_Tutor'] || {})
-                        };
-                        break;
+        try {
+            const XLSX = await import('xlsx');
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    
+                    let body: any = {};
+                    
+                    // Extract data based on the selected import type
+                    switch(importType) {
+                        case 'core_entities':
+                            body = {
+                                clients: XLSX.utils.sheet_to_json(workbook.Sheets['Clienti'] || {}),
+                                roles: XLSX.utils.sheet_to_json(workbook.Sheets['Ruoli'] || {}),
+                                resources: XLSX.utils.sheet_to_json(workbook.Sheets['Risorse'] || {}),
+                                projects: XLSX.utils.sheet_to_json(workbook.Sheets['Progetti'] || {}),
+                                calendar: XLSX.utils.sheet_to_json(workbook.Sheets['Calendario'] || {}),
+                                horizontals: XLSX.utils.sheet_to_json(workbook.Sheets['Config_Horizontals'] || {}),
+                                seniorityLevels: XLSX.utils.sheet_to_json(workbook.Sheets['Config_Seniority'] || {}),
+                                projectStatuses: XLSX.utils.sheet_to_json(workbook.Sheets['Config_ProjectStatus'] || {}),
+                                clientSectors: XLSX.utils.sheet_to_json(workbook.Sheets['Config_ClientSectors'] || {}),
+                                locations: XLSX.utils.sheet_to_json(workbook.Sheets['Config_Locations'] || {}),
+                            };
+                            break;
+                        case 'staffing':
+                            body = { staffing: XLSX.utils.sheet_to_json(workbook.Sheets['Staffing'] || {}) };
+                            break;
+                        case 'resource_requests':
+                            body = { resource_requests: XLSX.utils.sheet_to_json(workbook.Sheets['Richieste_Risorse'] || {}) };
+                            break;
+                        case 'interviews':
+                            body = { interviews: XLSX.utils.sheet_to_json(workbook.Sheets['Colloqui'] || {}) };
+                            break;
+                        case 'skills':
+                            body = { 
+                                skills: XLSX.utils.sheet_to_json(workbook.Sheets['Competenze'] || {}),
+                                associations: XLSX.utils.sheet_to_json(workbook.Sheets['Associazioni_Risorse'] || {}) 
+                            };
+                            break;
+                        case 'leaves':
+                            body = { leaves: XLSX.utils.sheet_to_json(workbook.Sheets['Assenze'] || {}) };
+                            break;
+                        case 'users_permissions':
+                            body = {
+                                users: XLSX.utils.sheet_to_json(workbook.Sheets['Utenti'] || {}),
+                                permissions: XLSX.utils.sheet_to_json(workbook.Sheets['Permessi'] || {})
+                            };
+                            break;
+                        case 'tutor_mapping':
+                            body = {
+                                mapping: XLSX.utils.sheet_to_json(workbook.Sheets['Mappatura_Tutor'] || {})
+                            };
+                            break;
+                    }
+
+                    const response = await fetch(`/api/import?type=${importType}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Errore sconosciuto dal server.');
+                    }
+                    
+                    setImportResult({ success: true, message: result.message, details: result.warnings });
+                    fetchData(); // Refresh all app data
+                } catch (error) {
+                    setImportResult({ success: false, message: `Importazione fallita: ${(error as Error).message}` });
+                } finally {
+                    setIsImporting(false);
                 }
-
-                const response = await fetch(`/api/import?type=${importType}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || 'Errore sconosciuto dal server.');
-                }
-                
-                setImportResult({ success: true, message: result.message, details: result.warnings });
-                fetchData(); // Refresh all app data
-            } catch (error) {
-                setImportResult({ success: false, message: `Importazione fallita: ${(error as Error).message}` });
-            } finally {
-                setIsImporting(false);
-            }
-        };
-        reader.readAsArrayBuffer(file);
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (error) {
+            setImportResult({ success: false, message: `Errore nel caricamento della libreria XLSX: ${(error as Error).message}` });
+            setIsImporting(false);
+        }
     }, [file, fetchData, importType]);
 
     const getResultMessageColor = () => {
         if (!importResult) return '';
         return importResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    };
+
+    const handleDownloadTemplate = async () => {
+        await exportTemplate(importType);
     };
 
     return (
@@ -162,7 +171,7 @@ const ImportPage: React.FC = () => {
                     <h2 className="text-xl font-semibold mb-3 flex items-center"><span className="bg-primary text-on-primary rounded-full h-8 w-8 text-sm flex items-center justify-center mr-3">2</span> Scarica e compila il template</h2>
                     <p className="text-on-surface-variant mb-4 text-sm">Scarica il file Excel, compilalo con i tuoi dati e salvalo. Non modificare i nomi dei fogli o delle colonne.</p>
                      <button
-                        onClick={() => exportTemplate(importType)}
+                        onClick={handleDownloadTemplate}
                         className="inline-flex items-center justify-center px-4 py-2 bg-secondary text-on-secondary font-semibold rounded-full shadow-sm hover:opacity-90 transition-colors duration-200"
                     >
                         <span className="material-symbols-outlined mr-2">download</span>

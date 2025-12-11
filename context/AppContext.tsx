@@ -95,6 +95,7 @@ export interface EntitiesContextType {
     projectSkills: ProjectSkill[];
     pageVisibility: PageVisibility;
     skillThresholds: SkillThresholds;
+    planningSettings: { monthsBefore: number; monthsAfter: number };
     leaveTypes: LeaveType[];
     leaveRequests: LeaveRequest[];
     managerResourceIds: string[];
@@ -151,6 +152,7 @@ export interface EntitiesContextType {
     addProjectSkill: (ps: ProjectSkill) => Promise<void>;
     deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
     updateSkillThresholds: (thresholds: SkillThresholds) => Promise<void>;
+    updatePlanningSettings: (settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>;
     getResourceComputedSkills: (resourceId: string) => any[];
     addLeaveType: (type: Omit<LeaveType, 'id'>) => Promise<void>;
     updateLeaveType: (type: LeaveType) => Promise<void>;
@@ -182,17 +184,46 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     
-    const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
-    
-    if (response.status === 204) {
-        return null;
-    }
+    let attempt = 0;
+    const maxRetries = 3;
+    let delay = 500; // ms
 
-    if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.error || `API request failed: ${response.status}`);
+    while (true) {
+        try {
+            const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
+            
+            if (response.status === 204) {
+                return null;
+            }
+
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                const errorMessage = errorBody.error || `API request failed: ${response.status}`;
+                const error = new Error(errorMessage);
+                
+                // Do not retry client errors (400-499), except 429 (Too Many Requests)
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    (error as any).isClientError = true;
+                    throw error;
+                }
+                
+                throw error; // This goes to catch block for retry logic (5xx errors or network fails)
+            }
+            return await response.json();
+        } catch (error: any) {
+            // If it's a client error (e.g. 401 Unauthorized) or we ran out of retries, throw immediately
+            if (error.isClientError || attempt >= maxRetries) {
+                throw error;
+            }
+            
+            // Transient error (Network fail or 5xx), wait and retry
+            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries}...`, error);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+            attempt++;
+            delay *= 2; // Exponential backoff
+        }
     }
-    return response.json();
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -227,6 +258,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
     const [pageVisibility, setPageVisibility] = useState<PageVisibility>({});
     const [skillThresholds, setSkillThresholds] = useState<SkillThresholds>({ NOVICE: 0, JUNIOR: 60, MIDDLE: 150, SENIOR: 350, EXPERT: 700 });
+    const [planningSettings, setPlanningSettings] = useState<{ monthsBefore: number; monthsAfter: number }>({ monthsBefore: 6, monthsAfter: 18 });
     const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
@@ -277,12 +309,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (metaData.dashboardLayout) setDashboardLayout(metaData.dashboardLayout);
             if (metaData.roleHomePages) setRoleHomePages(metaData.roleHomePages);
 
-            // 2. Planning - Calculate Window (6 months back, 18 months forward)
+            // Determine date range for planning data
+            let monthsBefore = 6;
+            let monthsAfter = 18;
+            if (metaData.planningSettings) {
+                if (metaData.planningSettings.monthsBefore) monthsBefore = metaData.planningSettings.monthsBefore;
+                if (metaData.planningSettings.monthsAfter) monthsAfter = metaData.planningSettings.monthsAfter;
+            }
+            setPlanningSettings({ monthsBefore, monthsAfter });
+
+            // 2. Planning - Calculate Window
             const today = new Date();
             const start = new Date(today);
-            start.setMonth(start.getMonth() - 6);
+            start.setMonth(start.getMonth() - monthsBefore);
             const end = new Date(today);
-            end.setMonth(end.getMonth() + 18);
+            end.setMonth(end.getMonth() + monthsAfter);
             
             const startStr = start.toISOString().split('T')[0];
             const endStr = end.toISOString().split('T')[0];
@@ -562,8 +603,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return role ? Number(role.dailyCost) : 0;
     };
 
-    // Allocations Logic
-    const updateAllocation = async (assignmentId: string, date: string, percentage: number) => {
+    // Allocations Logic - MEMOIZED to keep references stable for children
+    const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number) => {
         try {
             setAllocations(prev => ({
                 ...prev,
@@ -578,9 +619,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             console.error("Failed to update allocation", error);
             fetchData(); 
         }
-    };
+    }, [fetchData]);
 
-    const bulkUpdateAllocations = async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
+    const bulkUpdateAllocations = useCallback(async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
         try {
             const start = new Date(startDate);
             const end = new Date(endDate);
@@ -588,14 +629,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const currentDate = new Date(start);
 
             // FIX: Use strict UTC arithmetic to prevent DST shifting issues
-            // This ensures we iterate exactly 24h steps in UTC without local time interference
             while (currentDate.getTime() <= end.getTime()) {
                 const day = currentDate.getUTCDay();
                 if (day !== 0 && day !== 6) { 
                     const dateStr = currentDate.toISOString().split('T')[0];
                     updates.push({ assignmentId, date: dateStr, percentage });
                 }
-                // IMPORTANT: Use setUTCDate to jump exactly 24h in UTC terms, ignoring local DST transitions
                 currentDate.setUTCDate(currentDate.getUTCDate() + 1);
             }
 
@@ -619,13 +658,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addToast('Errore aggiornamento allocazioni', 'error');
             fetchData();
         }
-    };
+    }, [fetchData, addToast]);
 
     // Other entities CRUD...
     const addResourceRequest = async (req: Omit<ResourceRequest, 'id'>) => {
         setActionLoading('addResourceRequest', true);
         try {
-            // FIX: Pointing to specific endpoint for Resource Requests to handle ID generation
             const newReq = await apiFetch('/api/resource-requests', { method: 'POST', body: JSON.stringify(req) });
             setResourceRequests(prev => [...prev, newReq]);
         } finally { setActionLoading('addResourceRequest', false); }
@@ -633,7 +671,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateResourceRequest = async (req: ResourceRequest) => {
         setActionLoading(`updateResourceRequest-${req.id}`, true);
         try {
-            // FIX: Pointing to specific endpoint
             const updated = await apiFetch(`/api/resource-requests?id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setResourceRequests(prev => prev.map(r => r.id === req.id ? updated : r));
         } finally { setActionLoading(`updateResourceRequest-${req.id}`, false); }
@@ -641,7 +678,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deleteResourceRequest = async (id: string) => {
         setActionLoading(`deleteResourceRequest-${id}`, true);
         try {
-            // FIX: Pointing to specific endpoint
             await apiFetch(`/api/resource-requests?id=${id}`, { method: 'DELETE' });
             setResourceRequests(prev => prev.filter(r => r.id !== id));
         } finally { setActionLoading(`deleteResourceRequest-${id}`, false); }
@@ -706,8 +742,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`recalculateBacklog-${id}`, false); }
     };
 
-    // --- SKILLS & CATEGORIES CRUD ---
-
     const addSkill = async (skill: Omit<Skill, 'id'>) => {
         setActionLoading('addSkill', true);
         try {
@@ -731,7 +765,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading(`deleteSkill-${id}`, false); }
     };
 
-    // Skill Category CRUD
     const addSkillCategory = async (cat: Omit<SkillCategory, 'id'>) => {
         try {
             await apiFetch('/api/resources?entity=skill_categories', { method: 'POST', body: JSON.stringify(cat) });
@@ -751,7 +784,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } catch(e) { console.error(e); }
     };
 
-    // Macro CRUD (generic table use)
     const addSkillMacro = async (macro: { name: string }) => {
         try {
             await apiFetch('/api/resources?entity=skill_macro_categories', { method: 'POST', body: JSON.stringify(macro) });
@@ -771,11 +803,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } catch(e) { console.error(e); }
     };
 
-
     const addResourceSkill = async (rs: ResourceSkill) => {
         setActionLoading(`addResourceSkill-${rs.resourceId}`, true);
         try {
-            // OPTIMIZED: Update local state immediately with returned value
             const savedSkill = await apiFetch('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
             setResourceSkills(prev => {
                 const index = prev.findIndex(item => item.resourceId === rs.resourceId && item.skillId === rs.skillId);
@@ -792,7 +822,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deleteResourceSkill = async (resourceId: string, skillId: string) => {
         try {
             await apiFetch(`/api/resources?entity=resource_skills&resourceId=${resourceId}&skillId=${skillId}`, { method: 'DELETE' });
-            // OPTIMIZED: Update local state immediately
             setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId)));
         } catch (e) { console.error(e); }
     };
@@ -823,6 +852,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setSkillThresholds(thresholds);
             addToast('Soglie aggiornate', 'success');
         } catch (e) { console.error(e); } finally { setActionLoading('updateSkillThresholds', false); }
+    };
+
+    const updatePlanningSettings = async (settings: { monthsBefore: number; monthsAfter: number }) => {
+        setActionLoading('updatePlanningSettings', true);
+        try {
+            const updates = [
+                { key: 'planning_range_months_before', value: String(settings.monthsBefore) },
+                { key: 'planning_range_months_after', value: String(settings.monthsAfter) }
+            ];
+            await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) });
+            setPlanningSettings(settings);
+            addToast('Range di planning aggiornato. Ricarica la pagina per vedere i dati completi.', 'success');
+            fetchData();
+        } catch (e) { console.error(e); } finally { setActionLoading('updatePlanningSettings', false); }
     };
 
     const getResourceComputedSkills = useCallback((resourceId: string) => {
@@ -976,37 +1019,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         } finally { setActionLoading('updateRoleHomePages', false); }
     };
 
+    const providerValue = useMemo(() => ({
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
+        assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
+        wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
+        notifications, analyticsCache, loading, isActionLoading,
+        fetchData, fetchNotifications, markNotificationAsRead,
+        addResource, updateResource, deleteResource,
+        addProject, updateProject, deleteProject,
+        addClient, updateClient, deleteClient,
+        addRole, updateRole, deleteRole,
+        addConfigOption, updateConfigOption, deleteConfigOption,
+        addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
+        addMultipleAssignments, deleteAssignment,
+        getRoleCost,
+        addResourceRequest, updateResourceRequest, deleteResourceRequest,
+        addInterview, updateInterview, deleteInterview,
+        addContract, updateContract, deleteContract, recalculateContractBacklog,
+        addSkill, updateSkill, deleteSkill,
+        addResourceSkill, deleteResourceSkill,
+        addProjectSkill, deleteProjectSkill,
+        updateSkillThresholds, updatePlanningSettings, getResourceComputedSkills,
+        addLeaveType, updateLeaveType, deleteLeaveType,
+        addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
+        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout, updateRoleHomePages,
+        forceRecalculateAnalytics,
+        addSkillCategory, updateSkillCategory, deleteSkillCategory,
+        addSkillMacro, updateSkillMacro, deleteSkillMacro
+    }), [
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
+        assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
+        wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
+        notifications, analyticsCache, loading
+    ]);
+
+    const allocationContextValue = useMemo(() => ({
+        allocations, updateAllocation, bulkUpdateAllocations
+    }), [allocations, updateAllocation, bulkUpdateAllocations]);
+
     return (
-        <EntitiesContext.Provider value={{
-            clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
-            assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
-            wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-            leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
-            notifications, analyticsCache, loading, isActionLoading,
-            fetchData, fetchNotifications, markNotificationAsRead,
-            addResource, updateResource, deleteResource,
-            addProject, updateProject, deleteProject,
-            addClient, updateClient, deleteClient,
-            addRole, updateRole, deleteRole,
-            addConfigOption, updateConfigOption, deleteConfigOption,
-            addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
-            addMultipleAssignments, deleteAssignment,
-            getRoleCost,
-            addResourceRequest, updateResourceRequest, deleteResourceRequest,
-            addInterview, updateInterview, deleteInterview,
-            addContract, updateContract, deleteContract, recalculateContractBacklog,
-            addSkill, updateSkill, deleteSkill,
-            addResourceSkill, deleteResourceSkill,
-            addProjectSkill, deleteProjectSkill,
-            updateSkillThresholds, getResourceComputedSkills,
-            addLeaveType, updateLeaveType, deleteLeaveType,
-            addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
-            updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout, updateRoleHomePages,
-            forceRecalculateAnalytics,
-            addSkillCategory, updateSkillCategory, deleteSkillCategory,
-            addSkillMacro, updateSkillMacro, deleteSkillMacro
-        }}>
-            <AllocationsContext.Provider value={{ allocations, updateAllocation, bulkUpdateAllocations }}>
+        <EntitiesContext.Provider value={providerValue}>
+            <AllocationsContext.Provider value={allocationContextValue}>
                 {children}
             </AllocationsContext.Provider>
         </EntitiesContext.Provider>

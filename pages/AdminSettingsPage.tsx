@@ -956,6 +956,86 @@ const CacheControlSection: React.FC = () => {
     );
 };
 
+// --- NEW SECTION: Data Load Configuration ---
+const DataLoadSection: React.FC = () => {
+    const { planningSettings, updatePlanningSettings, isActionLoading } = useEntitiesContext();
+    const [localSettings, setLocalSettings] = useState(planningSettings);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    useEffect(() => {
+        if (planningSettings) setLocalSettings(planningSettings);
+    }, [planningSettings]);
+
+    const handleChange = (key: 'monthsBefore' | 'monthsAfter', value: string) => {
+        const val = parseInt(value, 10);
+        setLocalSettings(prev => ({ ...prev, [key]: isNaN(val) ? 0 : val }));
+        setHasChanges(true);
+    };
+
+    const handleSave = () => {
+        updatePlanningSettings(localSettings);
+        setHasChanges(false);
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Configurazione Caricamento Dati</h2>
+                    <p className="text-xs text-on-surface-variant">
+                        Definisci l'intervallo temporale predefinito per il caricamento delle allocazioni (Planning Scope).
+                        <br/>
+                        <span className="text-error font-medium">Attenzione: Aumentare questi valori impatta significativamente sulle performance di avvio.</span>
+                    </p>
+                </div>
+                {hasChanges && (
+                    <button 
+                        onClick={handleSave} 
+                        disabled={isActionLoading('updatePlanningSettings')}
+                        className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isActionLoading('updatePlanningSettings') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva & Ricarica</>}
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+                    <label className="block text-sm font-medium text-on-surface mb-2">Mesi Precedenti (Storico)</label>
+                    <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-on-surface-variant">history</span>
+                        <input 
+                            type="number" 
+                            min="0"
+                            max="24"
+                            value={localSettings.monthsBefore} 
+                            onChange={(e) => handleChange('monthsBefore', e.target.value)}
+                            className="form-input w-24 text-center font-bold"
+                        />
+                        <span className="text-sm text-on-surface-variant">mesi prima di oggi</span>
+                    </div>
+                </div>
+
+                <div className="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+                    <label className="block text-sm font-medium text-on-surface mb-2">Mesi Successivi (Futuro)</label>
+                    <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-on-surface-variant">update</span>
+                        <input 
+                            type="number" 
+                            min="1"
+                            max="36"
+                            value={localSettings.monthsAfter} 
+                            onChange={(e) => handleChange('monthsAfter', e.target.value)}
+                            className="form-input w-24 text-center font-bold"
+                        />
+                        <span className="text-sm text-on-surface-variant">mesi dopo oggi</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AdminSettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('general');
 
@@ -1015,6 +1095,7 @@ const AdminSettingsPage: React.FC = () => {
                 )}
                 {activeTab === 'business' && (
                     <div className="space-y-6">
+                        <DataLoadSection />
                         <SkillThresholdsEditor />
                         <LeaveConfigurationEditor />
                     </div>

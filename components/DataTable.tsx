@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import ErrorBoundary from './ErrorBoundary';
 
 export interface ColumnDef<T> {
     header: string;
@@ -272,206 +273,208 @@ export function DataTable<T extends { id?: string }>({
     const loadingLabel = loadingMessage ?? 'Caricamento...';
 
     return (
-        <div>
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-on-surface self-start">
-                    {title}
-                </h1>
-                {title && addNewButtonLabel && (
-                    <button
-                        onClick={onAddNew}
-                        className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
-                    >
-                        {addNewButtonLabel}
-                    </button>
-                )}
-            </div>
-
-            <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
-                {filtersNode}
-            </div>
-
-            <div className="bg-surface rounded-2xl shadow overflow-hidden">
-                {/* Desktop Table */}
-                <div className="hidden md:block">
-                    <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative">
-                        <table
-                            ref={tableRef}
-                            className="w-full table-fixed border-collapse"
+        <ErrorBoundary label="Errore nella Tabella Dati">
+            <div>
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <h1 className="text-3xl font-bold text-on-surface self-start">
+                        {title}
+                    </h1>
+                    {title && addNewButtonLabel && (
+                        <button
+                            onClick={onAddNew}
+                            className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
                         >
-                            <thead className={combineClassNames('bg-surface-container-low', classes.header)}>
-                                {/* RIGA 1: INTESTAZIONI */}
-                                <tr className={classes.headerRow}>
-                                    {/* 1. Colonna Azioni (Fissa a Sinistra) */}
-                                    <th
-                                        className={combineClassNames(
-                                            'sticky left-0 z-40 px-2',
-                                            layout.headerSticky && 'sticky top-0',
-                                            layout.dense ? 'py-2' : 'py-3',
-                                            layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface',
-                                            layout.headerBorder && 'border-b border-outline-variant',
-                                            'text-center text-xs font-medium text-on-surface-variant uppercase tracking-wider border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
-                                        )}
-                                        style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
-                                    >
-                                        Azioni
-                                    </th>
-
-                                    {/* 2. Colonne Dati */}
-                                    {columns.map((col, index) => getSortableHeader(col.header, col.sortKey, index))}
-                                </tr>
-
-                                {/* RIGA 2: FILTRI COLONNA */}
-                                <tr className="bg-surface-container-low">
-                                    {/* 1. Filtro Azioni (Vuoto ma fisso) */}
-                                    <th
-                                        className={combineClassNames(
-                                            'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                                            layout.headerSticky && 'sticky top-[45px]' // Offset approssimativo dell'header sopra
-                                        )}
-                                        style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
-                                    >
-                                        {/* Placeholder */}
-                                    </th>
-
-                                    {/* 2. Filtri Dati */}
-                                    {columns.map((col, index) => {
-                                        const key = col.sortKey || col.header;
-                                        const isFirstDataCol = index === 0;
-                                        const stickyClass = isFirstDataCol 
-                                            ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
-                                            : 'relative z-10';
-                                        
-                                        return (
-                                            <th 
-                                                key={`filter-${key}`} 
-                                                className={combineClassNames(
-                                                    "px-2 py-1 bg-surface-container-low border-b border-outline-variant",
-                                                    layout.headerSticky && 'sticky top-[45px]',
-                                                    stickyClass
-                                                )}
-                                            >
-                                                <input
-                                                    type="text"
-                                                    placeholder="Filtra..."
-                                                    className="w-full text-xs form-input py-1 px-2 h-7 bg-surface border-outline-variant focus:border-primary rounded"
-                                                    value={filters[key] || ''}
-                                                    onChange={(e) => handleColumnFilterChange(key, e.target.value)}
-                                                />
-                                            </th>
-                                        );
-                                    })}
-                                </tr>
-                            </thead>
-
-                            <tbody className={classes.body}>
-                                {isLoading ? (
-                                    Array.from({ length: 5 }).map((_, rowIndex) => (
-                                        <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
-                                            <td className="sticky left-0 z-10 bg-surface px-4 py-3 border-r border-outline-variant">
-                                                <div className="h-4 w-8 rounded bg-surface-variant mx-auto" />
-                                            </td>
-                                            {columns.map((_, colIndex) => (
-                                                <td key={`skeleton-cell-${colIndex}`} className="px-4 py-3">
-                                                    <div className="h-4 rounded bg-surface-variant" />
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))
-                                ) : sortedData.length > 0 ? (
-                                    sortedData.map((item, rowIndex) => {
-                                        const renderedRow = renderRow(item);
-                                        
-                                        if (React.isValidElement(renderedRow) && renderedRow.type === 'tr') {
-                                            // Explicit cast to access props
-                                            const element = renderedRow as React.ReactElement<any>;
-                                            
-                                            const children = React.Children.toArray(element.props.children) as React.ReactElement<any>[];
-                                            
-                                            const actionCell = children[children.length - 1];
-                                            const dataCells = children.slice(0, children.length - 1);
-                                            
-                                            const rowProps = element.props;
-
-                                            return (
-                                                <tr {...rowProps} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
-                                                    {/* 1. Cella Azioni (Sticky Left) */}
-                                                    <td 
-                                                        className={combineClassNames(
-                                                            "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
-                                                            "whitespace-nowrap"
-                                                        )}
-                                                        style={{ width: `${finalActionsWidth}px`, minWidth: `${finalActionsWidth}px` }}
-                                                    >
-                                                        {actionCell && actionCell.props.children}
-                                                    </td>
-
-                                                    {/* 2. Celle Dati */}
-                                                    {dataCells.map((cell, cellIndex) => {
-                                                        const isFirstDataCol = cellIndex === 0;
-                                                        const stickyClass = isFirstDataCol 
-                                                            ? `sticky left-[${finalActionsWidth}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
-                                                            : '';
-                                                        
-                                                        const safeCell = cell as React.ReactElement<any>;
-
-                                                        return React.cloneElement(safeCell, {
-                                                            className: combineClassNames(
-                                                                safeCell.props.className,
-                                                                stickyClass,
-                                                                "truncate px-4 py-3 text-sm text-on-surface-variant overflow-hidden text-ellipsis whitespace-nowrap max-w-xs"
-                                                            ),
-                                                            style: { ...safeCell.props.style, maxWidth: '100%' }
-                                                        });
-                                                    })}
-                                                </tr>
-                                            );
-                                        }
-                                        
-                                        return renderedRow;
-                                    })
-                                ) : (
-                                    <tr>
-                                        <td
-                                            colSpan={columns.length + 1}
-                                            className="px-6 py-8 text-center text-on-surface-variant"
-                                        >
-                                            {desktopEmptyMessage}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* Mobile Cards */}
-                <div className="md:hidden p-4 space-y-4">
-                    {isLoading ? (
-                        <>
-                            <p className="text-center text-on-surface-variant mb-2">
-                                {loadingLabel}
-                            </p>
-                            {Array.from({ length: 3 }).map((_, idx) => (
-                                <div
-                                    key={`mobile-skeleton-${idx}`}
-                                    className="p-4 rounded-lg bg-surface-variant animate-pulse space-y-2"
-                                >
-                                    <div className="h-4 rounded bg-surface" />
-                                    <div className="h-4 rounded bg-surface" />
-                                    <div className="h-4 rounded bg-surface w-1/2" />
-                                </div>
-                            ))}
-                        </>
-                    ) : sortedData.length > 0 ? (
-                        sortedData.map(item => renderMobileCard(item))
-                    ) : (
-                        <p className="text-center py-8 text-on-surface-variant">
-                            {desktopEmptyMessage}
-                        </p>
+                            {addNewButtonLabel}
+                        </button>
                     )}
                 </div>
+
+                <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
+                    {filtersNode}
+                </div>
+
+                <div className="bg-surface rounded-2xl shadow overflow-hidden">
+                    {/* Desktop Table */}
+                    <div className="hidden md:block">
+                        <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative">
+                            <table
+                                ref={tableRef}
+                                className="w-full table-fixed border-collapse"
+                            >
+                                <thead className={combineClassNames('bg-surface-container-low', classes.header)}>
+                                    {/* RIGA 1: INTESTAZIONI */}
+                                    <tr className={classes.headerRow}>
+                                        {/* 1. Colonna Azioni (Fissa a Sinistra) */}
+                                        <th
+                                            className={combineClassNames(
+                                                'sticky left-0 z-40 px-2',
+                                                layout.headerSticky && 'sticky top-0',
+                                                layout.dense ? 'py-2' : 'py-3',
+                                                layout.headerBackground ? 'bg-surface-container-low' : 'bg-surface',
+                                                layout.headerBorder && 'border-b border-outline-variant',
+                                                'text-center text-xs font-medium text-on-surface-variant uppercase tracking-wider border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]'
+                                            )}
+                                            style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
+                                        >
+                                            Azioni
+                                        </th>
+
+                                        {/* 2. Colonne Dati */}
+                                        {columns.map((col, index) => getSortableHeader(col.header, col.sortKey, index))}
+                                    </tr>
+
+                                    {/* RIGA 2: FILTRI COLONNA */}
+                                    <tr className="bg-surface-container-low">
+                                        {/* 1. Filtro Azioni (Vuoto ma fisso) */}
+                                        <th
+                                            className={combineClassNames(
+                                                'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
+                                                layout.headerSticky && 'sticky top-[45px]' // Offset approssimativo dell'header sopra
+                                            )}
+                                            style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
+                                        >
+                                            {/* Placeholder */}
+                                        </th>
+
+                                        {/* 2. Filtri Dati */}
+                                        {columns.map((col, index) => {
+                                            const key = col.sortKey || col.header;
+                                            const isFirstDataCol = index === 0;
+                                            const stickyClass = isFirstDataCol 
+                                                ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+                                                : 'relative z-10';
+                                            
+                                            return (
+                                                <th 
+                                                    key={`filter-${key}`} 
+                                                    className={combineClassNames(
+                                                        "px-2 py-1 bg-surface-container-low border-b border-outline-variant",
+                                                        layout.headerSticky && 'sticky top-[45px]',
+                                                        stickyClass
+                                                    )}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Filtra..."
+                                                        className="w-full text-xs form-input py-1 px-2 h-7 bg-surface border-outline-variant focus:border-primary rounded"
+                                                        value={filters[key] || ''}
+                                                        onChange={(e) => handleColumnFilterChange(key, e.target.value)}
+                                                    />
+                                                </th>
+                                            );
+                                        })}
+                                    </tr>
+                                </thead>
+
+                                <tbody className={classes.body}>
+                                    {isLoading ? (
+                                        Array.from({ length: 5 }).map((_, rowIndex) => (
+                                            <tr key={`skeleton-${rowIndex}`} className="animate-pulse">
+                                                <td className="sticky left-0 z-10 bg-surface px-4 py-3 border-r border-outline-variant">
+                                                    <div className="h-4 w-8 rounded bg-surface-variant mx-auto" />
+                                                </td>
+                                                {columns.map((_, colIndex) => (
+                                                    <td key={`skeleton-cell-${colIndex}`} className="px-4 py-3">
+                                                        <div className="h-4 rounded bg-surface-variant" />
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))
+                                    ) : sortedData.length > 0 ? (
+                                        sortedData.map((item, rowIndex) => {
+                                            const renderedRow = renderRow(item);
+                                            
+                                            if (React.isValidElement(renderedRow) && renderedRow.type === 'tr') {
+                                                // Explicit cast to access props
+                                                const element = renderedRow as React.ReactElement<any>;
+                                                
+                                                const children = React.Children.toArray(element.props.children) as React.ReactElement<any>[];
+                                                
+                                                const actionCell = children[children.length - 1];
+                                                const dataCells = children.slice(0, children.length - 1);
+                                                
+                                                const rowProps = element.props;
+
+                                                return (
+                                                    <tr {...rowProps} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
+                                                        {/* 1. Cella Azioni (Sticky Left) */}
+                                                        <td 
+                                                            className={combineClassNames(
+                                                                "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
+                                                                "whitespace-nowrap"
+                                                            )}
+                                                            style={{ width: `${finalActionsWidth}px`, minWidth: `${finalActionsWidth}px` }}
+                                                        >
+                                                            {actionCell && actionCell.props.children}
+                                                        </td>
+
+                                                        {/* 2. Celle Dati */}
+                                                        {dataCells.map((cell, cellIndex) => {
+                                                            const isFirstDataCol = cellIndex === 0;
+                                                            const stickyClass = isFirstDataCol 
+                                                                ? `sticky left-[${finalActionsWidth}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
+                                                                : '';
+                                                            
+                                                            const safeCell = cell as React.ReactElement<any>;
+
+                                                            return React.cloneElement(safeCell, {
+                                                                className: combineClassNames(
+                                                                    safeCell.props.className,
+                                                                    stickyClass,
+                                                                    "truncate px-4 py-3 text-sm text-on-surface-variant overflow-hidden text-ellipsis whitespace-nowrap max-w-xs"
+                                                                ),
+                                                                style: { ...safeCell.props.style, maxWidth: '100%' }
+                                                            });
+                                                        })}
+                                                    </tr>
+                                                );
+                                            }
+                                            
+                                            return renderedRow;
+                                        })
+                                    ) : (
+                                        <tr>
+                                            <td
+                                                colSpan={columns.length + 1}
+                                                className="px-6 py-8 text-center text-on-surface-variant"
+                                            >
+                                                {desktopEmptyMessage}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden p-4 space-y-4">
+                        {isLoading ? (
+                            <>
+                                <p className="text-center text-on-surface-variant mb-2">
+                                    {loadingLabel}
+                                </p>
+                                {Array.from({ length: 3 }).map((_, idx) => (
+                                    <div
+                                        key={`mobile-skeleton-${idx}`}
+                                        className="p-4 rounded-lg bg-surface-variant animate-pulse space-y-2"
+                                    >
+                                        <div className="h-4 rounded bg-surface" />
+                                        <div className="h-4 rounded bg-surface" />
+                                        <div className="h-4 rounded bg-surface w-1/2" />
+                                    </div>
+                                ))}
+                            </>
+                        ) : sortedData.length > 0 ? (
+                            sortedData.map(item => renderMobileCard(item))
+                        ) : (
+                            <p className="text-center py-8 text-on-surface-variant">
+                                {desktopEmptyMessage}
+                            </p>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
+        </ErrorBoundary>
     );
 }

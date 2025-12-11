@@ -1,3 +1,4 @@
+
 /**
  * @file ProjectsPage.tsx
  * @description Pagina per la gestione dei progetti (CRUD e visualizzazione).
@@ -27,6 +28,16 @@ const ProjectsPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
+    const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
+    // Debounce Effect
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedFilters(filters);
+        }, 400);
+        return () => clearTimeout(handler);
+    }, [filters]);
+
     const [showOnlyUnstaffed, setShowOnlyUnstaffed] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -79,6 +90,7 @@ const ProjectsPage: React.FC = () => {
         return { countActive, totalBudget, endingSoon };
     }, [projects]);
 
+    // Uses debouncedFilters for heavy calculations
     const dataForTable = useMemo<EnrichedProject[]>(() => {
         const staffedProjectIds = new Set(assignments.map(a => a.projectId));
         return projects
@@ -91,10 +103,10 @@ const ProjectsPage: React.FC = () => {
                         return false;
                     }
                 }
-                
-                const nameMatch = project.name.toLowerCase().includes(filters.name.toLowerCase());
-                const clientMatch = filters.clientId ? project.clientId === filters.clientId : true;
-                const statusMatch = filters.status ? project.status === filters.status : true;
+                // Use debouncedFilters
+                const nameMatch = project.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
+                const clientMatch = debouncedFilters.clientId ? project.clientId === debouncedFilters.clientId : true;
+                const statusMatch = debouncedFilters.status ? project.status === debouncedFilters.status : true;
                 return nameMatch && clientMatch && statusMatch;
             })
             .map(project => {
@@ -106,7 +118,7 @@ const ProjectsPage: React.FC = () => {
                     assignedResources,
                 };
             });
-    }, [projects, filters, clients, assignments, showOnlyUnstaffed]);
+    }, [projects, debouncedFilters, clients, assignments, showOnlyUnstaffed]);
     
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
@@ -327,7 +339,7 @@ const ProjectsPage: React.FC = () => {
                     </div>
                     <span className="ml-3 text-sm text-on-surface">Solo senza staff</span>
                 </label>
-                <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
+                <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>
             </div>
         </div>
     );

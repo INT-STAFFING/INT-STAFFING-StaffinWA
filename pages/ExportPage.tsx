@@ -114,7 +114,7 @@ const ExportPage: React.FC = () => {
             const permissions: RolePermission[] = await permsRes.json();
 
             // Export
-            exportUsersPermissions(users, permissions, allData.resources);
+            await exportUsersPermissions(users, permissions, allData.resources);
 
         } catch (e) {
             console.error(e);

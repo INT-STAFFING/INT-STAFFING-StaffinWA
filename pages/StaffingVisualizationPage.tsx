@@ -1,3 +1,4 @@
+
 /**
  * @file StaffingVisualizationPage.tsx
  * @description Pagina di visualizzazione grafica dello staffing con diagrammi Sankey e Network.
@@ -8,14 +9,6 @@ import { useEntitiesContext, useAllocationsContext } from '../context/AppContext
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useTheme } from '../context/ThemeContext';
-// FIX: Replaced monolithic d3 import with modular imports to resolve type errors.
-import { select } from 'd3-selection';
-import { scaleOrdinal } from 'd3-scale';
-import { zoom as d3Zoom } from 'd3-zoom';
-import { forceSimulation, forceLink, forceManyBody, forceCenter, forceX, forceY } from 'd3-force';
-import { drag as d3Drag } from 'd3-drag';
-import { sankey, sankeyLinkHorizontal } from 'd3-sankey';
-import 'd3-transition'; // Prevent crash on transitions
 
 type ViewMode = 'sankey' | 'network';
 
@@ -161,9 +154,6 @@ const StaffingVisualizationPage: React.FC = () => {
 
         const data = JSON.parse(chartDataString);
 
-        const svg = select(svgRef.current);
-        svg.selectAll("*").remove();
-
         if (data.nodes.length === 0) {
             setIsLoading(false);
             return;
@@ -171,180 +161,206 @@ const StaffingVisualizationPage: React.FC = () => {
 
         const width = 1200;
         const height = view === 'sankey' ? 1600 : 800;
-        svg.attr("viewBox", `0 0 ${width} ${height}`);
-        
-        const tooltip = select("body").append("div")
-            .attr("class", "d3-tooltip")
-            .style("position", "absolute")
-            .style("z-index", "10")
-            .style("visibility", "hidden")
-            .style("background", currentPalette.inverseSurface)
-            .style("color", currentPalette.inverseOnSurface)
-            .style("padding", "8px")
-            .style("border-radius", "4px")
-            .style("font-size", "12px");
 
-        if (view === 'sankey') {
-            const { nodeWidth, nodePadding, linkOpacity } = theme.visualizationSettings.sankey;
-
-            const sankeyGenerator = sankey()
-                .nodeWidth(nodeWidth)
-                .nodePadding(nodePadding)
-                .extent([[1, 5], [width - 1, height - 5]]);
+        const draw = async () => {
+            // Dynamic Imports
+            const [
+                d3Selection, 
+                d3Scale, 
+                d3Zoom, 
+                d3Force, 
+                d3Drag, 
+                d3Sankey,
+                _d3Transition
+            ] = await Promise.all([
+                import('d3-selection'),
+                import('d3-scale'),
+                import('d3-zoom'),
+                import('d3-force'),
+                import('d3-drag'),
+                import('d3-sankey'),
+                import('d3-transition')
+            ]);
             
-            const nodeById = new Map(data.nodes.map((d: any, i: number) => [d.id, i]));
-            const graph = {
-                nodes: data.nodes,
-                links: data.links.map((d: any) => ({
-                    source: nodeById.get(d.source),
-                    target: nodeById.get(d.target),
-                    value: d.value,
-                }))
-            };
-
-            const { nodes, links } = sankeyGenerator(graph);
+            const svg = d3Selection.select(svgRef.current);
+            svg.selectAll("*").remove();
+            svg.attr("viewBox", `0 0 ${width} ${height}`);
             
-            const color = scaleOrdinal<string, string>()
-                .domain(['resource', 'project', 'client', 'contract'])
-                .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
+            const tooltip = d3Selection.select("body").append("div")
+                .attr("class", "d3-tooltip")
+                .style("position", "absolute")
+                .style("z-index", "10")
+                .style("visibility", "hidden")
+                .style("background", currentPalette.inverseSurface)
+                .style("color", currentPalette.inverseOnSurface)
+                .style("padding", "8px")
+                .style("border-radius", "4px")
+                .style("font-size", "12px");
 
-            svg.append("g")
-                .selectAll("rect")
-                .data(nodes)
-                .join("rect")
-                .attr("x", (d: any) => d.x0)
-                .attr("y", (d: any) => d.y0)
-                .attr("height", (d: any) => d.y1 - d.y0)
-                .attr("width", (d: any) => d.x1 - d.x0)
-                .attr("fill", (d: any) => color(d.type))
-                .on("mouseover", (event: any, d: any) => {
-                    tooltip.style("visibility", "visible").text(`${d.name}`);
-                })
-                .on("mousemove", (event: any) => {
-                    tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
-                })
-                .on("mouseout", () => {
-                    tooltip.style("visibility", "hidden");
-                });
+            if (view === 'sankey') {
+                const { nodeWidth, nodePadding, linkOpacity } = theme.visualizationSettings.sankey;
 
-            const link = svg.append("g")
-                .attr("fill", "none")
-                .attr("stroke-opacity", linkOpacity)
-                .selectAll("g")
-                .data(links)
-                .join("g")
-                .style("mix-blend-mode", "multiply");
-
-            link.append("path")
-                .attr("d", sankeyLinkHorizontal())
-                .attr("stroke", (d: any) => color(d.source.type))
-                .attr("stroke-width", (d: any) => Math.max(1, d.width));
+                const sankeyGenerator = d3Sankey.sankey()
+                    .nodeWidth(nodeWidth)
+                    .nodePadding(nodePadding)
+                    .extent([[1, 5], [width - 1, height - 5]]);
                 
-            link.on("mouseover", function(event: any, d: any) {
-                    select(this).attr("stroke-opacity", 0.8);
-                    tooltip.style("visibility", "visible").text(`${d.source.name} → ${d.target.name}: ${d.value.toFixed(1)} G/U`);
-                })
-                .on("mousemove", (event: any) => {
-                    tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
-                })
-                .on("mouseout", function() {
-                    select(this).attr("stroke-opacity", linkOpacity);
-                    tooltip.style("visibility", "hidden");
-                });
+                const nodeById = new Map(data.nodes.map((d: any, i: number) => [d.id, i]));
+                const graph = {
+                    nodes: data.nodes,
+                    links: data.links.map((d: any) => ({
+                        source: nodeById.get(d.source),
+                        target: nodeById.get(d.target),
+                        value: d.value,
+                    }))
+                };
 
-            svg.append("g")
-                .selectAll("text")
-                .data(nodes)
-                .join("text")
-                .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-                .attr("y", (d: any) => (d.y1 + d.y0) / 2)
-                .attr("dy", "0.35em")
-                .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
-                .attr("font-size", "10px")
-                .attr("fill", currentPalette.onSurface)
-                .text((d: any) => d.name);
-        
-        } else { // network
-            const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
-
-            const zoomBehavior = d3Zoom()
-                .scaleExtent([0.1, 4])
-                .on("zoom", (event: any) => {
-                    g.attr("transform", event.transform);
-                });
-            
-            const g = svg.append("g");
-            svg.call(zoomBehavior as any);
-
-             const color = scaleOrdinal<string, string>()
-                .domain(['resource', 'project', 'client', 'contract'])
-                .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
-
-            const simulation = forceSimulation(data.nodes)
-                .force("link", forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
-                .force("charge", forceManyBody().strength(chargeStrength))
-                .force("center", forceCenter(width / 2, height / 2))
-                .force("x", forceX(width / 2).strength(centerStrength))
-                .force("y", forceY(height / 2).strength(centerStrength));
+                const { nodes, links } = sankeyGenerator(graph);
                 
-            const link = g.append("g")
-                .attr("stroke", currentPalette.outline)
-                .attr("stroke-opacity", 0.6)
-                .selectAll("line")
-                .data(data.links)
-                .join("line")
-                .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));  
+                const color = d3Scale.scaleOrdinal<string, string>()
+                    .domain(['resource', 'project', 'client', 'contract'])
+                    .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
-            const nodeGroup = g.append("g")
-                .selectAll(".node-group")
-                .data(data.nodes)
-                .join("g")
-                .attr("class", "node-group")
-                .call(d3Drag()
-                    .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-                    .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
-                    .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }) as any
-                );
+                svg.append("g")
+                    .selectAll("rect")
+                    .data(nodes)
+                    .join("rect")
+                    .attr("x", (d: any) => d.x0)
+                    .attr("y", (d: any) => d.y0)
+                    .attr("height", (d: any) => d.y1 - d.y0)
+                    .attr("width", (d: any) => d.x1 - d.x0)
+                    .attr("fill", (d: any) => color(d.type))
+                    .on("mouseover", (event: any, d: any) => {
+                        tooltip.style("visibility", "visible").text(`${d.name}`);
+                    })
+                    .on("mousemove", (event: any) => {
+                        tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+                    })
+                    .on("mouseout", () => {
+                        tooltip.style("visibility", "hidden");
+                    });
 
-            nodeGroup.append("circle")
-                .attr("r", nodeRadius)
-                .attr("fill", (d: any) => color(d.type))
-                .attr("stroke", currentPalette.surface)
-                .attr("stroke-width", 1.5);
+                const link = svg.append("g")
+                    .attr("fill", "none")
+                    .attr("stroke-opacity", linkOpacity)
+                    .selectAll("g")
+                    .data(links)
+                    .join("g")
+                    .style("mix-blend-mode", "multiply");
 
-            nodeGroup.append("text")
-                .text((d: any) => d.name)
-                .attr("x", 12)
-                .attr("y", 3)
-                .attr("font-size", "10px")
-                .attr("fill", currentPalette.onSurface);
+                link.append("path")
+                    .attr("d", d3Sankey.sankeyLinkHorizontal())
+                    .attr("stroke", (d: any) => color(d.source.type))
+                    .attr("stroke-width", (d: any) => Math.max(1, d.width));
+                    
+                link.on("mouseover", function(event: any, d: any) {
+                        d3Selection.select(this).attr("stroke-opacity", 0.8);
+                        tooltip.style("visibility", "visible").text(`${d.source.name} → ${d.target.name}: ${d.value.toFixed(1)} G/U`);
+                    })
+                    .on("mousemove", (event: any) => {
+                        tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+                    })
+                    .on("mouseout", function() {
+                        d3Selection.select(this).attr("stroke-opacity", linkOpacity);
+                        tooltip.style("visibility", "hidden");
+                    });
+
+                svg.append("g")
+                    .selectAll("text")
+                    .data(nodes)
+                    .join("text")
+                    .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+                    .attr("y", (d: any) => (d.y1 + d.y0) / 2)
+                    .attr("dy", "0.35em")
+                    .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
+                    .attr("font-size", "10px")
+                    .attr("fill", currentPalette.onSurface)
+                    .text((d: any) => d.name);
             
-            nodeGroup.on("mouseover", (event: any, d: any) => {
-                    tooltip.style("visibility", "visible").text(`${d.name}`);
-                })
-                .on("mousemove", (event: any) => {
-                    tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
-                })
-                .on("mouseout", () => {
-                    tooltip.style("visibility", "hidden");
+            } else { // network
+                const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
+
+                const zoomBehavior = d3Zoom.zoom()
+                    .scaleExtent([0.1, 4])
+                    .on("zoom", (event: any) => {
+                        g.attr("transform", event.transform);
+                    });
+                
+                const g = svg.append("g");
+                svg.call(zoomBehavior as any);
+
+                 const color = d3Scale.scaleOrdinal<string, string>()
+                    .domain(['resource', 'project', 'client', 'contract'])
+                    .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
+
+                const simulation = d3Force.forceSimulation(data.nodes)
+                    .force("link", d3Force.forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
+                    .force("charge", d3Force.forceManyBody().strength(chargeStrength))
+                    .force("center", d3Force.forceCenter(width / 2, height / 2))
+                    .force("x", d3Force.forceX(width / 2).strength(centerStrength))
+                    .force("y", d3Force.forceY(height / 2).strength(centerStrength));
+                    
+                const link = g.append("g")
+                    .attr("stroke", currentPalette.outline)
+                    .attr("stroke-opacity", 0.6)
+                    .selectAll("line")
+                    .data(data.links)
+                    .join("line")
+                    .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));  
+
+                const nodeGroup = g.append("g")
+                    .selectAll(".node-group")
+                    .data(data.nodes)
+                    .join("g")
+                    .attr("class", "node-group")
+                    .call(d3Drag.drag()
+                        .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                        .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
+                        .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }) as any
+                    );
+
+                nodeGroup.append("circle")
+                    .attr("r", nodeRadius)
+                    .attr("fill", (d: any) => color(d.type))
+                    .attr("stroke", currentPalette.surface)
+                    .attr("stroke-width", 1.5);
+
+                nodeGroup.append("text")
+                    .text((d: any) => d.name)
+                    .attr("x", 12)
+                    .attr("y", 3)
+                    .attr("font-size", "10px")
+                    .attr("fill", currentPalette.onSurface);
+                
+                nodeGroup.on("mouseover", (event: any, d: any) => {
+                        tooltip.style("visibility", "visible").text(`${d.name}`);
+                    })
+                    .on("mousemove", (event: any) => {
+                        tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+                    })
+                    .on("mouseout", () => {
+                        tooltip.style("visibility", "hidden");
+                    });
+
+                simulation.on("tick", () => {
+                    link
+                        .attr("x1", (d: any) => d.source.x)
+                        .attr("y1", (d: any) => d.source.y)
+                        .attr("x2", (d: any) => d.target.x)
+                        .attr("y2", (d: any) => d.target.y);
+
+                    nodeGroup
+                        .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
                 });
+            }
+            
+            setIsLoading(false);
+        };
 
-            simulation.on("tick", () => {
-                link
-                    .attr("x1", (d: any) => d.source.x)
-                    .attr("y1", (d: any) => d.source.y)
-                    .attr("x2", (d: any) => d.target.x)
-                    .attr("y2", (d: any) => d.target.y);
-
-                nodeGroup
-                    .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-            });
-        }
-        
-        setIsLoading(false);
+        draw();
         
         return () => {
-            select(".d3-tooltip").remove();
+             import('d3-selection').then(d3 => d3.select(".d3-tooltip").remove());
         };
 
     }, [chartDataString, view, theme.visualizationSettings, theme.dark, theme.light]);
@@ -406,36 +422,3 @@ const StaffingVisualizationPage: React.FC = () => {
                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
                     <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Diagramma di Flusso</button>
                     <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Mappa delle Connessioni</button>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
-                        <span className="material-symbols-outlined mr-2 text-base">download</span>
-                        SVG
-                    </button>
-                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 disabled:opacity-50" disabled={isLoading || chartData.nodes.length === 0}>
-                         <span className="material-symbols-outlined mr-2 text-base">download</span>
-                        PNG
-                    </button>
-                </div>
-            </div>
-
-            <div className="bg-surface rounded-2xl shadow p-4 overflow-auto">
-                {isLoading && (
-                    <div className="flex justify-center items-center h-96">
-                        <SpinnerIcon className="w-12 h-12 text-primary" />
-                    </div>
-                )}
-                {!isLoading && chartData.nodes.length === 0 && (
-                    <div className="flex justify-center items-center h-96 text-on-surface-variant">
-                        Nessun dato di allocazione trovato per il mese selezionato.
-                    </div>
-                )}
-                {!isLoading && chartData.nodes.length > 0 && (
-                    <svg ref={svgRef}></svg>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export default StaffingVisualizationPage;

@@ -1,15 +1,10 @@
+
 /**
  * @file GraphDataView.tsx
  * @description Componente generico per la visualizzazione di dati tramite grafici (bar, line, pie).
  */
 import React, { useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-// FIX: Replace global d3 declaration with modular imports for type safety and consistency.
-import { select } from 'd3-selection';
-import { scaleBand, scaleLinear } from 'd3-scale';
-import { axisBottom, axisLeft } from 'd3-axis';
-import { max } from 'd3-array';
-import 'd3-transition'; // Ensure transitions are loaded
 
 interface GraphConfig {
     xKey: string;
@@ -33,16 +28,22 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
     useEffect(() => {
         if (!svgRef.current || data.length === 0) return;
 
-        const svg = select(svgRef.current);
-        svg.selectAll("*").remove(); // Pulisce il render precedente
-
-        const parent = svg.node().parentElement;
-        if (!parent) return;
-
-        // Debounce resize
         let resizeTimer: number;
-        const drawChart = () => {
-            svg.selectAll("*").remove();
+        let observer: ResizeObserver;
+
+        const drawChart = async () => {
+            const svg = await import('d3-selection').then(m => m.select(svgRef.current));
+            // Ensure transitions are loaded. d3-transition side-effects apply to selection prototype
+            await import('d3-transition');
+            const { scaleBand, scaleLinear } = await import('d3-scale');
+            const { axisBottom, axisLeft } = await import('d3-axis');
+            const { max } = await import('d3-array');
+
+            svg.selectAll("*").remove(); // Pulisce il render precedente
+
+            const parent = svg.node()?.parentElement;
+            if (!parent) return;
+
             
             const { width: containerWidth, height: containerHeight } = parent.getBoundingClientRect();
             
@@ -55,7 +56,8 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
             const chart = svg.append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
                 
-            const tooltip = select("body").selectAll(".d3-tooltip").data([null]).join("div")
+            const d3Select = await import('d3-selection');
+            const tooltip = d3Select.select("body").selectAll(".d3-tooltip").data([null]).join("div")
                 .attr("class", "d3-tooltip")
                 .style("position", "absolute")
                 .style("z-index", "100")
@@ -100,25 +102,24 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
                     .data(data)
                     .join("rect")
                     .attr("class", "bar")
-                    .attr("x", (d: any) => x(getNestedValue(d, config.xKey)))
+                    .attr("x", (d: any) => x(getNestedValue(d, config.xKey)) || 0)
                     .attr("y", (d: any) => y(0))
                     .attr("width", x.bandwidth())
                     .attr("height", 0)
                     .attr("fill", currentPalette.primary)
                     .attr("rx", 3)
                     .on("mouseover", (event: any, d: any) => {
-                        select(event.currentTarget).attr("fill", currentPalette.primaryContainer);
+                        d3Select.select(event.currentTarget).attr("fill", currentPalette.primaryContainer);
                         tooltip.style("visibility", "visible").html(`<strong>${getNestedValue(d, config.xKey)}</strong><br/>Valore: ${getNestedValue(d, config.yKey).toFixed(2)}`);
                     })
                     .on("mousemove", (event: any) => {
                         tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
                     })
                     .on("mouseout", (event: any) => {
-                        select(event.currentTarget).attr("fill", currentPalette.primary);
+                        d3Select.select(event.currentTarget).attr("fill", currentPalette.primary);
                         tooltip.style("visibility", "hidden");
                     });
                 
-                // Explicitly cast to any to use transition, as d3-transition types might not augment Selection automatically in this setup
                 (bars as any).transition()
                     .duration(800)
                     .attr("y", (d: any) => y(getNestedValue(d, config.yKey)))
@@ -135,15 +136,19 @@ const GraphDataView: React.FC<GraphDataViewProps> = ({ data, type, config }) => 
         
         drawChart();
         
-        const resizeObserver = new ResizeObserver(() => {
-            clearTimeout(resizeTimer);
-            resizeTimer = window.setTimeout(drawChart, 300);
-        });
-        resizeObserver.observe(parent);
+        // Setup resize observer
+        const parent = svgRef.current.parentElement;
+        if(parent) {
+             observer = new ResizeObserver(() => {
+                clearTimeout(resizeTimer);
+                resizeTimer = window.setTimeout(drawChart, 300);
+            });
+            observer.observe(parent);
+        }
 
         return () => {
-            resizeObserver.disconnect();
-            select(".d3-tooltip").remove();
+            if(observer) observer.disconnect();
+            import('d3-selection').then(m => m.select(".d3-tooltip").remove());
         };
 
     }, [data, type, config, theme, isDarkMode, currentPalette]);

@@ -28,6 +28,9 @@ type ViewMode = 'day' | 'week' | 'month';
 // Helper per generare chiave lookup assenze
 const getLeaveKey = (resourceId: string, dateStr: string) => `${resourceId}_${dateStr}`;
 
+// Constant empty array for stable reference
+const EMPTY_ASSIGNMENTS: Assignment[] = [];
+
 // Helper per icona
 const getLeaveIcon = (typeName: string) => {
     const lower = typeName.toLowerCase();
@@ -53,7 +56,30 @@ interface AllocationCellProps {
 const AllocationCell: React.FC<AllocationCellProps> = React.memo(
   ({ assignment, date, isNonWorkingDay, activeLeave, leaveType }) => {
     const { allocations, updateAllocation } = useAllocationsContext();
-    const percentage = allocations[assignment.id!]?.[date] || 0;
+    // Context value (authoritative)
+    const contextPercentage = allocations[assignment.id!]?.[date] || 0;
+    
+    // Local state for immediate UI feedback (Debounced)
+    const [localValue, setLocalValue] = useState<number | string>(contextPercentage === 0 ? '' : contextPercentage);
+
+    // Sync local state if context changes externally (e.g. bulk update, initial load)
+    useEffect(() => {
+        setLocalValue(contextPercentage === 0 ? '' : contextPercentage);
+    }, [contextPercentage]);
+
+    // DEBOUNCE LOGIC: Update context only after 400ms of inactivity
+    useEffect(() => {
+        const numericValue = localValue === '' ? 0 : Number(localValue);
+        
+        // Avoid triggering update if value hasn't effectively changed
+        if (numericValue === contextPercentage) return;
+
+        const timer = setTimeout(() => {
+            updateAllocation(assignment.id!, date, numericValue);
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [localValue, assignment.id, date, updateAllocation, contextPercentage]);
 
     // Logic: If full day leave, block interaction. If half day, show icon but allow edit.
     if (activeLeave && leaveType && !activeLeave.isHalfDay) {
@@ -79,11 +105,20 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let val = parseInt(e.target.value, 10);
+      let rawVal = e.target.value;
+      
+      // Allow empty string for better UX while deleting
+      if (rawVal === '') {
+          setLocalValue('');
+          return;
+      }
+
+      let val = parseInt(rawVal, 10);
       if (isNaN(val)) val = 0;
       if (val > 100) val = 100;
       if (val < 0) val = 0;
-      updateAllocation(assignment.id!, date, val);
+      
+      setLocalValue(val);
     };
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -104,8 +139,8 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
           min="0"
           max="100"
           step="5"
-          value={percentage === 0 ? '' : percentage} // Show empty if 0 for cleaner look
-          placeholder={percentage === 0 ? '-' : ''}
+          value={localValue}
+          placeholder={localValue === '' ? '-' : ''}
           onChange={handleChange}
           onFocus={handleFocus}
           className="w-full h-full bg-transparent border-0 text-center text-sm focus:ring-2 focus:ring-inset focus:ring-primary text-on-surface p-0 m-0 appearance-none"
@@ -385,6 +420,16 @@ const MobileAssignmentEditor: React.FC<{
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {dates.map(d => {
                   const currentVal = allocations[assignment.id!]?.[d.dateIso] || 0;
+                  
+                  // Debounce logic specifically for mobile slider to avoid lag
+                  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                       // Note: For mobile slider, immediate feedback is better, but heavy DB updates should still potentially be debounced
+                       // or rely on the same AllocationCell logic if reused. Here we'll call direct for now,
+                       // but in a heavy app we'd duplicate the local state logic.
+                       const val = parseInt(e.target.value, 10);
+                       updateAllocation(assignment.id!, d.dateIso, val);
+                  };
+
                   return (
                       <div key={d.dateIso} className={`flex items-center justify-between p-3 rounded-lg border ${d.isNonWorkingDay ? 'bg-surface-container/50 border-transparent' : 'bg-surface border-outline-variant'}`}>
                           <div className="flex flex-col">
@@ -397,7 +442,7 @@ const MobileAssignmentEditor: React.FC<{
                                       type="range" 
                                       min="0" max="100" step="5" 
                                       value={currentVal}
-                                      onChange={(e) => updateAllocation(assignment.id!, d.dateIso, parseInt(e.target.value, 10))}
+                                      onChange={handleChange}
                                       className="w-32 accent-primary"
                                   />
                                   <span className="w-10 text-right font-bold text-primary">{currentVal}%</span>
@@ -533,7 +578,18 @@ export const StaffingPage: React.FC = () => {
   const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
   const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string; projectIds: string[] }>({ resourceId: '', projectIds: [] });
 
+  // Filters State (Input)
   const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
+  // Debounced Filter State (For Logic)
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
+  // Debounce Effect for Filters
+  useEffect(() => {
+      const handler = setTimeout(() => {
+          setDebouncedFilters(filters);
+      }, 400);
+      return () => clearTimeout(handler);
+  }, [filters]);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -653,46 +709,41 @@ export const StaffingPage: React.FC = () => {
 
   // --- Data Processing ---
   
-  // 1. Filter Assignments based on Project/Client filters FIRST
-  // This gives us the "relevant" assignments
+  // 1. Filter Assignments based on Project/Client filters FIRST (Using DEBOUNCED filters)
   const filteredAssignments = useMemo(() => {
       return assignments.filter(a =>
-        (!filters.projectId || a.projectId === filters.projectId) &&
-        (!filters.clientId || projectsById.get(a.projectId)?.clientId === filters.clientId) &&
-        (!filters.projectManager || projectsById.get(a.projectId)?.projectManager === filters.projectManager)
+        (!debouncedFilters.projectId || a.projectId === debouncedFilters.projectId) &&
+        (!debouncedFilters.clientId || projectsById.get(a.projectId)?.clientId === debouncedFilters.clientId) &&
+        (!debouncedFilters.projectManager || projectsById.get(a.projectId)?.projectManager === debouncedFilters.projectManager)
       );
-  }, [assignments, filters, projectsById]);
+  }, [assignments, debouncedFilters, projectsById]);
 
-  // 2. Determine Relevant Resource IDs based on filtered assignments OR direct resource filter
+  // 2. Determine Relevant Resource IDs (Using DEBOUNCED filters)
   const relevantResourceIds = useMemo(() => {
-      // If filtered by project/client/pm, only show resources in those assignments
-      if (filters.projectId || filters.clientId || filters.projectManager) {
+      if (debouncedFilters.projectId || debouncedFilters.clientId || debouncedFilters.projectManager) {
           return new Set(filteredAssignments.map(a => a.resourceId));
       }
-      // Otherwise, potential all (will be filtered by name/id next)
       return null; 
-  }, [filteredAssignments, filters]);
+  }, [filteredAssignments, debouncedFilters]);
 
-  // 3. Filter Resources List
+  // 3. Filter Resources List (Using DEBOUNCED filters)
   const displayResources = useMemo(() => {
       let visible = resources.filter(r => !r.resigned);
       
-      // Filter by specific resource selection
-      if (filters.resourceId) {
-          visible = visible.filter(r => r.id === filters.resourceId);
+      if (debouncedFilters.resourceId) {
+          visible = visible.filter(r => r.id === debouncedFilters.resourceId);
       }
       
-      // Filter by relevance to project filters
       if (relevantResourceIds) {
           visible = visible.filter(r => relevantResourceIds.has(r.id!));
       }
       
       return visible.sort((a, b) => a.name.localeCompare(b.name));
-  }, [resources, filters.resourceId, relevantResourceIds]);
+  }, [resources, debouncedFilters.resourceId, relevantResourceIds]);
 
   // 4. Pagination
   const paginatedResources = useMemo(() => {
-      if (isMobile) return displayResources; // No pagination on mobile typically or infinite scroll
+      if (isMobile) return displayResources; 
       const start = (currentPage - 1) * itemsPerPage;
       return displayResources.slice(start, start + itemsPerPage);
   }, [displayResources, currentPage, itemsPerPage, isMobile]);
@@ -890,7 +941,8 @@ export const StaffingPage: React.FC = () => {
                     <tbody className="divide-y divide-outline-variant">
                         {paginatedResources.map(resource => {
                             const role = rolesById.get(resource.roleId);
-                            const resourceAssignments = assignmentsByResource.get(resource.id!) || [];
+                            // Use EMPTY_ASSIGNMENTS if undefined to maintain stable reference for empty cases
+                            const resourceAssignments = assignmentsByResource.get(resource.id!) || EMPTY_ASSIGNMENTS;
                             
                             return (
                                 <React.Fragment key={resource.id}>

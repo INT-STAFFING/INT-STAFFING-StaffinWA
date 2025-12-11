@@ -82,7 +82,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 skillCatsRes,
                 skillMacrosRes,
                 skillMapRes,
-                catMacroMapRes
+                catMacroMapRes,
+                planningConfigRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -110,7 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM skill_categories;`,
                 db.sql`SELECT * FROM skill_macro_categories;`,
                 db.sql`SELECT * FROM skill_skill_category_map;`,
-                db.sql`SELECT * FROM skill_category_macro_map;`
+                db.sql`SELECT * FROM skill_category_macro_map;`,
+                db.sql`SELECT key, value FROM app_config WHERE key LIKE 'planning_range_%';`
             ]);
 
              // Formatta le date del calendario
@@ -134,6 +136,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             skillThresholdsRes.rows.forEach(row => {
                 const key = row.key.replace('skill_threshold.', '');
                 skillThresholds[key] = parseFloat(row.value);
+            });
+
+            // Mappa configurazione planning range
+            const planningSettings: any = {};
+            planningConfigRes.rows.forEach(row => {
+                if (row.key === 'planning_range_months_before') planningSettings.monthsBefore = parseInt(row.value, 10);
+                if (row.key === 'planning_range_months_after') planningSettings.monthsAfter = parseInt(row.value, 10);
             });
 
             // Sidebar & Config Logic (simplified)
@@ -241,6 +250,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
                 pageVisibility,
                 skillThresholds,
+                planningSettings, // New
                 leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
                 managerResourceIds,
                 sidebarConfig,

@@ -34,7 +34,19 @@ const ResourcesPage: React.FC = () => {
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
+    
+    // Filters and Debounced Filters
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active', tutorId: '' });
+    const [debouncedFilters, setDebouncedFilters] = useState(filters);
+
+    // Debounce Effect
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedFilters(filters);
+        }, 400);
+        return () => clearTimeout(handler);
+    }, [filters]);
+
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
     // State for skills management in modal
@@ -117,6 +129,7 @@ const ResourcesPage: React.FC = () => {
         return Math.round((totalPersonDays / workingDaysInMonth) * 100);
     }, [assignments, allocations, companyCalendar]);
     
+    // Uses debouncedFilters for expensive filtering
     const dataForTable = useMemo<EnrichedResource[]>(() => {
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
 
@@ -124,12 +137,13 @@ const ResourcesPage: React.FC = () => {
             if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) {
                 return false;
             }
-            const nameMatch = resource.name.toLowerCase().includes(filters.name.toLowerCase());
-            const roleMatch = filters.roleId ? resource.roleId === filters.roleId : true;
-            const horizontalMatch = filters.horizontal ? resource.horizontal === filters.horizontal : true;
-            const locationMatch = filters.location ? resource.location === filters.location : true;
-            const statusMatch = filters.status === 'all' ? true : filters.status === 'active' ? !resource.resigned : resource.resigned;
-            const tutorMatch = filters.tutorId ? resource.tutorId === filters.tutorId : true;
+            // Use debouncedFilters instead of filters
+            const nameMatch = resource.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
+            const roleMatch = debouncedFilters.roleId ? resource.roleId === debouncedFilters.roleId : true;
+            const horizontalMatch = debouncedFilters.horizontal ? resource.horizontal === debouncedFilters.horizontal : true;
+            const locationMatch = debouncedFilters.location ? resource.location === debouncedFilters.location : true;
+            const statusMatch = debouncedFilters.status === 'all' ? true : debouncedFilters.status === 'active' ? !resource.resigned : resource.resigned;
+            const tutorMatch = debouncedFilters.tutorId ? resource.tutorId === debouncedFilters.tutorId : true;
             
             return nameMatch && roleMatch && horizontalMatch && locationMatch && statusMatch && tutorMatch;
         });
@@ -152,7 +166,7 @@ const ResourcesPage: React.FC = () => {
                 tutorName: tutor?.name || '-'
             };
         });
-    }, [resources, filters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
+    }, [resources, debouncedFilters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
