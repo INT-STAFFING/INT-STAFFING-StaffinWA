@@ -229,7 +229,7 @@ const StaffingVisualizationPage: React.FC = () => {
                     .attr("y", (d: any) => d.y0)
                     .attr("height", (d: any) => d.y1 - d.y0)
                     .attr("width", (d: any) => d.x1 - d.x0)
-                    .attr("fill", (d: any) => color(d.type) as string)
+                    .attr("fill", (d: any) => color(d.type))
                     .on("mouseover", (event: any, d: any) => {
                         tooltip.style("visibility", "visible").text(`${d.name}`);
                     })
@@ -250,7 +250,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 link.append("path")
                     .attr("d", d3Sankey.sankeyLinkHorizontal())
-                    .attr("stroke", (d: any) => color(d.source.type) as string)
+                    .attr("stroke", (d: any) => color(d.source.type))
                     .attr("stroke-width", (d: any) => Math.max(1, d.width));
                     
                 link.on("mouseover", function(event: any, d: any) {
@@ -321,7 +321,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 nodeGroup.append("circle")
                     .attr("r", nodeRadius)
-                    .attr("fill", (d: any) => color(d.type) as string)
+                    .attr("fill", (d: any) => color(d.type))
                     .attr("stroke", currentPalette.surface)
                     .attr("stroke-width", 1.5);
 
