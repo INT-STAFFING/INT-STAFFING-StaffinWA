@@ -1,3 +1,4 @@
+
 /**
  * @file TestStaffingPage.tsx
  * @description Pagina di test per la visualizzazione dello staffing con Responsive Layout Switching.
@@ -5,60 +6,17 @@
  * Mobile: Resource Cards View (Agenda).
  */
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, Assignment } from '../types';
-import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
+import { getCalendarDays, formatDate, addDays } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
-import { Link } from 'react-router-dom';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import VirtualStaffingGrid from '../components/VirtualStaffingGrid';
 
 type ViewMode = 'day' | 'week' | 'month';
-
-const PERCENTAGE_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5);
-
-// --- Componenti Cella Riutilizzati ---
-
-const AllocationCell: React.FC<{
-  assignment: Assignment;
-  date: string;
-  isNonWorkingDay: boolean;
-}> = React.memo(({ assignment, date, isNonWorkingDay }) => {
-  const { allocations, updateAllocation } = useAllocationsContext();
-  const percentage = allocations[assignment.id!]?.[date] || 0;
-
-  if (isNonWorkingDay) {
-    return (
-        <div className="w-full h-full flex items-center justify-center bg-surface-container text-on-surface-variant text-xs">
-            -
-        </div>
-    );
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateAllocation(assignment.id!, date, parseInt(e.target.value, 10));
-  };
-
-  return (
-    <div className="w-full h-full flex items-center justify-center">
-        <select
-            value={percentage}
-            onChange={handleChange}
-            className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none text-on-surface cursor-pointer"
-            onClick={(e) => e.stopPropagation()}
-        >
-        {PERCENTAGE_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-            {p > 0 ? `${p}%` : '-'}
-            </option>
-        ))}
-        </select>
-    </div>
-  );
-});
 
 type MobileRowData = {
   resource: Resource;
@@ -71,12 +29,6 @@ type MobileRowData = {
       avgLoad: number;
   }[];
 };
-
-// Define structure for flattened virtual rows
-type VirtualRow = 
-    | { type: 'RESOURCE'; resource: Resource; key: string }
-    | { type: 'ASSIGNMENT'; resource: Resource; assignment: Assignment; key: string };
-
 
 // --- MOBILE COMPONENTS ---
 
@@ -139,7 +91,7 @@ const MobileResourceCard: React.FC<{
         const max = data.resource.maxStaffingPercentage;
         if (load > max) return 'bg-error text-on-error';
         if (load === max) return 'bg-tertiary text-on-tertiary';
-        if (load > 0) return 'bg-yellow-container text-on-yellow-container'; // Using simpler colors for bar
+        if (load > 0) return 'bg-yellow-container text-on-yellow-container'; 
         return 'bg-surface-variant text-on-surface-variant';
     };
     
@@ -216,12 +168,8 @@ const MobileResourceCard: React.FC<{
 // --- Pagina Principale ---
 const TestStaffingPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  // Mobile defaults to 'week', desktop to 'day'
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [viewMode, setViewMode] = useState<ViewMode>('day'); // Desktop default is 'day' for grid
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  // Parent Ref for Virtual Scroller
-  const parentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
       const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -290,34 +238,25 @@ const TestStaffingPage: React.FC = () => {
         return cols;
     }
 
-    // Desktop Logic
-    if (viewMode === 'day') {
-      return getCalendarDays(d, 30).map((day) => { // Render more days for better virtual scrolling demo
+    // Desktop Logic - Generate 30 days window for virtualization
+    // In grid mode 'day' we render each day. 'week' and 'month' aggregations are not implemented in the virtual grid yet for simplicity, 
+    // sticking to 'day' view as per common request for grids.
+    const daysToRender = 30; 
+    
+    return getCalendarDays(d, daysToRender).map((day) => {
         const dayOfWeek = day.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
         const dateIso = formatDate(day, 'iso');
         const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
-        return { label: formatDate(day, 'short'), subLabel: formatDate(day, 'day'), startDate: day, endDate: day, isNonWorkingDay: isWeekend || !!holiday, dateIso };
-      });
-    }
-    if (viewMode === 'week') {
-      d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
-      for (let i = 0; i < 20; i++) { // More weeks
-        const startOfWeek = new Date(d);
-        const endOfWeek = addDays(new Date(d), 6);
-        cols.push({ label: `${formatDate(startOfWeek, 'short')} - ${formatDate(endOfWeek, 'short')}`, subLabel: '', startDate: startOfWeek, endDate: endOfWeek, isNonWorkingDay: false, dateIso: '' });
-        d.setDate(d.getDate() + 7);
-      }
-    } else {
-      d.setDate(1);
-      for (let i = 0; i < 24; i++) { // 2 Years
-        const startOfMonth = new Date(d);
-        const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        cols.push({ label: d.toLocaleString('it-IT', { month: 'long', year: 'numeric' }), subLabel: '', startDate: startOfMonth, endDate: endOfMonth, isNonWorkingDay: false, dateIso: '' });
-        d.setMonth(d.getMonth() + 1);
-      }
-    }
-    return cols;
+        return { 
+            label: formatDate(day, 'short'), 
+            subLabel: formatDate(day, 'day'), 
+            startDate: day, 
+            endDate: day, 
+            isNonWorkingDay: isWeekend || !!holiday, 
+            dateIso 
+        };
+    });
   }, [currentDate, viewMode, companyCalendar, isMobile]);
 
   const handlePrev = useCallback(() => setCurrentDate(prev => {
@@ -377,44 +316,9 @@ const TestStaffingPage: React.FC = () => {
     // Sort
     visibleResources.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { visibleResources, assignmentsByResource };
+    return { visibleResources, filteredAssignments, assignmentsByResource };
   }, [assignments, projectsById, resources, filters]);
 
-
-  // --- VIRTUALIZATION PREP (Flatten Data) ---
-  const flatRows = useMemo<VirtualRow[]>(() => {
-      if (isMobile) return [];
-      const rows: VirtualRow[] = [];
-      commonDataProcessing.visibleResources.forEach(resource => {
-          // 1. Resource Header Row
-          rows.push({ type: 'RESOURCE', resource, key: `res-${resource.id}` });
-          
-          // 2. Assignment Rows
-          const resAssignments = commonDataProcessing.assignmentsByResource.get(resource.id!) || [];
-          resAssignments.forEach(assignment => {
-              rows.push({ type: 'ASSIGNMENT', resource, assignment, key: `asg-${assignment.id}` });
-          });
-      });
-      return rows;
-  }, [commonDataProcessing, isMobile]);
-
-  // Virtualizers
-  const rowVirtualizer = useVirtualizer({
-      count: flatRows.length,
-      getScrollElement: () => parentRef.current,
-      estimateSize: (index) => flatRows[index].type === 'RESOURCE' ? 56 : 56, // Same height for simplicity, can vary
-      overscan: 5,
-  });
-
-  // Columns: [Info Column (0)] + [Time Columns (1..N)]
-  const totalColumns = 1 + timeColumns.length;
-  const columnVirtualizer = useVirtualizer({
-      horizontal: true,
-      count: totalColumns,
-      getScrollElement: () => parentRef.current,
-      estimateSize: (index) => index === 0 ? 280 : (viewMode === 'day' ? 70 : 120), // 280px for Sticky info col
-      overscan: 2,
-  });
 
   // --- Mobile Data Preparation ---
   const mobileDisplayData = useMemo<MobileRowData[]>(() => {
@@ -487,13 +391,17 @@ const TestStaffingPage: React.FC = () => {
               {isMobile && <span className="ml-2 text-sm font-semibold text-on-surface">{viewMode === 'week' ? 'Settimana Corrente' : viewMode === 'day' ? 'Giorno' : 'Mese'}</span>}
           </div>
           
-          <div className="flex items-center justify-center md:justify-start space-x-1 bg-surface-container p-1 rounded-full">
-              {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
-                  <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>
-                      {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
-                  </button>
-              ))}
-          </div>
+          {/* View Mode (Only mobile relevant for now as desktop is grid) */}
+          {isMobile && (
+             <div className="flex items-center justify-center md:justify-start space-x-1 bg-surface-container p-1 rounded-full">
+                {(['day', 'week', 'month'] as ViewMode[]).map((level) => (
+                    <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>
+                        {level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}
+                    </button>
+                ))}
+             </div>
+          )}
+
           <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"><span className="material-symbols-outlined mr-2 text-xl">add</span>Assegna Risorsa</button>
         </div>
         
@@ -514,7 +422,7 @@ const TestStaffingPage: React.FC = () => {
       </div>
 
       {/* MAIN CONTENT: RESPONSIVE SWITCH */}
-      <div className="flex-grow overflow-hidden bg-surface rounded-2xl shadow border border-outline-variant">
+      <div className="flex-grow overflow-hidden bg-surface rounded-2xl shadow border border-outline-variant relative">
           {isMobile ? (
               <div className="space-y-4 pb-20 p-4 h-full overflow-y-auto">
                   {mobileDisplayData.map(data => (
@@ -527,194 +435,18 @@ const TestStaffingPage: React.FC = () => {
                   )}
               </div>
           ) : (
-             <div 
-                ref={parentRef} 
-                className="h-full w-full overflow-auto relative"
-                style={{ contain: 'strict' }}
-             >
-                 {/* Inner Container sized to total virtual width/height */}
-                 <div
-                    style={{
-                        height: `${rowVirtualizer.getTotalSize()}px`,
-                        width: `${columnVirtualizer.getTotalSize()}px`,
-                        position: 'relative',
-                    }}
-                 >
-                    {/* Render Virtual Rows */}
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                        const row = flatRows[virtualRow.index];
-                        const isResourceRow = row.type === 'RESOURCE';
-                        const assignmentsForRes = isResourceRow 
-                            ? (commonDataProcessing.assignmentsByResource.get(row.resource.id!) || []) 
-                            : [];
-
-                        return (
-                            <React.Fragment key={virtualRow.key}>
-                                {/* Render Virtual Columns for this Row */}
-                                {columnVirtualizer.getVirtualItems().map((virtualCol) => {
-                                    const isInfoColumn = virtualCol.index === 0;
-                                    const dateColumnIndex = virtualCol.index - 1;
-                                    const dateCol = dateColumnIndex >= 0 ? timeColumns[dateColumnIndex] : null;
-
-                                    return (
-                                        <div
-                                            key={virtualCol.key}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                width: `${virtualCol.size}px`,
-                                                height: `${virtualRow.size}px`,
-                                                transform: `translateX(${virtualCol.start}px) translateY(${virtualRow.start}px)`,
-                                            }}
-                                            className={`
-                                                border-b border-r border-outline-variant flex items-center
-                                                ${isResourceRow ? 'bg-surface-container font-medium' : 'bg-surface hover:bg-surface-container-low'}
-                                                ${isInfoColumn ? 'z-10' : 'z-0'}
-                                            `}
-                                        >
-                                            {/* HEADER ROW (Dates) - Trick: We render the header row *inside* the first virtual row if it's index 0? 
-                                                No, standard way is a separate sticky header outside. 
-                                                But implementing sticky header in virtual scrolling requires syncing scroll.
-                                                Simpler approach: The first row of the GRID is the header row? 
-                                                Actually, let's keep the Header OUTSIDE the virtualizer for simplicity in this implementation, 
-                                                and just sync scrollLeft.
-                                                
-                                                WAIT: The prompt asked for "renderizza solo righe e colonne visibili".
-                                                Headers are technically separate.
-                                                Let's stick to the Body Cell rendering here.
-                                            */}
-
-                                            {/* CELL CONTENT */}
-                                            {isInfoColumn ? (
-                                                <div className={`w-full h-full p-3 flex items-center sticky left-0 z-20 ${isResourceRow ? 'bg-surface-container' : 'bg-surface'}`}>
-                                                    {isResourceRow ? (
-                                                        <div className="flex items-center justify-between w-full gap-2 overflow-hidden">
-                                                            <div className="flex flex-col min-w-0">
-                                                                <Link to={`/workload?resourceId=${row.resource.id}`} className="text-primary hover:underline truncate">{row.resource.name}</Link>
-                                                                <span className="text-xs font-normal text-on-surface-variant truncate">{rolesById.get(row.resource.roleId)?.name}</span>
-                                                            </div>
-                                                            <button onClick={() => openNewAssignmentModal(row.resource.id!)} className="p-1 rounded-full hover:bg-surface-container-high text-primary flex-shrink-0"><span className="material-symbols-outlined">add_circle</span></button>
-                                                        </div>
-                                                    ) : (
-                                                        // Assignment Row Info
-                                                        <div className="flex items-center justify-between w-full gap-2 pl-6 overflow-hidden">
-                                                             <div className="flex flex-col min-w-0">
-                                                                <Link to={`/projects?projectId=${row.assignment.projectId}`} className="text-primary hover:underline truncate text-sm">
-                                                                    {projectsById.get(row.assignment.projectId)?.name || 'N/D'}
-                                                                </Link>
-                                                                <span className="text-xs text-on-surface-variant truncate">
-                                                                    {clientsById.get(projectsById.get(row.assignment.projectId)?.clientId || '')?.name}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex space-x-1 flex-shrink-0">
-                                                                <button onClick={() => openBulkModal(row.assignment)} className="text-primary hover:bg-surface-container p-1 rounded"><span className="material-symbols-outlined text-sm">calendar_add_on</span></button>
-                                                                <button onClick={() => setAssignmentToDelete(row.assignment)} className="text-error hover:bg-surface-container p-1 rounded"><span className="material-symbols-outlined text-sm">delete</span></button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                // DATE COLUMNS
-                                                <div className="w-full h-full">
-                                                    {dateCol && isResourceRow && (
-                                                        viewMode === 'day' ? (
-                                                            <DailyTotalCell 
-                                                                resource={row.resource} 
-                                                                date={dateCol.dateIso!} 
-                                                                isNonWorkingDay={!!dateCol.isNonWorkingDay || isHoliday(dateCol.startDate, row.resource.location, companyCalendar)} 
-                                                                resourceAssignments={assignments.filter(a => a.resourceId === row.resource.id)} // This filtering is expensive inside render loop, ideally pre-calc
-                                                            />
-                                                        ) : (
-                                                            <ReadonlyAggregatedTotalCell resource={row.resource} startDate={dateCol.startDate} endDate={dateCol.endDate} />
-                                                        )
-                                                    )}
-                                                    {dateCol && !isResourceRow && (
-                                                        viewMode === 'day' ? (
-                                                            <AllocationCell 
-                                                                assignment={row.assignment} 
-                                                                date={dateCol.dateIso!} 
-                                                                isNonWorkingDay={!!dateCol.isNonWorkingDay || isHoliday(dateCol.startDate, row.resource.location, companyCalendar)} 
-                                                            />
-                                                        ) : (
-                                                            <ReadonlyAggregatedAllocationCell assignment={row.assignment} startDate={dateCol.startDate} endDate={dateCol.endDate} />
-                                                        )
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </React.Fragment>
-                        );
-                    })}
-                 </div>
-                 
-                 {/* Sticky Header Layer (Overlaying the scroll container is hard with virtualizer, usually placed outside)
-                     FIX: To make headers sticky with virtualization, we render them fixed at top and sync scroll.
-                     OR we render them as the first items in the virtual list (complexity).
-                     
-                     Let's use a separate Header div *outside* the virtual container but synced via ref.
-                 */}
-             </div>
-          )}
-          
-          {/* Virtualized Header (Synced Scroll) */}
-          {!isMobile && (
-            <div 
-                className="absolute top-0 left-0 right-0 h-[56px] bg-surface-container-low border-b border-outline-variant z-30 flex overflow-hidden pointer-events-none"
-                style={{ width: '100%' }} // Just visual
-            >
-               {/* 
-                   NOTE: Syncing a separate header with a virtualizer requires listening to scroll events.
-                   Since we are inside the same component, we can try to render the header *inside* the overflow container 
-                   but strictly positioned sticky.
-                   
-                   HOWEVER, for simplicity in this "Test" page implementation:
-                   The headers are simply rendered as the first row in the virtualization logic would require flattening headers.
-                   
-                   Alternative: Render headers absolutely positioned based on columnVirtualizer.
-               */}
-               <div 
-                  className="flex h-full"
-                  style={{ 
-                      transform: `translateX(-${parentRef.current?.scrollLeft || 0}px)`, 
-                      width: `${columnVirtualizer.getTotalSize()}px`
-                  }}
-               >
-                    {columnVirtualizer.getVirtualItems().map((virtualCol) => {
-                        const isInfoColumn = virtualCol.index === 0;
-                        const dateColumnIndex = virtualCol.index - 1;
-                        const dateCol = dateColumnIndex >= 0 ? timeColumns[dateColumnIndex] : null;
-                        
-                        return (
-                            <div
-                                key={virtualCol.key}
-                                style={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    width: `${virtualCol.size}px`,
-                                    height: '56px',
-                                    transform: `translateX(${virtualCol.start}px)`,
-                                }}
-                                className={`
-                                    border-r border-outline-variant flex flex-col items-center justify-center font-semibold text-sm bg-surface-container-low text-on-surface
-                                    ${isInfoColumn ? 'sticky left-0 z-40 border-b shadow-md' : ''}
-                                `}
-                            >
-                                {isInfoColumn ? (
-                                    <span className="pl-3">Risorsa / Progetto</span>
-                                ) : (
-                                    <>
-                                        <span>{dateCol?.label}</span>
-                                        {dateCol?.subLabel && <span className="text-xs text-on-surface-variant font-normal">{dateCol.subLabel}</span>}
-                                    </>
-                                )}
-                            </div>
-                        )
-                    })}
-               </div>
-            </div>
+             <VirtualStaffingGrid 
+                 resources={commonDataProcessing.visibleResources}
+                 timeColumns={timeColumns}
+                 assignments={commonDataProcessing.filteredAssignments}
+                 viewMode={viewMode}
+                 projectsById={projectsById}
+                 clientsById={clientsById}
+                 rolesById={rolesById}
+                 onAddAssignment={openNewAssignmentModal}
+                 onBulkEdit={openBulkModal}
+                 onDeleteAssignment={setAssignmentToDelete}
+             />
           )}
       </div>
 
@@ -750,143 +482,5 @@ const TestStaffingPage: React.FC = () => {
     </div>
   );
 };
-
-// --- Componenti Cella MRT (definiti fuori per leggibilità) ---
-const DailyTotalCell: React.FC<{ resource: Resource; date: string; isNonWorkingDay: boolean; resourceAssignments: Assignment[] }> = React.memo(({ resource, date, isNonWorkingDay, resourceAssignments }) => {
-  const { allocations } = useAllocationsContext();
-  const total = useMemo(() => resourceAssignments.reduce((sum, a) => sum + (allocations[a.id!]?.[date] || 0), 0), [resourceAssignments, allocations, date]);
-  const maxPercentage = resource.maxStaffingPercentage ?? 100;
-  let cellColor: string;
-  if (isNonWorkingDay) cellColor = 'bg-surface-container text-on-surface-variant';
-  else if (total > maxPercentage) cellColor = 'bg-error-container text-on-error-container';
-  else if (total === maxPercentage) cellColor = 'bg-tertiary-container text-on-tertiary-container';
-  else if (total > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
-  else cellColor = 'bg-transparent';
-  
-  return (
-    <div className={`w-full h-full flex items-center justify-center text-sm font-semibold ${cellColor}`}>
-        {isNonWorkingDay ? '-' : total > 0 ? `${total}%` : '-'}
-    </div>
-  );
-});
-
-const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Date; endDate: Date }> = React.memo(({ resource, startDate, endDate }) => {
-  const { assignments, companyCalendar } = useEntitiesContext();
-  const { allocations } = useAllocationsContext();
-
-  const { averageAllocation, cellColor } = useMemo(() => {
-    const effectiveEndDate =
-      resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
-        ? new Date(resource.lastDayOfWork)
-        : endDate;
-    if (startDate > effectiveEndDate) return { averageAllocation: 0, cellColor: 'bg-transparent' };
-
-    const workingDays = getWorkingDaysBetween(
-      startDate,
-      effectiveEndDate,
-      companyCalendar,
-      resource.location
-    );
-    if (workingDays === 0) return { averageAllocation: 0, cellColor: 'bg-transparent' };
-
-    const resourceAssignments = assignments.filter((a) => a.resourceId === resource.id);
-    let totalPersonDays = 0;
-
-    resourceAssignments.forEach((assignment) => {
-      const assignmentAllocations = allocations[assignment.id!];
-      if (assignmentAllocations) {
-        let currentDate = new Date(startDate);
-        while (currentDate <= effectiveEndDate) {
-          const dateStr = formatDate(currentDate, 'iso');
-          if (assignmentAllocations[dateStr]) {
-            if (
-              !isHoliday(currentDate, resource.location, companyCalendar) &&
-              currentDate.getDay() !== 0 &&
-              currentDate.getDay() !== 6
-            ) {
-              totalPersonDays += assignmentAllocations[dateStr] / 100;
-            }
-          }
-          currentDate = addDays(currentDate, 1);
-        }
-      }
-    });
-
-    const averageAllocation = (totalPersonDays / workingDays) * 100;
-    const maxPercentage = resource.maxStaffingPercentage ?? 100;
-    const roundedAverage = Math.round(averageAllocation);
-    let cellColor = 'bg-transparent';
-    if (roundedAverage > maxPercentage) cellColor = 'bg-error-container text-on-error-container';
-    else if (roundedAverage === maxPercentage) cellColor = 'bg-tertiary-container text-on-tertiary-container';
-    else if (roundedAverage > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
-    
-    return { averageAllocation, cellColor };
-  }, [resource, startDate, endDate, assignments, allocations, companyCalendar]);
-
-  return (
-    <div className={`w-full h-full flex items-center justify-center text-sm font-semibold ${cellColor}`}>
-        {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
-    </div>
-  );
-});
-
-
-const ReadonlyAggregatedAllocationCell: React.FC<{ assignment: Assignment; startDate: Date; endDate: Date }> = React.memo(({ assignment, startDate, endDate }) => {
-    const { companyCalendar, resources } = useEntitiesContext();
-    const { allocations } = useAllocationsContext();
-    const resource = resources.find((r) => r.id === assignment.resourceId);
-
-    const { averageAllocation, cellColor } = useMemo(() => {
-        if (!resource) return { averageAllocation: 0, cellColor: 'bg-transparent' };
-
-        const effectiveEndDate =
-          resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate
-            ? new Date(resource.lastDayOfWork)
-            : endDate;
-        if (startDate > effectiveEndDate) return { averageAllocation: 0, cellColor: 'bg-transparent' };
-
-        const workingDays = getWorkingDaysBetween(
-          startDate,
-          effectiveEndDate,
-          companyCalendar,
-          resource.location
-        );
-        if (workingDays === 0) return { averageAllocation: 0, cellColor: 'bg-transparent' };
-
-        let totalPersonDays = 0;
-        const assignmentAllocations = allocations[assignment.id!];
-
-        if (assignmentAllocations) {
-          let currentDate = new Date(startDate);
-          while (currentDate <= effectiveEndDate) {
-            const dateStr = formatDate(currentDate, 'iso');
-            if (assignmentAllocations[dateStr]) {
-              if (
-                !isHoliday(currentDate, resource.location, companyCalendar) &&
-                currentDate.getDay() !== 0 &&
-                currentDate.getDay() !== 6
-              ) {
-                totalPersonDays += assignmentAllocations[dateStr] / 100;
-              }
-            }
-            currentDate = addDays(currentDate, 1);
-          }
-        }
-        
-        const averageAllocation = (totalPersonDays / workingDays) * 100;
-        let cellColor = 'bg-transparent';
-        if (averageAllocation > 100) cellColor = 'bg-error-container text-on-error-container';
-        else if (averageAllocation >= 95 && averageAllocation <= 100) cellColor = 'bg-tertiary-container text-on-tertiary-container';
-        else if (averageAllocation > 0) cellColor = 'bg-yellow-container text-on-yellow-container';
-        
-        return { averageAllocation, cellColor };
-    }, [assignment.id, startDate, endDate, allocations, companyCalendar, resource]);
-
-    return (
-        <div className={`w-full h-full flex items-center justify-center text-sm font-semibold ${cellColor}`}>
-            {averageAllocation > 0 ? `${averageAllocation.toFixed(0)}%` : '-'}
-        </div>
-    );
-});
 
 export default TestStaffingPage;
