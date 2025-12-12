@@ -225,11 +225,11 @@ const StaffingVisualizationPage: React.FC = () => {
                     .selectAll("rect")
                     .data(nodes)
                     .join("rect")
-                    .attr("x", (d: any) => d.x0)
-                    .attr("y", (d: any) => d.y0)
-                    .attr("height", (d: any) => d.y1 - d.y0)
-                    .attr("width", (d: any) => d.x1 - d.x0)
-                    .attr("fill", (d: any) => color(d.type))
+                    .attr("x", (d: any) => d.x0 as number)
+                    .attr("y", (d: any) => d.y0 as number)
+                    .attr("height", (d: any) => (d.y1 - d.y0) as number)
+                    .attr("width", (d: any) => (d.x1 - d.x0) as number)
+                    .attr("fill", (d: any) => color(d.type) as string)
                     .on("mouseover", (event: any, d: any) => {
                         tooltip.style("visibility", "visible").text(`${d.name}`);
                     })
@@ -250,7 +250,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 link.append("path")
                     .attr("d", d3Sankey.sankeyLinkHorizontal())
-                    .attr("stroke", (d: any) => color(d.source.type))
+                    .attr("stroke", (d: any) => color(d.source.type) as string)
                     .attr("stroke-width", (d: any) => Math.max(1, d.width));
                     
                 link.on("mouseover", function(event: any, d: any) {
@@ -269,8 +269,8 @@ const StaffingVisualizationPage: React.FC = () => {
                     .selectAll("text")
                     .data(nodes)
                     .join("text")
-                    .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-                    .attr("y", (d: any) => (d.y1 + d.y0) / 2)
+                    .attr("x", (d: any) => (d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6) as number)
+                    .attr("y", (d: any) => ((d.y1 + d.y0) / 2) as number)
                     .attr("dy", "0.35em")
                     .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
                     .attr("font-size", "10px")
@@ -321,7 +321,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 nodeGroup.append("circle")
                     .attr("r", nodeRadius)
-                    .attr("fill", (d: any) => color(d.type))
+                    .attr("fill", (d: any) => color(d.type) as string)
                     .attr("stroke", currentPalette.surface)
                     .attr("stroke-width", 1.5);
 
