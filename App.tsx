@@ -7,47 +7,47 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
-import { AppProvider, useEntitiesContext } from './context/AppContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { ToastProvider } from './context/ToastContext';
-import { ThemeProvider } from './context/ThemeContext';
-import Sidebar from './components/Sidebar';
-import BottomNavBar from './components/BottomNavBar';
-import { SpinnerIcon } from './components/icons';
+import { AppProvider, useEntitiesContext } from '../context/AppContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { ToastProvider } from '../context/ToastContext';
+import { ThemeProvider } from '../context/ThemeContext';
+import Sidebar from '../components/Sidebar';
+import BottomNavBar from '../components/BottomNavBar';
+import { SpinnerIcon } from '../components/icons';
 
-// Lazy load all page components for code splitting
-const StaffingPage = lazy(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
-const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
-const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
-const ClientsPage = lazy(() => import('./pages/ClientsPage'));
-const RolesPage = lazy(() => import('./pages/RolesPage'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const ExportPage = lazy(() => import('./pages/ExportPage'));
-const ConfigPage = lazy(() => import('./pages/ConfigPage'));
-const ImportPage = lazy(() => import('./pages/ImportPage'));
-const ForecastingPage = lazy(() => import('./pages/ForecastingPage'));
-const GanttPage = lazy(() => import('./pages/GanttPage'));
-const CalendarPage = lazy(() => import('./pages/CalendarPage'));
-const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
-const ReportsPage = lazy(() => import('./pages/ReportsPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
-const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
-const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
-const UserManualPage = lazy(() => import('./pages/UserManualPage'));
-const SimpleUserManualPage = lazy(() => import('./pages/SimpleUserManualPage'));
-const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
-const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
-const SkillsPage = lazy(() => import('./pages/SkillsPage'));
-const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
-const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
-const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
-const LeavePage = lazy(() => import('./pages/LeavePage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+// Lazy load all page components for code splitting - Paths adjusted to ../pages/
+const StaffingPage = lazy(() => import('../pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
+const ResourcesPage = lazy(() => import('../pages/ResourcesPage'));
+const ProjectsPage = lazy(() => import('../pages/ProjectsPage'));
+const ClientsPage = lazy(() => import('../pages/ClientsPage'));
+const RolesPage = lazy(() => import('../pages/RolesPage'));
+const DashboardPage = lazy(() => import('../pages/DashboardPage'));
+const ExportPage = lazy(() => import('../pages/ExportPage'));
+const ConfigPage = lazy(() => import('../pages/ConfigPage'));
+const ImportPage = lazy(() => import('../pages/ImportPage'));
+const ForecastingPage = lazy(() => import('../pages/ForecastingPage'));
+const GanttPage = lazy(() => import('../pages/GanttPage'));
+const CalendarPage = lazy(() => import('../pages/CalendarPage'));
+const WorkloadPage = lazy(() => import('../pages/WorkloadPage'));
+const ReportsPage = lazy(() => import('../pages/ReportsPage'));
+const LoginPage = lazy(() => import('../pages/LoginPage'));
+const AdminSettingsPage = lazy(() => import('../pages/AdminSettingsPage'));
+const DbInspectorPage = lazy(() => import('../pages/DbInspectorPage'));
+const StaffingVisualizationPage = lazy(() => import('../pages/StaffingVisualizationPage'));
+const UserManualPage = lazy(() => import('../pages/UserManualPage'));
+const SimpleUserManualPage = lazy(() => import('../pages/SimpleUserManualPage'));
+const InterviewsPage = lazy(() => import('../pages/InterviewsPage'));
+const SkillsMapPage = lazy(() => import('../pages/SkillsMapPage'));
+const SkillsPage = lazy(() => import('../pages/SkillsPage'));
+const SkillAnalysisPage = lazy(() => import('../pages/SkillAnalysisPage'));
+const CertificationsPage = lazy(() => import('../pages/CertificationsPage'));
+const TestStaffingPage = lazy(() => import('../pages/TestStaffingPage'));
+const LeavePage = lazy(() => import('../pages/LeavePage'));
+const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
 
 // Special handling for named exports
-const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
-const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
+const ResourceRequestPage = lazy(() => import('../pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
+const ContractsPage = lazy(() => import('../pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
 
 interface HeaderProps {
   onToggleSidebar: () => void;

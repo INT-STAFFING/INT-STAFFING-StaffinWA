@@ -83,7 +83,7 @@ const UserManualPage: React.FC = () => {
                     <ul>
                         <li><strong>Allocazione:</strong> Assegnazione di una risorsa a un progetto con una percentuale di impegno giornaliero.</li>
                         <li><strong>Visualizzazione Temporale:</strong> Viste configurabili per Giorno, Settimana o Mese.</li>
-                        <li><strong>Validazione Capacità:</strong> Il sistema segnala (in rosso) se una risorsa supera la sua capacità massima (es. >100%).</li>
+                        <li><strong>Validazione Capacità:</strong> Il sistema segnala (in rosso) se una risorsa supera la sua capacità massima (es. &gt;100%).</li>
                         <li><strong>Assenze:</strong> I giorni di ferie o malattia approvati vengono visualizzati in sola lettura e bloccati per impedire la pianificazione.</li>
                     </ul>
                 </SubSection>

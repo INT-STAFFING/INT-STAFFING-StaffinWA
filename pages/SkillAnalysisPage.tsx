@@ -3,11 +3,12 @@
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni.
  * Supporta filtri globali e controlli di zoom unificati.
+ * FIX: Import paths adjusted to ../../ to access root components/contexts from src/pages.
  */
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
+import { useEntitiesContext } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { select } from 'd3-selection';
 import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear, scaleSqrt } from 'd3-scale';
@@ -21,11 +22,11 @@ import { arc as d3Arc, lineRadial, curveLinearClosed, linkRadial as d3LinkRadial
 import { rgb } from 'd3-color';
 import { tree as d3Tree, hierarchy as d3Hierarchy, pack as d3Pack } from 'd3-hierarchy';
 import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
-import SearchableSelect from '../components/SearchableSelect';
-import MultiSelectDropdown from '../components/MultiSelectDropdown';
-import ErrorBoundary from '../components/ErrorBoundary'; // NEW IMPORT
+import SearchableSelect from '../../components/SearchableSelect';
+import MultiSelectDropdown from '../../components/MultiSelectDropdown';
+import ErrorBoundary from '../../components/ErrorBoundary'; // NEW IMPORT
 import 'd3-transition';
-import { Skill } from '../types';
+import { Skill } from '../../types';
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey' | 'bubble';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
@@ -48,8 +49,6 @@ const getThemePalette = (theme: any) => [
     theme.tertiaryContainer,
     theme.errorContainer
 ];
-
-// ... (All Chart Components: SkillForceGraph, SkillHeatmap, SkillChordDiagram, SkillRadarChart, SkillRadialTree, SkillCirclePacking, SkillSankeyChart, SkillBubbleChart remain exactly as they were, assume they are preserved)
 
 // 1. Force-Directed Graph (Skill Network)
 const SkillForceGraph: React.FC<{ 
@@ -137,7 +136,7 @@ const SkillForceGraph: React.FC<{
         const maxDegree = Math.max(...Array.from(degreeMap.values()), 1);
 
         const radiusScale = scaleSqrt()
-            .domain([0, maxDegree])
+            .domain([0, maxDegree] as [number, number])
             .range([5, 25]); 
 
         const simulation = forceSimulation(nodes)
@@ -288,7 +287,7 @@ const SkillHeatmap: React.FC<{
 
         const colorScale = scaleSequential()
             .interpolator(interpolate(theme.surfaceContainerHighest, theme.primary))
-            .domain([0, max(data, d => d.value) || 100]);
+            .domain([0, (max(data, d => d.value) || 100)] as [number, number]);
 
         // Rows (Resources)
         g.append("g")
@@ -327,7 +326,7 @@ const SkillHeatmap: React.FC<{
             .attr("y", (d: any) => y(d.resource) || 0)
             .attr("width", x.bandwidth())
             .attr("height", y.bandwidth())
-            .style("fill", (d: any) => colorScale(d.value))
+            .style("fill", (d: any) => String(colorScale(d.value)))
             .on("mouseover", (event, d: any) => {
                 tooltip.style("visibility", "visible").text(`${d.resource} - ${d.skillLabel}: ${d.value.toFixed(0)} score`);
             })
@@ -428,8 +427,8 @@ const SkillChordDiagram: React.FC<{
             .join("g");
 
         group.append("path")
-            .attr("fill", (d: any) => color(d.index.toString()) as string)
-            .attr("stroke", (d: any) => rgb(color(d.index.toString()) as string).darker().toString() as string)
+            .attr("fill", (d: any) => String(color(d.index.toString())))
+            .attr("stroke", (d: any) => rgb(String(color(d.index.toString()))).darker().toString())
             .attr("d", (d: any) => arcGenerator(d as any) as string)
             .append("title")
             .text((d: any) => `${names[d.index]}: ${d.value.toFixed(0)} co-occorrenze`);
@@ -453,8 +452,8 @@ const SkillChordDiagram: React.FC<{
             .data(chords)
             .join("path")
             .attr("d", ribbonGenerator as any)
-            .attr("fill", (d: any) => color(d.target.index.toString()) as string)
-            .attr("stroke", (d: any) => rgb(color(d.target.index.toString()) as string).darker().toString() as string)
+            .attr("fill", (d: any) => String(color(d.target.index.toString())))
+            .attr("stroke", (d: any) => rgb(String(color(d.target.index.toString()))).darker().toString())
             .append("title")
             .text((d: any) => `${names[d.source.index]} ↔ ${names[d.target.index]}\nCo-occorrenze: ${d.source.value}`);
 
@@ -544,7 +543,7 @@ const SkillRadarChart: React.FC<{
 
         const rScale = scaleLinear()
             .range([0, radius])
-            .domain([0, cfg.maxValue]);
+            .domain([0, cfg.maxValue] as [number, number]);
 
         const axisGrid = g.append("g").attr("class", "axisWrapper");
 
@@ -956,7 +955,7 @@ const SkillSankeyChart: React.FC<{
             .style("mix-blend-mode", "multiply")
             .append("path")
             .attr("d", sankeyLinkHorizontal())
-            .attr("stroke", (d: any) => color(d.source.type || 'default'))
+            .attr("stroke", (d: any) => color(d.source.type || 'default') as string)
             .attr("stroke-width", (d: any) => Math.max(1, d.width))
             .append("title")
             .text((d: any) => `${d.source.name} → ${d.target.name}\n${d.value}`);
@@ -972,7 +971,7 @@ const SkillSankeyChart: React.FC<{
             .attr("fill", (d: any) => {
                 if (d.type === 'resource') return theme.primary;
                 if (d.type === 'skill') return theme.secondary;
-                return color(d.type);
+                return color(d.type) as string;
             })
             .attr("stroke", theme.outline)
             .append("title")
@@ -1058,7 +1057,7 @@ const SkillBubbleChart: React.FC<{
         pack(root);
 
         const colorScale = scaleSequential(interpolate(theme.primaryContainer, theme.primary))
-            .domain([0, max(root.leaves(), (d: any) => d.value) || 10]);
+            .domain([0, (max(root.leaves(), (d: any) => d.value) || 10)] as [number, number]);
 
         const node = g.selectAll("g")
             .data(root.leaves())
@@ -1067,7 +1066,7 @@ const SkillBubbleChart: React.FC<{
 
         node.append("circle")
             .attr("r", (d: any) => d.r)
-            .attr("fill", (d: any) => colorScale(d.value) as string)
+            .attr("fill", (d: any) => String(colorScale(d.value)))
             .attr("stroke", theme.outline)
             .attr("stroke-width", 1)
             .on("mouseover", function() { select(this).attr("stroke-width", 2).attr("stroke", theme.tertiary); })
