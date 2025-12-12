@@ -217,7 +217,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 const { nodes, links } = sankeyGenerator(graph);
                 
-                const color = d3Scale.scaleOrdinal<string, string>()
+                const color = d3Scale.scaleOrdinal()
                     .domain(['resource', 'project', 'client', 'contract'])
                     .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
@@ -289,7 +289,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 const g = svg.append("g");
                 svg.call(zoomBehavior as any);
 
-                 const color = d3Scale.scaleOrdinal<string, string>()
+                 const color = d3Scale.scaleOrdinal()
                     .domain(['resource', 'project', 'client', 'contract'])
                     .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
@@ -422,3 +422,28 @@ const StaffingVisualizationPage: React.FC = () => {
                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
                     <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Diagramma di Flusso</button>
                     <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Mappa delle Connessioni</button>
+                </div>
+                
+                <div className="flex gap-2">
+                     <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
+                        <span className="material-symbols-outlined mr-2 text-base">download</span> SVG
+                    </button>
+                    <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
+                        <span className="material-symbols-outlined mr-2 text-base">download</span> PNG
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-surface rounded-2xl shadow p-4 h-[800px] relative overflow-hidden flex flex-col">
+                {isLoading && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/50">
+                        <SpinnerIcon className="w-10 h-10 text-primary" />
+                    </div>
+                )}
+                <svg ref={svgRef} className="w-full h-full cursor-move"></svg>
+            </div>
+        </div>
+    );
+};
+
+export default StaffingVisualizationPage;

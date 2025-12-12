@@ -200,10 +200,11 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
                 const errorBody = await response.json().catch(() => ({}));
                 const errorMessage = errorBody.error || `API request failed: ${response.status}`;
                 const error = new Error(errorMessage);
+                // Attach status for checking
+                (error as any).status = response.status;
                 
                 // Do not retry client errors (400-499), except 429 (Too Many Requests)
                 if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-                    (error as any).isClientError = true;
                     throw error;
                 }
                 
@@ -211,13 +212,16 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
             }
             return await response.json();
         } catch (error: any) {
-            // If it's a client error (e.g. 401 Unauthorized) or we ran out of retries, throw immediately
-            if (error.isClientError || attempt >= maxRetries) {
+            const status = error.status;
+            // Check if it's a client error (that isn't 429) - re-throw immediately
+            const isClientError = status >= 400 && status < 500 && status !== 429;
+
+            if (isClientError || attempt >= maxRetries) {
                 throw error;
             }
             
-            // Transient error (Network fail or 5xx), wait and retry
-            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries}...`, error);
+            // Transient error (Network fail, 5xx, or 429), wait and retry
+            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries} in ${delay}ms...`, error);
             await new Promise(resolve => setTimeout(resolve, delay));
             
             attempt++;
