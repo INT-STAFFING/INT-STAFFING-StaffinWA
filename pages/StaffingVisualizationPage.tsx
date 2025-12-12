@@ -217,7 +217,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 const { nodes, links } = sankeyGenerator(graph);
                 
-                const color = d3Scale.scaleOrdinal()
+                const color = d3Scale.scaleOrdinal<string, string>()
                     .domain(['resource', 'project', 'client', 'contract'])
                     .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
@@ -225,11 +225,11 @@ const StaffingVisualizationPage: React.FC = () => {
                     .selectAll("rect")
                     .data(nodes)
                     .join("rect")
-                    .attr("x", (d: any) => d.x0 as number)
-                    .attr("y", (d: any) => d.y0 as number)
-                    .attr("height", (d: any) => (d.y1 - d.y0) as number)
-                    .attr("width", (d: any) => (d.x1 - d.x0) as number)
-                    .attr("fill", (d: any) => color(d.type) as string)
+                    .attr("x", (d: any) => d.x0)
+                    .attr("y", (d: any) => d.y0)
+                    .attr("height", (d: any) => d.y1 - d.y0)
+                    .attr("width", (d: any) => d.x1 - d.x0)
+                    .attr("fill", (d: any) => color(d.type))
                     .on("mouseover", (event: any, d: any) => {
                         tooltip.style("visibility", "visible").text(`${d.name}`);
                     })
@@ -250,7 +250,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 link.append("path")
                     .attr("d", d3Sankey.sankeyLinkHorizontal())
-                    .attr("stroke", (d: any) => color(d.source.type) as string)
+                    .attr("stroke", (d: any) => color(d.source.type))
                     .attr("stroke-width", (d: any) => Math.max(1, d.width));
                     
                 link.on("mouseover", function(event: any, d: any) {
@@ -269,8 +269,8 @@ const StaffingVisualizationPage: React.FC = () => {
                     .selectAll("text")
                     .data(nodes)
                     .join("text")
-                    .attr("x", (d: any) => (d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6) as number)
-                    .attr("y", (d: any) => ((d.y1 + d.y0) / 2) as number)
+                    .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+                    .attr("y", (d: any) => (d.y1 + d.y0) / 2)
                     .attr("dy", "0.35em")
                     .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
                     .attr("font-size", "10px")
@@ -289,7 +289,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 const g = svg.append("g");
                 svg.call(zoomBehavior as any);
 
-                 const color = d3Scale.scaleOrdinal()
+                 const color = d3Scale.scaleOrdinal<string, string>()
                     .domain(['resource', 'project', 'client', 'contract'])
                     .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
@@ -321,7 +321,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 nodeGroup.append("circle")
                     .attr("r", nodeRadius)
-                    .attr("fill", (d: any) => color(d.type) as string)
+                    .attr("fill", (d: any) => color(d.type))
                     .attr("stroke", currentPalette.surface)
                     .attr("stroke-width", 1.5);
 
@@ -423,9 +423,8 @@ const StaffingVisualizationPage: React.FC = () => {
                     <button onClick={() => setView('sankey')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Diagramma di Flusso</button>
                     <button onClick={() => setView('network')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Mappa delle Connessioni</button>
                 </div>
-                
                 <div className="flex gap-2">
-                     <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
+                    <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
                         <span className="material-symbols-outlined mr-2 text-base">download</span> SVG
                     </button>
                     <button onClick={handleExportPNG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
@@ -434,13 +433,19 @@ const StaffingVisualizationPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="bg-surface rounded-2xl shadow p-4 h-[800px] relative overflow-hidden flex flex-col">
+            <div className="bg-surface rounded-2xl shadow p-4 overflow-auto relative min-h-[600px]">
                 {isLoading && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/50">
+                    <div className="absolute inset-0 flex items-center justify-center bg-surface/50 z-10">
                         <SpinnerIcon className="w-10 h-10 text-primary" />
                     </div>
                 )}
-                <svg ref={svgRef} className="w-full h-full cursor-move"></svg>
+                <svg ref={svgRef} width="100%" height="100%" className="min-w-[800px] min-h-[600px]"></svg>
+                
+                {chartData.nodes.length === 0 && !isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center text-on-surface-variant">
+                        Nessun dato disponibile per il periodo selezionato.
+                    </div>
+                )}
             </div>
         </div>
     );

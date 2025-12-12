@@ -186,7 +186,7 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
     
     let attempt = 0;
     const maxRetries = 3;
-    let delay = 500; // start with 500ms
+    let delay = 500; // ms
 
     while (true) {
         try {
@@ -201,31 +201,27 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
                 const errorMessage = errorBody.error || `API request failed: ${response.status}`;
                 const error = new Error(errorMessage);
                 
-                // Identify client errors vs server errors
-                const isClientError = response.status >= 400 && response.status < 500 && response.status !== 429;
-                (error as any).isClientError = isClientError;
-                (error as any).status = response.status;
+                // Do not retry client errors (400-499), except 429 (Too Many Requests)
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    (error as any).isClientError = true;
+                    throw error;
+                }
                 
-                throw error; 
+                throw error; // This goes to catch block for retry logic (5xx errors or network fails)
             }
             return await response.json();
         } catch (error: any) {
-            // Stop retrying if we hit max attempts or it's a client error (e.g. 401 Unauthorized, 404 Not Found)
-            // But always retry 429 (Too Many Requests) or 5xx (Server Errors) or network failures (where error.status is undefined)
+            // If it's a client error (e.g. 401 Unauthorized) or we ran out of retries, throw immediately
             if (error.isClientError || attempt >= maxRetries) {
                 throw error;
             }
             
-            // Exponential Backoff
-            // If attempt 0 (first failure), wait 500ms.
-            // If attempt 1, wait 1000ms.
-            // If attempt 2, wait 2000ms.
-            const backoff = delay * Math.pow(2, attempt);
-            
-            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries} in ${backoff}ms...`, error);
-            await new Promise(resolve => setTimeout(resolve, backoff));
+            // Transient error (Network fail or 5xx), wait and retry
+            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries}...`, error);
+            await new Promise(resolve => setTimeout(resolve, delay));
             
             attempt++;
+            delay *= 2; // Exponential backoff
         }
     }
 };
