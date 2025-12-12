@@ -36,198 +36,104 @@ const UserManualPage: React.FC = () => {
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 md:p-12">
             <header className="text-center mb-16">
-                <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Manuale Utente</h1>
-                <p className="text-xl text-gray-500 dark:text-gray-400">Guida tecnica e funzionale allo Staffing Allocation Planner (V1.3).</p>
+                <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">Manuale Funzionale</h1>
+                <p className="text-xl text-gray-500 dark:text-gray-400">Applicazione di Staffing (V1.3)</p>
             </header>
             
             <Section title="1. Introduzione">
-                <p>Benvenuto nello <strong>Staffing Allocation Planner</strong>. Questa piattaforma è progettata per la gestione strategica e operativa delle risorse umane sui progetti. L'applicazione combina funzionalità di pianificazione quotidiana (Staffing) con strumenti avanzati di controllo di gestione (Costi Storici, Forecasting Predittivo) e analisi delle competenze.</p>
-                <p>Questo manuale descrive il funzionamento del sistema, con un focus particolare sulle formule di calcolo e sugli algoritmi utilizzati.</p>
+                <p>L'Applicazione di Staffing è uno strumento per pianificare e monitorare l'allocazione delle risorse umane sui progetti aziendali. Permette di visualizzare chi sta lavorando su cosa, per quanto tempo, e di identificare rapidamente situazioni di sovraccarico o sottoutilizzo del personale.</p>
+                <p>La piattaforma integra funzionalità operative per la gestione quotidiana (staffing, anagrafiche) con strumenti di controllo di gestione (forecasting, analisi costi) e sviluppo del capitale umano (competenze, certificazioni).</p>
             </Section>
 
             <Section title="2. Dashboard & KPI">
-                <p>La Dashboard aggrega i dati in tempo reale per fornire una visione d'insieme immediata.</p>
+                <p>La Dashboard è il punto di ingresso che aggrega i dati in tempo reale per fornire una visione d'insieme immediata dello stato aziendale.</p>
                 
-                <SubSection title="Indicatori Economici e di Sforzo">
+                <SubSection title="Indicatori Chiave">
                     <FormulaBox 
                         title="Budget Complessivo" 
                         formula="Σ (Budget di tutti i progetti attivi o pianificati)"
-                        description="Rappresenta il valore totale del portafoglio progetti censito a sistema."
+                        description="Valore totale del portafoglio progetti censito a sistema."
                     />
                     <FormulaBox 
                         title="Costo Stimato (Mese Corrente)" 
                         formula="Σ [(Allocazione% / 100) * CostoRuoloStorico(Data) * %Realizzazione]"
-                        description={
-                            <>
-                                Calcolato sommando il costo giornaliero di ogni allocazione nel mese corrente. 
-                                <br/><strong>Nota Importante:</strong> Il sistema utilizza il <em>Costo Storico</em>. Se una risorsa ha cambiato livello (e quindi costo) a metà mese, i giorni precedenti il cambio vengono calcolati col vecchio costo, quelli successivi col nuovo.
-                            </>
-                        }
+                        description="Costo del personale allocato nel mese corrente, calcolato in base al costo giornaliero storico del ruolo ricoperto."
                     />
                     <FormulaBox 
                         title="Giorni Allocati (Mese Corrente)" 
                         formula="Σ (Allocazione% / 100) su tutti i giorni lavorativi del mese"
-                        description="Il totale dei giorni/uomo (Person-Days) che l'azienda erogherà nel mese corrente."
+                        description="Totale dei giorni/uomo (Person-Days) pianificati nel mese corrente."
                     />
                 </SubSection>
 
-                <SubSection title="Monitoraggio Operativo">
+                <SubSection title="Card di Attenzione">
+                    <p>Il sistema evidenzia automaticamente le criticità:</p>
                     <ul>
-                        <li><strong>Risorse Non Allocate:</strong> Numero di risorse attive (`resigned = false`) che non hanno alcuna allocazione (`assignment`) attiva.</li>
-                        <li><strong>Progetti Senza Staff:</strong> Progetti in stato "In corso" che non hanno nessuna risorsa assegnata.</li>
-                        <li><strong>FTE Non Allocati:</strong> Differenza tra la capacità totale teorica (somma delle % max delle risorse) e l'allocazione effettiva nel mese.</li>
+                        <li><strong>Risorse Non Allocate:</strong> Risorse attive senza alcuna assegnazione progettuale.</li>
+                        <li><strong>Progetti Senza Staff:</strong> Progetti aperti ("In corso") privi di team assegnato.</li>
+                        <li><strong>FTE Non Allocati:</strong> Capacità produttiva inutilizzata nel mese corrente.</li>
                     </ul>
                 </SubSection>
             </Section>
 
-            <Section title="3. Gestione Staffing & Mobile">
-                <SubSection title="Pianificazione Staffing">
-                    <p>La griglia di staffing permette di definire quanto tempo (in %) una risorsa dedica a un progetto giorno per giorno.</p>
-                    <ul>
-                        <li><strong>Validazione:</strong> Il sistema evidenzia in <span className="text-red-500 font-bold">Rosso</span> se la somma delle allocazioni giornaliere di una risorsa supera la sua capacità massima (solitamente 100%).</li>
-                        <li><strong>Giorni Non Lavorativi:</strong> I weekend e le festività (nazionali o locali in base alla sede della risorsa) sono automaticamente bloccati.</li>
-                    </ul>
-                </SubSection>
-                <SubSection title="Esperienza Mobile (Responsive)">
-                    <p>Su dispositivi mobili, la complessa griglia di staffing si trasforma automaticamente in una vista <strong>"Agenda a Card"</strong>:</p>
-                    <ul>
-                        <li>Ogni risorsa diventa una card verticale.</li>
-                        <li>Una <strong>barra di progresso</strong> colorata indica immediatamente il carico totale nel periodo (Verde = Ok, Rosso = Overbooking).</li>
-                        <li>Cliccando su un progetto nella card, si apre un editor a tutto schermo ottimizzato per il touch.</li>
-                    </ul>
-                </SubSection>
-            </Section>
-
-            <Section title="4. Forecasting & Algoritmi Predittivi">
-                <p>La pagina di Forecasting permette di anticipare il carico di lavoro futuro. Il sistema opera in due modalità:</p>
+            <Section title="3. Gestione Staffing">
+                <p>Il cuore operativo dell'applicazione è la pagina di <strong>Staffing</strong>, che offre una vista a matrice (Risorse x Tempo).</p>
                 
-                <SubSection title="1. Modalità Consuntiva (Hard Booking)">
-                    <p>Per i mesi passati o correnti, o dove sono state inserite allocazioni manuali puntuali, il sistema somma semplicemente i valori presenti nel database.</p>
+                <SubSection title="Funzionalità Principali">
+                    <ul>
+                        <li><strong>Allocazione:</strong> Assegnazione di una risorsa a un progetto con una percentuale di impegno giornaliero.</li>
+                        <li><strong>Visualizzazione Temporale:</strong> Viste configurabili per Giorno, Settimana o Mese.</li>
+                        <li><strong>Validazione Capacità:</strong> Il sistema segnala (in rosso) se una risorsa supera la sua capacità massima (es. >100%).</li>
+                        <li><strong>Assenze:</strong> I giorni di ferie o malattia approvati vengono visualizzati in sola lettura e bloccati per impedire la pianificazione.</li>
+                    </ul>
                 </SubSection>
+            </Section>
 
-                <SubSection title="2. Modalità Predittiva (Proiezione)">
-                    <p>Se abilitata (switch in alto), per i mesi futuri dove <strong>non</strong> sono presenti allocazioni puntuali, il sistema stima il carico:</p>
+            <Section title="4. Forecasting & Capacità">
+                <p>Lo strumento di <strong>Forecasting</strong> permette di analizzare il carico di lavoro futuro (fino a 12 mesi) confrontando la domanda (allocazioni) con l'offerta (capacità delle risorse).</p>
+                
+                <SubSection title="Modalità di Calcolo">
+                    <ul>
+                        <li><strong>Dati Consuntivi:</strong> Per i periodi con allocazioni puntuali, il sistema usa i dati inseriti.</li>
+                        <li><strong>Proiezioni (Algoritmo Predittivo):</strong> Per i mesi futuri senza dettaglio giornaliero, il sistema proietta il carico basandosi sulla media storica delle allocazioni attive ("run-rate").</li>
+                    </ul>
                     <FormulaBox 
-                        title="Algoritmo di Proiezione" 
-                        formula="Carico Previsto = Giorni Lavorativi Mese * Media Storica Allocazione %"
-                        description={
-                            <>
-                                Il sistema calcola la <strong>velocità media storica</strong> con cui la risorsa ha lavorato sul progetto fino ad oggi.
-                                <br/>Se il progetto è attivo nel mese futuro (ovvero la data corrente è compresa tra <code>Data Inizio</code> e <code>Data Fine</code> progetto), il sistema applica questa media ai giorni lavorativi futuri.
-                            </>
-                        }
-                    />
-                    <p>Questo permette di avere una stima realistica del "run-rate" senza dover pianificare manualmente ogni singolo giorno dei prossimi 12 mesi.</p>
-                </SubSection>
-            </Section>
-
-            <Section title="5. Analisi Economica e Contratti">
-                
-                <SubSection title="Storicizzazione dei Costi (SCD Type 2)">
-                    <p>Il sistema gestisce la storicità dei costi dei ruoli per garantire report finanziari accurati anche retroattivamente.</p>
-                    <ul>
-                        <li>Quando il costo giornaliero di un ruolo viene modificato in "Gestione Ruoli", il sistema non sovrascrive il valore precedente.</li>
-                        <li>Viene creato un nuovo record storico valido da "Oggi" in poi.</li>
-                        <li>Il record precedente viene "chiuso" con data fine "Ieri".</li>
-                        <li><strong>Nei Report:</strong> Quando si calcola il costo di un'allocazione passata (es. Gennaio 2023), il sistema recupera il costo che il ruolo aveva <em>in quella data specifica</em>, non il costo attuale.</li>
-                    </ul>
-                </SubSection>
-
-                <SubSection title="Gestione Contratti e Backlog">
-                    <p>I progetti possono essere raggruppati sotto un "Contratto Quadro".</p>
-                    <FormulaBox 
-                        title="Backlog Commerciale" 
-                        formula="Backlog = Capienza Contratto - Σ (Budget Progetti Collegati)"
-                        description="Indica quanto budget è ancora disponibile nel contratto per avviare nuovi progetti o estendere quelli esistenti. Non dipende dal consuntivo (speso), ma dal pianificato (venduto)."
+                        title="Utilizzo Previsto" 
+                        formula="(Giorni Allocati + Giorni Proiettati) / Giorni Disponibili * 100"
+                        description="Indica la percentuale di saturazione del team nel periodo futuro."
                     />
                 </SubSection>
             </Section>
 
-            <Section title="6. Analisi Competenze (Skill Matrix)">
-                <p>Il sistema offre un motore avanzato per il tracciamento delle competenze, distinguendo tra competenze dichiarate e competenze acquisite sul campo.</p>
-                
-                <SubSection title="Modalità di Assegnazione">
+            <Section title="5. Gestione Risorse Umane">
+                <p>L'applicazione include moduli dedicati alla gestione del ciclo di vita delle risorse.</p>
+
+                <SubSection title="Competenze (Skills Matrix)">
+                    <p>Mappatura delle competenze tecniche e funzionali. Il sistema supporta:</p>
                     <ul>
-                        <li><strong>Esplicite (Manuali):</strong> Competenze certificate o dichiarate, inserite manualmente con un livello specifico (da 1 a 5) e date di validità. Hanno la priorità nel calcolo del profilo.</li>
-                        <li><strong>Implicite (Inferite):</strong> Competenze dedotte dal lavoro svolto. Se una risorsa lavora su un progetto taggato con la skill "React", il sistema calcola automaticamente il livello di competenza basandosi sui giorni lavorati.</li>
+                        <li><strong>Competenze Manuali:</strong> Inserite manualmente o tramite certificazioni.</li>
+                        <li><strong>Competenze Inferite:</strong> Calcolate automaticamente in base ai progetti su cui la risorsa ha lavorato.</li>
+                        <li><strong>Analisi Grafica:</strong> Visualizzazioni avanzate (Network, Heatmap, Radar) per esplorare la distribuzione delle competenze in azienda.</li>
                     </ul>
                 </SubSection>
 
-                <SubSection title="Livelli di Competenza e Calcolo Automatico">
-                    <p>Ogni competenza è classificata su 5 livelli: <strong>Novice, Junior, Middle, Senior, Expert</strong>.</p>
-                    <p>Per le competenze inferite, il livello viene calcolato sommando i <strong>Giorni/Uomo (FTE)</strong> totali lavorati dalla risorsa su progetti associati a quella competenza.</p>
-                    
-                    <FormulaBox 
-                        title="Algoritmo di Calcolo Livello Inferito" 
-                        formula="Totale FTE Skill = Σ (Allocazione% / 100) su tutti i giorni lavorativi dei progetti con la skill"
-                        description={
-                            <>
-                                Il valore risultante viene confrontato con le soglie configurate (Admin Settings).
-                                <br/><strong>Soglie di Default (FTE Totali):</strong>
-                                <ul className="list-disc list-inside mt-2">
-                                    <li><strong>Novice:</strong> &lt; 60 FTE</li>
-                                    <li><strong>Junior:</strong> 60 - 149 FTE</li>
-                                    <li><strong>Middle:</strong> 150 - 349 FTE</li>
-                                    <li><strong>Senior:</strong> 350 - 699 FTE</li>
-                                    <li><strong>Expert:</strong> ≥ 700 FTE</li>
-                                </ul>
-                                <p className="mt-2 text-xs italic">* 1 FTE = 1 Giorno lavorativo a tempo pieno.</p>
-                            </>
-                        }
-                    />
+                <SubSection title="Assenze">
+                    <p>Gestione del workflow di richiesta e approvazione ferie/permessi. Le assenze approvate riducono automaticamente la capacità disponibile nel calcolo del forecasting.</p>
                 </SubSection>
 
-                <SubSection title="Visualizzazioni Avanzate">
-                    <p>Nella pagina <strong>Analisi Competenze</strong> sono disponibili 4 viste grafiche:</p>
-                    <ul>
-                        <li><strong>Network (Grafo):</strong> Mostra le relazioni tra Persone, Progetti e Skills come una rete interattiva. Utile per vedere cluster di competenze.</li>
-                        <li><strong>Heatmap:</strong> Matrice Risorse x Skills che evidenzia con colori intensi le competenze più forti.</li>
-                        <li><strong>Chord Diagram:</strong> Mostra la co-occorrenza delle skills. Se "Java" e "Spring" sono spesso usate negli stessi progetti, saranno collegate da archi spessi.</li>
-                        <li><strong>Radar (Spider Chart):</strong> Confronta il profilo di competenza di una singola risorsa su più assi.</li>
-                    </ul>
-                </SubSection>
-            </Section>
-            
-            <Section title="7. Amministrazione e Dati">
-                 <SubSection title="Import/Export">
-                    <p>È possibile esportare e importare massivamente i dati tramite file Excel. Esistono template specifici per:</p>
-                    <ul>
-                        <li><strong>Core Entities:</strong> Risorse, Progetti, Clienti, Ruoli.</li>
-                        <li><strong>Staffing:</strong> La griglia delle allocazioni.</li>
-                        <li><strong>Skills:</strong> Matrice di competenze e associazioni.</li>
-                    </ul>
-                </SubSection>
-                <SubSection title="Database Inspector">
-                    <p>Strumento tecnico per amministratori che permette di visualizzare i dati grezzi delle tabelle, eseguire query di update puntuali e generare dump SQL completi per backup o migrazione (compatibili con PostgreSQL e MySQL).</p>
+                <SubSection title="Recruitment">
+                    <p>Tracciamento delle <strong>Richieste di Risorse</strong> aperte sui progetti e gestione dell'iter di selezione (<strong>Colloqui</strong>) fino all'assunzione.</p>
                 </SubSection>
             </Section>
 
-            <Section title="8. Gestione Assenze (Ferie & Permessi)">
-                <p>Il modulo di gestione delle assenze permette di tracciare ferie, malattie e altri tipi di permessi, integrando queste informazioni direttamente nella pianificazione della capacità produttiva.</p>
-                
-                <SubSection title="Flusso di Approvazione">
-                    <ul>
-                        <li>Le richieste inserite nascono in stato <strong>In Attesa</strong>.</li>
-                        <li>Gli utenti Admin possono <strong>Approvare</strong> o <strong>Rifiutare</strong> le richieste dalla pagina "Gestione Assenze".</li>
-                        <li>Un badge nella Sidebar notifica agli admin la presenza di richieste pendenti.</li>
-                    </ul>
-                </SubSection>
-
-                <SubSection title="Impatto sul Sistema">
-                    <p>Le assenze approvate modificano automaticamente i calcoli in tutto il sistema:</p>
-                    <ul>
-                        <li><strong>Staffing Grid:</strong> I giorni di assenza vengono colorati e bloccati, impedendo l'allocazione.</li>
-                        <li><strong>Forecasting:</strong> La "Capacità Disponibile" nel grafico di previsione viene ridotta proporzionalmente ai giorni di assenza.</li>
-                        <li><strong>Workload:</strong> L'utilizzo percentuale viene calcolato su una base di giorni disponibili ridotta (es. se lavori 10 giorni su 20 disponibili = 50%; se prendi 10 giorni di ferie, la disponibilità scende a 10, quindi 10/10 = 100% utilizzo).</li>
-                    </ul>
-                </SubSection>
-
-                <SubSection title="Rilevamento Conflitti">
-                    <p>Quando si approva una richiesta, il sistema esegue un controllo automatico:</p>
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-2 text-sm text-yellow-800">
-                        Se la risorsa ha già delle allocazioni sui progetti nel periodo di ferie richiesto, il sistema mostrerà un avviso di <strong>Conflitto</strong>. L'admin può decidere di procedere comunque (sovrascrivendo visivamente l'allocazione) o di rifiutare la richiesta.
-                    </div>
-                </SubSection>
+            <Section title="6. Amministrazione">
+                <p>Gli amministratori hanno accesso a funzionalità di configurazione avanzata.</p>
+                <ul>
+                    <li><strong>Anagrafiche:</strong> Gestione centralizzata di Clienti, Progetti, Ruoli e Contratti.</li>
+                    <li><strong>Configurazione:</strong> Personalizzazione di liste valori (es. Sedi, Livelli Seniority, Stati Progetto).</li>
+                    <li><strong>Sicurezza:</strong> Gestione Utenti, Ruoli e Permessi (RBAC).</li>
+                    <li><strong>Import/Export:</strong> Strumenti per l'importazione massiva dei dati e l'esportazione in formato Excel o SQL.</li>
+                </ul>
             </Section>
 
             <style>{`

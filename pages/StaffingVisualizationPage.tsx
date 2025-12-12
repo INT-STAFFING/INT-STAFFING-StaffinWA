@@ -217,7 +217,7 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 const { nodes, links } = sankeyGenerator(graph);
                 
-                const color = d3Scale.scaleOrdinal<string, string>()
+                const color = d3Scale.scaleOrdinal()
                     .domain(['resource', 'project', 'client', 'contract'])
                     .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 
@@ -289,7 +289,7 @@ const StaffingVisualizationPage: React.FC = () => {
                 const g = svg.append("g");
                 svg.call(zoomBehavior as any);
 
-                 const color = d3Scale.scaleOrdinal<string, string>()
+                 const color = d3Scale.scaleOrdinal()
                     .domain(['resource', 'project', 'client', 'contract'])
                     .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
 

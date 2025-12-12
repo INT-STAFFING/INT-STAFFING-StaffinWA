@@ -3,11 +3,12 @@
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni.
  * Supporta filtri globali e controlli di zoom unificati.
+ * FIX: Import paths adjusted to ../../ to access root components/contexts from src/pages.
  */
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
+import { useEntitiesContext } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { select } from 'd3-selection';
 import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
 import { scaleOrdinal, scaleBand, scaleSequential, scaleLinear, scaleSqrt } from 'd3-scale';
@@ -21,11 +22,11 @@ import { arc as d3Arc, lineRadial, curveLinearClosed, linkRadial as d3LinkRadial
 import { rgb } from 'd3-color';
 import { tree as d3Tree, hierarchy as d3Hierarchy, pack as d3Pack } from 'd3-hierarchy';
 import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
-import SearchableSelect from '../components/SearchableSelect';
-import MultiSelectDropdown from '../components/MultiSelectDropdown';
-import ErrorBoundary from '../components/ErrorBoundary'; // NEW IMPORT
+import SearchableSelect from '../../components/SearchableSelect';
+import MultiSelectDropdown from '../../components/MultiSelectDropdown';
+import ErrorBoundary from '../../components/ErrorBoundary'; // NEW IMPORT
 import 'd3-transition';
-import { Skill } from '../types';
+import { Skill } from '../../types';
 
 type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'packing' | 'sankey' | 'bubble';
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
