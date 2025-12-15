@@ -320,7 +320,7 @@ const PermissionMatrixSection: React.FC = () => {
         '/roles', '/leaves', '/resource-requests', '/interviews', '/skills-map', 
         '/staffing-visualization', '/manuale-utente', '/simple-user-manual', 
         '/reports', '/calendar', '/config', '/import', '/export', '/test-staffing',
-        '/admin-settings', '/db-inspector'
+        '/admin-settings', '/db-inspector', '/project-activities' // Added
     ];
 
     const fetchPermissions = useCallback(async () => {

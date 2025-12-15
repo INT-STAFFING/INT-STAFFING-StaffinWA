@@ -1,9 +1,4 @@
 
-/**
- * @file App.tsx
- * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
- */
-
 import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
@@ -44,6 +39,7 @@ const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
 const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 const LeavePage = lazy(() => import('./pages/LeavePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const ProjectActivitiesPage = lazy(() => import('./pages/ProjectActivitiesPage'));
 
 // Special handling for named exports
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
@@ -223,6 +219,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
               <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
               <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
+              <Route path="/project-activities" element={<DynamicRoute path="/project-activities"><ProjectActivitiesPage /></DynamicRoute>} />
 
               {/* Admin Routes */}
               <Route path="/admin-settings" element={<AdminRoute><AdminSettingsPage /></AdminRoute>} />

@@ -1,3 +1,4 @@
+
 /**
  * @file RolesPage.tsx
  * @description Pagina per la gestione dei ruoli professionali (CRUD e visualizzazione).
@@ -21,7 +22,7 @@ const RolesPage: React.FC = () => {
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Role | null>(null);
 
-    const emptyRole: Omit<Role, 'id'> = { name: '', seniorityLevel: seniorityLevels[0]?.value || '', dailyCost: 0, standardCost: 0 };
+    const emptyRole: Omit<Role, 'id'> = { name: '', seniorityLevel: seniorityLevels[0]?.value || '', dailyCost: 0, standardCost: 0, dailyExpenses: 0 };
 
     const filteredRoles = useMemo(() => {
         return roles.filter(role => {
@@ -53,7 +54,7 @@ const RolesPage: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (editingRole) {
             const { name, value } = e.target;
-            const numericFields = ['dailyCost', 'standardCost'];
+            const numericFields = ['dailyCost', 'standardCost', 'dailyExpenses'];
             setEditingRole({ ...editingRole, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value } as Role | Omit<Role, 'id'>);
         }
     };

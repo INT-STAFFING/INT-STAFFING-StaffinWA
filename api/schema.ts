@@ -515,6 +515,21 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
+    // Project Activities
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS project_activities (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+            description TEXT NOT NULL,
+            owner_id UUID REFERENCES resources(id) ON DELETE SET NULL,
+            start_date DATE,
+            end_date DATE,
+            status VARCHAR(50) NOT NULL DEFAULT 'Non Iniziata',
+            notes TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+
     // Application Configuration Table
     await db.sql`
         CREATE TABLE IF NOT EXISTS app_config (
