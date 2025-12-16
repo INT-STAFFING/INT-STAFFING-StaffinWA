@@ -10,6 +10,7 @@ import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInter
 import { SpinnerIcon } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
 import { AppUser, RolePermission } from '../types';
+import { authorizedJsonFetch } from '../src/utils/api';
 
 type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users' | 'tutor';
 
@@ -100,18 +101,8 @@ const ExportPage: React.FC = () => {
 
     const handleExportUsers = async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-            // Fetch Users
-            const usersRes = await fetch('/api/resources?entity=app-users', { headers });
-            if (!usersRes.ok) throw new Error('Failed to fetch users');
-            const users: AppUser[] = await usersRes.json();
-
-            // Fetch Permissions
-            const permsRes = await fetch('/api/resources?entity=role-permissions', { headers });
-            if (!permsRes.ok) throw new Error('Failed to fetch permissions');
-            const permissions: RolePermission[] = await permsRes.json();
+            const users = await authorizedJsonFetch<AppUser[]>('/api/resources?entity=app-users');
+            const permissions = await authorizedJsonFetch<RolePermission[]>('/api/resources?entity=role-permissions');
 
             // Export
             await exportUsersPermissions(users, permissions, allData.resources);

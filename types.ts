@@ -642,3 +642,166 @@ export interface DashboardCategory {
     label: string;
     cards: string[]; // ID delle card associate a questa categoria
 }
+
+/**
+ * @interface EntitiesState
+ * @description Stato condiviso fornito da AppProvider per dati anagrafici e configurazioni.
+ */
+export interface EntitiesState {
+    clients: Client[];
+    roles: Role[];
+    roleCostHistory: RoleCostHistory[];
+    resources: Resource[];
+    projects: Project[];
+    contracts: Contract[];
+    contractProjects: ContractProject[];
+    contractManagers: ContractManager[];
+    assignments: Assignment[];
+    horizontals: ConfigOption[];
+    seniorityLevels: ConfigOption[];
+    projectStatuses: ConfigOption[];
+    clientSectors: ConfigOption[];
+    locations: ConfigOption[];
+    companyCalendar: CalendarEvent[];
+    wbsTasks: WbsTask[];
+    resourceRequests: ResourceRequest[];
+    interviews: Interview[];
+    skills: Skill[];
+    skillCategories: SkillCategory[];
+    skillMacroCategories: SkillMacroCategory[];
+    resourceSkills: ResourceSkill[];
+    projectSkills: ProjectSkill[];
+    pageVisibility: PageVisibility;
+    skillThresholds: SkillThresholds;
+    planningSettings: { monthsBefore: number; monthsAfter: number };
+    leaveTypes: LeaveType[];
+    leaveRequests: LeaveRequest[];
+    managerResourceIds: string[];
+    sidebarConfig: SidebarItem[];
+    sidebarSections: string[];
+    sidebarSectionColors: SidebarSectionColors;
+    dashboardLayout: DashboardCategory[];
+    roleHomePages: Record<string, string>;
+    notifications: Notification[];
+    analyticsCache: Record<string, unknown>;
+    loading: boolean;
+}
+
+/**
+ * @interface EntitiesActions
+ * @description Azioni disponibili sul provider e i relativi effetti sui dati locali e remoti.
+ */
+export interface EntitiesActions {
+    /** Ricarica tutti i dati base e di pianificazione, aggiornando lo stato locale. */
+    fetchData: () => Promise<void>;
+    /** Recupera le notifiche server-side e aggiorna lo stato locale. */
+    fetchNotifications: () => Promise<void>;
+    /** Segna come lette una o più notifiche e riflette subito la modifica nello stato. */
+    markNotificationAsRead: (id?: string) => Promise<void>;
+    /** Crea una nuova risorsa e la aggiunge alla cache locale. */
+    addResource: (resource: Omit<Resource, 'id'>) => Promise<Resource>;
+    /** Aggiorna una risorsa esistente e sincronizza lo stato locale. */
+    updateResource: (resource: Resource) => Promise<void>;
+    /** Elimina una risorsa e la rimuove dalla cache locale. */
+    deleteResource: (id: string) => Promise<void>;
+    /** Crea un nuovo progetto e lo aggiunge al provider. */
+    addProject: (project: Omit<Project, 'id'>) => Promise<Project | null>;
+    /** Aggiorna un progetto e la relativa lista locale. */
+    updateProject: (project: Project) => Promise<void>;
+    /** Rimuove un progetto e aggiorna la cache. */
+    deleteProject: (id: string) => Promise<void>;
+    /** Crea un nuovo cliente e lo salva nello stato. */
+    addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+    /** Modifica un cliente e sincronizza la lista. */
+    updateClient: (client: Client) => Promise<void>;
+    /** Cancella un cliente e rimuove l'elemento locale. */
+    deleteClient: (id: string) => Promise<void>;
+    /** Aggiunge un ruolo e lo espone subito ai consumatori. */
+    addRole: (role: Omit<Role, 'id'>) => Promise<void>;
+    /** Aggiorna un ruolo e ricarica la storia dei costi. */
+    updateRole: (role: Role) => Promise<void>;
+    /** Elimina un ruolo e aggiorna lo stato. */
+    deleteRole: (id: string) => Promise<void>;
+    /** Gestisce la creazione di una nuova opzione di configurazione tipizzata. */
+    addConfigOption: (type: string, value: string) => Promise<void>;
+    /** Modifica un'opzione di configurazione esistente. */
+    updateConfigOption: (type: string, option: ConfigOption) => Promise<void>;
+    /** Cancella un'opzione di configurazione e aggiorna lo stato coerente. */
+    deleteConfigOption: (type: string, id: string) => Promise<void>;
+    /** Crea un evento di calendario aziendale. */
+    addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
+    /** Aggiorna un evento esistente. */
+    updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
+    /** Rimuove un evento dal calendario. */
+    deleteCalendarEvent: (id: string) => Promise<void>;
+    /** Inserisce assegnazioni multiple e ricarica lo stato correlato. */
+    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<void>;
+    /** Elimina un'assegnazione e le relative allocazioni. */
+    deleteAssignment: (id: string) => Promise<void>;
+    /** Calcola il costo corrente di un ruolo in base alla data. */
+    getRoleCost: (roleId: string, date: Date) => number;
+    /** CRUD per richieste risorse. */
+    addResourceRequest: (req: Omit<ResourceRequest, 'id'>) => Promise<void>;
+    updateResourceRequest: (req: ResourceRequest) => Promise<void>;
+    deleteResourceRequest: (id: string) => Promise<void>;
+    /** CRUD per colloqui. */
+    addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
+    updateInterview: (interview: Interview) => Promise<void>;
+    deleteInterview: (id: string) => Promise<void>;
+    /** Gestione completa dei contratti con sincronizzazione stato. */
+    addContract: (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => Promise<void>;
+    updateContract: (contract: Contract, projectIds: string[], managerIds: string[]) => Promise<void>;
+    deleteContract: (id: string) => Promise<void>;
+    recalculateContractBacklog: (id: string) => Promise<void>;
+    /** CRUD per competenze e categorie. */
+    addSkill: (skill: Omit<Skill, 'id'>) => Promise<void>;
+    updateSkill: (skill: Skill) => Promise<void>;
+    deleteSkill: (id: string) => Promise<void>;
+    addResourceSkill: (rs: ResourceSkill) => Promise<void>;
+    deleteResourceSkill: (resourceId: string, skillId: string) => Promise<void>;
+    addProjectSkill: (ps: ProjectSkill) => Promise<void>;
+    deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
+    updateSkillThresholds: (thresholds: SkillThresholds) => Promise<void>;
+    updatePlanningSettings: (settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>;
+    getResourceComputedSkills: (resourceId: string) => any[];
+    /** CRUD per categorie e macro categorie di skill. */
+    addSkillCategory: (cat: Omit<SkillCategory, 'id'>) => Promise<void>;
+    updateSkillCategory: (cat: SkillCategory) => Promise<void>;
+    deleteSkillCategory: (id: string) => Promise<void>;
+    addSkillMacro: (macro: { name: string }) => Promise<void>;
+    updateSkillMacro: (id: string, name: string) => Promise<void>;
+    deleteSkillMacro: (id: string) => Promise<void>;
+    /** CRUD per tipologie e richieste di ferie. */
+    addLeaveType: (type: Omit<LeaveType, 'id'>) => Promise<void>;
+    updateLeaveType: (type: LeaveType) => Promise<void>;
+    deleteLeaveType: (id: string) => Promise<void>;
+    addLeaveRequest: (req: Omit<LeaveRequest, 'id'>) => Promise<void>;
+    updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
+    deleteLeaveRequest: (id: string) => Promise<void>;
+    /** Aggiorna configurazioni UI e layout del provider. */
+    updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
+    updateSidebarSections: (sections: string[]) => Promise<void>;
+    updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
+    updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
+    updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
+    /** Innesca il ricalcolo dei dati analitici sul backend e aggiorna la cache locale. */
+    forceRecalculateAnalytics: () => Promise<void>;
+}
+
+/**
+ * @interface EntitiesContextType
+ * @description Contratto completo esposto dal provider dell'applicazione.
+ */
+export interface EntitiesContextType extends EntitiesState, EntitiesActions {
+    isActionLoading: (action: string) => boolean;
+}
+
+/**
+ * @interface AllocationsContextType
+ * @description Espone lo stato e le azioni legate alle allocazioni giornaliere.
+ */
+export interface AllocationsContextType {
+    allocations: Allocation;
+    updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
+    bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
+}
