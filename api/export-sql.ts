@@ -96,6 +96,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 sqlScript += `-- Data for table ${table}\n`;
                 for (const row of rows) {
+                    // SECURITY: Sanitize sensitive data
+                    if (table === 'app_users') {
+                        // Create a shallow copy or modify strictly if confident no side effects in loop
+                        // Since we are iterating, modifying `row` is fine as it is transient for this iteration.
+                        // Ideally we remove the column, but to keep the INSERT valid with `columnsList` (which includes password_hash), 
+                        // we set it to a safe dummy value.
+                        if ('password_hash' in row) row.password_hash = 'EXCLUDED_FOR_SECURITY';
+                    }
+
                     const valuesList = columns.map(col => escapeSqlValue(row[col], dialect as 'postgres' | 'mysql')).join(', ');
                     sqlScript += `INSERT INTO ${table} (${columnsList}) VALUES (${valuesList});\n`;
                 }

@@ -5,8 +5,26 @@
 
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import jwt from 'jsonwebtoken';
 
 const CONFIG_KEY = 'login_protection_enabled';
+const JWT_SECRET = process.env.JWT_SECRET || 'staffing-app-secret-key-change-in-prod';
+
+// Helper to verify JWT for admin actions
+const verifyAdmin = (req: VercelRequest): boolean => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return false;
+    
+    const token = authHeader.split(' ')[1];
+    if (!token) return false;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        return decoded.role === 'ADMIN';
+    } catch (e) {
+        return false;
+    }
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
@@ -24,6 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
         case 'POST':
+            // Security check: Only admins can change this setting
+            if (!verifyAdmin(req)) {
+                return res.status(403).json({ error: 'Unauthorized: Only admins can change authentication settings.' });
+            }
+
             try {
                 const { isEnabled } = req.body;
                 if (typeof isEnabled !== 'boolean') {

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'staffing-app-secret-key-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET; // || 'staffing-app-secret-key-change-in-prod';
 
 // Helper to verify JWT for admin actions
 const verifyAdmin = (req: VercelRequest): boolean => {
@@ -820,6 +820,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ];
         
         if (validTables.includes(entity as string)) {
+            // RBAC & BOLA PROTECTION: Write Guard
+            // Only operational roles can modify data. SIMPLE users are Read-Only on these entities.
+            const writeMethods = ['POST', 'PUT', 'DELETE'];
+            const allowedWriteRoles = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
+
+            if (writeMethods.includes(method)) {
+                if (!currentUser || !allowedWriteRoles.includes(currentUser.role)) {
+                    return res.status(403).json({ error: 'Unauthorized: Insufficient permissions to modify this entity.' });
+                }
+            }
+
             if (method === 'POST') {
                 const keys = Object.keys(req.body);
                 const values = Object.values(req.body);
@@ -937,13 +948,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         // --- EMERGENCY RESET ---
-        if (entity === 'emergency_reset' && method === 'POST') {
-             const salt = await bcrypt.genSalt(10);
-             const hash = await bcrypt.hash('admin', salt);
-             await client.query("UPDATE app_users SET password_hash = $1 WHERE username = 'admin'", [hash]);
-             await logAction(client, null, 'EMERGENCY_RESET', 'app_users', null, {}, req);
-             return res.status(200).json({ success: true });
-        }
+        // ---if (entity === 'emergency_reset' && method === 'POST') {
+        // ---     const salt = await bcrypt.genSalt(10);
+        // ---     const hash = await bcrypt.hash('admin', salt);
+        // ---     await client.query("UPDATE app_users SET password_hash = $1 WHERE username = 'admin'", [hash]);
+        // ---     await logAction(client, null, 'EMERGENCY_RESET', 'app_users', null, {}, req);
+        // ---     return res.status(200).json({ success: true });
+        // ---}
 
         return res.status(400).json({ error: 'Unknown entity or method' });
 
