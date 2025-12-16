@@ -4,8 +4,7 @@
  * @description Funzioni di utilità per esportare dati in formato Excel.
  */
 
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType, AppUser, RolePermission } from '../types';
-import { EntitiesContextType } from '../context/AppContext';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType, AppUser, RolePermission, EntitiesContextType } from '../types';
 
 type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
 

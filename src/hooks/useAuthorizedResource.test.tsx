@@ -13,7 +13,7 @@ describe('useAuthorizedResource', () => {
     });
 
     it('fetches data on mount and caches it', async () => {
-        const fetcher = vi.fn().mockResolvedValue([{ id: 1 }]);
+        const fetcher = vi.fn<() => Promise<SampleItem[]>>().mockResolvedValue([{ id: 1 }]);
         const { result } = renderHook(() => useAuthorizedResource<SampleItem[]>('resource', fetcher));
 
         expect(result.current.loading).toBe(true);
@@ -25,12 +25,12 @@ describe('useAuthorizedResource', () => {
     });
 
     it('reuses cached data without re-fetching', async () => {
-        const firstFetcher = vi.fn().mockResolvedValue([{ id: 1 }]);
+        const firstFetcher = vi.fn<() => Promise<SampleItem[]>>().mockResolvedValue([{ id: 1 }]);
         const { result: firstResult } = renderHook(() => useAuthorizedResource<SampleItem[]>('cached', firstFetcher));
         await waitFor(() => expect(firstResult.current.loading).toBe(false));
         expect(firstFetcher).toHaveBeenCalledTimes(1);
 
-        const secondFetcher = vi.fn().mockResolvedValue([{ id: 2 }]);
+        const secondFetcher = vi.fn<() => Promise<SampleItem[]>>().mockResolvedValue([{ id: 2 }]);
         const { result: secondResult } = renderHook(() => useAuthorizedResource<SampleItem[]>('cached', secondFetcher));
 
         expect(secondResult.current.data).toEqual([{ id: 1 }]);
@@ -39,7 +39,7 @@ describe('useAuthorizedResource', () => {
     });
 
     it('allows manual cache updates and refreshes', async () => {
-        const fetcher = vi.fn().mockResolvedValue<SampleItem[]>([{ id: 1 }]);
+        const fetcher = vi.fn<() => Promise<SampleItem[]>>().mockResolvedValue([{ id: 1 }]);
         const { result } = renderHook(() => useAuthorizedResource<SampleItem[]>('mutable', fetcher));
         await waitFor(() => expect(result.current.loading).toBe(false));
 
