@@ -5,20 +5,80 @@ import {
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, ProjectActivity, ComputedSkill
+    Notification, DashboardCategory, SkillCategory, SkillMacroCategory
 } from '../types';
 import { useToast } from './ToastContext';
+
+// DEFAULT SIDEBAR CONFIGURATION
+const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
+    { path: "/dashboard", label: "Dashboard", icon: "dashboard", section: "Principale" },
+    { path: "/notifications", label: "Notifiche", icon: "notifications", section: "Principale" }, 
+    { path: "/staffing", label: "Staffing", icon: "calendar_month", section: "Principale" },
+    { path: "/workload", label: "Carico Risorse", icon: "groups", section: "Principale" },
+    
+    { path: "/gantt", label: "Gantt", icon: "align_horizontal_left", section: "Progetti" },
+    { path: "/projects", label: "Progetti", icon: "folder", section: "Progetti" },
+    { path: "/contracts", label: "Contratti", icon: "description", section: "Progetti" },
+    { path: "/clients", label: "Clienti", icon: "domain", section: "Progetti" },
+    { path: "/forecasting", label: "Forecasting", icon: "trending_up", section: "Progetti" },
+
+    { path: "/resources", label: "Risorse", icon: "person", section: "Risorse" },
+    { path: "/skills", label: "Competenze", icon: "school", section: "Risorse" },
+    { path: "/certifications", label: "Certificazioni", icon: "verified", section: "Risorse" },
+    { path: "/skill-analysis", label: "Analisi Competenze", icon: "insights", section: "Risorse" },
+    { path: "/roles", label: "Ruoli", icon: "badge", section: "Risorse" },
+    { path: "/leaves", label: "Assenze", icon: "event_busy", section: "Risorse" },
+
+    { path: "/resource-requests", label: "Richieste Risorse", icon: "assignment", section: "Operatività" },
+    { path: "/interviews", label: "Colloqui", icon: "groups", section: "Operatività" },
+    { path: "/skills-map", label: "Mappa Competenze", icon: "school", section: "Operatività" },
+    { path: "/staffing-visualization", label: "Visualizzazione Staffing", icon: "hub", section: "Operatività" },
+
+    { path: "/manuale-utente", label: "Manuale Utente", icon: "menu_book", section: "Supporto" },
+    { path: "/simple-user-manual", label: "Guida Assenze", icon: "help_center", section: "Supporto" },
+    { path: "/reports", label: "Report", icon: "bar_chart", section: "Supporto" },
+
+    { path: "/calendar", label: "Calendario Aziendale", icon: "event", section: "Configurazione" },
+    { path: "/config", label: "Opzioni", icon: "settings", section: "Configurazione" },
+    { path: "/import", label: "Importa Dati", icon: "upload", section: "Dati" },
+    { path: "/export", label: "Esporta Dati", icon: "download", section: "Dati" },
+    
+    { path: "/test-staffing", label: "Test Staffing", icon: "science", section: "Configurazione" }
+];
+
+const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
+
+const DEFAULT_DASHBOARD_LAYOUT: DashboardCategory[] = [
+    { id: 'generale', label: 'Generale', cards: ['kpiHeader', 'attentionCards', 'leavesOverview'] },
+    { id: 'staffing', label: 'Staffing Risorse', cards: ['averageAllocation', 'unallocatedFte', 'underutilizedResources', 'saturationTrend', 'locationAnalysis', 'effortByHorizontal'] },
+    { id: 'progetti', label: 'Progetti', cards: ['ftePerProject', 'budgetAnalysis', 'temporalBudgetAnalysis'] },
+    { id: 'contratti', label: 'Contratti', cards: ['monthlyClientCost', 'averageDailyRate', 'costForecast'] }
+];
+
+const DEFAULT_ROLE_HOME_PAGES: Record<string, string> = {
+    'SIMPLE': '/dashboard',
+    'MANAGER': '/staffing',
+    'SENIOR MANAGER': '/staffing',
+    'MANAGING DIRECTOR': '/staffing',
+    'ADMIN': '/staffing'
+};
+
+export interface AllocationsContextType {
+    allocations: Allocation;
+    updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
+    bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
+}
 
 export interface EntitiesContextType {
     clients: Client[];
     roles: Role[];
+    roleCostHistory: RoleCostHistory[];
     resources: Resource[];
     projects: Project[];
-    assignments: Assignment[];
-    roleCostHistory: RoleCostHistory[];
     contracts: Contract[];
     contractProjects: ContractProject[];
     contractManagers: ContractManager[];
+    assignments: Assignment[];
     horizontals: ConfigOption[];
     seniorityLevels: ConfigOption[];
     projectStatuses: ConfigOption[];
@@ -33,172 +93,145 @@ export interface EntitiesContextType {
     skillMacroCategories: SkillMacroCategory[];
     resourceSkills: ResourceSkill[];
     projectSkills: ProjectSkill[];
-    projectActivities: ProjectActivity[];
     pageVisibility: PageVisibility;
     skillThresholds: SkillThresholds;
-    planningSettings: any;
+    planningSettings: { monthsBefore: number; monthsAfter: number };
     leaveTypes: LeaveType[];
     leaveRequests: LeaveRequest[];
     managerResourceIds: string[];
-    sidebarConfig: SidebarItem[];
-    sidebarSections: string[];
-    sidebarSectionColors: SidebarSectionColors;
-    dashboardLayout: DashboardCategory[];
+    sidebarConfig: SidebarItem[]; 
+    sidebarSections: string[]; 
+    sidebarSectionColors: SidebarSectionColors; 
+    dashboardLayout: DashboardCategory[]; 
     roleHomePages: Record<string, string>;
     notifications: Notification[];
-    analyticsCache: any;
+    analyticsCache: any; // New property
     loading: boolean;
     isActionLoading: (action: string) => boolean;
     
+    // Methods
     fetchData: () => Promise<void>;
     fetchNotifications: () => Promise<void>;
     markNotificationAsRead: (id?: string) => Promise<void>;
-    
-    addResource: (r: Omit<Resource, 'id'>) => Promise<Resource>;
-    updateResource: (r: Resource) => Promise<Resource>;
+    addResource: (resource: Omit<Resource, 'id'>) => Promise<Resource>;
+    updateResource: (resource: Resource) => Promise<void>;
     deleteResource: (id: string) => Promise<void>;
-    
-    addProject: (p: Omit<Project, 'id'>) => Promise<Project>;
-    updateProject: (p: Project) => Promise<Project>;
+    addProject: (project: Omit<Project, 'id'>) => Promise<Project | null>;
+    updateProject: (project: Project) => Promise<void>;
     deleteProject: (id: string) => Promise<void>;
-    
-    addClient: (c: Omit<Client, 'id'>) => Promise<Client>;
-    updateClient: (c: Client) => Promise<void>;
+    addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+    updateClient: (client: Client) => Promise<void>;
     deleteClient: (id: string) => Promise<void>;
-
-    addRole: (r: Omit<Role, 'id'>) => Promise<Role>;
-    updateRole: (r: Role) => Promise<void>;
+    addRole: (role: Omit<Role, 'id'>) => Promise<void>;
+    updateRole: (role: Role) => Promise<void>;
     deleteRole: (id: string) => Promise<void>;
-
     addConfigOption: (type: string, value: string) => Promise<void>;
-    updateConfigOption: (type: string, opt: ConfigOption) => Promise<void>;
+    updateConfigOption: (type: string, option: ConfigOption) => Promise<void>;
     deleteConfigOption: (type: string, id: string) => Promise<void>;
-
-    addCalendarEvent: (e: Omit<CalendarEvent, 'id'>) => Promise<void>;
-    updateCalendarEvent: (e: CalendarEvent) => Promise<void>;
+    addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
+    updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
     deleteCalendarEvent: (id: string) => Promise<void>;
-
-    addMultipleAssignments: (as: {resourceId: string, projectId: string}[]) => Promise<void>;
+    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<void>;
     deleteAssignment: (id: string) => Promise<void>;
-
     getRoleCost: (roleId: string, date: Date) => number;
-
-    addResourceRequest: (r: Omit<ResourceRequest, 'id'>) => Promise<void>;
-    updateResourceRequest: (r: ResourceRequest) => Promise<void>;
+    addResourceRequest: (req: Omit<ResourceRequest, 'id'>) => Promise<void>;
+    updateResourceRequest: (req: ResourceRequest) => Promise<void>;
     deleteResourceRequest: (id: string) => Promise<void>;
-
-    addInterview: (i: Omit<Interview, 'id'>) => Promise<void>;
-    updateInterview: (i: Interview) => Promise<void>;
+    addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
+    updateInterview: (interview: Interview) => Promise<void>;
     deleteInterview: (id: string) => Promise<void>;
-
-    addContract: (c: Omit<Contract, 'id'>, pIds: string[], mIds: string[]) => Promise<void>;
-    updateContract: (c: Contract, pIds: string[], mIds: string[]) => Promise<void>;
+    addContract: (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => Promise<void>;
+    updateContract: (contract: Contract, projectIds: string[], managerIds: string[]) => Promise<void>;
     deleteContract: (id: string) => Promise<void>;
     recalculateContractBacklog: (id: string) => Promise<void>;
-
-    addSkill: (s: Omit<Skill, 'id'>) => Promise<void>;
-    updateSkill: (s: Skill) => Promise<void>;
+    addSkill: (skill: Omit<Skill, 'id'>) => Promise<void>;
+    updateSkill: (skill: Skill) => Promise<void>;
     deleteSkill: (id: string) => Promise<void>;
-
     addResourceSkill: (rs: ResourceSkill) => Promise<void>;
     deleteResourceSkill: (resourceId: string, skillId: string) => Promise<void>;
-
     addProjectSkill: (ps: ProjectSkill) => Promise<void>;
     deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
-
-    updateSkillThresholds: (t: SkillThresholds) => Promise<void>;
-    updatePlanningSettings: (s: any) => Promise<void>;
-    getResourceComputedSkills: (resourceId: string) => ComputedSkill[];
-
-    addLeaveType: (l: Omit<LeaveType, 'id'>) => Promise<void>;
-    updateLeaveType: (l: LeaveType) => Promise<void>;
+    updateSkillThresholds: (thresholds: SkillThresholds) => Promise<void>;
+    updatePlanningSettings: (settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>;
+    getResourceComputedSkills: (resourceId: string) => any[];
+    addLeaveType: (type: Omit<LeaveType, 'id'>) => Promise<void>;
+    updateLeaveType: (type: LeaveType) => Promise<void>;
     deleteLeaveType: (id: string) => Promise<void>;
-
-    addLeaveRequest: (l: Omit<LeaveRequest, 'id'>) => Promise<void>;
-    updateLeaveRequest: (l: LeaveRequest) => Promise<void>;
+    addLeaveRequest: (req: Omit<LeaveRequest, 'id'>) => Promise<void>;
+    updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
     deleteLeaveRequest: (id: string) => Promise<void>;
-
-    updateSidebarConfig: (c: SidebarItem[]) => Promise<void>;
-    updateSidebarSections: (s: string[]) => Promise<void>;
-    updateSidebarSectionColors: (c: SidebarSectionColors) => Promise<void>;
-    updateDashboardLayout: (l: DashboardCategory[]) => Promise<void>;
-    updateRoleHomePages: (p: Record<string, string>) => Promise<void>;
-
-    forceRecalculateAnalytics: () => Promise<void>;
-
-    addSkillCategory: (c: Omit<SkillCategory, 'id'>) => Promise<void>;
-    updateSkillCategory: (c: SkillCategory) => Promise<void>;
+    updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
+    updateSidebarSections: (sections: string[]) => Promise<void>;
+    updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
+    updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
+    updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
+    forceRecalculateAnalytics: () => Promise<void>; 
+    // Skill Category CRUD
+    addSkillCategory: (cat: Omit<SkillCategory, 'id'>) => Promise<void>;
+    updateSkillCategory: (cat: SkillCategory) => Promise<void>;
     deleteSkillCategory: (id: string) => Promise<void>;
-
-    addSkillMacro: (m: Omit<SkillMacroCategory, 'id'>) => Promise<void>;
+    // Macro CRUD
+    addSkillMacro: (macro: { name: string }) => Promise<void>;
     updateSkillMacro: (id: string, name: string) => Promise<void>;
     deleteSkillMacro: (id: string) => Promise<void>;
-
-    addProjectActivity: (a: Omit<ProjectActivity, 'id' | 'updatedAt'>) => Promise<void>;
-    updateProjectActivity: (a: ProjectActivity) => Promise<void>;
-    deleteProjectActivity: (id: string) => Promise<void>;
-}
-
-export interface AllocationsContextType {
-    allocations: Allocation;
-    updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
-    bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
 }
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
 
-// DEFAULT SIDEBAR CONFIGURATION
-const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
-    { path: "/dashboard", label: "Dashboard", icon: "dashboard", section: "Principale" },
-    { path: "/notifications", label: "Notifiche", icon: "notifications", section: "Principale" }, 
-    { path: "/staffing", label: "Staffing", icon: "calendar_month", section: "Principale" },
-    { path: "/workload", label: "Carico Risorse", icon: "groups", section: "Principale" },
-    { path: "/project-activities", label: "Attività di Progetto", icon: "task_alt", section: "Principale" },
-    { path: "/gantt", label: "Gantt", icon: "align_horizontal_left", section: "Progetti" },
-    { path: "/projects", label: "Progetti", icon: "folder", section: "Progetti" },
-    { path: "/contracts", label: "Contratti", icon: "description", section: "Progetti" },
-    { path: "/resource-requests", label: "Richieste", icon: "person_add", section: "Progetti" },
-    { path: "/resources", label: "Risorse", icon: "people", section: "Anagrafiche" },
-    { path: "/clients", label: "Clienti", icon: "domain", section: "Anagrafiche" },
-    { path: "/roles", label: "Ruoli", icon: "badge", section: "Anagrafiche" },
-    { path: "/skills", label: "Competenze", icon: "school", section: "Anagrafiche" },
-    { path: "/certifications", label: "Certificazioni", icon: "verified", section: "Anagrafiche" },
-    { path: "/interviews", label: "Colloqui", icon: "groups", section: "HR & Skills" },
-    { path: "/leaves", label: "Assenze", icon: "event_busy", section: "HR & Skills" },
-    { path: "/skills-map", label: "Mappa Competenze", icon: "psychology", section: "HR & Skills" },
-    { path: "/skill-analysis", label: "Analisi Competenze", icon: "insights", section: "HR & Skills" },
-    { path: "/staffing-visualization", label: "Staffing Visual", icon: "hub", section: "HR & Skills" },
-    { path: "/forecasting", label: "Forecasting", icon: "trending_up", section: "Analisi" },
-    { path: "/reports", label: "Report", icon: "bar_chart", section: "Analisi" },
-    { path: "/calendar", label: "Calendario Aziendale", icon: "calendar_today", section: "Configurazione" },
-    { path: "/config", label: "Opzioni", icon: "settings", section: "Configurazione" },
-    { path: "/import", label: "Importa Dati", icon: "upload", section: "Configurazione" },
-    { path: "/export", label: "Esporta Dati", icon: "download", section: "Configurazione" },
-    { path: "/manuale-utente", label: "Manuale Utente", icon: "menu_book", section: "Supporto" },
-    { path: "/simple-user-manual", label: "Guida Assenze", icon: "help_center", section: "Supporto" },
-];
-
-const DEFAULT_SIDEBAR_SECTIONS = ["Principale", "Progetti", "Anagrafiche", "HR & Skills", "Analisi", "Configurazione", "Supporto", "Amministrazione"];
-
 const apiFetch = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('authToken');
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    
+    let attempt = 0;
+    const maxRetries = 3;
+    let delay = 500; // ms
+
+    while (true) {
+        try {
+            const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
+            
+            if (response.status === 204) {
+                return null;
+            }
+
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                const errorMessage = errorBody.error || `API request failed: ${response.status}`;
+                const error = new Error(errorMessage);
+                
+                // Do not retry client errors (400-499), except 429 (Too Many Requests)
+                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+                    (error as any).isClientError = true;
+                    throw error;
+                }
+                
+                throw error; // This goes to catch block for retry logic (5xx errors or network fails)
+            }
+            return await response.json();
+        } catch (error: any) {
+            // If it's a client error (e.g. 401 Unauthorized) or we ran out of retries, throw immediately
+            if (error.isClientError || attempt >= maxRetries) {
+                throw error;
+            }
+            
+            // Transient error (Network fail or 5xx), wait and retry
+            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries}...`, error);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+            attempt++;
+            delay *= 2; // Exponential backoff
+        }
     }
-    const response = await fetch(url, {
-        headers: { ...headers, ...options.headers },
-        ...options,
-    });
-    if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-    }
-    return response.json();
 };
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // Entities
+    const [loading, setLoading] = useState(true);
+    const [actionLoadingState, setActionLoadingState] = useState<Record<string, boolean>>({});
+    const { addToast } = useToast();
+
+    // Data States
     const [clients, setClients] = useState<Client[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [roleCostHistory, setRoleCostHistory] = useState<RoleCostHistory[]>([]);
@@ -223,37 +256,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [skillMacroCategories, setSkillMacroCategories] = useState<SkillMacroCategory[]>([]);
     const [resourceSkills, setResourceSkills] = useState<ResourceSkill[]>([]);
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
-    const [projectActivities, setProjectActivities] = useState<ProjectActivity[]>([]);
     const [pageVisibility, setPageVisibility] = useState<PageVisibility>({});
-    const [skillThresholds, setSkillThresholds] = useState<SkillThresholds>({});
-    const [planningSettings, setPlanningSettings] = useState<any>({});
+    const [skillThresholds, setSkillThresholds] = useState<SkillThresholds>({ NOVICE: 0, JUNIOR: 60, MIDDLE: 150, SENIOR: 350, EXPERT: 700 });
+    const [planningSettings, setPlanningSettings] = useState<{ monthsBefore: number; monthsAfter: number }>({ monthsBefore: 6, monthsAfter: 18 });
     const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
-    
-    // Configs
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
-    const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>([]);
-    const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>({});
-    
-    // System
+    const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT);
+    const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [analyticsCache, setAnalyticsCache] = useState<any>({});
-    const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
-    const { addToast } = useToast();
+    const [analyticsCache, setAnalyticsCache] = useState<any>({}); 
 
-    const isActionLoading = (action: string) => !!actionLoading[action];
-    
-    const setActionState = (action: string, isLoading: boolean) => {
-        setActionLoading(prev => ({ ...prev, [action]: isLoading }));
+    const setActionLoading = (action: string, isLoading: boolean) => {
+        setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
     };
+
+    const isActionLoading = (action: string) => !!actionLoadingState[action];
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
+            // 1. Metadata
             const metaData = await apiFetch('/api/data?scope=metadata');
             setClients(metaData.clients || []);
             setRoles(metaData.roles || []);
@@ -271,20 +297,34 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setSkillMacroCategories(metaData.skillMacroCategories || []);
             setResourceSkills(metaData.resourceSkills || []);
             setPageVisibility(metaData.pageVisibility || {});
-            setSkillThresholds(metaData.skillThresholds || {});
-            setPlanningSettings(metaData.planningSettings || {});
             setLeaveTypes(metaData.leaveTypes || []);
             setManagerResourceIds(metaData.managerResourceIds || []);
-            setSidebarConfig(metaData.sidebarConfig || DEFAULT_SIDEBAR_CONFIG);
-            setSidebarSections(metaData.sidebarSections || DEFAULT_SIDEBAR_SECTIONS);
-            setSidebarSectionColors(metaData.sidebarSectionColors || {});
-            setDashboardLayout(metaData.dashboardLayout || []);
-            setRoleHomePages(metaData.roleHomePages || {});
             setAnalyticsCache(metaData.analyticsCache || {});
+            if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
+            
+            // Config Loading
+            if (metaData.sidebarConfig) setSidebarConfig(metaData.sidebarConfig);
+            if (metaData.sidebarSections) setSidebarSections(metaData.sidebarSections);
+            if (metaData.sidebarSectionColors) setSidebarSectionColors(metaData.sidebarSectionColors);
+            if (metaData.dashboardLayout) setDashboardLayout(metaData.dashboardLayout);
+            if (metaData.roleHomePages) setRoleHomePages(metaData.roleHomePages);
 
-            const now = new Date();
-            const start = new Date(now.getFullYear(), now.getMonth() - (metaData.planningSettings?.monthsBefore || 3), 1);
-            const end = new Date(now.getFullYear(), now.getMonth() + (metaData.planningSettings?.monthsAfter || 12), 0);
+            // Determine date range for planning data
+            let monthsBefore = 6;
+            let monthsAfter = 18;
+            if (metaData.planningSettings) {
+                if (metaData.planningSettings.monthsBefore) monthsBefore = metaData.planningSettings.monthsBefore;
+                if (metaData.planningSettings.monthsAfter) monthsAfter = metaData.planningSettings.monthsAfter;
+            }
+            setPlanningSettings({ monthsBefore, monthsAfter });
+
+            // 2. Planning - Calculate Window
+            const today = new Date();
+            const start = new Date(today);
+            start.setMonth(start.getMonth() - monthsBefore);
+            const end = new Date(today);
+            end.setMonth(end.getMonth() + monthsAfter);
+            
             const startStr = start.toISOString().split('T')[0];
             const endStr = end.toISOString().split('T')[0];
 
@@ -299,441 +339,690 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setContractManagers(planningData.contractManagers || []);
             setProjectSkills(planningData.projectSkills || []);
             setLeaveRequests(planningData.leaveRequests || []);
-            
-            // Activities fetch separately for now
-            try {
-                const acts = await apiFetch('/api/resources?entity=project_activities');
-                setProjectActivities(acts || []);
-            } catch(e) { setProjectActivities([]); }
 
         } catch (error) {
             console.error("Failed to fetch data", error);
-            addToast("Errore nel caricamento dei dati", 'error');
         } finally {
             setLoading(false);
         }
-    }, [addToast]);
+    }, []);
 
     const fetchNotifications = useCallback(async () => {
         try {
             const notifs = await apiFetch('/api/resources?entity=notifications');
-            setNotifications(notifs || []);
-        } catch (e) { console.error(e); }
+            setNotifications(notifs);
+        } catch (error) {
+            console.error("Failed to fetch notifications", error);
+        }
     }, []);
 
-    const markNotificationAsRead = async (id?: string) => {
+    const markNotificationAsRead = useCallback(async (id?: string) => {
         try {
-            if (id) {
-                await apiFetch(`/api/resources?entity=notifications&action=mark_read&id=${id}`, { method: 'POST' });
-                setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-            } else {
-                await apiFetch(`/api/resources?entity=notifications&action=mark_all_read`, { method: 'POST' });
-                setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-            }
-        } catch(e) { console.error(e); }
-    };
+            const url = id 
+                ? `/api/resources?entity=notifications&action=mark_read&id=${id}`
+                : `/api/resources?entity=notifications&action=mark_read`;
+            
+            await apiFetch(url, { method: 'PUT' });
+            
+            // Update local state
+            setNotifications(prev => prev.map(n => {
+                if (id) {
+                    return n.id === id ? { ...n, isRead: true } : n;
+                }
+                return { ...n, isRead: true };
+            }));
+        } catch (error) {
+            console.error("Failed to mark notification as read", error);
+        }
+    }, []);
 
-    // --- CRUD Implementations (Generic Wrapper) ---
-    const createResourceAction = (entity: string, setter: React.Dispatch<React.SetStateAction<any[]>>, actionName: string) => async (item: any) => {
-        setActionState(actionName, true);
+    useEffect(() => {
+        fetchData();
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 60000);
+        return () => clearInterval(interval);
+    }, [fetchData, fetchNotifications]);
+
+    // --- Generic Force Recalculate ---
+    const forceRecalculateAnalytics = async () => {
+        setActionLoading('recalculateAnalytics', true);
         try {
-            const created = await apiFetch(`/api/resources?entity=${entity}`, { method: 'POST', body: JSON.stringify(item) });
-            setter(prev => [...prev, created]);
-            addToast('Elemento creato con successo', 'success');
-            return created;
-        } catch(e) { 
-            addToast(`Errore creazione: ${(e as Error).message}`, 'error'); 
-            throw e; 
-        } finally { setActionState(actionName, false); }
+            const res = await apiFetch('/api/resources?entity=analytics_cache&action=recalc_all', { method: 'POST' });
+            setAnalyticsCache(res.data);
+            addToast('Analisi ricalcolate con successo', 'success');
+        } catch (e) {
+            addToast('Errore nel ricalcolo', 'error');
+        } finally {
+            setActionLoading('recalculateAnalytics', false);
+        }
     };
 
-    const updateResourceAction = (entity: string, setter: React.Dispatch<React.SetStateAction<any[]>>, actionName: string) => async (item: any) => {
-        const id = item.id;
-        setActionState(`${actionName}-${id}`, true);
+    // CRUD Operations
+    
+    const addResource = async (resource: Omit<Resource, 'id'>) => {
+        setActionLoading('addResource', true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=${entity}&id=${id}`, { method: 'PUT', body: JSON.stringify(item) });
-            setter(prev => prev.map(i => i.id === id ? updated : i));
-            addToast('Elemento aggiornato con successo', 'success');
-            return updated;
-        } catch(e) { 
-            addToast(`Errore aggiornamento: ${(e as Error).message}`, 'error'); 
-            throw e; 
-        } finally { setActionState(`${actionName}-${id}`, false); }
+            const newResource = await apiFetch('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) });
+            setResources(prev => [...prev, newResource]);
+            return newResource;
+        } finally { setActionLoading('addResource', false); }
     };
 
-    const deleteResourceAction = (entity: string, setter: React.Dispatch<React.SetStateAction<any[]>>, actionName: string) => async (id: string) => {
-        setActionState(`${actionName}-${id}`, true);
+    const updateResource = async (resource: Resource) => {
+        setActionLoading(`updateResource-${resource.id}`, true);
         try {
-            await apiFetch(`/api/resources?entity=${entity}&id=${id}`, { method: 'DELETE' });
-            setter(prev => prev.filter(i => i.id !== id));
-            addToast('Elemento eliminato con successo', 'success');
-        } catch(e) { 
-            addToast(`Errore eliminazione: ${(e as Error).message}`, 'error'); 
-            throw e; 
-        } finally { setActionState(`${actionName}-${id}`, false); }
+            const updated = await apiFetch(`/api/resources?entity=resources&id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) });
+            setResources(prev => prev.map(r => r.id === resource.id ? updated : r));
+        } finally { setActionLoading(`updateResource-${resource.id}`, false); }
     };
 
-    // --- Entity Specific Wrappers ---
-    const addResource = createResourceAction('resources', setResources, 'addResource');
-    const updateResource = updateResourceAction('resources', setResources, 'updateResource');
-    const deleteResource = deleteResourceAction('resources', setResources, 'deleteResource');
-
-    const addProject = createResourceAction('projects', setProjects, 'addProject');
-    const updateProject = updateResourceAction('projects', setProjects, 'updateProject');
-    const deleteProject = deleteResourceAction('projects', setProjects, 'deleteProject');
-
-    const addClient = createResourceAction('clients', setClients, 'addClient');
-    const updateClient = updateResourceAction('clients', setClients, 'updateClient');
-    const deleteClient = deleteResourceAction('clients', setClients, 'deleteClient');
-
-    const addRole = createResourceAction('roles', setRoles, 'addRole');
-    const updateRole = updateResourceAction('roles', setRoles, 'updateRole');
-    const deleteRole = deleteResourceAction('roles', setRoles, 'deleteRole');
-
-    const addLeaveType = createResourceAction('leave_types', setLeaveTypes, 'addLeaveType');
-    const updateLeaveType = updateResourceAction('leave_types', setLeaveTypes, 'updateLeaveType');
-    const deleteLeaveType = deleteResourceAction('leave_types', setLeaveTypes, 'deleteLeaveType');
-
-    const addLeaveRequest = createResourceAction('leave_requests', setLeaveRequests, 'addLeaveRequest');
-    const updateLeaveRequest = updateResourceAction('leave_requests', setLeaveRequests, 'updateLeaveRequest');
-    const deleteLeaveRequest = deleteResourceAction('leave_requests', setLeaveRequests, 'deleteLeaveRequest');
-
-    const addInterview = createResourceAction('interviews', setInterviews, 'addInterview');
-    const updateInterview = updateResourceAction('interviews', setInterviews, 'updateInterview');
-    const deleteInterview = deleteResourceAction('interviews', setInterviews, 'deleteInterview');
-
-    const addResourceRequest = createResourceAction('resource_requests', setResourceRequests, 'addResourceRequest');
-    const updateResourceRequest = updateResourceAction('resource_requests', setResourceRequests, 'updateResourceRequest');
-    const deleteResourceRequest = deleteResourceAction('resource_requests', setResourceRequests, 'deleteResourceRequest');
-
-    const addCalendarEvent = createResourceAction('company_calendar', setCompanyCalendar, 'addCalendarEvent');
-    const updateCalendarEvent = updateResourceAction('company_calendar', setCompanyCalendar, 'updateCalendarEvent');
-    const deleteCalendarEvent = deleteResourceAction('company_calendar', setCompanyCalendar, 'deleteCalendarEvent');
-
-    const addSkill = createResourceAction('skills', setSkills, 'addSkill');
-    const updateSkill = updateResourceAction('skills', setSkills, 'updateSkill');
-    const deleteSkill = deleteResourceAction('skills', setSkills, 'deleteSkill');
-
-    const addSkillMacro = createResourceAction('skill_macro_categories', setSkillMacroCategories, 'addSkillMacro');
-    const updateSkillMacro = async (id: string, name: string) => {
-        await updateResourceAction('skill_macro_categories', setSkillMacroCategories, 'updateSkillMacro')({ id, name });
+    const deleteResource = async (id: string) => {
+        setActionLoading(`deleteResource-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=resources&id=${id}`, { method: 'DELETE' });
+            setResources(prev => prev.filter(r => r.id !== id));
+        } finally { setActionLoading(`deleteResource-${id}`, false); }
     };
-    const deleteSkillMacro = deleteResourceAction('skill_macro_categories', setSkillMacroCategories, 'deleteSkillMacro');
 
-    const addSkillCategory = createResourceAction('skill_categories', setSkillCategories, 'addSkillCategory');
-    const updateSkillCategory = updateResourceAction('skill_categories', setSkillCategories, 'updateSkillCategory');
-    const deleteSkillCategory = deleteResourceAction('skill_categories', setSkillCategories, 'deleteSkillCategory');
+    const addProject = async (project: Omit<Project, 'id'>) => {
+        setActionLoading('addProject', true);
+        try {
+            const newProject = await apiFetch('/api/resources?entity=projects', { method: 'POST', body: JSON.stringify(project) });
+            setProjects(prev => [...prev, newProject]);
+            return newProject;
+        } finally { setActionLoading('addProject', false); }
+    };
 
-    const addProjectActivity = createResourceAction('project_activities', setProjectActivities, 'addProjectActivity');
-    const updateProjectActivity = updateResourceAction('project_activities', setProjectActivities, 'updateProjectActivity');
-    const deleteProjectActivity = deleteResourceAction('project_activities', setProjectActivities, 'deleteProjectActivity');
+    const updateProject = async (project: Project) => {
+        setActionLoading(`updateProject-${project.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=projects&id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) });
+            setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
+        } finally { setActionLoading(`updateProject-${project.id}`, false); }
+    };
 
-    // Config Options Handlers
+    const deleteProject = async (id: string) => {
+        setActionLoading(`deleteProject-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=projects&id=${id}`, { method: 'DELETE' });
+            setProjects(prev => prev.filter(p => p.id !== id));
+        } finally { setActionLoading(`deleteProject-${id}`, false); }
+    };
+
+    const addClient = async (client: Omit<Client, 'id'>) => {
+        setActionLoading('addClient', true);
+        try {
+            const newClient = await apiFetch('/api/resources?entity=clients', { method: 'POST', body: JSON.stringify(client) });
+            setClients(prev => [...prev, newClient]);
+        } finally { setActionLoading('addClient', false); }
+    };
+
+    const updateClient = async (client: Client) => {
+        setActionLoading(`updateClient-${client.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=clients&id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) });
+            setClients(prev => prev.map(c => c.id === client.id ? updated : c));
+        } finally { setActionLoading(`updateClient-${client.id}`, false); }
+    };
+
+    const deleteClient = async (id: string) => {
+        setActionLoading(`deleteClient-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=clients&id=${id}`, { method: 'DELETE' });
+            setClients(prev => prev.filter(c => c.id !== id));
+        } finally { setActionLoading(`deleteClient-${id}`, false); }
+    };
+
+    const addRole = async (role: Omit<Role, 'id'>) => {
+        setActionLoading('addRole', true);
+        try {
+            const newRole = await apiFetch('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) });
+            setRoles(prev => [...prev, newRole]);
+        } finally { setActionLoading('addRole', false); }
+    };
+
+    const updateRole = async (role: Role) => {
+        setActionLoading(`updateRole-${role.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) });
+            setRoles(prev => prev.map(r => r.id === role.id ? updated : r));
+            const historyRes = await apiFetch('/api/resources?entity=role_cost_history');
+            setRoleCostHistory(historyRes);
+        } finally { setActionLoading(`updateRole-${role.id}`, false); }
+    };
+
+    const deleteRole = async (id: string) => {
+        setActionLoading(`deleteRole-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' });
+            setRoles(prev => prev.filter(r => r.id !== id));
+        } finally { setActionLoading(`deleteRole-${id}`, false); }
+    };
+
     const addConfigOption = async (type: string, value: string) => {
-        setActionState(`addConfig-${type}`, true);
+        setActionLoading(`addConfig-${type}`, true);
         try {
-            const res = await apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) });
-            // Update local state based on type
+            const newOpt = await apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) });
             const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations;
-            setter(prev => [...prev, res]);
-            addToast('Opzione aggiunta', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`addConfig-${type}`, false); }
+            setter(prev => [...prev, newOpt]);
+        } finally { setActionLoading(`addConfig-${type}`, false); }
     };
 
-    const updateConfigOption = async (type: string, opt: ConfigOption) => {
-        setActionState(`updateConfig-${type}-${opt.id}`, true);
+    const updateConfigOption = async (type: string, option: ConfigOption) => {
+        setActionLoading(`updateConfig-${type}-${option.id}`, true);
         try {
-            const res = await apiFetch(`/api/config?type=${type}&id=${opt.id}`, { method: 'PUT', body: JSON.stringify(opt) });
+            await apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify({ value: option.value }) });
             const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations;
-            setter(prev => prev.map(o => o.id === opt.id ? res : o));
-            addToast('Opzione aggiornata', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`updateConfig-${type}-${opt.id}`, false); }
+            setter(prev => prev.map(o => o.id === option.id ? option : o));
+        } finally { setActionLoading(`updateConfig-${type}-${option.id}`, false); }
     };
 
     const deleteConfigOption = async (type: string, id: string) => {
-        setActionState(`deleteConfig-${type}-${id}`, true);
+        setActionLoading(`deleteConfig-${type}-${id}`, true);
         try {
             await apiFetch(`/api/config?type=${type}&id=${id}`, { method: 'DELETE' });
             const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations;
             setter(prev => prev.filter(o => o.id !== id));
-            addToast('Opzione eliminata', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`deleteConfig-${type}-${id}`, false); }
+            addToast('Opzione eliminata con successo', 'success');
+        } catch (error) {
+            console.error("Failed to delete config option:", error);
+            addToast((error as Error).message || 'Errore durante l\'eliminazione', 'error');
+        } finally { setActionLoading(`deleteConfig-${type}-${id}`, false); }
     };
 
-    // Allocation & Assignment Handlers
-    const addMultipleAssignments = async (as: {resourceId: string, projectId: string}[]) => {
-        for (const a of as) {
-            try {
-                const res = await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(a) });
-                if(res.id) setAssignments(prev => [...prev, res]);
-            } catch(e) { console.error(e); }
+    const addCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
+        setActionLoading('addCalendarEvent', true);
+        try {
+            const newEvent = await apiFetch('/api/resources?entity=company_calendar', { method: 'POST', body: JSON.stringify(event) });
+            setCompanyCalendar(prev => [...prev, newEvent]);
+        } finally { setActionLoading('addCalendarEvent', false); }
+    };
+
+    const updateCalendarEvent = async (event: CalendarEvent) => {
+        setActionLoading(`updateCalendarEvent-${event.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=company_calendar&id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) });
+            setCompanyCalendar(prev => prev.map(e => e.id === event.id ? updated : e));
+        } finally { setActionLoading(`updateCalendarEvent-${event.id}`, false); }
+    };
+
+    const deleteCalendarEvent = async (id: string) => {
+        setActionLoading(`deleteCalendarEvent-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=company_calendar&id=${id}`, { method: 'DELETE' });
+            setCompanyCalendar(prev => prev.filter(e => e.id !== id));
+        } finally { setActionLoading(`deleteCalendarEvent-${id}`, false); }
+    };
+
+    const addMultipleAssignments = async (newAssignments: { resourceId: string; projectId: string }[]) => {
+        try {
+            const createdAssignments = await Promise.all(newAssignments.map(async (a) => {
+                return await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(a) });
+            }));
+            
+            const validAssignments = createdAssignments.filter(a => !('message' in a));
+            const newAss = validAssignments.map(a => ({ id: a.id, resourceId: a.resourceId, projectId: a.projectId }));
+            
+            setAssignments(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const uniqueNew = newAss.filter(a => !existingIds.has(a.id));
+                return [...prev, ...uniqueNew];
+            });
+            
+            if (validAssignments.length < newAssignments.length) {
+                addToast('Alcune assegnazioni esistevano già.', 'error');
+            } else {
+                addToast('Assegnazioni create con successo.', 'success');
+            }
+        } catch (error) {
+            addToast('Errore durante la creazione delle assegnazioni.', 'error');
         }
-        addToast('Assegnazioni completate', 'success');
     };
 
     const deleteAssignment = async (id: string) => {
-        setActionState(`deleteAssignment-${id}`, true);
+        setActionLoading(`deleteAssignment-${id}`, true);
         try {
             await apiFetch(`/api/assignments?id=${id}`, { method: 'DELETE' });
             setAssignments(prev => prev.filter(a => a.id !== id));
-            // Cleanup allocations local state
             setAllocations(prev => {
-                const next = { ...prev };
-                delete next[id];
-                return next;
+                const newAllocations = { ...prev };
+                delete newAllocations[id];
+                return newAllocations;
             });
-            addToast('Assegnazione rimossa', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`deleteAssignment-${id}`, false); }
+        } finally { setActionLoading(`deleteAssignment-${id}`, false); }
     };
 
-    const updateAllocation = async (assignmentId: string, date: string, percentage: number) => {
-        // Optimistic update
-        setAllocations(prev => ({
-            ...prev,
-            [assignmentId]: { ...prev[assignmentId], [date]: percentage }
-        }));
-        
-        try {
-            await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] }) });
-        } catch(e) {
-            console.error("Allocation update failed", e);
-            // Revert would be complex here without undo stack, assuming eventual consistency or user retry
-        }
-    };
-
-    const bulkUpdateAllocations = async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
-        // Calculate dates
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const updates: { assignmentId: string, date: string, percentage: number }[] = [];
-        
-        // Optimistic
-        setAllocations(prev => {
-            const next = { ...prev };
-            if (!next[assignmentId]) next[assignmentId] = {};
-            const current = new Date(start);
-            while (current <= end) {
-                const dStr = current.toISOString().split('T')[0];
-                const day = current.getDay();
-                if (day !== 0 && day !== 6) { // Skip weekends
-                    next[assignmentId][dStr] = percentage;
-                    updates.push({ assignmentId, date: dStr, percentage });
-                }
-                current.setDate(current.getDate() + 1);
-            }
-            return next;
-        });
-
-        try {
-            await apiFetch('/api/allocations', { method: 'POST', body: JSON.stringify({ updates }) });
-            addToast('Aggiornamento massivo completato', 'success');
-        } catch(e) { addToast('Errore aggiornamento massivo', 'error'); }
-    };
-
-    // Contracts
-    const addContract = async (c: Omit<Contract, 'id'>, pIds: string[], mIds: string[]) => {
-        setActionState('addContract', true);
-        try {
-            // Need a dedicated endpoint or complex resource create. Using resource create for contract then relations.
-            // Simplified: Assume generic resource create handles it or a specific endpoint exists. 
-            // Since `api/resources.ts` handles generic crud, we'll assume it handles basic contract. 
-            // Relations need separate handling or updated backend. 
-            // For now, let's assume a complex create on frontend doing multiple calls.
-            const newContract = await apiFetch('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(c) });
-            setContracts(prev => [...prev, newContract]);
-            
-            // Link projects
-            await Promise.all(pIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, projectId: pid }) })));
-            
-            // Link managers
-            await Promise.all(mIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, resourceId: mid }) })));
-            
-            // Refresh relations
-            const cps = await apiFetch('/api/resources?entity=contract_projects');
-            setContractProjects(cps);
-            const cms = await apiFetch('/api/resources?entity=contract_managers');
-            setContractManagers(cms);
-
-            addToast('Contratto creato', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState('addContract', false); }
-    };
-
-    const updateContract = async (c: Contract, pIds: string[], mIds: string[]) => {
-        const id = c.id!;
-        setActionState(`updateContract-${id}`, true);
-        try {
-            const updated = await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'PUT', body: JSON.stringify(c) });
-            setContracts(prev => prev.map(i => i.id === id ? updated : i));
-            
-            // Nuke and Recreate relations (simplest strategy given limitations)
-            await apiFetch(`/api/resources?entity=contract_projects&action=delete_by_contract&id=${id}`, { method: 'DELETE' }); // Needs backend support or loop delete
-            // Fallback loop delete if bulk not supported
-            const oldPs = contractProjects.filter(x => x.contractId === id);
-            await Promise.all(oldPs.map(x => apiFetch(`/api/resources?entity=contract_projects&id=${x.contractId}_${x.projectId}`, { method: 'DELETE' }))); // Composite ID issue? Backend `resources.ts` handles generic ID.
-            // Actually `resources.ts` expects `id` param. If table has composite PK, delete might fail. 
-            // Assuming backend `resources.ts` can handle filter deletes or we skip relation update implementation details here for brevity as it requires backend changes.
-            // Let's assume we just add new ones for now or rely on a specific `api/contracts` endpoint if it existed.
-            
-            // Re-fetch to be safe
-            fetchData();
-            addToast('Contratto aggiornato', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`updateContract-${id}`, false); }
-    };
-
-    const deleteContract = deleteResourceAction('contracts', setContracts, 'deleteContract');
-    const recalculateContractBacklog = async (id: string) => {
-        setActionState(`recalculateBacklog-${id}`, true);
-        try {
-            await apiFetch(`/api/resources?entity=contracts&action=recalculate_backlog&id=${id}`, { method: 'POST' });
-            fetchData();
-            addToast('Backlog ricalcolato', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`recalculateBacklog-${id}`, false); }
-    };
-
-    // Skills
-    const addResourceSkill = async (rs: ResourceSkill) => {
-        setActionState(`addResourceSkill-${rs.resourceId}`, true);
-        try {
-            await apiFetch('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
-            setResourceSkills(prev => [...prev.filter(x => !(x.resourceId === rs.resourceId && x.skillId === rs.skillId)), rs]); // Upsert local
-            addToast('Competenza assegnata', 'success');
-        } catch(e) { addToast((e as Error).message, 'error'); } finally { setActionState(`addResourceSkill-${rs.resourceId}`, false); }
-    };
-
-    const deleteResourceSkill = async (resourceId: string, skillId: string) => {
-        try {
-            // Need composite key handling or custom endpoint
-            // Assuming backend supports query params for composite delete
-            // or we use a specialized endpoint.
-            // For now, let's assume `api/resources?entity=resource_skills&resourceId=...&skillId=...` works with DELETE
-            await apiFetch(`/api/resources?entity=resource_skills&resource_id=${resourceId}&skill_id=${skillId}`, { method: 'DELETE' });
-            setResourceSkills(prev => prev.filter(x => !(x.resourceId === resourceId && x.skillId === skillId)));
-            addToast('Competenza rimossa', 'success');
-        } catch(e) { addToast('Errore rimozione competenza', 'error'); }
-    };
-
-    const addProjectSkill = async (ps: ProjectSkill) => {
-        try {
-            await apiFetch('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) });
-            setProjectSkills(prev => [...prev, ps]);
-        } catch(e) { console.error(e); }
-    };
-
-    const deleteProjectSkill = async (projectId: string, skillId: string) => {
-        try {
-            await apiFetch(`/api/resources?entity=project_skills&project_id=${projectId}&skill_id=${skillId}`, { method: 'DELETE' });
-            setProjectSkills(prev => prev.filter(x => !(x.projectId === projectId && x.skillId === skillId)));
-        } catch(e) { console.error(e); }
-    };
-
-    // Utils
-    const getRoleCost = useCallback((roleId: string, date: Date) => {
+    const getRoleCost = (roleId: string, date: Date): number => {
         const dateStr = date.toISOString().split('T')[0];
-        const history = roleCostHistory.filter(h => h.roleId === roleId);
-        const match = history.find(h => h.startDate <= dateStr && (!h.endDate || h.endDate >= dateStr));
-        if (match) return Number(match.dailyCost);
+        const historicRecord = roleCostHistory.find(h => {
+            if (h.roleId !== roleId) return false;
+            return dateStr >= h.startDate && (!h.endDate || dateStr <= h.endDate);
+        });
+        if (historicRecord) return Number(historicRecord.dailyCost);
         const role = roles.find(r => r.id === roleId);
         return role ? Number(role.dailyCost) : 0;
-    }, [roleCostHistory, roles]);
+    };
 
-    const getResourceComputedSkills = useCallback((resourceId: string): ComputedSkill[] => {
-        const directSkills = resourceSkills.filter(rs => rs.resourceId === resourceId);
-        const resourceAssignments = assignments.filter(a => a.resourceId === resourceId);
-        
-        const inferredSkillsMap = new Map<string, { levelSum: number, count: number, sources: string[] }>();
-        
-        resourceAssignments.forEach(a => {
-            const pSkills = projectSkills.filter(ps => ps.projectId === a.projectId);
-            pSkills.forEach(ps => {
-                if (!inferredSkillsMap.has(ps.skillId)) {
-                    inferredSkillsMap.set(ps.skillId, { levelSum: 0, count: 0, sources: [] });
-                }
-                const entry = inferredSkillsMap.get(ps.skillId)!;
-                entry.levelSum += 1; // Basic increment
-                entry.count += 1;
-                entry.sources.push(projects.find(p => p.id === a.projectId)?.name || 'Unknown');
-            });
-        });
-
-        const computed: ComputedSkill[] = [];
-        const allSkillIds = new Set([...directSkills.map(ds => ds.skillId), ...inferredSkillsMap.keys()]);
-
-        allSkillIds.forEach(skillId => {
-            const skill = skills.find(s => s.id === skillId);
-            if (!skill) return;
-
-            const manual = directSkills.find(ds => ds.skillId === skillId) || null;
-            const inferred = inferredSkillsMap.get(skillId);
+    // Allocations Logic - MEMOIZED to keep references stable for children
+    const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number) => {
+        try {
+            setAllocations(prev => ({
+                ...prev,
+                [assignmentId]: { ...prev[assignmentId], [date]: percentage }
+            }));
             
-            // Simple inference logic: if used in N projects, maybe level is higher?
-            // Capping at 3 for inferred.
-            let inferredLevel = null;
-            if (inferred) {
-                inferredLevel = Math.min(3, Math.ceil(inferred.count / 2));
+            await apiFetch('/api/allocations', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] })
+            });
+        } catch (error) {
+            console.error("Failed to update allocation", error);
+            fetchData(); 
+        }
+    }, [fetchData]);
+
+    const bulkUpdateAllocations = useCallback(async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
+        try {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const updates = [];
+            const currentDate = new Date(start);
+
+            // FIX: Use strict UTC arithmetic to prevent DST shifting issues
+            while (currentDate.getTime() <= end.getTime()) {
+                const day = currentDate.getUTCDay();
+                if (day !== 0 && day !== 6) { 
+                    const dateStr = currentDate.toISOString().split('T')[0];
+                    updates.push({ assignmentId, date: dateStr, percentage });
+                }
+                currentDate.setUTCDate(currentDate.getUTCDate() + 1);
             }
 
-            computed.push({
-                skill,
-                manualDetails: manual,
-                inferredLevel,
-                sourceProjects: inferred ? [...new Set(inferred.sources)] : []
+            setAllocations(prev => {
+                const newAllocations = { ...prev };
+                if (!newAllocations[assignmentId]) newAllocations[assignmentId] = {};
+                updates.forEach(u => {
+                    newAllocations[assignmentId][u.date] = u.percentage;
+                });
+                return newAllocations;
+            });
+
+            await apiFetch('/api/allocations', {
+                method: 'POST',
+                body: JSON.stringify({ updates })
+            });
+            
+            addToast('Allocazioni aggiornate con successo.', 'success');
+        } catch (error) {
+            console.error("Failed to bulk update allocations", error);
+            addToast('Errore aggiornamento allocazioni', 'error');
+            fetchData();
+        }
+    }, [fetchData, addToast]);
+
+    // Other entities CRUD...
+    const addResourceRequest = async (req: Omit<ResourceRequest, 'id'>) => {
+        setActionLoading('addResourceRequest', true);
+        try {
+            const newReq = await apiFetch('/api/resource-requests', { method: 'POST', body: JSON.stringify(req) });
+            setResourceRequests(prev => [...prev, newReq]);
+        } finally { setActionLoading('addResourceRequest', false); }
+    };
+    const updateResourceRequest = async (req: ResourceRequest) => {
+        setActionLoading(`updateResourceRequest-${req.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resource-requests?id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
+            setResourceRequests(prev => prev.map(r => r.id === req.id ? updated : r));
+        } finally { setActionLoading(`updateResourceRequest-${req.id}`, false); }
+    };
+    const deleteResourceRequest = async (id: string) => {
+        setActionLoading(`deleteResourceRequest-${id}`, true);
+        try {
+            await apiFetch(`/api/resource-requests?id=${id}`, { method: 'DELETE' });
+            setResourceRequests(prev => prev.filter(r => r.id !== id));
+        } finally { setActionLoading(`deleteResourceRequest-${id}`, false); }
+    };
+
+    const addInterview = async (interview: Omit<Interview, 'id'>) => {
+        setActionLoading('addInterview', true);
+        try {
+            const newInt = await apiFetch('/api/resources?entity=interviews', { method: 'POST', body: JSON.stringify(interview) });
+            setInterviews(prev => [...prev, newInt]);
+        } finally { setActionLoading('addInterview', false); }
+    };
+    const updateInterview = async (interview: Interview) => {
+        setActionLoading(`updateInterview-${interview.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) });
+            setInterviews(prev => prev.map(i => i.id === interview.id ? updated : i));
+        } finally { setActionLoading(`updateInterview-${interview.id}`, false); }
+    };
+    const deleteInterview = async (id: string) => {
+        setActionLoading(`deleteInterview-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=interviews&id=${id}`, { method: 'DELETE' });
+            setInterviews(prev => prev.filter(i => i.id !== id));
+        } finally { setActionLoading(`deleteInterview-${id}`, false); }
+    };
+
+    const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => {
+        setActionLoading('addContract', true);
+        try {
+            const newContract = await apiFetch('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) });
+            setContracts(prev => [...prev, newContract]);
+            await fetchData(); 
+        } finally { setActionLoading('addContract', false); }
+    };
+    const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => {
+        setActionLoading(`updateContract-${contract.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) });
+            setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
+            await fetchData(); 
+        } finally { setActionLoading(`updateContract-${contract.id}`, false); }
+    };
+    const deleteContract = async (id: string) => {
+        setActionLoading(`deleteContract-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' });
+            setContracts(prev => prev.filter(c => c.id !== id));
+        } finally { setActionLoading(`deleteContract-${id}`, false); }
+    };
+    const recalculateContractBacklog = async (id: string) => {
+        setActionLoading(`recalculateBacklog-${id}`, true);
+        try {
+            const contract = contracts.find(c => c.id === id);
+            if (!contract) return;
+            
+            const linkedProjects = contractProjects.filter(cp => cp.contractId === id).map(cp => cp.projectId);
+            const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0);
+            const newBacklog = Number(contract.capienza) - usedBudget;
+            
+            await updateContract({ ...contract, backlog: newBacklog }, [], []);
+        } finally { setActionLoading(`recalculateBacklog-${id}`, false); }
+    };
+
+    const addSkill = async (skill: Omit<Skill, 'id'>) => {
+        setActionLoading('addSkill', true);
+        try {
+            const newSkill = await apiFetch('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) });
+            setSkills(prev => [...prev, newSkill]);
+            await fetchData(); 
+        } finally { setActionLoading('addSkill', false); }
+    };
+    const updateSkill = async (skill: Skill) => {
+        setActionLoading(`updateSkill-${skill.id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
+            await fetchData(); 
+        } finally { setActionLoading(`updateSkill-${skill.id}`, false); }
+    };
+    const deleteSkill = async (id: string) => {
+        setActionLoading(`deleteSkill-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=skills&id=${id}`, { method: 'DELETE' });
+            setSkills(prev => prev.filter(s => s.id !== id));
+        } finally { setActionLoading(`deleteSkill-${id}`, false); }
+    };
+
+    const addSkillCategory = async (cat: Omit<SkillCategory, 'id'>) => {
+        try {
+            await apiFetch('/api/resources?entity=skill_categories', { method: 'POST', body: JSON.stringify(cat) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const updateSkillCategory = async (cat: SkillCategory) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_categories&id=${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const deleteSkillCategory = async (id: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_categories&id=${id}`, { method: 'DELETE' });
+            setSkillCategories(prev => prev.filter(c => c.id !== id));
+        } catch(e) { console.error(e); }
+    };
+
+    const addSkillMacro = async (macro: { name: string }) => {
+        try {
+            await apiFetch('/api/resources?entity=skill_macro_categories', { method: 'POST', body: JSON.stringify(macro) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const updateSkillMacro = async (id: string, name: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+            await fetchData();
+        } catch(e) { console.error(e); }
+    };
+    const deleteSkillMacro = async (id: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'DELETE' });
+            setSkillMacroCategories(prev => prev.filter(m => m.id !== id));
+        } catch(e) { console.error(e); }
+    };
+
+    const addResourceSkill = async (rs: ResourceSkill) => {
+        setActionLoading(`addResourceSkill-${rs.resourceId}`, true);
+        try {
+            const savedSkill = await apiFetch('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
+            setResourceSkills(prev => {
+                const index = prev.findIndex(item => item.resourceId === rs.resourceId && item.skillId === rs.skillId);
+                if (index >= 0) {
+                    const newSkills = [...prev];
+                    newSkills[index] = savedSkill;
+                    return newSkills;
+                }
+                return [...prev, savedSkill];
+            });
+        } finally { setActionLoading(`addResourceSkill-${rs.resourceId}`, false); }
+    };
+    
+    const deleteResourceSkill = async (resourceId: string, skillId: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=resource_skills&resourceId=${resourceId}&skillId=${skillId}`, { method: 'DELETE' });
+            setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId)));
+        } catch (e) { console.error(e); }
+    };
+    
+    const addProjectSkill = async (ps: ProjectSkill) => {
+        try {
+            const savedPs = await apiFetch('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) });
+            setProjectSkills(prev => {
+                const exists = prev.some(item => item.projectId === ps.projectId && item.skillId === ps.skillId);
+                if (exists) return prev; 
+                return [...prev, savedPs];
+            });
+        } catch (e) { console.error(e); }
+    };
+    
+    const deleteProjectSkill = async (projectId: string, skillId: string) => {
+        try {
+            await apiFetch(`/api/resources?entity=project_skills&projectId=${projectId}&skillId=${skillId}`, { method: 'DELETE' });
+            setProjectSkills(prev => prev.filter(ps => !(ps.projectId === projectId && ps.skillId === skillId)));
+        } catch (e) { console.error(e); }
+    };
+
+    const updateSkillThresholds = async (thresholds: SkillThresholds) => {
+        setActionLoading('updateSkillThresholds', true);
+        try {
+            const updates = Object.entries(thresholds).map(([key, value]) => ({ key: `skill_threshold.${key}`, value: String(value) }));
+            await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) });
+            setSkillThresholds(thresholds);
+            addToast('Soglie aggiornate', 'success');
+        } catch (e) { console.error(e); } finally { setActionLoading('updateSkillThresholds', false); }
+    };
+
+    const updatePlanningSettings = async (settings: { monthsBefore: number; monthsAfter: number }) => {
+        setActionLoading('updatePlanningSettings', true);
+        try {
+            const updates = [
+                { key: 'planning_range_months_before', value: String(settings.monthsBefore) },
+                { key: 'planning_range_months_after', value: String(settings.monthsAfter) }
+            ];
+            await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) });
+            setPlanningSettings(settings);
+            addToast('Range di planning aggiornato. Ricarica la pagina per vedere i dati completi.', 'success');
+            fetchData();
+        } catch (e) { console.error(e); } finally { setActionLoading('updatePlanningSettings', false); }
+    };
+
+    const getResourceComputedSkills = useCallback((resourceId: string) => {
+        const manualSkills = resourceSkills.filter(rs => rs.resourceId === resourceId);
+        const resourceAssignments = assignments.filter(a => a.resourceId === resourceId);
+        
+        const inferredSkillsMap = new Map<string, number>(); 
+        
+        resourceAssignments.forEach(assignment => {
+            const pSkills = projectSkills.filter(ps => ps.projectId === assignment.projectId);
+            if (pSkills.length === 0) return;
+
+            const assignmentAllocations = allocations[assignment.id!];
+            let days = 0;
+            if (assignmentAllocations) {
+                Object.values(assignmentAllocations).forEach((pct: any) => days += (pct / 100));
+            }
+
+            pSkills.forEach(ps => {
+                inferredSkillsMap.set(ps.skillId, (inferredSkillsMap.get(ps.skillId) || 0) + days);
             });
         });
 
-        return computed.sort((a, b) => {
-            const levelA = a.manualDetails?.level || a.inferredLevel || 0;
-            const levelB = b.manualDetails?.level || b.inferredLevel || 0;
-            return levelB - levelA;
-        });
-    }, [resourceSkills, assignments, projectSkills, skills, projects]);
+        const allSkillIds = new Set([...manualSkills.map(ms => ms.skillId), ...inferredSkillsMap.keys()]);
+        
+        return Array.from(allSkillIds).map(skillId => {
+            const skill = skills.find(s => s.id === skillId);
+            if (!skill) return null;
 
-    // Config Updates
-    const updateSkillThresholds = async (t: SkillThresholds) => {
-        // Persist logic needed
-        setSkillThresholds(t);
+            const manual = manualSkills.find(ms => ms.skillId === skillId);
+            const inferredDays = inferredSkillsMap.get(skillId) || 0;
+            
+            let inferredLevel = 1;
+            if (inferredDays >= skillThresholds.EXPERT) inferredLevel = 5;
+            else if (inferredDays >= skillThresholds.SENIOR) inferredLevel = 4;
+            else if (inferredDays >= skillThresholds.MIDDLE) inferredLevel = 3;
+            else if (inferredDays >= skillThresholds.JUNIOR) inferredLevel = 2;
+
+            return {
+                skill,
+                manualDetails: manual,
+                inferredDays,
+                inferredLevel,
+                projectCount: 0 
+            };
+        }).filter(Boolean) as any[];
+    }, [resourceSkills, assignments, projectSkills, allocations, skills, skillThresholds]);
+
+    const addLeaveType = async (type: Omit<LeaveType, 'id'>) => {
+        setActionLoading('addLeaveType', true);
+        try {
+            const newType = await apiFetch('/api/resources?entity=leave_types', { method: 'POST', body: JSON.stringify(type) });
+            setLeaveTypes(prev => [...prev, newType]);
+        } finally { setActionLoading('addLeaveType', false); }
     };
-    const updatePlanningSettings = async (s: any) => {
-        // Persist logic needed
-        setPlanningSettings(s);
+    const updateLeaveType = async (type: LeaveType) => {
+        setActionLoading(`updateLeaveType-${type.id}`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=leave_types&id=${type.id}`, { method: 'PUT', body: JSON.stringify(type) });
+            setLeaveTypes(prev => prev.map(t => t.id === type.id ? updated : t));
+        } finally { setActionLoading(`updateLeaveType-${type.id}`, false); }
     };
-    const updateSidebarConfig = async (c: SidebarItem[]) => {
-        await apiFetch('/api/resources?entity=app_config&id=sidebar_layout_v1', { method: 'POST', body: JSON.stringify({ key: 'sidebar_layout_v1', value: JSON.stringify(c) }) }); // Upsert
-        setSidebarConfig(c);
-    };
-    const updateSidebarSections = async (s: string[]) => {
-        await apiFetch('/api/resources?entity=app_config&id=sidebar_sections_v1', { method: 'POST', body: JSON.stringify({ key: 'sidebar_sections_v1', value: JSON.stringify(s) }) });
-        setSidebarSections(s);
-    };
-    const updateSidebarSectionColors = async (c: SidebarSectionColors) => {
-        await apiFetch('/api/resources?entity=app_config&id=sidebar_section_colors', { method: 'POST', body: JSON.stringify({ key: 'sidebar_section_colors', value: JSON.stringify(c) }) });
-        setSidebarSectionColors(c);
-    };
-    const updateDashboardLayout = async (l: DashboardCategory[]) => {
-        await apiFetch('/api/resources?entity=app_config&id=dashboard_layout_v2', { method: 'POST', body: JSON.stringify({ key: 'dashboard_layout_v2', value: JSON.stringify(l) }) });
-        setDashboardLayout(l);
-    };
-    const updateRoleHomePages = async (p: Record<string, string>) => {
-        await apiFetch('/api/resources?entity=app_config&id=role_home_pages_v1', { method: 'POST', body: JSON.stringify({ key: 'role_home_pages_v1', value: JSON.stringify(p) }) });
-        setRoleHomePages(p);
-    };
-    const forceRecalculateAnalytics = async () => {
-        await apiFetch('/api/resources?entity=analytics_cache&action=recalculate', { method: 'POST' });
-        fetchData();
+    const deleteLeaveType = async (id: string) => {
+        setActionLoading(`deleteLeaveType-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=leave_types&id=${id}`, { method: 'DELETE' });
+            setLeaveTypes(prev => prev.filter(t => t.id !== id));
+        } finally { setActionLoading(`deleteLeaveType-${id}`, false); }
     };
 
-    // Load initial data
-    useEffect(() => {
-        fetchData();
-        fetchNotifications();
-    }, [fetchData, fetchNotifications]);
+    const addLeaveRequest = async (req: Omit<LeaveRequest, 'id'>) => {
+        setActionLoading('addLeaveRequest', true);
+        try {
+            const newReq = await apiFetch('/api/resources?entity=leaves', { method: 'POST', body: JSON.stringify(req) });
+            setLeaveRequests(prev => [...prev, newReq]);
+            addToast('Richiesta inserita con successo', 'success');
+        } catch (e) {
+            addToast('Errore inserimento richiesta', 'error');
+        } finally { setActionLoading('addLeaveRequest', false); }
+    };
+    const updateLeaveRequest = async (req: LeaveRequest) => {
+        setActionLoading(`updateLeaveRequest`, true);
+        try {
+            const updated = await apiFetch(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
+            setLeaveRequests(prev => prev.map(r => r.id === req.id ? updated : r));
+            addToast(`Richiesta aggiornata: ${req.status}`, 'success');
+        } catch (e) {
+            addToast('Errore aggiornamento richiesta', 'error');
+        } finally { setActionLoading(`updateLeaveRequest`, false); }
+    };
+    const deleteLeaveRequest = async (id: string) => {
+        setActionLoading(`deleteLeaveRequest-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=leaves&id=${id}`, { method: 'DELETE' });
+            setLeaveRequests(prev => prev.filter(r => r.id !== id));
+            addToast('Richiesta eliminata', 'success');
+        } finally { setActionLoading(`deleteLeaveRequest-${id}`, false); }
+    };
 
-    // Provider Values
-    const entitiesValue = useMemo(() => ({
+    const updateSidebarConfig = async (config: SidebarItem[]) => {
+        setActionLoading('updateSidebarConfig', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', { 
+                method: 'POST', 
+                body: JSON.stringify({ updates: [{ key: 'sidebar_layout_v1', value: JSON.stringify(config) }] }) 
+            });
+            setSidebarConfig(config);
+        } finally { setActionLoading('updateSidebarConfig', false); }
+    };
+
+    const updateSidebarSections = async (sections: string[]) => {
+        setActionLoading('updateSidebarSections', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', { 
+                method: 'POST', 
+                body: JSON.stringify({ updates: [{ key: 'sidebar_sections_v1', value: JSON.stringify(sections) }] }) 
+            });
+            setSidebarSections(sections);
+        } finally { setActionLoading('updateSidebarSections', false); }
+    };
+
+    const updateSidebarSectionColors = async (colors: SidebarSectionColors) => {
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', { 
+                method: 'POST', 
+                body: JSON.stringify({ updates: [{ key: 'sidebar_section_colors', value: JSON.stringify(colors) }] }) 
+            });
+            setSidebarSectionColors(colors);
+        } catch (e) { console.error(e); }
+    };
+
+    const updateDashboardLayout = async (layout: DashboardCategory[]) => {
+        setActionLoading('updateDashboardLayout', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', { 
+                method: 'POST', 
+                body: JSON.stringify({ updates: [{ key: 'dashboard_layout_v2', value: JSON.stringify(layout) }] }) 
+            });
+            setDashboardLayout(layout);
+        } finally { setActionLoading('updateDashboardLayout', false); }
+    };
+
+    const updateRoleHomePages = async (config: Record<string, string>) => {
+        setActionLoading('updateRoleHomePages', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: 'role_home_pages_v1', value: JSON.stringify(config) }] })
+            });
+            setRoleHomePages(config);
+        } finally { setActionLoading('updateRoleHomePages', false); }
+    };
+
+    const providerValue = useMemo(() => ({
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
-        wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, 
-        projectActivities,
-        pageVisibility, skillThresholds,
+        wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
         notifications, analyticsCache, loading, isActionLoading,
         fetchData, fetchNotifications, markNotificationAsRead,
@@ -757,27 +1046,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout, updateRoleHomePages,
         forceRecalculateAnalytics,
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
-        addSkillMacro, updateSkillMacro, deleteSkillMacro,
-        addProjectActivity, updateProjectActivity, deleteProjectActivity
+        addSkillMacro, updateSkillMacro, deleteSkillMacro
     }), [
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
-        wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, 
-        projectActivities,
-        pageVisibility, skillThresholds,
+        wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
-        notifications, analyticsCache, loading, actionLoading
+        notifications, analyticsCache, loading
     ]);
 
-    const allocationsValue = useMemo(() => ({
-        allocations,
-        updateAllocation,
-        bulkUpdateAllocations
-    }), [allocations]);
+    const allocationContextValue = useMemo(() => ({
+        allocations, updateAllocation, bulkUpdateAllocations
+    }), [allocations, updateAllocation, bulkUpdateAllocations]);
 
     return (
-        <EntitiesContext.Provider value={entitiesValue}>
-            <AllocationsContext.Provider value={allocationsValue}>
+        <EntitiesContext.Provider value={providerValue}>
+            <AllocationsContext.Provider value={allocationContextValue}>
                 {children}
             </AllocationsContext.Provider>
         </EntitiesContext.Provider>
@@ -786,12 +1070,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useEntitiesContext = () => {
     const context = useContext(EntitiesContext);
-    if (!context) throw new Error("useEntitiesContext must be used within AppProvider");
+    if (context === undefined) {
+        throw new Error('useEntitiesContext must be used within an AppProvider');
+    }
     return context;
 };
 
 export const useAllocationsContext = () => {
     const context = useContext(AllocationsContext);
-    if (!context) throw new Error("useAllocationsContext must be used within AppProvider");
+    if (context === undefined) {
+        throw new Error('useAllocationsContext must be used within an AppProvider');
+    }
     return context;
 };

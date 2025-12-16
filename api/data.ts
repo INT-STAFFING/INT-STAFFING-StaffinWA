@@ -1,13 +1,14 @@
 
+/**
+ * @file api/data.ts
+ * @description Endpoint API Dispatcher per recuperare i dati in base allo scope (metadata, planning, all).
+ * Supporta il filtraggio temporale per le allocazioni per migliorare le performance.
+ */
+
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { 
-    Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
-    CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
-    ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, 
-    LeaveRequest, SkillCategory, SkillMacroCategory 
-} from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest, SkillCategory, SkillMacroCategory } from '../types';
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -29,6 +30,10 @@ const toCamelCase = (obj: any): any => {
 
 /**
  * Gestore della richiesta API per l'endpoint /api/data.
+ * Query Params:
+ * - scope: 'metadata' | 'planning' | 'all' (default 'all' per compatibilità)
+ * - start: YYYY-MM-DD (solo per scope 'planning', opzionale)
+ * - end: YYYY-MM-DD (solo per scope 'planning', opzionale)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -42,11 +47,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         // Assicura che lo schema del database esista (solo al primo avvio/seed)
-        // await ensureDbTablesExist(db); // Uncomment if auto-migration is desired on every read
+        await ensureDbTablesExist(db);
 
         const data: any = {};
 
         // --- METADATA SCOPE (Lightweight) ---
+        // Include configurazioni, ruoli, clienti, risorse (anagrafica), skill, calendario
         if (scope === 'metadata' || scope === 'all') {
              const [
                 clientsRes,
@@ -161,30 +167,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const managerResourceIds = managersRes.rows.map(r => r.resource_id);
 
             // --- SKILL HYDRATION LOGIC ---
+            // 1. Build Lookup Maps
             const categories = skillCatsRes.rows.map(toCamelCase) as SkillCategory[];
             const macros = skillMacrosRes.rows.map(toCamelCase) as SkillMacroCategory[];
             
             const catMap = new Map(categories.map(c => [c.id, c]));
             const macroMap = new Map(macros.map(m => [m.id, m]));
 
-            const catMacroMap = new Map<string, Set<string>>(); 
+            // 2. Map Category -> Macros
+            const catMacroMap = new Map<string, Set<string>>(); // catId -> Set of macroIds
             catMacroMapRes.rows.forEach(r => {
                 if (!catMacroMap.has(r.category_id)) catMacroMap.set(r.category_id, new Set());
                 catMacroMap.get(r.category_id)?.add(r.macro_category_id);
             });
 
-            const skillCatMap = new Map<string, Set<string>>();
+            // 3. Map Skill -> Categories
+            const skillCatMap = new Map<string, Set<string>>(); // skillId -> Set of catIds
             skillMapRes.rows.forEach(r => {
                 if (!skillCatMap.has(r.skill_id)) skillCatMap.set(r.skill_id, new Set());
                 skillCatMap.get(r.skill_id)?.add(r.category_id);
             });
 
+            // 4. Hydrate Skill Objects
             const skills = skillsRes.rows.map(row => {
                 const skill = toCamelCase(row);
                 
+                // Get Categories for this skill
                 const catIds = Array.from(skillCatMap.get(skill.id) || []);
                 const skillCategories = catIds.map(id => catMap.get(id)).filter(Boolean) as SkillCategory[];
                 
+                // Get Macros derived from Categories
                 const macroIds = new Set<string>();
                 catIds.forEach(catId => {
                     const mIds = catMacroMap.get(catId);
@@ -192,17 +204,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
                 const skillMacros = Array.from(macroIds).map(id => macroMap.get(id)).filter(Boolean) as SkillMacroCategory[];
 
+                // Backward Compatibility Strings
                 const categoryString = skillCategories.map(c => c.name).join(', ');
                 const macroString = skillMacros.map(m => m.name).join(', ');
 
                 return {
                     ...skill,
-                    categoryIds: catIds,
-                    category: categoryString,
-                    macroCategory: macroString
+                    categoryIds: catIds, // IDs array
+                    category: categoryString, // Joined string
+                    macroCategory: macroString // Joined string
                 };
             }) as Skill[];
 
+            // Attach macros to categories for convenience
             const hydratedCategories = categories.map(cat => ({
                 ...cat,
                 macroCategoryIds: Array.from(catMacroMap.get(cat.id) || [])
@@ -230,13 +244,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 clientSectors: clientSectorsRes.rows as ConfigOption[],
                 locations: locationsRes.rows as ConfigOption[],
                 companyCalendar,
-                skills,
-                skillCategories: hydratedCategories,
-                skillMacroCategories: macros,
+                skills, // Hydrated
+                skillCategories: hydratedCategories, // New
+                skillMacroCategories: macros, // New
                 resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
                 pageVisibility,
                 skillThresholds,
-                planningSettings,
+                planningSettings, // New
                 leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
                 managerResourceIds,
                 sidebarConfig,
@@ -249,13 +263,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // --- PLANNING SCOPE (Heavy) ---
+        // Include assegnazioni, allocazioni (filtrate), contratti, richieste, wbs
         if (scope === 'planning' || scope === 'all') {
+            // Allocations Query Logic
             let allocationsQuery;
             let leaveRequestsQuery;
             if (start && end) {
+                // Filtered query
                 allocationsQuery = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
+                // Filter leaves that overlap with the window
                 leaveRequestsQuery = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
             } else {
+                // Full load (legacy support)
                 allocationsQuery = db.sql`SELECT * FROM allocations;`;
                 leaveRequestsQuery = db.sql`SELECT * FROM leave_requests;`;
             }

@@ -76,7 +76,7 @@ export const ResourceRequestPage: React.FC = () => {
         const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
 
         // Escludi le richieste in standby da entrambi i riepiloghi
-        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY');
+        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY' && req.status !== 'CHIUSA' );
 
         relevantRequests.forEach(req => {
             // Calcolo FTE per ruolo
