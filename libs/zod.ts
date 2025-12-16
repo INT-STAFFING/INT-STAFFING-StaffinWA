@@ -36,6 +36,13 @@ abstract class BaseSchema<T> {
     protected allowUndefined = false;
     protected refinements: Refinement<T>[] = [];
 
+    /**
+     * Expose parsing for nested schemas while keeping the core parser encapsulated.
+     */
+    parseWithPath(data: unknown, path: (string | number)[]): T {
+        return this.parseInternal(data, path);
+    }
+
     optional(): BaseSchema<T | undefined> {
         this.allowUndefined = true;
         return this as unknown as BaseSchema<T | undefined>;
@@ -54,9 +61,9 @@ abstract class BaseSchema<T> {
     safeParse(data: unknown): SafeParseResult<T> {
         try {
             const parsed = this.parseInternal(data, []);
-            return { success: true, data: parsed };
+            return { success: true as const, data: parsed };
         } catch (error) {
-            return { success: false, error: error as ZodError };
+            return { success: false as const, error: error as ZodError };
         }
     }
 
@@ -207,7 +214,7 @@ class ZodObject<Shape extends Record<string, BaseSchema<any>>> extends BaseSchem
 
         for (const key of Object.keys(this.shape)) {
             try {
-                output[key] = this.shape[key].parseInternal((handled as Record<string, unknown>)[key], [...path, key]);
+                output[key] = this.shape[key].parseWithPath((handled as Record<string, unknown>)[key], [...path, key]);
             } catch (err) {
                 const zodError = err as ZodError;
                 issues.push(...zodError.issues);

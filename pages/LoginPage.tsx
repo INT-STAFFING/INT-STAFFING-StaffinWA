@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { z } from 'zod';
+import { z, type SafeParseError } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { SpinnerIcon } from '../components/icons';
 import { FormFieldFeedback } from '../components/forms';
@@ -41,7 +41,7 @@ const LoginPage: React.FC = () => {
         const validation = loginSchema.safeParse({ username, password });
 
         if (!validation.success) {
-            const errors = validation.error.flatten().fieldErrors;
+            const errors = (validation as SafeParseError).error.flatten().fieldErrors;
             setFieldErrors({
                 username: errors.username?.[0],
                 password: errors.password?.[0],

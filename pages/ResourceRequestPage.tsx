@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { z } from 'zod';
+import { z, type SafeParseError } from 'zod';
 import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -177,7 +177,7 @@ export const ResourceRequestPage: React.FC = () => {
         const validationResult = resourceRequestSchema.safeParse(editingRequest);
 
         if (!validationResult.success) {
-            const fieldErrors = validationResult.error.flatten().fieldErrors;
+            const fieldErrors = (validationResult as SafeParseError).error.flatten().fieldErrors;
             setFormErrors({
                 projectId: fieldErrors.projectId?.[0] ?? '',
                 roleId: fieldErrors.roleId?.[0] ?? '',
