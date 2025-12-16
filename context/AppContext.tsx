@@ -5,7 +5,7 @@ import {
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification, DashboardCategory, SkillCategory, SkillMacroCategory
+    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType
 } from '../types';
 import { useToast } from './ToastContext';
 
@@ -62,119 +62,6 @@ const DEFAULT_ROLE_HOME_PAGES: Record<string, string> = {
     'MANAGING DIRECTOR': '/staffing',
     'ADMIN': '/staffing'
 };
-
-export interface AllocationsContextType {
-    allocations: Allocation;
-    updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
-    bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
-}
-
-export interface EntitiesContextType {
-    clients: Client[];
-    roles: Role[];
-    roleCostHistory: RoleCostHistory[];
-    resources: Resource[];
-    projects: Project[];
-    contracts: Contract[];
-    contractProjects: ContractProject[];
-    contractManagers: ContractManager[];
-    assignments: Assignment[];
-    horizontals: ConfigOption[];
-    seniorityLevels: ConfigOption[];
-    projectStatuses: ConfigOption[];
-    clientSectors: ConfigOption[];
-    locations: ConfigOption[];
-    companyCalendar: CalendarEvent[];
-    wbsTasks: WbsTask[];
-    resourceRequests: ResourceRequest[];
-    interviews: Interview[];
-    skills: Skill[];
-    skillCategories: SkillCategory[];
-    skillMacroCategories: SkillMacroCategory[];
-    resourceSkills: ResourceSkill[];
-    projectSkills: ProjectSkill[];
-    pageVisibility: PageVisibility;
-    skillThresholds: SkillThresholds;
-    planningSettings: { monthsBefore: number; monthsAfter: number };
-    leaveTypes: LeaveType[];
-    leaveRequests: LeaveRequest[];
-    managerResourceIds: string[];
-    sidebarConfig: SidebarItem[]; 
-    sidebarSections: string[]; 
-    sidebarSectionColors: SidebarSectionColors; 
-    dashboardLayout: DashboardCategory[]; 
-    roleHomePages: Record<string, string>;
-    notifications: Notification[];
-    analyticsCache: any; // New property
-    loading: boolean;
-    isActionLoading: (action: string) => boolean;
-    
-    // Methods
-    fetchData: () => Promise<void>;
-    fetchNotifications: () => Promise<void>;
-    markNotificationAsRead: (id?: string) => Promise<void>;
-    addResource: (resource: Omit<Resource, 'id'>) => Promise<Resource>;
-    updateResource: (resource: Resource) => Promise<void>;
-    deleteResource: (id: string) => Promise<void>;
-    addProject: (project: Omit<Project, 'id'>) => Promise<Project | null>;
-    updateProject: (project: Project) => Promise<void>;
-    deleteProject: (id: string) => Promise<void>;
-    addClient: (client: Omit<Client, 'id'>) => Promise<void>;
-    updateClient: (client: Client) => Promise<void>;
-    deleteClient: (id: string) => Promise<void>;
-    addRole: (role: Omit<Role, 'id'>) => Promise<void>;
-    updateRole: (role: Role) => Promise<void>;
-    deleteRole: (id: string) => Promise<void>;
-    addConfigOption: (type: string, value: string) => Promise<void>;
-    updateConfigOption: (type: string, option: ConfigOption) => Promise<void>;
-    deleteConfigOption: (type: string, id: string) => Promise<void>;
-    addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => Promise<void>;
-    updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
-    deleteCalendarEvent: (id: string) => Promise<void>;
-    addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<void>;
-    deleteAssignment: (id: string) => Promise<void>;
-    getRoleCost: (roleId: string, date: Date) => number;
-    addResourceRequest: (req: Omit<ResourceRequest, 'id'>) => Promise<void>;
-    updateResourceRequest: (req: ResourceRequest) => Promise<void>;
-    deleteResourceRequest: (id: string) => Promise<void>;
-    addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
-    updateInterview: (interview: Interview) => Promise<void>;
-    deleteInterview: (id: string) => Promise<void>;
-    addContract: (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => Promise<void>;
-    updateContract: (contract: Contract, projectIds: string[], managerIds: string[]) => Promise<void>;
-    deleteContract: (id: string) => Promise<void>;
-    recalculateContractBacklog: (id: string) => Promise<void>;
-    addSkill: (skill: Omit<Skill, 'id'>) => Promise<void>;
-    updateSkill: (skill: Skill) => Promise<void>;
-    deleteSkill: (id: string) => Promise<void>;
-    addResourceSkill: (rs: ResourceSkill) => Promise<void>;
-    deleteResourceSkill: (resourceId: string, skillId: string) => Promise<void>;
-    addProjectSkill: (ps: ProjectSkill) => Promise<void>;
-    deleteProjectSkill: (projectId: string, skillId: string) => Promise<void>;
-    updateSkillThresholds: (thresholds: SkillThresholds) => Promise<void>;
-    updatePlanningSettings: (settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>;
-    getResourceComputedSkills: (resourceId: string) => any[];
-    addLeaveType: (type: Omit<LeaveType, 'id'>) => Promise<void>;
-    updateLeaveType: (type: LeaveType) => Promise<void>;
-    deleteLeaveType: (id: string) => Promise<void>;
-    addLeaveRequest: (req: Omit<LeaveRequest, 'id'>) => Promise<void>;
-    updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
-    deleteLeaveRequest: (id: string) => Promise<void>;
-    updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
-    updateSidebarSections: (sections: string[]) => Promise<void>;
-    updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
-    updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
-    updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
-    forceRecalculateAnalytics: () => Promise<void>; 
-    // Skill Category CRUD
-    addSkillCategory: (cat: Omit<SkillCategory, 'id'>) => Promise<void>;
-    updateSkillCategory: (cat: SkillCategory) => Promise<void>;
-    deleteSkillCategory: (id: string) => Promise<void>;
-    // Macro CRUD
-    addSkillMacro: (macro: { name: string }) => Promise<void>;
-    updateSkillMacro: (id: string, name: string) => Promise<void>;
-    deleteSkillMacro: (id: string) => Promise<void>;
-}
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
@@ -268,7 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT);
     const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [analyticsCache, setAnalyticsCache] = useState<any>({}); 
+    const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));

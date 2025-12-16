@@ -10,10 +10,15 @@ import { useEntitiesContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
+import { createAuthorizedFetcher, useAuthorizedResource } from '../src/hooks/useAuthorizedResource';
+import { authorizedFetch, authorizedJsonFetch } from '../src/utils/api';
 
 const UserManagementSection: React.FC = () => {
-    const [users, setUsers] = useState<AppUser[]>([]);
-    const [loading, setLoading] = useState(false);
+    const { data: usersData, loading: usersLoading, refresh: refreshUsers, updateCache: updateUsersCache } = useAuthorizedResource<AppUser[]>(
+        'app-users',
+        createAuthorizedFetcher<AppUser[]>('/api/resources?entity=app-users')
+    );
+    const users = usersData ?? [];
     const { addToast } = useToast();
     const { resources } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,48 +29,30 @@ const UserManagementSection: React.FC = () => {
     const [selectedBulkRole, setSelectedBulkRole] = useState<UserRole | ''>('');
     const [isBulkLoading, setIsBulkLoading] = useState(false);
 
-    const fetchUsers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetch('/api/resources?entity=app-users', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setUsers(data);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchUsers();
-    }, [fetchUsers]);
-
     const handleSaveUser = async (e: React.FormEvent) => {
         e.preventDefault();
         const isNew = !editingUser.id;
         const method = isNew ? 'POST' : 'PUT';
         const url = `/api/resources?entity=app-users${isNew ? '' : `&id=${editingUser.id}`}`;
-        
+
         try {
-            const res = await fetch(url, {
+            const savedUser = await authorizedJsonFetch<AppUser>(url, {
                 method,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(editingUser)
             });
-            
-            if (!res.ok) throw new Error('Failed to save user');
-            
+
+            updateUsersCache(prev => {
+                const current = prev ?? [];
+                if (isNew) {
+                    return [...current, savedUser];
+                }
+                return current.map(user => user.id === savedUser.id ? savedUser : user);
+            });
             addToast('Utente salvato con successo', 'success');
             setIsModalOpen(false);
-            fetchUsers();
         } catch (e) {
             addToast('Errore nel salvataggio utente', 'error');
         }
@@ -74,12 +61,9 @@ const UserManagementSection: React.FC = () => {
     const handleDeleteUser = async (id: string) => {
         if (!confirm('Sei sicuro di voler eliminare questo utente?')) return;
         try {
-            await fetch(`/api/resources?entity=app-users&id=${id}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-            });
+            await authorizedFetch(`/api/resources?entity=app-users&id=${id}`, { method: 'DELETE' });
             addToast('Utente eliminato', 'success');
-            fetchUsers();
+            updateUsersCache(prev => (prev ?? []).filter(u => u.id !== id));
         } catch (e) {
             addToast('Errore eliminazione utente', 'error');
         }
@@ -96,20 +80,16 @@ const UserManagementSection: React.FC = () => {
 
         setIsBulkLoading(true);
         try {
-            const res = await fetch(`/api/resources?entity=app-users&action=bulk_status_update`, {
+            const data = await authorizedJsonFetch<{ updatedCount: number }>(`/api/resources?entity=app-users&action=bulk_status_update`, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ role: selectedBulkRole, isActive })
             });
-
-            if (!res.ok) throw new Error('Failed bulk update');
-            const data = await res.json();
             
             addToast(`Operazione completata. ${data.updatedCount} utenti aggiornati.`, 'success');
-            fetchUsers();
+            await refreshUsers();
         } catch (e) {
             addToast('Errore durante l\'aggiornamento massivo.', 'error');
         } finally {
@@ -173,7 +153,14 @@ const UserManagementSection: React.FC = () => {
                 </div>
                 {isBulkLoading && <SpinnerIcon className="w-4 h-4 text-primary ml-2" />}
             </div>
-            
+
+            {usersLoading && (
+                <div className="flex items-center gap-2 text-sm text-on-surface-variant mb-3">
+                    <SpinnerIcon className="w-4 h-4" />
+                    <span>Caricamento utenti in corso...</span>
+                </div>
+            )}
+
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                     <thead className="bg-surface-container-low text-on-surface-variant">
@@ -309,8 +296,11 @@ const UserManagementSection: React.FC = () => {
 };
 
 const PermissionMatrixSection: React.FC = () => {
-    const [permissions, setPermissions] = useState<RolePermission[]>([]);
-    const [loading, setLoading] = useState(false);
+    const { data: permissionsData, loading: permissionsLoading, updateCache: updatePermissionsCache } = useAuthorizedResource<RolePermission[]>(
+        'role-permissions',
+        createAuthorizedFetcher<RolePermission[]>('/api/resources?entity=role-permissions')
+    );
+    const permissions = permissionsData ?? [];
     const { addToast } = useToast();
 
     // Define all protectable paths
@@ -323,31 +313,11 @@ const PermissionMatrixSection: React.FC = () => {
         '/admin-settings', '/db-inspector'
     ];
 
-    const fetchPermissions = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await fetch('/api/resources?entity=role-permissions', {
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setPermissions(data);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchPermissions();
-    }, [fetchPermissions]);
-
     const handleToggle = (role: 'SIMPLE' | 'MANAGER' | 'SENIOR MANAGER' | 'MANAGING DIRECTOR', path: string) => {
-        setPermissions(prev => {
-            const existingIndex = prev.findIndex(p => p.role === role && p.pagePath === path);
-            const newPerms = [...prev];
+        updatePermissionsCache(prev => {
+            const existingPermissions = prev ?? [];
+            const existingIndex = existingPermissions.findIndex(p => p.role === role && p.pagePath === path);
+            const newPerms = [...existingPermissions];
             if (existingIndex >= 0) {
                 newPerms[existingIndex] = { ...newPerms[existingIndex], allowed: !newPerms[existingIndex].allowed };
             } else {
@@ -358,28 +328,22 @@ const PermissionMatrixSection: React.FC = () => {
     };
 
     const handleSave = async () => {
-        setLoading(true);
+        if (permissionsLoading) return;
+        updatePermissionsCache(prev => prev ?? [], false);
         try {
-            const res = await fetch('/api/resources?entity=role-permissions', {
+            const data = await authorizedJsonFetch<{ permissions: RolePermission[] }>('/api/resources?entity=role-permissions', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ permissions })
             });
-            
-            if (!res.ok) throw new Error('Failed to save permissions');
-            
-            // Update local state with exact response from server to ensure sync
-            const data = await res.json();
-            if (data.permissions) setPermissions(data.permissions);
+
+            if (data.permissions) updatePermissionsCache(() => data.permissions);
 
             addToast('Permessi salvati con successo', 'success');
         } catch (e) {
             addToast('Errore nel salvataggio permessi', 'error');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -395,8 +359,8 @@ const PermissionMatrixSection: React.FC = () => {
                     <h2 className="text-xl font-semibold text-on-surface">Matrice Permessi (RBAC)</h2>
                     <p className="text-xs text-on-surface-variant">Definisci quali ruoli possono accedere a quali pagine. Admin ha sempre accesso completo.</p>
                 </div>
-                <button onClick={handleSave} disabled={loading} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50">
-                    {loading ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Permessi</>}
+                <button onClick={handleSave} disabled={permissionsLoading} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50">
+                    {permissionsLoading ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva Permessi</>}
                 </button>
             </div>
 
