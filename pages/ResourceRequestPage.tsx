@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { z, type SafeParseError } from 'zod';
 import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -9,6 +10,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatDateFull } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
+import { FormFieldFeedback } from '../components/forms';
 
 // --- Types ---
 type EnrichedRequest = ResourceRequest & {
@@ -16,6 +18,34 @@ type EnrichedRequest = ResourceRequest & {
     roleName: string;
     requestorName: string | null;
 };
+
+export const resourceRequestSchema = z.object({
+    projectId: z.string().min(1, 'Seleziona un progetto.'),
+    roleId: z.string().min(1, 'Seleziona un ruolo.'),
+    requestorId: z.string().min(1, 'Seleziona un richiedente.').nullable().optional(),
+    startDate: z.string().min(1, 'Inserisci la data di inizio.'),
+    endDate: z.string().min(1, 'Inserisci la data di fine.'),
+    commitmentPercentage: z.coerce.number().min(0, 'L\'impegno deve essere almeno 0%.').max(100, 'L\'impegno non può superare il 100%.'),
+    isUrgent: z.boolean(),
+    isLongTerm: z.boolean(),
+    isTechRequest: z.boolean(),
+    isOsrOpen: z.boolean(),
+    osrNumber: z.string().trim().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    status: z.enum(['ATTIVA', 'STANDBY', 'CHIUSA'], { required_error: 'Seleziona lo stato della richiesta.' }),
+}).refine(data => {
+    if (!data.isOsrOpen) return true;
+    return !!data.osrNumber && data.osrNumber.trim().length > 0;
+}, {
+    path: ['osrNumber'],
+    message: 'Inserisci il numero OSR quando la richiesta è segnata come aperta.',
+}).refine(data => {
+    if (!data.startDate || !data.endDate) return true;
+    return new Date(data.endDate) >= new Date(data.startDate);
+}, {
+    path: ['endDate'],
+    message: 'La data di fine deve essere successiva o uguale alla data di inizio.',
+});
 
 const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     switch (status) {
@@ -38,6 +68,7 @@ export const ResourceRequestPage: React.FC = () => {
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
     const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
     const [view, setView] = useState<'table' | 'card'>('table');
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const emptyRequest: Omit<ResourceRequest, 'id'> = {
         projectId: '',
@@ -125,6 +156,9 @@ export const ResourceRequestPage: React.FC = () => {
             ...request,
             startDate: request.startDate ? request.startDate.split('T')[0] : '',
             endDate: request.endDate ? request.endDate.split('T')[0] : '',
+            isOsrOpen: !!request.isOsrOpen,
+            osrNumber: request.osrNumber ?? '',
+            requestorId: request.requestorId ?? null,
         };
         setEditingRequest(formattedRequest);
         setIsModalOpen(true);
@@ -133,64 +167,80 @@ export const ResourceRequestPage: React.FC = () => {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingRequest(null);
+        setFormErrors({});
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (editingRequest) {
-            
-            // Validazione manuale dei campi obbligatori
-            if (!editingRequest.projectId || !editingRequest.roleId) {
-                addToast('Compila tutti i campi obbligatori (Progetto, Ruolo).', 'error');
-                return;
+        if (!editingRequest) return;
+
+        const validationResult = resourceRequestSchema.safeParse(editingRequest);
+
+        if (!validationResult.success) {
+            const fieldErrors = (validationResult as SafeParseError).error.flatten().fieldErrors;
+            setFormErrors({
+                projectId: fieldErrors.projectId?.[0] ?? '',
+                roleId: fieldErrors.roleId?.[0] ?? '',
+                requestorId: fieldErrors.requestorId?.[0] ?? '',
+                startDate: fieldErrors.startDate?.[0] ?? '',
+                endDate: fieldErrors.endDate?.[0] ?? '',
+                commitmentPercentage: fieldErrors.commitmentPercentage?.[0] ?? '',
+                osrNumber: fieldErrors.osrNumber?.[0] ?? '',
+                status: fieldErrors.status?.[0] ?? '',
+            });
+            addToast('Correggi gli errori evidenziati prima di continuare.', 'error');
+            return;
+        }
+
+        const validRequest = validationResult.data;
+
+        const startDate = new Date(validRequest.startDate);
+        const endDate = new Date(validRequest.endDate);
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const osrNumber = validRequest.isOsrOpen ? validRequest.osrNumber : null;
+
+        const requestToSave = {
+            ...validRequest,
+            isLongTerm: diffDays > 60,
+            osrNumber,
+        };
+
+        setFormErrors({});
+
+        try {
+            if ('id' in requestToSave) {
+                await updateResourceRequest(requestToSave as ResourceRequest);
+                addToast('Richiesta aggiornata con successo.', 'success');
+            } else {
+                await addResourceRequest(requestToSave as Omit<ResourceRequest, 'id'>);
+                addToast('Richiesta creata con successo.', 'success');
             }
-
-            // Calculate isLongTerm
-            const startDate = new Date(editingRequest.startDate);
-            const endDate = new Date(editingRequest.endDate);
-            const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            // Clean up OSR number if flag is false
-            const osrNumber = editingRequest.isOsrOpen ? editingRequest.osrNumber : null;
-
-            const requestToSave = { 
-                ...editingRequest, 
-                isLongTerm: diffDays > 60,
-                osrNumber 
-            };
-
-            try {
-                if ('id' in requestToSave) {
-                    await updateResourceRequest(requestToSave as ResourceRequest);
-                    addToast('Richiesta aggiornata con successo.', 'success');
-                } else {
-                    await addResourceRequest(requestToSave as Omit<ResourceRequest, 'id'>);
-                    addToast('Richiesta creata con successo.', 'success');
-                }
-                handleCloseModal();
-            } catch (err) {
-                console.error(err);
-                addToast('Errore durante il salvataggio della richiesta.', 'error');
-            }
+            handleCloseModal();
+        } catch (err) {
+            console.error(err);
+            addToast('Errore durante il salvataggio della richiesta.', 'error');
         }
     };
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         if (!editingRequest) return;
         const { name, value, type } = e.target;
-        
+
         if (type === 'checkbox') {
             const { checked } = e.target as HTMLInputElement;
             setEditingRequest({ ...editingRequest, [name]: checked });
         } else {
             setEditingRequest({ ...editingRequest, [name]: name === 'commitmentPercentage' ? Number(value) : value });
         }
+        setFormErrors(prev => ({ ...prev, [name]: '' }));
     };
 
     const handleSelectChange = (name: string, value: string) => {
         if (editingRequest) {
-            setEditingRequest({ ...editingRequest, [name]: value });
+            const normalizedValue = value === '' ? null : value;
+            setEditingRequest({ ...editingRequest, [name]: normalizedValue as string | null });
+            setFormErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
 
@@ -407,25 +457,55 @@ export const ResourceRequestPage: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium mb-1">Progetto *</label>
                                 <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto..." required/>
+                                <FormFieldFeedback
+                                    error={formErrors.projectId}
+                                    helperText="Campo obbligatorio per collegare la richiesta al progetto corretto."
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium mb-1">Ruolo Richiesto *</label>
                                 <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." required/>
+                                <FormFieldFeedback
+                                    error={formErrors.roleId}
+                                    helperText="Identifica la seniority necessaria per valutare l'assegnazione."
+                                />
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Richiedente (Opzionale)</label>
                             <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente..." />
+                            <FormFieldFeedback
+                                error={formErrors.requestorId}
+                                helperText="Indica chi ha aperto la richiesta per facilitare il follow-up."
+                            />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Data Inizio *</label><input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/></div>
-                            <div><label className="block text-sm font-medium mb-1">Data Fine *</label><input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/></div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Data Inizio *</label>
+                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/>
+                                <FormFieldFeedback
+                                    error={formErrors.startDate}
+                                    helperText="Usa il formato ISO per evitare errori di parsing."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Data Fine *</label>
+                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/>
+                                <FormFieldFeedback
+                                    error={formErrors.endDate}
+                                    helperText="La data di fine deve essere successiva alla data di inizio."
+                                />
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Impegno % ({editingRequest.commitmentPercentage}%)</label>
                             <input type="range" min="0" max="100" step="10" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
+                            <FormFieldFeedback
+                                error={formErrors.commitmentPercentage}
+                                helperText="Imposta l'impegno previsto tra 0% e 100%."
+                            />
                         </div>
-                        
+
                         <div className="bg-surface-container-low p-3 rounded border border-outline-variant">
                             <div className="flex items-center gap-2 mb-2">
                                 <input type="checkbox" name="isOsrOpen" checked={editingRequest.isOsrOpen || false} onChange={handleChange} className="form-checkbox"/>
@@ -434,13 +514,17 @@ export const ResourceRequestPage: React.FC = () => {
                             {editingRequest.isOsrOpen && (
                                 <div>
                                     <label className="block text-xs font-medium mb-1 text-on-surface-variant">Numero OSR</label>
-                                    <input 
-                                        type="text" 
-                                        name="osrNumber" 
-                                        value={editingRequest.osrNumber || ''} 
-                                        onChange={handleChange} 
+                                    <input
+                                        type="text"
+                                        name="osrNumber"
+                                        value={editingRequest.osrNumber || ''}
+                                        onChange={handleChange}
                                         className="form-input text-sm py-1"
                                         placeholder="Inserisci numero OSR..."
+                                    />
+                                    <FormFieldFeedback
+                                        error={formErrors.osrNumber}
+                                        helperText="Compila il numero OSR solo se la richiesta è aperta."
                                     />
                                 </div>
                             )}
@@ -461,6 +545,10 @@ export const ResourceRequestPage: React.FC = () => {
                             <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
                                 {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
+                            <FormFieldFeedback
+                                error={formErrors.status}
+                                helperText="Aggiorna lo stato in base all'avanzamento della richiesta."
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium mb-1">Note</label>

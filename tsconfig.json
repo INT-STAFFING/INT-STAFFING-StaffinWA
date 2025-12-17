@@ -21,6 +21,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "zod": [
+        "./libs/zod"
       ]
     },
     "allowImportingTsExtensions": true,

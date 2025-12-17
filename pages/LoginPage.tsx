@@ -5,9 +5,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { z, type SafeParseError } from 'zod';
+import { useAuth } from '../context/AuthContext';
 import { SpinnerIcon } from '../components/icons';
+import { FormFieldFeedback } from '../components/forms';
+
+export const loginSchema = z.object({
+    username: z.string().trim().min(3, 'Inserisci uno username valido (minimo 3 caratteri).'),
+    password: z.string().min(8, 'La password deve contenere almeno 8 caratteri.'),
+});
 
 const LoginPage: React.FC = () => {
     const [password, setPassword] = useState('');
@@ -16,6 +23,7 @@ const LoginPage: React.FC = () => {
     const [error, setError] = useState('');
     const { login, isAuthenticated, isLoginProtectionEnabled } = useAuth();
     const navigate = useNavigate();
+    const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
 
     // Reindirizza se l'utente è già loggato e la protezione è attiva
     useEffect(() => {
@@ -28,8 +36,21 @@ const LoginPage: React.FC = () => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
+        setFieldErrors({});
+
+        const validation = loginSchema.safeParse({ username, password });
+
+        if (!validation.success) {
+            const errors = (validation as SafeParseError).error.flatten().fieldErrors;
+            setFieldErrors({
+                username: errors.username?.[0],
+                password: errors.password?.[0],
+            });
+            setIsLoading(false);
+            return;
+        }
+
         try {
-            // Pass both username and password
             await login(password, username);
             // Il reindirizzamento avverrà automaticamente tramite il ProtectedRoute
         } catch (err) {
@@ -67,9 +88,16 @@ const LoginPage: React.FC = () => {
                                 type="text"
                                 required
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={(e) => {
+                                    setUsername(e.target.value);
+                                    setFieldErrors(prev => ({ ...prev, username: undefined }));
+                                }}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-outline placeholder-on-surface-variant text-on-surface bg-surface-container rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                                 placeholder="Username (es. mario.rossi)"
+                            />
+                            <FormFieldFeedback
+                                error={fieldErrors.username}
+                                helperText="Usa lo username aziendale senza spazi."
                             />
                         </div>
                         <div>
@@ -81,9 +109,16 @@ const LoginPage: React.FC = () => {
                                 autoComplete="current-password"
                                 required
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    setFieldErrors(prev => ({ ...prev, password: undefined }));
+                                }}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-outline placeholder-on-surface-variant text-on-surface bg-surface-container rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                                 placeholder="Password"
+                            />
+                            <FormFieldFeedback
+                                error={fieldErrors.password}
+                                helperText="Minimo 8 caratteri, rispettando la policy aziendale."
                             />
                         </div>
                     </div>
