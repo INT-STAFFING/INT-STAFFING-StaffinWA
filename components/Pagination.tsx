@@ -55,8 +55,9 @@ const Pagination: React.FC<PaginationProps> = ({
                 <button
                     onClick={handlePrevious}
                     disabled={currentPage === 1}
-                    className="p-2 rounded-full hover:bg-surface-container disabled:opacity-30 disabled:hover:bg-transparent text-on-surface transition-colors"
+                    className="p-2 rounded-full hover:bg-surface-container disabled:opacity-30 disabled:hover:bg-transparent text-on-surface transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     title="Pagina Precedente"
+                    aria-label="Pagina precedente"
                 >
                     <span className="material-symbols-outlined">chevron_left</span>
                 </button>
@@ -67,13 +68,15 @@ const Pagination: React.FC<PaginationProps> = ({
                             key={idx}
                             onClick={() => typeof page === 'number' ? onPageChange(page) : null}
                             disabled={typeof page !== 'number'}
-                            className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-colors
-                                ${page === currentPage 
-                                    ? 'bg-primary text-on-primary' 
-                                    : typeof page === 'number' 
-                                        ? 'text-on-surface hover:bg-surface-container' 
+                            className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary
+                                ${page === currentPage
+                                    ? 'bg-primary text-on-primary'
+                                    : typeof page === 'number'
+                                        ? 'text-on-surface hover:bg-surface-container'
                                         : 'text-on-surface-variant cursor-default'
                                 }`}
+                            aria-label={typeof page === 'number' ? `Pagina ${page}` : 'Interruzione elenco pagine'}
+                            aria-current={page === currentPage ? 'page' : undefined}
                         >
                             {page}
                         </button>
@@ -83,8 +86,9 @@ const Pagination: React.FC<PaginationProps> = ({
                 <button
                     onClick={handleNext}
                     disabled={currentPage === totalPages}
-                    className="p-2 rounded-full hover:bg-surface-container disabled:opacity-30 disabled:hover:bg-transparent text-on-surface transition-colors"
+                    className="p-2 rounded-full hover:bg-surface-container disabled:opacity-30 disabled:hover:bg-transparent text-on-surface transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     title="Pagina Successiva"
+                    aria-label="Pagina successiva"
                 >
                     <span className="material-symbols-outlined">chevron_right</span>
                 </button>
@@ -96,7 +100,8 @@ const Pagination: React.FC<PaginationProps> = ({
                     <select
                         value={itemsPerPage}
                         onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-                        className="form-select py-1 pl-2 pr-8 text-xs bg-surface-container border-none rounded-lg focus:ring-1 focus:ring-primary"
+                        className="form-select py-1 pl-2 pr-8 text-xs bg-surface-container border-none rounded-lg focus:ring-1 focus:ring-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        aria-label="Seleziona righe per pagina"
                     >
                         <option value={10}>10</option>
                         <option value={20}>20</option>
