@@ -8,7 +8,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 
 const CONFIG_KEY = 'login_protection_enabled';
-const JWT_SECRET = process.env.JWT_SECRET || 'staffing-app-secret-key-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET // || 'staffing-app-secret-key-change-in-prod';
 
 // Helper to verify JWT for admin actions
 const verifyAdmin = (req: VercelRequest): boolean => {
