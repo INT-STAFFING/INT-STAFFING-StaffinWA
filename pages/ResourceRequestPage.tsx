@@ -22,7 +22,7 @@ type EnrichedRequest = ResourceRequest & {
 export const resourceRequestSchema = z.object({
     projectId: z.string().min(1, 'Seleziona un progetto.'),
     roleId: z.string().min(1, 'Seleziona un ruolo.'),
-    requestorId: z.string().min(1).nullable().optional(),
+    requestorId: z.string().min(1, 'Seleziona un richiedente.').nullable().optional(),
     startDate: z.string().min(1, 'Inserisci la data di inizio.'),
     endDate: z.string().min(1, 'Inserisci la data di fine.'),
     commitmentPercentage: z.coerce.number().min(0, 'L\'impegno deve essere almeno 0%.').max(100, 'L\'impegno non può superare il 100%.'),
