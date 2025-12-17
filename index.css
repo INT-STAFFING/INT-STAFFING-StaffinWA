@@ -39,7 +39,7 @@
   --color-surface-container: #eceef1;
   --color-surface-container-high: #e6e8eb;
   --color-surface-container-highest: #e1e3e5;
-  
+
   /* Custom Colors */
   --color-yellow-container: #ffea9f;
   --color-on-yellow-container: #5e4500;
@@ -87,86 +87,82 @@
   --color-on-yellow-container: #ffea9f;
 }
 
-/* Base styles */
-body {
-  font-family: 'Manrope', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-.material-symbols-outlined {
-  font-variation-settings:
-  'FILL' 0,
-  'wght' 400,
-  'GRAD' 0,
-  'opsz' 24
+@layer base {
+  body {
+    @apply bg-background text-on-background antialiased text-base leading-relaxed;
+    font-family: 'Manrope', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    @apply text-3xl font-semibold text-on-surface;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold text-on-surface;
+  }
+
+  h3 {
+    @apply text-xl font-semibold text-on-surface;
+  }
+
+  p, label, span {
+    @apply text-base text-on-surface;
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  }
 }
 
-/* M3 Form Control Styles (Updated to "Outlined" style) */
-.form-input, .form-textarea, .form-select {
-  appearance: none;
-  background-color: transparent;
-  border: 1px solid var(--color-outline);
-  border-radius: 8px;
-  padding: 0.75rem;
-  width: 100%;
-  color: var(--color-on-surface);
-  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-}
-.form-input:focus, .form-textarea:focus, .form-select:focus {
-    outline: none;
-    border-width: 2px;
+@layer components {
+  /* M3 Form Control Styles (Updated to "Outlined" style) */
+  .form-input, .form-textarea, .form-select {
+    @apply appearance-none bg-transparent border border-outline rounded-lg px-4 py-3 w-full text-base text-on-surface transition duration-150 ease-in-out placeholder:text-on-surface-variant focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:ring-0;
+  }
+
+  .form-textarea {
+    @apply min-h-[120px] leading-relaxed;
+  }
+
+  .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25em 1.25em;
+    padding-right: 2.5rem;
+  }
+
+  .dark .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  /* M3 Checkbox */
+  .form-checkbox {
+    @apply appearance-none h-5 w-5 border-2 border-on-surface-variant rounded-md relative align-middle cursor-pointer transition duration-150 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary;
+  }
+
+  .form-checkbox:checked {
+    background-color: var(--color-primary);
     border-color: var(--color-primary);
-    /* Adjust padding to compensate for the thicker border, preventing layout shift */
-    padding: calc(0.75rem - 1px);
-}
- .form-input::placeholder, .form-textarea::placeholder {
-    color: var(--color-on-surface-variant);
-    opacity: 1;
-}
-.form-select {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.5rem center;
-  background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
-  padding-right: 2.5rem;
-}
-.form-select:focus {
-    padding-right: calc(2.5rem - 1px);
-}
-.dark .form-select {
-   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-}
+  }
 
-/* M3 Checkbox */
-.form-checkbox {
-  appearance: none;
-  -webkit-appearance: none;
-  height: 1.25rem;
-  width: 1.25rem;
-  border: 2px solid var(--color-on-surface-variant);
-  border-radius: 4px;
-  display: inline-block;
-  position: relative;
-  vertical-align: middle;
-  cursor: pointer;
-  transition: all 150ms;
-}
-.form-checkbox:checked {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-.form-checkbox:checked::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 1px;
-  width: 6px;
-  height: 12px;
-  border: solid var(--color-on-primary);
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+  .form-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 6px;
+    height: 12px;
+    border: solid var(--color-on-primary);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
 }
 
 /* M3 State Layers for Primary Buttons */

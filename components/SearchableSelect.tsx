@@ -116,12 +116,13 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             <button
                 ref={buttonRef}
                 type="button"
-                className="w-full text-left flex justify-between items-center form-input"
+                className="w-full text-left flex justify-between items-center form-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 onClick={openMenu}
                 onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
                 aria-controls={listboxId}
+                aria-label={selectedOption ? `Seleziona valore: ${selectedOption.label}` : `Apri selettore per ${placeholder}`}
             >
                 <span className={selectedOption ? 'text-on-surface' : 'text-on-surface-variant'}>
                     {selectedOption ? selectedOption.label : placeholder}
@@ -146,6 +147,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                             aria-expanded="true"
                             aria-controls={listboxId}
                             aria-activedescendant={getOptionId(activeIndex)}
+                            aria-label="Filtra le opzioni"
                         />
                     </div>
                     <ul ref={listRef} id={listboxId} className="max-h-60 overflow-y-auto" role="listbox" tabIndex={-1}>

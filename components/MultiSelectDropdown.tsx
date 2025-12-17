@@ -127,12 +127,13 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             <button
                 ref={buttonRef}
                 type="button"
-                className="w-full text-left flex justify-between items-center form-input"
+                className="w-full text-left flex justify-between items-center form-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 onClick={openMenu}
                 onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
                 aria-controls={listboxId}
+                aria-label={selectedValues.length > 0 ? `Selezioni correnti: ${selectedValues.length}` : `Apri selettore multiplo: ${placeholder}`}
             >
                 <span className={selectedValues.length > 0 ? 'text-on-surface' : 'text-on-surface-variant'}>
                     {getButtonLabel()}
@@ -156,6 +157,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                             aria-expanded="true"
                             aria-controls={listboxId}
                             aria-activedescendant={filteredOptions.length > 0 ? getOptionId(activeIndex) : undefined}
+                            aria-label="Filtra le opzioni"
                         />
                     </div>
                     <ul 

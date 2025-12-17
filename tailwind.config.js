@@ -10,6 +10,12 @@ export default {
       fontFamily: {
         sans: ['Manrope', 'sans-serif'],
       },
+      fontSize: {
+        sm: ['0.9375rem', '1.4'],
+        base: ['1rem', '1.6'],
+        lg: ['1.125rem', '1.75'],
+        xl: ['1.25rem', '1.9'],
+      },
       borderRadius: {
         'xl': '1rem',    // 16px
         '2xl': '1.75rem', // 28px
