@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { SafeParseResult } from 'zod';
+import type { SafeParseError, SafeParseResult } from 'zod';
 import Modal from '../Modal';
 import SearchableSelect from '../SearchableSelect';
 import MultiSelectDropdown from '../MultiSelectDropdown';
@@ -76,7 +76,7 @@ export const FormDialog = <TValues extends Record<string, unknown>>({
             const result = schema.safeParse(values);
             if (!result.success) {
                 const nextErrors: Record<string, string> = {};
-                result.error.issues.forEach(issue => {
+                (result as SafeParseError).error.issues.forEach(issue => {
                     const pathKey = issue.path[0];
                     if (typeof pathKey === 'string' && !nextErrors[pathKey]) {
                         nextErrors[pathKey] = issue.message;
