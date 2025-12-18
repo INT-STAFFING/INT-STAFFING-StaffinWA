@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ZodSchema } from 'zod';
+import type { SafeParseResult } from 'zod';
 import Modal from '../Modal';
 import SearchableSelect from '../SearchableSelect';
 import MultiSelectDropdown from '../MultiSelectDropdown';
@@ -15,7 +15,7 @@ interface FormDialogProps<TValues extends Record<string, unknown>> {
     onClose: () => void;
     onSubmit: (values: TValues) => void | Promise<void>;
     fields: FormFieldDefinition[];
-    schema?: ZodSchema<TValues>;
+    schema?: { safeParse: (values: TValues) => SafeParseResult<TValues> };
     submitLabel?: string;
     cancelLabel?: string;
 }
