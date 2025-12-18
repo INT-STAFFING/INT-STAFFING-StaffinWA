@@ -16,12 +16,21 @@ import {
   formatDateFull,
   formatDateSynthetic
 } from '../utils/dateUtils';
-import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
-import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
+import {
+  FormDialog,
+  FormFieldDefinition,
+  Option,
+  assignmentSchema,
+  bulkAssignmentSchema,
+  bulkFormFields,
+  buildAssignmentFormFields,
+  AssignmentFormValues,
+  BulkAssignmentFormValues,
+} from '../components/forms';
 
 type ViewMode = 'day' | 'week' | 'month';
 
@@ -575,8 +584,8 @@ export const StaffingPage: React.FC = () => {
   const [isAssignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
-  const [bulkFormData, setBulkFormData] = useState({ startDate: '', endDate: '', percentage: 50 });
-  const [newAssignmentData, setNewAssignmentData] = useState<{ resourceId: string; projectIds: string[] }>({ resourceId: '', projectIds: [] });
+  const [bulkFormData, setBulkFormData] = useState<BulkAssignmentFormValues>({ startDate: '', endDate: '', percentage: 50 });
+  const [newAssignmentData, setNewAssignmentData] = useState<AssignmentFormValues>({ resourceId: '', projectIds: [] });
 
   // Filters State (Input)
   const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
@@ -691,8 +700,20 @@ export const StaffingPage: React.FC = () => {
   const openBulkModal = useCallback((assignment: Assignment) => { setSelectedAssignment(assignment); setBulkFormData({ startDate: '', endDate: '', percentage: 50 }); setBulkModalOpen(true); }, []);
   const openNewAssignmentModal = useCallback((resourceId: string = '') => { setNewAssignmentData({ resourceId, projectIds: [] }); setAssignmentModalOpen(true); }, []);
 
-  const handleBulkSubmit = (e: React.FormEvent) => { e.preventDefault(); if (selectedAssignment) { bulkUpdateAllocations(selectedAssignment.id!, bulkFormData.startDate, bulkFormData.endDate, bulkFormData.percentage); setBulkModalOpen(false); } };
-  const handleNewAssignmentSubmit = (e: React.FormEvent) => { e.preventDefault(); if (newAssignmentData.resourceId && newAssignmentData.projectIds.length > 0) { const assignmentsToCreate = newAssignmentData.projectIds.map(projectId => ({ resourceId: newAssignmentData.resourceId, projectId })); addMultipleAssignments(assignmentsToCreate); setAssignmentModalOpen(false); } };
+  const handleBulkSubmit = (values: BulkAssignmentFormValues) => {
+      if (!selectedAssignment) return;
+      bulkUpdateAllocations(selectedAssignment.id!, values.startDate, values.endDate, values.percentage);
+      setBulkFormData(values);
+      setBulkModalOpen(false);
+  };
+  const handleNewAssignmentSubmit = (values: AssignmentFormValues) => {
+      if (values.resourceId && values.projectIds.length > 0) {
+          const assignmentsToCreate = values.projectIds.map(projectId => ({ resourceId: values.resourceId, projectId }));
+          addMultipleAssignments(assignmentsToCreate);
+          setNewAssignmentData(values);
+          setAssignmentModalOpen(false);
+      }
+  };
   
   const handleFilterChange = useCallback((name: string, value: string) => {
       setFilters(prev => ({ ...prev, [name]: value }));
@@ -862,10 +883,49 @@ export const StaffingPage: React.FC = () => {
 
   // --- JSX ---
 
-  const resourceOptions = useMemo(() => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })), [resources]);
-  const projectOptions = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);
-  const clientOptions = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
-  const projectManagerOptions = useMemo(() => { const managers = [...new Set(projects.map((p) => p.projectManager).filter(Boolean) as string[])]; return managers.sort().map((pm) => ({ value: pm, label: pm })); }, [projects]);
+  const resourceOptions: Option[] = useMemo(
+      () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
+      [resources]
+  );
+  const projectOptions: Option[] = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);
+  const activeProjectOptions: Option[] = useMemo(
+      () => projects.filter((p) => p.status !== 'Completato').map((p) => ({ value: p.id!, label: p.name })),
+      [projects]
+  );
+  const clientOptions: Option[] = useMemo(() => clients.map((c) => ({ value: c.id!, label: c.name })), [clients]);
+  const projectManagerOptions: Option[] = useMemo(() => {
+      const managers = [...new Set(projects.map((p) => p.projectManager).filter(Boolean) as string[])];
+      return managers.sort().map((pm) => ({ value: pm, label: pm }));
+  }, [projects]);
+
+  const asyncResourceLoader = useCallback(
+      async (query: string) => {
+          const normalized = query.toLowerCase();
+          return resourceOptions.filter(option => option.label.toLowerCase().includes(normalized));
+      },
+      [resourceOptions]
+  );
+
+  const asyncProjectLoader = useCallback(
+      async (query: string) => {
+          const normalized = query.toLowerCase();
+          return activeProjectOptions.filter(option => option.label.toLowerCase().includes(normalized));
+      },
+      [activeProjectOptions]
+  );
+
+  const assignmentFormFields = useMemo<FormFieldDefinition[]>(() => {
+      const fields = buildAssignmentFormFields(resourceOptions, activeProjectOptions);
+      return fields.map((field) => {
+          if (field.name === 'resourceId') {
+              return { ...field, loadOptions: asyncResourceLoader };
+          }
+          if (field.name === 'projectIds') {
+              return { ...field, loadOptions: asyncProjectLoader };
+          }
+          return field;
+      });
+  }, [resourceOptions, activeProjectOptions, asyncResourceLoader, asyncProjectLoader]);
 
   return (
     <div className="flex flex-col h-full">
@@ -1038,32 +1098,27 @@ export const StaffingPage: React.FC = () => {
       {/* Modali Comuni */}
       {assignmentToDelete && <ConfirmationModal isOpen={!!assignmentToDelete} onClose={() => setAssignmentToDelete(null)} onConfirm={() => { if (assignmentToDelete) { deleteAssignment(assignmentToDelete.id!); setAssignmentToDelete(null); } }} title="Conferma Rimozione" message={<>Sei sicuro di voler rimuovere l'assegnazione di <strong>{getResourceById(assignmentToDelete.resourceId)?.name}</strong> dal progetto <strong>{getProjectById(assignmentToDelete.projectId)?.name}</strong>?</>} isConfirming={isActionLoading(`deleteAssignment-${assignmentToDelete.id}`)} />}
       
-      <Modal isOpen={isBulkModalOpen} onClose={() => setBulkModalOpen(false)} title="Assegnazione Massiva">
-          <form onSubmit={handleBulkSubmit}>
-              <div className="space-y-4">
-                  <div><label className="block text-sm font-medium text-on-surface-variant">Data Inizio</label><input type="date" required value={bulkFormData.startDate} onChange={(e) => setBulkFormData(f => ({ ...f, startDate: e.target.value }))} className="mt-1 block w-full form-input"/></div>
-                  <div><label className="block text-sm font-medium text-on-surface-variant">Data Fine</label><input type="date" required value={bulkFormData.endDate} onChange={(e) => setBulkFormData(f => ({ ...f, endDate: e.target.value }))} className="mt-1 block w-full form-input"/></div>
-                  <div><label className="block text-sm font-medium text-on-surface-variant">Percentuale ({bulkFormData.percentage}%)</label><input type="range" min="0" max="100" step="5" value={bulkFormData.percentage} onChange={(e) => setBulkFormData(f => ({ ...f, percentage: parseInt(e.target.value, 10) }))} className="mt-1 block w-full accent-primary"/></div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-outline-variant">
-                  <button type="button" onClick={() => setBulkModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                  <button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90">Salva</button>
-              </div>
-          </form>
-      </Modal>
+      <FormDialog
+          isOpen={isBulkModalOpen}
+          onClose={() => setBulkModalOpen(false)}
+          title="Assegnazione Massiva"
+          defaultValues={bulkFormData}
+          onSubmit={handleBulkSubmit}
+          fields={bulkFormFields}
+          schema={bulkAssignmentSchema}
+          submitLabel="Salva"
+      />
       
-      <Modal isOpen={isAssignmentModalOpen} onClose={() => setAssignmentModalOpen(false)} title="Assegna Risorsa a Progetto">
-          <form onSubmit={handleNewAssignmentSubmit} className="flex flex-col h-96">
-              <div className="space-y-4 flex-grow">
-                  <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={newAssignmentData.resourceId} onChange={(name, value) => setNewAssignmentData(d => ({ ...d, [name]: value }))} options={resourceOptions} placeholder="Seleziona una risorsa" required/></div>
-                  <div><label className="block text-sm font-medium text-on-surface-variant">Progetto/i</label><MultiSelectDropdown name="projectIds" selectedValues={newAssignmentData.projectIds} onChange={(name, values) => setNewAssignmentData(d => ({ ...d, [name]: values }))} options={projects.filter((p) => p.status !== 'Completato').map((p) => ({ value: p.id!, label: p.name }))} placeholder="Seleziona uno o più progetti"/></div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-outline-variant">
-                  <button type="button" onClick={() => setAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                  <button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90">Aggiungi</button>
-              </div>
-          </form>
-      </Modal>
+      <FormDialog
+          isOpen={isAssignmentModalOpen}
+          onClose={() => setAssignmentModalOpen(false)}
+          title="Assegna Risorsa a Progetto"
+          defaultValues={newAssignmentData}
+          onSubmit={handleNewAssignmentSubmit}
+          fields={assignmentFormFields}
+          schema={assignmentSchema}
+          submitLabel="Aggiungi"
+      />
     </div>
   );
 };

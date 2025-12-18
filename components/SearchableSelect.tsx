@@ -4,11 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useId } from 'react';
-
-interface Option {
-    value: string;
-    label: string;
-}
+import { Option } from './forms/types';
 
 interface SearchableSelectProps {
     options: Option[];
@@ -17,12 +13,24 @@ interface SearchableSelectProps {
     name: string;
     placeholder?: string;
     required?: boolean;
+    loadOptions?: (query: string) => Promise<Option[]>;
 }
 
-const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onChange, name, placeholder = 'Seleziona...', required }) => {
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+    options,
+    value,
+    onChange,
+    name,
+    placeholder = 'Seleziona...',
+    required,
+    loadOptions,
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeIndex, setActiveIndex] = useState(-1);
+    const [availableOptions, setAvailableOptions] = useState<Option[]>(options || []);
+    const [isLoading, setIsLoading] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     
     const wrapperRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -35,7 +43,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
     const getOptionId = (index: number) => `${baseId}-option-${index}`.replace(/:/g, '-');
 
 
-    const selectedOption = (options || []).find(option => option.value === value);
+    const selectedOption = (availableOptions || []).find(option => option.value === value);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -47,7 +55,40 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredOptions = (options || []).filter(option =>
+    useEffect(() => {
+        setAvailableOptions(options || []);
+    }, [options]);
+
+    useEffect(() => {
+        if (!loadOptions || !isOpen) return;
+
+        let isActive = true;
+        setIsLoading(true);
+        setFetchError(null);
+
+        loadOptions(searchTerm)
+            .then((fetched) => {
+                if (!isActive) return;
+                setAvailableOptions(fetched);
+            })
+            .catch((error: unknown) => {
+                console.error('Errore nel caricamento delle opzioni', error);
+                if (!isActive) return;
+                setFetchError('Impossibile caricare le opzioni');
+                setAvailableOptions([]);
+            })
+            .finally(() => {
+                if (isActive) {
+                    setIsLoading(false);
+                }
+            });
+
+        return () => {
+            isActive = false;
+        };
+    }, [isOpen, searchTerm, loadOptions]);
+
+    const filteredOptions = (availableOptions || []).filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
@@ -101,7 +142,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
             inputRef.current?.focus();
             setActiveIndex(value ? filteredOptions.findIndex(o => o.value === value) + 1 : 0);
         }
-    }, [isOpen, searchTerm]);
+    }, [isOpen, searchTerm, value, filteredOptions]);
 
     useEffect(() => {
         if (isOpen && activeIndex >= 0 && listRef.current) {
@@ -146,10 +187,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                             aria-autocomplete="list"
                             aria-expanded="true"
                             aria-controls={listboxId}
-                            aria-activedescendant={getOptionId(activeIndex)}
+                            aria-activedescendant={activeIndex >= 0 ? getOptionId(activeIndex) : undefined}
                             aria-label="Filtra le opzioni"
                         />
-                    </div>
+                </div>
                     <ul ref={listRef} id={listboxId} className="max-h-60 overflow-y-auto" role="listbox" tabIndex={-1}>
                         <li
                             id={getOptionId(0)}
@@ -160,7 +201,17 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({ options, value, onC
                         >
                             {placeholder}
                         </li>
-                        {filteredOptions.length > 0 ? (
+                        {isLoading && (
+                            <li className="px-4 py-2 text-sm text-on-surface-variant" role="option" aria-live="polite">
+                                Caricamento opzioni...
+                            </li>
+                        )}
+                        {fetchError && !isLoading && (
+                            <li className="px-4 py-2 text-sm text-error" role="option" aria-live="assertive">
+                                {fetchError}
+                            </li>
+                        )}
+                        {!isLoading && filteredOptions.length > 0 ? (
                             filteredOptions.map((option, index) => {
                                 const optionIndex = index + 1;
                                 return (

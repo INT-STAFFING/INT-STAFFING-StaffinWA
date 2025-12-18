@@ -4,11 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useId, useCallback } from 'react';
-
-interface Option {
-    value: string;
-    label: string;
-}
+import { Option } from './forms/types';
 
 interface MultiSelectDropdownProps {
     options: Option[];
@@ -16,12 +12,23 @@ interface MultiSelectDropdownProps {
     onChange: (name: string, selected: string[]) => void;
     name: string;
     placeholder?: string;
+    loadOptions?: (query: string) => Promise<Option[]>;
 }
 
-const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, selectedValues, onChange, name, placeholder = 'Seleziona...' }) => {
+const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
+    options,
+    selectedValues,
+    onChange,
+    name,
+    placeholder = 'Seleziona...',
+    loadOptions,
+}) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeIndex, setActiveIndex] = useState(-1);
+    const [availableOptions, setAvailableOptions] = useState<Option[]>(options || []);
+    const [isLoading, setIsLoading] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     const wrapperRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +49,40 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredOptions = (options || []).filter(option =>
+    useEffect(() => {
+        setAvailableOptions(options || []);
+    }, [options]);
+
+    useEffect(() => {
+        if (!loadOptions || !isOpen) return;
+
+        let isActive = true;
+        setIsLoading(true);
+        setFetchError(null);
+
+        loadOptions(searchTerm)
+            .then((fetched) => {
+                if (!isActive) return;
+                setAvailableOptions(fetched);
+            })
+            .catch((error: unknown) => {
+                console.error('Errore nel caricamento delle opzioni', error);
+                if (!isActive) return;
+                setFetchError('Impossibile caricare le opzioni');
+                setAvailableOptions([]);
+            })
+            .finally(() => {
+                if (isActive) {
+                    setIsLoading(false);
+                }
+            });
+
+        return () => {
+            isActive = false;
+        };
+    }, [isOpen, searchTerm, loadOptions]);
+
+    const filteredOptions = (availableOptions || []).filter(option =>
         option.label.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -117,7 +157,7 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
             return placeholder;
         }
         if (selectedValues.length === 1) {
-            return (options || []).find(o => o.value === selectedValues[0])?.label || placeholder;
+            return (availableOptions || []).find(o => o.value === selectedValues[0])?.label || placeholder;
         }
         return `${selectedValues.length} elementi selezionati`;
     };
@@ -168,7 +208,17 @@ const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({ options, sele
                         aria-multiselectable="true" 
                         tabIndex={-1}
                     >
-                        {filteredOptions.length > 0 ? (
+                        {isLoading && (
+                            <li className="px-4 py-2 text-sm text-on-surface-variant" role="option" aria-live="polite">
+                                Caricamento opzioni...
+                            </li>
+                        )}
+                        {fetchError && !isLoading && (
+                            <li className="px-4 py-2 text-sm text-error" role="option" aria-live="assertive">
+                                {fetchError}
+                            </li>
+                        )}
+                        {!isLoading && filteredOptions.length > 0 ? (
                             filteredOptions.map((option, index) => (
                                 <li
                                     key={option.value}

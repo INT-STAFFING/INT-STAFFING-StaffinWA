@@ -3,12 +3,13 @@ import React from 'react';
 interface FormFieldFeedbackProps {
     error?: string;
     helperText?: string;
+    id?: string;
 }
 
-export const FormFieldFeedback: React.FC<FormFieldFeedbackProps> = ({ error, helperText }) => {
+export const FormFieldFeedback: React.FC<FormFieldFeedbackProps> = ({ error, helperText, id }) => {
     if (error) {
         return (
-            <p className="mt-1 text-sm text-error" role="alert">
+            <p className="mt-1 text-sm text-error" role="alert" id={id}>
                 {error}
             </p>
         );
@@ -16,7 +17,7 @@ export const FormFieldFeedback: React.FC<FormFieldFeedbackProps> = ({ error, hel
 
     if (helperText) {
         return (
-            <p className="mt-1 text-sm text-on-surface-variant">
+            <p className="mt-1 text-sm text-on-surface-variant" id={id}>
                 {helperText}
             </p>
         );
