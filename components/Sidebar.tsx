@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEntitiesContext } from '../context/AppContext';
-import { SidebarItem } from '../types';
+import { useRoutesManifest } from '../context/RoutesContext';
+import type { AppRoute } from '../src/routes';
 import Modal from './Modal';
 import { SpinnerIcon } from './icons';
 
@@ -57,8 +58,9 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount, o
 )};
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-    const { logout, user, isAdmin, hasPermission, changePassword } = useAuth();
-    const { sidebarConfig, sidebarSections, sidebarSectionColors, notifications } = useEntitiesContext();
+    const { logout, user, changePassword } = useAuth();
+    const { sidebarSections, sidebarSectionColors, notifications } = useEntitiesContext();
+    const { navigationRoutes } = useRoutesManifest();
     
     // State per la modale cambio password
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -79,29 +81,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     // Raggruppa le voci per sezione
     const groupedItems = useMemo(() => {
-        const groups: Record<string, SidebarItem[]> = {};
-        
-        sidebarConfig.forEach(item => {
-            if (!groups[item.section]) {
-                groups[item.section] = [];
+        const groups: Record<string, AppRoute[]> = {};
+
+        navigationRoutes.forEach(item => {
+            const sectionName = item.section || 'Altro';
+            if (!groups[sectionName]) {
+                groups[sectionName] = [];
             }
-            groups[item.section].push(item);
+            groups[sectionName].push(item);
         });
-        
+
         const sortedGroups = Object.entries(groups).sort((a, b) => {
             const idxA = sidebarSections.indexOf(a[0]);
             const idxB = sidebarSections.indexOf(b[0]);
-            // If both found in config, sort by index
             if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-            // If one not found, push to end
             if (idxA !== -1) return -1;
             if (idxB !== -1) return 1;
-            // If neither found, sort alphabetically
             return a[0].localeCompare(b[0]);
         });
 
         return sortedGroups;
-    }, [sidebarConfig, sidebarSections]);
+    }, [navigationRoutes, sidebarSections]);
 
     // Chiude la sidebar quando si clicca su un link (utile per mobile)
     const handleLinkClick = () => {
@@ -147,29 +147,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
                     <nav className="flex-1 overflow-y-auto py-4">
                         {groupedItems.map(([sectionName, items]) => {
-                            // Filter items based on permissions
-                            const visibleItems = items.filter(item => hasPermission(item.path));
-                            
-                            if (visibleItems.length === 0) return null;
-                            
+                            if (items.length === 0) return null;
+
                             const sectionColor = sidebarSectionColors[sectionName];
                             const sectionStyle = sectionColor ? { color: `var(--color-${sectionColor})` } : {};
 
                             return (
                                 <div key={sectionName} className="pb-4">
-                                    <p 
+                                    <p
                                         className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2"
                                         style={sectionStyle}
                                     >
                                         {sectionName}
                                     </p>
-                                    {visibleItems.map(item => (
-                                        <NavItem 
-                                            key={item.path} 
-                                            to={item.path} 
-                                            icon={item.icon} 
-                                            label={item.label} 
-                                            color={item.color} 
+                                    {items.map(item => (
+                                        <NavItem
+                                            key={item.path}
+                                            to={item.path}
+                                            icon={item.icon}
+                                            label={item.label}
                                             badgeCount={item.path === '/notifications' ? unreadNotifications : undefined}
                                             onClick={handleLinkClick}
                                         />
@@ -177,15 +173,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                 </div>
                             );
                         })}
-
-                        {/* Admin Section (Hardcoded for safety/separation) */}
-                        {isAdmin && (
-                            <div className="pb-4">
-                                <p className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Amministrazione</p>
-                                <NavItem to="/admin-settings" icon="admin_panel_settings" label="Impostazioni Admin" onClick={handleLinkClick} />
-                                <NavItem to="/db-inspector" icon="database" label="Database Inspector" onClick={handleLinkClick} />
-                            </div>
-                        )}
                     </nav>
 
                     <div className="p-4 border-t border-outline-variant flex-shrink-0 bg-surface">

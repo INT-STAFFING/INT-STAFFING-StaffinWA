@@ -4,50 +4,18 @@
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
  */
 
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
 import { AppProviders, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { RoutesProvider, useRoutesManifest } from './context/RoutesContext';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
 import { SpinnerIcon } from './components/icons';
-
-// Lazy load all page components for code splitting
-const StaffingPage = lazy(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
-const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
-const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
-const ClientsPage = lazy(() => import('./pages/ClientsPage'));
-const RolesPage = lazy(() => import('./pages/RolesPage'));
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const ExportPage = lazy(() => import('./pages/ExportPage'));
-const ConfigPage = lazy(() => import('./pages/ConfigPage'));
-const ImportPage = lazy(() => import('./pages/ImportPage'));
-const ForecastingPage = lazy(() => import('./pages/ForecastingPage'));
-const GanttPage = lazy(() => import('./pages/GanttPage'));
-const CalendarPage = lazy(() => import('./pages/CalendarPage'));
-const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
-const ReportsPage = lazy(() => import('./pages/ReportsPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
-const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
-const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
-const UserManualPage = lazy(() => import('./pages/UserManualPage'));
-const SimpleUserManualPage = lazy(() => import('./pages/SimpleUserManualPage'));
-const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
-const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
-const SkillsPage = lazy(() => import('./pages/SkillsPage'));
-const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
-const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
-const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
-const LeavePage = lazy(() => import('./pages/LeavePage'));
-const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
-
-// Special handling for named exports
-const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
-const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
+import type { AppRoute } from './src/routes';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -55,28 +23,8 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const location = useLocation();
-  const { sidebarConfig } = useEntitiesContext();
-
-  const getPageTitle = (pathname: string): string => {
-    // Cerca il titolo nella configurazione dinamica
-    const configItem = sidebarConfig.find(item => item.path === pathname);
-    if (configItem) return configItem.label;
-
-    // Fallback per pagine non nel menu o dinamiche
-    const path = pathname.split('/').pop() || 'staffing';
-    switch (path) {
-      case 'staffing': return 'Staffing'; // Fallback
-      case 'admin-settings': return 'Impostazioni Admin';
-      case 'db-inspector': return 'Database Inspector';
-      case 'simple-user-manual': return 'Guida Assenze';
-      case 'test-staffing': return 'Test Staffing Mobile';
-      case 'notifications': return 'Notifiche';
-      case 'certifications': return 'Certificazioni';
-      default: return 'Staffing Planner';
-    }
-  };
-  
-  const pageTitle = getPageTitle(location.pathname);
+  const { getBreadcrumb } = useRoutesManifest();
+  const breadcrumbs = getBreadcrumb(location.pathname);
 
   return (
     <header className="flex-shrink-0 bg-surface border-b border-outline-variant sticky top-0 z-30">
@@ -91,21 +39,20 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         
         <nav aria-label="breadcrumb" className="flex-1 min-w-0">
           <ol className="flex items-center space-x-1 text-sm md:text-base truncate">
-            <li>
-              <Link to="/staffing" className="text-on-surface-variant hover:text-on-surface hover:underline">
-                Home
-              </Link>
-            </li>
-            {pageTitle !== 'Staffing' && pageTitle !== 'Staffing Planner' && (
-              <>
-                <li>
-                  <span className="material-symbols-outlined text-on-surface-variant text-base">chevron_right</span>
-                </li>
-                <li className="font-semibold text-on-surface truncate" aria-current="page">
-                  {pageTitle}
-                </li>
-              </>
-            )}
+            {breadcrumbs.map((crumb, index) => (
+              <li key={crumb.path} className="flex items-center">
+                {index > 0 && (
+                  <span className="material-symbols-outlined text-on-surface-variant text-base mx-1">chevron_right</span>
+                )}
+                {index === breadcrumbs.length - 1 ? (
+                  <span className="font-semibold text-on-surface truncate" aria-current="page">{crumb.label}</span>
+                ) : (
+                  <Link to={crumb.path} className="text-on-surface-variant hover:text-on-surface hover:underline">
+                    {crumb.label}
+                  </Link>
+                )}
+              </li>
+            ))}
           </ol>
         </nav>
         
@@ -142,14 +89,15 @@ const loadingSpinner = (
 );
 
 // RBAC Protected Route Wrapper
-const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = ({ path, children }) => {
-  const { hasPermission, isLoginProtectionEnabled } = useAuth();
+const DynamicRoute: React.FC<{ route: AppRoute; children: React.ReactElement }> = ({ route, children }) => {
+  const { isLoginProtectionEnabled } = useAuth();
+  const { canAccessRoute } = useRoutesManifest();
 
   if (!isLoginProtectionEnabled) {
-      return children;
+    return children;
   }
 
-  if (!hasPermission(path)) {
+  if (!canAccessRoute(route)) {
     return <Navigate to="/" replace />;
   }
 
@@ -158,22 +106,22 @@ const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = (
 
 // Dynamic Home Redirect Component
 const HomeRedirect: React.FC = () => {
-    const { user, isLoginProtectionEnabled } = useAuth();
-    const { roleHomePages, loading } = useEntitiesContext();
+  const { user, isLoginProtectionEnabled } = useAuth();
+  const { loading } = useEntitiesContext();
+  const { getHomeForRole } = useRoutesManifest();
 
-    if (loading) return loadingSpinner;
+  if (loading) return loadingSpinner;
 
-    if (!isLoginProtectionEnabled) {
-        return <Navigate to="/staffing" replace />;
-    }
+  if (!isLoginProtectionEnabled) {
+    return <Navigate to={getHomeForRole()} replace />;
+  }
 
-    if (!user) {
-        return <Navigate to="/login" replace />;
-    }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-    // Determine target based on role configuration
-    const target = roleHomePages[user.role] || '/staffing';
-    return <Navigate to={target} replace />;
+  const target = getHomeForRole(user.role);
+  return <Navigate to={target} replace />;
 };
 
 interface AppContentProps {
@@ -182,6 +130,8 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading } = useEntitiesContext();
+  const { manifest } = useRoutesManifest();
+  const protectedRoutes = manifest.filter(route => route.requiresAuth !== false);
 
   if (loading) {
     return loadingSpinner;
@@ -196,38 +146,16 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
           <Suspense fallback={loadingSpinner}>
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
-              <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
-              <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
-              <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />
-              <Route path="/certifications" element={<DynamicRoute path="/certifications"><CertificationsPage /></DynamicRoute>} />
-              <Route path="/projects" element={<DynamicRoute path="/projects"><ProjectsPage /></DynamicRoute>} />
-              <Route path="/clients" element={<DynamicRoute path="/clients"><ClientsPage /></DynamicRoute>} />
-              <Route path="/roles" element={<DynamicRoute path="/roles"><RolesPage /></DynamicRoute>} />
-              <Route path="/contracts" element={<DynamicRoute path="/contracts"><ContractsPage /></DynamicRoute>} />
-              <Route path="/dashboard" element={<DynamicRoute path="/dashboard"><DashboardPage /></DynamicRoute>} />
-              <Route path="/forecasting" element={<DynamicRoute path="/forecasting"><ForecastingPage /></DynamicRoute>} />
-              <Route path="/workload" element={<DynamicRoute path="/workload"><WorkloadPage /></DynamicRoute>} />
-              <Route path="/gantt" element={<DynamicRoute path="/gantt"><GanttPage /></DynamicRoute>} />
-              <Route path="/calendar" element={<DynamicRoute path="/calendar"><CalendarPage /></DynamicRoute>} />
-              <Route path="/export" element={<DynamicRoute path="/export"><ExportPage /></DynamicRoute>} />
-              <Route path="/import" element={<DynamicRoute path="/import"><ImportPage /></DynamicRoute>} />
-              <Route path="/config" element={<DynamicRoute path="/config"><ConfigPage /></DynamicRoute>} />
-              <Route path="/reports" element={<DynamicRoute path="/reports"><ReportsPage /></DynamicRoute>} />
-              <Route path="/resource-requests" element={<DynamicRoute path="/resource-requests"><ResourceRequestPage /></DynamicRoute>} />
-              <Route path="/interviews" element={<DynamicRoute path="/interviews"><InterviewsPage /></DynamicRoute>} />
-              <Route path="/skills-map" element={<DynamicRoute path="/skills-map"><SkillsMapPage /></DynamicRoute>} />
-              <Route path="/skill-analysis" element={<DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>} />
-              <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
-              <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
-              <Route path="/simple-user-manual" element={<DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>} />
-              <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
-              <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
-              <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
-
-              {/* Admin Routes */}
-              <Route path="/admin-settings" element={<AdminRoute><AdminSettingsPage /></AdminRoute>} />
-              <Route path="/db-inspector" element={<AdminRoute><DbInspectorPage /></AdminRoute>} />
-
+              {protectedRoutes.map(route => {
+                const RouteComponent = route.component;
+                return (
+                  <Route
+                    key={route.path}
+                    path={route.path}
+                    element={<DynamicRoute route={route}><RouteComponent /></DynamicRoute>}
+                  />
+                );
+              })}
               <Route path="*" element={<HomeRedirect />} />
             </Routes>
           </Suspense>
@@ -362,28 +290,26 @@ const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }
   return children;
 };
 
-const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
-  const { isAuthLoading, isLoginProtectionEnabled, isAuthenticated, isAdmin } = useAuth();
-
-  if (isAuthLoading) {
-    return loadingSpinner;
-  }
-
-  if (isLoginProtectionEnabled && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-};
-
 const AppRoutes: React.FC = () => {
+  const { manifest } = useRoutesManifest();
+  const publicRoutes = manifest.filter(route => route.requiresAuth === false);
+
   return (
     <Routes>
-      <Route path="/login" element={<Suspense fallback={loadingSpinner}><LoginPage /></Suspense>} />
+      {publicRoutes.map(route => {
+        const RouteComponent = route.component;
+        return (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={
+              <Suspense fallback={loadingSpinner}>
+                <RouteComponent />
+              </Suspense>
+            }
+          />
+        );
+      })}
       <Route
         path="/*"
         element={
@@ -404,7 +330,9 @@ const App: React.FC = () => {
         <ToastProvider>
           <AppProviders>
             <AuthProvider>
-               <AppRoutes />
+              <RoutesProvider>
+                <AppRoutes />
+              </RoutesProvider>
             </AuthProvider>
           </AppProviders>
         </ToastProvider>
