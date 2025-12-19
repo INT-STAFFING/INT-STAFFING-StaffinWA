@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useRoutesManifest } from '../context/RoutesContext';
 
 interface BottomNavBarProps {
   onMenuClick: () => void;
@@ -25,12 +26,13 @@ const NavItem = ({ to, icon, label }: { to: string; icon: string; label: string 
 );
 
 const BottomNavBar: React.FC<BottomNavBarProps> = ({ onMenuClick }) => {
+  const { bottomNavigationRoutes } = useRoutesManifest();
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-20 bg-surface-container border-t border-outline-variant shadow-lg flex items-stretch justify-around md:hidden z-30">
-      <NavItem to="/dashboard" icon="dashboard" label="Dashboard" />
-      <NavItem to="/gantt" icon="align_horizontal_left" label="Gantt" />
-      <NavItem to="/skills-map" icon="school" label="Skills" />
-      <NavItem to="/workload" icon="groups" label="Carico" />
+      {bottomNavigationRoutes.map(route => (
+        <NavItem key={route.path} to={route.path} icon={route.icon} label={route.label} />
+      ))}
       <button
         onClick={onMenuClick}
         className="flex flex-col items-center justify-center w-full h-full text-xs text-on-surface-variant focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
