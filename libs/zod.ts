@@ -111,6 +111,9 @@ class ZodString extends BaseSchema<string> {
 
     protected parseInternal(data: unknown, path: (string | number)[]): string {
         const handled = this.handleNullability(data, path);
+        if (handled === null || handled === undefined) {
+            return handled as unknown as string;
+        }
         if (typeof handled !== 'string') {
             throw new ZodError([{ path, message: 'Deve essere una stringa.' }]);
         }
@@ -150,6 +153,9 @@ class ZodNumber extends BaseSchema<number> {
             value = Number(value);
         }
         const handled = this.handleNullability(value, path);
+        if (handled === null || handled === undefined) {
+            return handled as unknown as number;
+        }
         if (typeof handled !== 'number' || Number.isNaN(handled)) {
             throw new ZodError([{ path, message: 'Deve essere un numero.' }]);
         }
@@ -167,6 +173,9 @@ class ZodNumber extends BaseSchema<number> {
 class ZodBoolean extends BaseSchema<boolean> {
     protected parseInternal(data: unknown, path: (string | number)[]): boolean {
         const handled = this.handleNullability(data, path);
+        if (handled === null || handled === undefined) {
+            return handled as unknown as boolean;
+        }
         if (typeof handled !== 'boolean') {
             throw new ZodError([{ path, message: 'Deve essere un valore booleano.' }]);
         }
@@ -185,6 +194,9 @@ class ZodEnum<T extends [string, ...string[]]> extends BaseSchema<T[number]> {
 
     protected parseInternal(data: unknown, path: (string | number)[]): T[number] {
         const handled = this.handleNullability(data, path);
+        if (handled === null || handled === undefined) {
+            return handled as unknown as T[number];
+        }
         if (typeof handled !== 'string' || !this.values.includes(handled)) {
             throw new ZodError([
                 { path, message: this.options?.required_error || 'Valore non valido.' },
@@ -205,6 +217,9 @@ class ZodObject<Shape extends Record<string, BaseSchema<any>>> extends BaseSchem
 
     protected parseInternal(data: unknown, path: (string | number)[]) {
         const handled = this.handleNullability(data, path);
+        if (handled === null || handled === undefined) {
+            return handled as unknown as { [K in keyof Shape]: Infer<Shape[K]> };
+        }
         if (typeof handled !== 'object' || Array.isArray(handled)) {
             throw new ZodError([{ path, message: 'Deve essere un oggetto.' }]);
         }
@@ -233,12 +248,59 @@ class ZodObject<Shape extends Record<string, BaseSchema<any>>> extends BaseSchem
 
 type Infer<TSchema> = TSchema extends BaseSchema<infer TType> ? TType : never;
 
+class ZodArray<TSchema extends BaseSchema<any>> extends BaseSchema<Infer<TSchema>[]> {
+    constructor(private readonly itemSchema: TSchema) {
+        super();
+    }
+
+    private minLength?: { value: number; message: string };
+
+    min(value: number, message: string) {
+        this.minLength = { value, message };
+        return this;
+    }
+
+    protected parseInternal(data: unknown, path: (string | number)[]): Infer<TSchema>[] {
+        const handled = this.handleNullability(data, path);
+        if (handled === null || handled === undefined) {
+            return handled as unknown as Infer<TSchema>[];
+        }
+        if (!Array.isArray(handled)) {
+            throw new ZodError([{ path, message: 'Deve essere un array.' }]);
+        }
+
+        const parsedItems: Infer<TSchema>[] = [];
+        const issues: { path: (string | number)[]; message: string }[] = [];
+
+        handled.forEach((item, index) => {
+            try {
+                parsedItems.push(this.itemSchema.parseWithPath(item, [...path, index]));
+            } catch (error) {
+                const zodError = error as ZodError;
+                issues.push(...zodError.issues);
+            }
+        });
+
+        if (this.minLength && parsedItems.length < this.minLength.value) {
+            issues.push({ path, message: this.minLength.message });
+        }
+
+        if (issues.length) {
+            throw new ZodError(issues);
+        }
+
+        this.checkRefinements(parsedItems as unknown as any);
+        return parsedItems;
+    }
+}
+
 export const z = {
     string: () => new ZodString(),
     number: () => new ZodNumber(),
     boolean: () => new ZodBoolean(),
     enum: <T extends [string, ...string[]]>(values: T, options?: { required_error?: string }) => new ZodEnum(values, options),
     object: <Shape extends Record<string, BaseSchema<any>>>(shape: Shape) => new ZodObject(shape),
+    array: <TSchema extends BaseSchema<any>>(schema: TSchema) => new ZodArray(schema),
     coerce: {
         number: () => new ZodNumber(true),
     },

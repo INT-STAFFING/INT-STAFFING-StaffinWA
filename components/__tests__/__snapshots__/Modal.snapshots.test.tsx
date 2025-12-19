@@ -2,7 +2,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import Modal from '../Modal';
+import Modal from '../../Modal';
 
 describe('Modal accessibility snapshot', () => {
   it('renders an open modal with accessible attributes', () => {
