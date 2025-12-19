@@ -7,7 +7,7 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
-import { AppProvider, useEntitiesContext } from './context/AppContext';
+import { AppProviders, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -402,11 +402,11 @@ const App: React.FC = () => {
     <BrowserRouter>
       <ThemeProvider>
         <ToastProvider>
-          <AppProvider>
+          <AppProviders>
             <AuthProvider>
                <AppRoutes />
             </AuthProvider>
-          </AppProvider>
+          </AppProviders>
         </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>

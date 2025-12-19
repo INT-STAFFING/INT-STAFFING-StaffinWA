@@ -6,7 +6,8 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
 import { useToast } from './ToastContext';
-import { AppUser } from '../types';
+import { AppUser, UserRole } from '../types';
+import { apiFetch } from '../services/apiClient';
 
 // --- Tipi ---
 interface AuthContextType {
@@ -22,27 +23,15 @@ interface AuthContextType {
     changePassword: (newPassword: string) => Promise<void>;
 }
 
+type AuthConfigResponse = { isEnabled: boolean };
+type LoginResponse = {
+    success: boolean;
+    token?: string;
+    user: { id: string; username: string; role: string; resourceId?: string; permissions?: string[] };
+};
+
 // --- Contesto ---
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const apiFetch = async (url: string, options: RequestInit = {}) => {
-    // Add JWT header if token exists
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(url, {
-        headers: { ...headers, ...options.headers },
-        ...options,
-    });
-    if (!response.ok) {
-        const errorBody = await response.json();
-        throw new Error(errorBody.error || `API request failed: ${response.status}`);
-    }
-    return response.json();
-};
 
 /**
  * Helper per verificare se un token JWT è scaduto senza librerie esterne.
@@ -81,7 +70,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             try {
                 // 1. Check Global Protection Config
                 try {
-                    const config = await apiFetch('/api/auth-config');
+                    const config = await apiFetch<AuthConfigResponse>('/api/auth-config');
                     setIsLoginProtectionEnabled(config.isEnabled);
                 } catch (e) {
                     // Fallback secure default
@@ -118,7 +107,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Default username to 'admin' for backward compatibility if UI only asks for password
         // But the new UI should ask for username.
         try {
-            const data = await apiFetch('/api/login', {
+            const data = await apiFetch<LoginResponse>('/api/login', {
                 method: 'POST',
                 body: JSON.stringify({ username, password }),
             });
@@ -127,7 +116,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const userObj: AppUser = {
                     id: data.user.id,
                     username: data.user.username,
-                    role: data.user.role,
+                    role: data.user.role as UserRole,
                     resourceId: data.user.resourceId,
                     isActive: true,
                     permissions: data.user.permissions || []
