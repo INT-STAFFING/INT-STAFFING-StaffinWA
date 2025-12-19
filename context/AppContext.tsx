@@ -1,13 +1,14 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback, useMemo } from 'react';
-import { 
-    Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, 
-    CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, 
+import {
+    Client, Role, Resource, Project, Assignment, Allocation, ConfigOption,
+    CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill,
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType
+    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState
 } from '../types';
 import { useToast } from './ToastContext';
+import { apiFetch } from '../services/apiClient';
 
 // DEFAULT SIDEBAR CONFIGURATION
 const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
@@ -65,55 +66,82 @@ const DEFAULT_ROLE_HOME_PAGES: Record<string, string> = {
 
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
+const CatalogsContext = createContext<Pick<EntitiesContextType,
+    'clients' | 'roles' | 'roleCostHistory' | 'resources' | 'projects' | 'contracts' |
+    'contractProjects' | 'contractManagers' | 'skills' | 'skillCategories' | 'skillMacroCategories' |
+    'resourceSkills' | 'projectSkills' | 'addResource' | 'updateResource' | 'deleteResource' |
+    'addProject' | 'updateProject' | 'deleteProject' | 'addClient' | 'updateClient' | 'deleteClient' |
+    'addRole' | 'updateRole' | 'deleteRole' | 'addSkill' | 'updateSkill' | 'deleteSkill' |
+    'addResourceSkill' | 'deleteResourceSkill' | 'addProjectSkill' | 'deleteProjectSkill' |
+    'addContract' | 'updateContract' | 'deleteContract' | 'recalculateContractBacklog' |
+    'addSkillCategory' | 'updateSkillCategory' | 'deleteSkillCategory' |
+    'addSkillMacro' | 'updateSkillMacro' | 'deleteSkillMacro' | 'getRoleCost' | 'getResourceComputedSkills'
+> | undefined>(undefined);
 
-const apiFetch = async (url: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('authToken');
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    
-    let attempt = 0;
-    const maxRetries = 3;
-    let delay = 500; // ms
+const PlanningContext = createContext<(Pick<EntitiesContextType,
+    'assignments' | 'wbsTasks' | 'resourceRequests' | 'interviews' | 'planningSettings' |
+    'leaveRequests' | 'companyCalendar' | 'addMultipleAssignments' | 'deleteAssignment' |
+    'addResourceRequest' | 'updateResourceRequest' | 'deleteResourceRequest' |
+    'addInterview' | 'updateInterview' | 'deleteInterview' |
+    'addLeaveRequest' | 'updateLeaveRequest' | 'deleteLeaveRequest' | 'updatePlanningSettings'
+> & AllocationsContextType) | undefined>(undefined);
 
-    while (true) {
-        try {
-            const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
-            
-            if (response.status === 204) {
-                return null;
-            }
+const ConfigContext = createContext<Pick<EntitiesContextType,
+    'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations' |
+    'pageVisibility' | 'skillThresholds' | 'managerResourceIds' | 'sidebarConfig' | 'sidebarSections' |
+    'sidebarSectionColors' | 'dashboardLayout' | 'roleHomePages' | 'analyticsCache' |
+    'leaveTypes' | 'addConfigOption' | 'updateConfigOption' | 'deleteConfigOption' | 'updateSkillThresholds' |
+    'updateSidebarConfig' | 'updateSidebarSections' | 'updateSidebarSectionColors' |
+    'updateDashboardLayout' | 'updateRoleHomePages' | 'forceRecalculateAnalytics' |
+    'addLeaveType' | 'updateLeaveType' | 'deleteLeaveType'
+> | undefined>(undefined);
 
-            if (!response.ok) {
-                const errorBody = await response.json().catch(() => ({}));
-                const errorMessage = errorBody.error || `API request failed: ${response.status}`;
-                const error = new Error(errorMessage);
-                
-                // Do not retry client errors (400-499), except 429 (Too Many Requests)
-                if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-                    (error as any).isClientError = true;
-                    throw error;
-                }
-                
-                throw error; // This goes to catch block for retry logic (5xx errors or network fails)
-            }
-            return await response.json();
-        } catch (error: any) {
-            // If it's a client error (e.g. 401 Unauthorized) or we ran out of retries, throw immediately
-            if (error.isClientError || attempt >= maxRetries) {
-                throw error;
-            }
-            
-            // Transient error (Network fail or 5xx), wait and retry
-            console.warn(`API call failed (${url}), retrying attempt ${attempt + 1}/${maxRetries}...`, error);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            
-            attempt++;
-            delay *= 2; // Exponential backoff
-        }
-    }
+const NotificationsContext = createContext<Pick<EntitiesContextType,
+    'notifications' | 'fetchData' | 'fetchNotifications' | 'markNotificationAsRead'
+> | undefined>(undefined);
+
+const AppStateContext = createContext<{ loading: boolean; isActionLoading: (action: string) => boolean } | undefined>(undefined);
+
+export interface AppProvidersProps {
+    children: ReactNode;
+    planningWindow?: { monthsBefore?: number; monthsAfter?: number };
+    configKeys?: {
+        sidebarLayoutKey?: string;
+        sidebarSectionsKey?: string;
+        sidebarSectionColorsKey?: string;
+        dashboardLayoutKey?: string;
+        roleHomePagesKey?: string;
+    };
+}
+
+type MetadataResponse = Partial<EntitiesState>;
+type PlanningResponse = {
+    assignments?: Assignment[];
+    allocations?: Allocation;
+    wbsTasks?: WbsTask[];
+    resourceRequests?: ResourceRequest[];
+    interviews?: Interview[];
+    contracts?: Contract[];
+    contractProjects?: ContractProject[];
+    contractManagers?: ContractManager[];
+    projectSkills?: ProjectSkill[];
+    leaveRequests?: LeaveRequest[];
 };
 
-export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWindow, configKeys }) => {
+    const planningDefaults = {
+        monthsBefore: planningWindow?.monthsBefore ?? 6,
+        monthsAfter: planningWindow?.monthsAfter ?? 18,
+    };
+
+    const resolvedConfigKeys = {
+        sidebarLayoutKey: configKeys?.sidebarLayoutKey ?? 'sidebar_layout_v1',
+        sidebarSectionsKey: configKeys?.sidebarSectionsKey ?? 'sidebar_sections_v1',
+        sidebarSectionColorsKey: configKeys?.sidebarSectionColorsKey ?? 'sidebar_section_colors',
+        dashboardLayoutKey: configKeys?.dashboardLayoutKey ?? 'dashboard_layout_v2',
+        roleHomePagesKey: configKeys?.roleHomePagesKey ?? 'role_home_pages_v1'
+    };
+
     const [loading, setLoading] = useState(true);
     const [actionLoadingState, setActionLoadingState] = useState<Record<string, boolean>>({});
     const { addToast } = useToast();
@@ -145,7 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
     const [pageVisibility, setPageVisibility] = useState<PageVisibility>({});
     const [skillThresholds, setSkillThresholds] = useState<SkillThresholds>({ NOVICE: 0, JUNIOR: 60, MIDDLE: 150, SENIOR: 350, EXPERT: 700 });
-    const [planningSettings, setPlanningSettings] = useState<{ monthsBefore: number; monthsAfter: number }>({ monthsBefore: 6, monthsAfter: 18 });
+    const [planningSettings, setPlanningSettings] = useState<{ monthsBefore: number; monthsAfter: number }>(planningDefaults);
     const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
@@ -167,7 +195,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setLoading(true);
         try {
             // 1. Metadata
-            const metaData = await apiFetch('/api/data?scope=metadata');
+            const metaData = await apiFetch<MetadataResponse>('/api/data?scope=metadata');
             setClients(metaData.clients || []);
             setRoles(metaData.roles || []);
             setRoleCostHistory(metaData.roleCostHistory || []);
@@ -197,8 +225,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (metaData.roleHomePages) setRoleHomePages(metaData.roleHomePages);
 
             // Determine date range for planning data
-            let monthsBefore = 6;
-            let monthsAfter = 18;
+            let monthsBefore = planningDefaults.monthsBefore;
+            let monthsAfter = planningDefaults.monthsAfter;
             if (metaData.planningSettings) {
                 if (metaData.planningSettings.monthsBefore) monthsBefore = metaData.planningSettings.monthsBefore;
                 if (metaData.planningSettings.monthsAfter) monthsAfter = metaData.planningSettings.monthsAfter;
@@ -215,7 +243,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const startStr = start.toISOString().split('T')[0];
             const endStr = end.toISOString().split('T')[0];
 
-            const planningData = await apiFetch(`/api/data?scope=planning&start=${startStr}&end=${endStr}`);
+            const planningData = await apiFetch<PlanningResponse>(`/api/data?scope=planning&start=${startStr}&end=${endStr}`);
             setAssignments(planningData.assignments || []);
             setAllocations(planningData.allocations || {});
             setWbsTasks(planningData.wbsTasks || []);
@@ -236,7 +264,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const fetchNotifications = useCallback(async () => {
         try {
-            const notifs = await apiFetch('/api/resources?entity=notifications');
+            const notifs = await apiFetch<Notification[]>('/api/resources?entity=notifications');
             setNotifications(notifs);
         } catch (error) {
             console.error("Failed to fetch notifications", error);
@@ -274,7 +302,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const forceRecalculateAnalytics = async () => {
         setActionLoading('recalculateAnalytics', true);
         try {
-            const res = await apiFetch('/api/resources?entity=analytics_cache&action=recalc_all', { method: 'POST' });
+            const res = await apiFetch<{ data: Record<string, unknown> }>(
+                '/api/resources?entity=analytics_cache&action=recalc_all',
+                { method: 'POST' }
+            );
             setAnalyticsCache(res.data);
             addToast('Analisi ricalcolate con successo', 'success');
         } catch (e) {
@@ -289,7 +320,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addResource = async (resource: Omit<Resource, 'id'>) => {
         setActionLoading('addResource', true);
         try {
-            const newResource = await apiFetch('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) });
+            const newResource = await apiFetch<Resource>('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) });
             setResources(prev => [...prev, newResource]);
             return newResource;
         } finally { setActionLoading('addResource', false); }
@@ -298,7 +329,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateResource = async (resource: Resource) => {
         setActionLoading(`updateResource-${resource.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=resources&id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) });
+            const updated = await apiFetch<Resource>(`/api/resources?entity=resources&id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) });
             setResources(prev => prev.map(r => r.id === resource.id ? updated : r));
         } finally { setActionLoading(`updateResource-${resource.id}`, false); }
     };
@@ -314,7 +345,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addProject = async (project: Omit<Project, 'id'>) => {
         setActionLoading('addProject', true);
         try {
-            const newProject = await apiFetch('/api/resources?entity=projects', { method: 'POST', body: JSON.stringify(project) });
+            const newProject = await apiFetch<Project | null>('/api/resources?entity=projects', { method: 'POST', body: JSON.stringify(project) });
             setProjects(prev => [...prev, newProject]);
             return newProject;
         } finally { setActionLoading('addProject', false); }
@@ -323,7 +354,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateProject = async (project: Project) => {
         setActionLoading(`updateProject-${project.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=projects&id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) });
+            const updated = await apiFetch<Project>(`/api/resources?entity=projects&id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) });
             setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
         } finally { setActionLoading(`updateProject-${project.id}`, false); }
     };
@@ -339,7 +370,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addClient = async (client: Omit<Client, 'id'>) => {
         setActionLoading('addClient', true);
         try {
-            const newClient = await apiFetch('/api/resources?entity=clients', { method: 'POST', body: JSON.stringify(client) });
+            const newClient = await apiFetch<Client>('/api/resources?entity=clients', { method: 'POST', body: JSON.stringify(client) });
             setClients(prev => [...prev, newClient]);
         } finally { setActionLoading('addClient', false); }
     };
@@ -347,7 +378,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateClient = async (client: Client) => {
         setActionLoading(`updateClient-${client.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=clients&id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) });
+            const updated = await apiFetch<Client>(`/api/resources?entity=clients&id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) });
             setClients(prev => prev.map(c => c.id === client.id ? updated : c));
         } finally { setActionLoading(`updateClient-${client.id}`, false); }
     };
@@ -363,7 +394,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addRole = async (role: Omit<Role, 'id'>) => {
         setActionLoading('addRole', true);
         try {
-            const newRole = await apiFetch('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) });
+            const newRole = await apiFetch<Role>('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) });
             setRoles(prev => [...prev, newRole]);
         } finally { setActionLoading('addRole', false); }
     };
@@ -371,9 +402,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateRole = async (role: Role) => {
         setActionLoading(`updateRole-${role.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) });
+            const updated = await apiFetch<Role>(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) });
             setRoles(prev => prev.map(r => r.id === role.id ? updated : r));
-            const historyRes = await apiFetch('/api/resources?entity=role_cost_history');
+            const historyRes = await apiFetch<RoleCostHistory[]>('/api/resources?entity=role_cost_history');
             setRoleCostHistory(historyRes);
         } finally { setActionLoading(`updateRole-${role.id}`, false); }
     };
@@ -389,7 +420,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addConfigOption = async (type: string, value: string) => {
         setActionLoading(`addConfig-${type}`, true);
         try {
-            const newOpt = await apiFetch(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) });
+            const newOpt = await apiFetch<ConfigOption>(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) });
             const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations;
             setter(prev => [...prev, newOpt]);
         } finally { setActionLoading(`addConfig-${type}`, false); }
@@ -420,7 +451,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => {
         setActionLoading('addCalendarEvent', true);
         try {
-            const newEvent = await apiFetch('/api/resources?entity=company_calendar', { method: 'POST', body: JSON.stringify(event) });
+            const newEvent = await apiFetch<CalendarEvent>('/api/resources?entity=company_calendar', { method: 'POST', body: JSON.stringify(event) });
             setCompanyCalendar(prev => [...prev, newEvent]);
         } finally { setActionLoading('addCalendarEvent', false); }
     };
@@ -428,7 +459,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateCalendarEvent = async (event: CalendarEvent) => {
         setActionLoading(`updateCalendarEvent-${event.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=company_calendar&id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) });
+            const updated = await apiFetch<CalendarEvent>(`/api/resources?entity=company_calendar&id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) });
             setCompanyCalendar(prev => prev.map(e => e.id === event.id ? updated : e));
         } finally { setActionLoading(`updateCalendarEvent-${event.id}`, false); }
     };
@@ -444,10 +475,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addMultipleAssignments = async (newAssignments: { resourceId: string; projectId: string }[]) => {
         try {
             const createdAssignments = await Promise.all(newAssignments.map(async (a) => {
-                return await apiFetch('/api/assignments', { method: 'POST', body: JSON.stringify(a) });
+                return await apiFetch<Assignment | { message: string }>('/api/assignments', { method: 'POST', body: JSON.stringify(a) });
             }));
-            
-            const validAssignments = createdAssignments.filter(a => !('message' in a));
+
+            const validAssignments = createdAssignments.filter((a): a is Assignment => !('message' in a));
             const newAss = validAssignments.map(a => ({ id: a.id, resourceId: a.resourceId, projectId: a.projectId }));
             
             setAssignments(prev => {
@@ -551,14 +582,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addResourceRequest = async (req: Omit<ResourceRequest, 'id'>) => {
         setActionLoading('addResourceRequest', true);
         try {
-            const newReq = await apiFetch('/api/resource-requests', { method: 'POST', body: JSON.stringify(req) });
+            const newReq = await apiFetch<ResourceRequest>('/api/resource-requests', { method: 'POST', body: JSON.stringify(req) });
             setResourceRequests(prev => [...prev, newReq]);
         } finally { setActionLoading('addResourceRequest', false); }
     };
     const updateResourceRequest = async (req: ResourceRequest) => {
         setActionLoading(`updateResourceRequest-${req.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resource-requests?id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
+            const updated = await apiFetch<ResourceRequest>(`/api/resource-requests?id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setResourceRequests(prev => prev.map(r => r.id === req.id ? updated : r));
         } finally { setActionLoading(`updateResourceRequest-${req.id}`, false); }
     };
@@ -573,14 +604,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addInterview = async (interview: Omit<Interview, 'id'>) => {
         setActionLoading('addInterview', true);
         try {
-            const newInt = await apiFetch('/api/resources?entity=interviews', { method: 'POST', body: JSON.stringify(interview) });
+            const newInt = await apiFetch<Interview>('/api/resources?entity=interviews', { method: 'POST', body: JSON.stringify(interview) });
             setInterviews(prev => [...prev, newInt]);
         } finally { setActionLoading('addInterview', false); }
     };
     const updateInterview = async (interview: Interview) => {
         setActionLoading(`updateInterview-${interview.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) });
+            const updated = await apiFetch<Interview>(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) });
             setInterviews(prev => prev.map(i => i.id === interview.id ? updated : i));
         } finally { setActionLoading(`updateInterview-${interview.id}`, false); }
     };
@@ -595,7 +626,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => {
         setActionLoading('addContract', true);
         try {
-            const newContract = await apiFetch('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) });
+            const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) });
             setContracts(prev => [...prev, newContract]);
             await fetchData(); 
         } finally { setActionLoading('addContract', false); }
@@ -603,7 +634,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => {
         setActionLoading(`updateContract-${contract.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) });
+            const updated = await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) });
             setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
             await fetchData(); 
         } finally { setActionLoading(`updateContract-${contract.id}`, false); }
@@ -632,7 +663,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addSkill = async (skill: Omit<Skill, 'id'>) => {
         setActionLoading('addSkill', true);
         try {
-            const newSkill = await apiFetch('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) });
+            const newSkill = await apiFetch<Skill>('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) });
             setSkills(prev => [...prev, newSkill]);
             await fetchData(); 
         } finally { setActionLoading('addSkill', false); }
@@ -640,7 +671,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateSkill = async (skill: Skill) => {
         setActionLoading(`updateSkill-${skill.id}`, true);
         try {
-            await apiFetch(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
+            await apiFetch<Skill>(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) });
             await fetchData(); 
         } finally { setActionLoading(`updateSkill-${skill.id}`, false); }
     };
@@ -654,13 +685,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const addSkillCategory = async (cat: Omit<SkillCategory, 'id'>) => {
         try {
-            await apiFetch('/api/resources?entity=skill_categories', { method: 'POST', body: JSON.stringify(cat) });
+            await apiFetch<SkillCategory>('/api/resources?entity=skill_categories', { method: 'POST', body: JSON.stringify(cat) });
             await fetchData();
         } catch(e) { console.error(e); }
     };
     const updateSkillCategory = async (cat: SkillCategory) => {
         try {
-            await apiFetch(`/api/resources?entity=skill_categories&id=${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
+            await apiFetch<SkillCategory>(`/api/resources?entity=skill_categories&id=${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) });
             await fetchData();
         } catch(e) { console.error(e); }
     };
@@ -673,13 +704,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const addSkillMacro = async (macro: { name: string }) => {
         try {
-            await apiFetch('/api/resources?entity=skill_macro_categories', { method: 'POST', body: JSON.stringify(macro) });
+            await apiFetch<SkillMacroCategory>('/api/resources?entity=skill_macro_categories', { method: 'POST', body: JSON.stringify(macro) });
             await fetchData();
         } catch(e) { console.error(e); }
     };
     const updateSkillMacro = async (id: string, name: string) => {
         try {
-            await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
+            await apiFetch<SkillMacroCategory>(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'PUT', body: JSON.stringify({ name }) });
             await fetchData();
         } catch(e) { console.error(e); }
     };
@@ -693,7 +724,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addResourceSkill = async (rs: ResourceSkill) => {
         setActionLoading(`addResourceSkill-${rs.resourceId}`, true);
         try {
-            const savedSkill = await apiFetch('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
+            const savedSkill = await apiFetch<ResourceSkill>('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) });
             setResourceSkills(prev => {
                 const index = prev.findIndex(item => item.resourceId === rs.resourceId && item.skillId === rs.skillId);
                 if (index >= 0) {
@@ -715,7 +746,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const addProjectSkill = async (ps: ProjectSkill) => {
         try {
-            const savedPs = await apiFetch('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) });
+            const savedPs = await apiFetch<ProjectSkill>('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) });
             setProjectSkills(prev => {
                 const exists = prev.some(item => item.projectId === ps.projectId && item.skillId === ps.skillId);
                 if (exists) return prev; 
@@ -804,14 +835,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addLeaveType = async (type: Omit<LeaveType, 'id'>) => {
         setActionLoading('addLeaveType', true);
         try {
-            const newType = await apiFetch('/api/resources?entity=leave_types', { method: 'POST', body: JSON.stringify(type) });
+            const newType = await apiFetch<LeaveType>('/api/resources?entity=leave_types', { method: 'POST', body: JSON.stringify(type) });
             setLeaveTypes(prev => [...prev, newType]);
         } finally { setActionLoading('addLeaveType', false); }
     };
     const updateLeaveType = async (type: LeaveType) => {
         setActionLoading(`updateLeaveType-${type.id}`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=leave_types&id=${type.id}`, { method: 'PUT', body: JSON.stringify(type) });
+            const updated = await apiFetch<LeaveType>(`/api/resources?entity=leave_types&id=${type.id}`, { method: 'PUT', body: JSON.stringify(type) });
             setLeaveTypes(prev => prev.map(t => t.id === type.id ? updated : t));
         } finally { setActionLoading(`updateLeaveType-${type.id}`, false); }
     };
@@ -826,7 +857,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const addLeaveRequest = async (req: Omit<LeaveRequest, 'id'>) => {
         setActionLoading('addLeaveRequest', true);
         try {
-            const newReq = await apiFetch('/api/resources?entity=leaves', { method: 'POST', body: JSON.stringify(req) });
+            const newReq = await apiFetch<LeaveRequest>('/api/resources?entity=leaves', { method: 'POST', body: JSON.stringify(req) });
             setLeaveRequests(prev => [...prev, newReq]);
             addToast('Richiesta inserita con successo', 'success');
         } catch (e) {
@@ -836,7 +867,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateLeaveRequest = async (req: LeaveRequest) => {
         setActionLoading(`updateLeaveRequest`, true);
         try {
-            const updated = await apiFetch(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
+            const updated = await apiFetch<LeaveRequest>(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) });
             setLeaveRequests(prev => prev.map(r => r.id === req.id ? updated : r));
             addToast(`Richiesta aggiornata: ${req.status}`, 'success');
         } catch (e) {
@@ -855,9 +886,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateSidebarConfig = async (config: SidebarItem[]) => {
         setActionLoading('updateSidebarConfig', true);
         try {
-            await apiFetch('/api/resources?entity=app-config-batch', { 
-                method: 'POST', 
-                body: JSON.stringify({ updates: [{ key: 'sidebar_layout_v1', value: JSON.stringify(config) }] }) 
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.sidebarLayoutKey, value: JSON.stringify(config) }] })
             });
             setSidebarConfig(config);
         } finally { setActionLoading('updateSidebarConfig', false); }
@@ -866,9 +897,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateSidebarSections = async (sections: string[]) => {
         setActionLoading('updateSidebarSections', true);
         try {
-            await apiFetch('/api/resources?entity=app-config-batch', { 
-                method: 'POST', 
-                body: JSON.stringify({ updates: [{ key: 'sidebar_sections_v1', value: JSON.stringify(sections) }] }) 
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.sidebarSectionsKey, value: JSON.stringify(sections) }] })
             });
             setSidebarSections(sections);
         } finally { setActionLoading('updateSidebarSections', false); }
@@ -876,9 +907,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const updateSidebarSectionColors = async (colors: SidebarSectionColors) => {
         try {
-            await apiFetch('/api/resources?entity=app-config-batch', { 
-                method: 'POST', 
-                body: JSON.stringify({ updates: [{ key: 'sidebar_section_colors', value: JSON.stringify(colors) }] }) 
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.sidebarSectionColorsKey, value: JSON.stringify(colors) }] })
             });
             setSidebarSectionColors(colors);
         } catch (e) { console.error(e); }
@@ -887,9 +918,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const updateDashboardLayout = async (layout: DashboardCategory[]) => {
         setActionLoading('updateDashboardLayout', true);
         try {
-            await apiFetch('/api/resources?entity=app-config-batch', { 
-                method: 'POST', 
-                body: JSON.stringify({ updates: [{ key: 'dashboard_layout_v2', value: JSON.stringify(layout) }] }) 
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.dashboardLayoutKey, value: JSON.stringify(layout) }] })
             });
             setDashboardLayout(layout);
         } finally { setActionLoading('updateDashboardLayout', false); }
@@ -900,7 +931,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
             await apiFetch('/api/resources?entity=app-config-batch', {
                 method: 'POST',
-                body: JSON.stringify({ updates: [{ key: 'role_home_pages_v1', value: JSON.stringify(config) }] })
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.roleHomePagesKey, value: JSON.stringify(config) }] })
             });
             setRoleHomePages(config);
         } finally { setActionLoading('updateRoleHomePages', false); }
@@ -946,19 +977,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         allocations, updateAllocation, bulkUpdateAllocations
     }), [allocations, updateAllocation, bulkUpdateAllocations]);
 
+    const appStateValue = useMemo(() => ({ loading, isActionLoading }), [loading, isActionLoading]);
+
     return (
-        <EntitiesContext.Provider value={providerValue}>
-            <AllocationsContext.Provider value={allocationContextValue}>
-                {children}
-            </AllocationsContext.Provider>
-        </EntitiesContext.Provider>
+        <AppStateContext.Provider value={appStateValue}>
+            <EntitiesContext.Provider value={providerValue}>
+                <AllocationsContext.Provider value={allocationContextValue}>
+                    <CatalogsProvider>
+                        <PlanningProvider>
+                            <ConfigProvider>
+                                <NotificationsProvider>
+                                    {children}
+                                </NotificationsProvider>
+                            </ConfigProvider>
+                        </PlanningProvider>
+                    </CatalogsProvider>
+                </AllocationsContext.Provider>
+            </EntitiesContext.Provider>
+        </AppStateContext.Provider>
     );
 };
 
 export const useEntitiesContext = () => {
     const context = useContext(EntitiesContext);
     if (context === undefined) {
-        throw new Error('useEntitiesContext must be used within an AppProvider');
+        throw new Error('useEntitiesContext must be used within AppProviders');
     }
     return context;
 };
@@ -966,7 +1009,184 @@ export const useEntitiesContext = () => {
 export const useAllocationsContext = () => {
     const context = useContext(AllocationsContext);
     if (context === undefined) {
-        throw new Error('useAllocationsContext must be used within an AppProvider');
+        throw new Error('useAllocationsContext must be used within AppProviders');
     }
     return context;
 };
+
+export const useCatalogsContext = () => {
+    const context = useContext(CatalogsContext);
+    if (!context) {
+        throw new Error('useCatalogsContext must be used within AppProviders');
+    }
+    return context;
+};
+
+export const usePlanningContext = () => {
+    const context = useContext(PlanningContext);
+    if (!context) {
+        throw new Error('usePlanningContext must be used within AppProviders');
+    }
+    return context;
+};
+
+export const useConfigContext = () => {
+    const context = useContext(ConfigContext);
+    if (!context) {
+        throw new Error('useConfigContext must be used within AppProviders');
+    }
+    return context;
+};
+
+export const useNotificationsContext = () => {
+    const context = useContext(NotificationsContext);
+    if (!context) {
+        throw new Error('useNotificationsContext must be used within AppProviders');
+    }
+    return context;
+};
+
+export const useAppState = () => {
+    const context = useContext(AppStateContext);
+    if (!context) {
+        throw new Error('useAppState must be used within AppProviders');
+    }
+    return context;
+};
+
+function CatalogsProvider({ children }: { children: ReactNode }) {
+    const entities = useEntitiesContext();
+
+    const value = useMemo(() => ({
+        clients: entities.clients,
+        roles: entities.roles,
+        roleCostHistory: entities.roleCostHistory,
+        resources: entities.resources,
+        projects: entities.projects,
+        contracts: entities.contracts,
+        contractProjects: entities.contractProjects,
+        contractManagers: entities.contractManagers,
+        skills: entities.skills,
+        skillCategories: entities.skillCategories,
+        skillMacroCategories: entities.skillMacroCategories,
+        resourceSkills: entities.resourceSkills,
+        projectSkills: entities.projectSkills,
+        addResource: entities.addResource,
+        updateResource: entities.updateResource,
+        deleteResource: entities.deleteResource,
+        addProject: entities.addProject,
+        updateProject: entities.updateProject,
+        deleteProject: entities.deleteProject,
+        addClient: entities.addClient,
+        updateClient: entities.updateClient,
+        deleteClient: entities.deleteClient,
+        addRole: entities.addRole,
+        updateRole: entities.updateRole,
+        deleteRole: entities.deleteRole,
+        addSkill: entities.addSkill,
+        updateSkill: entities.updateSkill,
+        deleteSkill: entities.deleteSkill,
+        addResourceSkill: entities.addResourceSkill,
+        deleteResourceSkill: entities.deleteResourceSkill,
+        addProjectSkill: entities.addProjectSkill,
+        deleteProjectSkill: entities.deleteProjectSkill,
+        addContract: entities.addContract,
+        updateContract: entities.updateContract,
+        deleteContract: entities.deleteContract,
+        recalculateContractBacklog: entities.recalculateContractBacklog,
+        addSkillCategory: entities.addSkillCategory,
+        updateSkillCategory: entities.updateSkillCategory,
+        deleteSkillCategory: entities.deleteSkillCategory,
+        addSkillMacro: entities.addSkillMacro,
+        updateSkillMacro: entities.updateSkillMacro,
+        deleteSkillMacro: entities.deleteSkillMacro,
+        getRoleCost: entities.getRoleCost,
+        getResourceComputedSkills: entities.getResourceComputedSkills
+    }), [entities]);
+
+    return <CatalogsContext.Provider value={value}>{children}</CatalogsContext.Provider>;
+}
+
+function PlanningProvider({ children }: { children: ReactNode }) {
+    const entities = useEntitiesContext();
+    const allocationsCtx = useAllocationsContext();
+
+    const value = useMemo(() => ({
+        assignments: entities.assignments,
+        wbsTasks: entities.wbsTasks,
+        resourceRequests: entities.resourceRequests,
+        interviews: entities.interviews,
+        planningSettings: entities.planningSettings,
+        leaveRequests: entities.leaveRequests,
+        companyCalendar: entities.companyCalendar,
+        addMultipleAssignments: entities.addMultipleAssignments,
+        deleteAssignment: entities.deleteAssignment,
+        addResourceRequest: entities.addResourceRequest,
+        updateResourceRequest: entities.updateResourceRequest,
+        deleteResourceRequest: entities.deleteResourceRequest,
+        addInterview: entities.addInterview,
+        updateInterview: entities.updateInterview,
+        deleteInterview: entities.deleteInterview,
+        addLeaveRequest: entities.addLeaveRequest,
+        updateLeaveRequest: entities.updateLeaveRequest,
+        deleteLeaveRequest: entities.deleteLeaveRequest,
+        updatePlanningSettings: entities.updatePlanningSettings,
+        allocations: allocationsCtx.allocations,
+        updateAllocation: allocationsCtx.updateAllocation,
+        bulkUpdateAllocations: allocationsCtx.bulkUpdateAllocations
+    }), [allocationsCtx, entities]);
+
+    return <PlanningContext.Provider value={value}>{children}</PlanningContext.Provider>;
+}
+
+function ConfigProvider({ children }: { children: ReactNode }) {
+    const entities = useEntitiesContext();
+
+    const value = useMemo(() => ({
+        horizontals: entities.horizontals,
+        seniorityLevels: entities.seniorityLevels,
+        projectStatuses: entities.projectStatuses,
+        clientSectors: entities.clientSectors,
+        locations: entities.locations,
+        pageVisibility: entities.pageVisibility,
+        skillThresholds: entities.skillThresholds,
+        managerResourceIds: entities.managerResourceIds,
+        sidebarConfig: entities.sidebarConfig,
+        sidebarSections: entities.sidebarSections,
+        sidebarSectionColors: entities.sidebarSectionColors,
+        dashboardLayout: entities.dashboardLayout,
+        roleHomePages: entities.roleHomePages,
+        analyticsCache: entities.analyticsCache,
+        leaveTypes: entities.leaveTypes,
+        addConfigOption: entities.addConfigOption,
+        updateConfigOption: entities.updateConfigOption,
+        deleteConfigOption: entities.deleteConfigOption,
+        updateSkillThresholds: entities.updateSkillThresholds,
+        updateSidebarConfig: entities.updateSidebarConfig,
+        updateSidebarSections: entities.updateSidebarSections,
+        updateSidebarSectionColors: entities.updateSidebarSectionColors,
+        updateDashboardLayout: entities.updateDashboardLayout,
+        updateRoleHomePages: entities.updateRoleHomePages,
+        forceRecalculateAnalytics: entities.forceRecalculateAnalytics,
+        addLeaveType: entities.addLeaveType,
+        updateLeaveType: entities.updateLeaveType,
+        deleteLeaveType: entities.deleteLeaveType
+    }), [entities]);
+
+    return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
+}
+
+function NotificationsProvider({ children }: { children: ReactNode }) {
+    const entities = useEntitiesContext();
+
+    const value = useMemo(() => ({
+        notifications: entities.notifications,
+        fetchData: entities.fetchData,
+        fetchNotifications: entities.fetchNotifications,
+        markNotificationAsRead: entities.markNotificationAsRead
+    }), [entities]);
+
+    return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
+}
+
+export const AppProvider = AppProviders;
