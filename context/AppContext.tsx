@@ -92,7 +92,7 @@ const ConfigContext = createContext<Pick<EntitiesContextType,
     'sidebarSectionColors' | 'dashboardLayout' | 'roleHomePages' | 'analyticsCache' |
     'leaveTypes' | 'addConfigOption' | 'updateConfigOption' | 'deleteConfigOption' | 'updateSkillThresholds' |
     'updateSidebarConfig' | 'updateSidebarSections' | 'updateSidebarSectionColors' |
-    'updateDashboardLayout' | 'updateRoleHomePages' | 'forceRecalculateAnalytics' |
+    'updateDashboardLayout' | 'updateRoleHomePages' | 'updatePageVisibility' | 'forceRecalculateAnalytics' |
     'addLeaveType' | 'updateLeaveType' | 'deleteLeaveType'
 > | undefined>(undefined);
 
@@ -915,6 +915,22 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         } catch (e) { console.error(e); }
     };
 
+    const updatePageVisibility = async (visibility: PageVisibility) => {
+        setActionLoading('updatePageVisibility', true);
+        try {
+            const updates = Object.entries(visibility).map(([path, onlyAdmin]) => ({
+                key: `page_vis.${path}`,
+                value: String(onlyAdmin)
+            }));
+
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates })
+            });
+            setPageVisibility(visibility);
+        } finally { setActionLoading('updatePageVisibility', false); }
+    };
+
     const updateDashboardLayout = async (layout: DashboardCategory[]) => {
         setActionLoading('updateDashboardLayout', true);
         try {
@@ -961,12 +977,13 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         updateSkillThresholds, updatePlanningSettings, getResourceComputedSkills,
         addLeaveType, updateLeaveType, deleteLeaveType,
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
+        updatePageVisibility,
         updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout, updateRoleHomePages,
         forceRecalculateAnalytics,
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro
     }), [
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
+        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
@@ -1162,6 +1179,7 @@ function ConfigProvider({ children }: { children: ReactNode }) {
         updateConfigOption: entities.updateConfigOption,
         deleteConfigOption: entities.deleteConfigOption,
         updateSkillThresholds: entities.updateSkillThresholds,
+        updatePageVisibility: entities.updatePageVisibility,
         updateSidebarConfig: entities.updateSidebarConfig,
         updateSidebarSections: entities.updateSidebarSections,
         updateSidebarSectionColors: entities.updateSidebarSectionColors,

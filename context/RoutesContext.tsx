@@ -41,7 +41,7 @@ const matchRole = (route: AppRoute, role?: UserRole | null) => {
 };
 
 export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { pageVisibility, roleHomePages } = useEntitiesContext();
+    const { pageVisibility, roleHomePages, sidebarConfig } = useEntitiesContext();
     const { user, hasPermission, isLoginProtectionEnabled, isAdmin } = useAuth();
 
     const isRouteEnabled = useCallback(
@@ -65,7 +65,50 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const enabledRoutes = useMemo(() => routesManifest.filter(canAccessRoute), [canAccessRoute]);
 
-    const navigationRoutes = useMemo(() => enabledRoutes.filter(route => route.showInSidebar), [enabledRoutes]);
+    const sidebarOverrides = useMemo(() => {
+        const map = new Map<string, { label?: string; icon?: string; section?: string; color?: string; order: number }>();
+        sidebarConfig.forEach((item, index) => {
+            map.set(normalizePath(item.path), {
+                label: item.label,
+                icon: item.icon,
+                section: item.section,
+                color: item.color,
+                order: index
+            });
+        });
+        return map;
+    }, [sidebarConfig]);
+
+    const navigationRoutes = useMemo(() => {
+        const decorated = enabledRoutes
+            .filter(route => route.showInSidebar)
+            .map(route => {
+                const override = sidebarOverrides.get(normalizePath(route.path));
+                if (!override) return route;
+                return {
+                    ...route,
+                    label: override.label || route.label,
+                    icon: override.icon || route.icon,
+                    section: override.section || route.section,
+                    color: override.color ?? route.color,
+                };
+            });
+
+        const fallbackOrder = new Map<string, number>();
+        decorated.forEach((route, index) => fallbackOrder.set(normalizePath(route.path), index));
+
+        const sorted = decorated.sort((a, b) => {
+            const overrideA = sidebarOverrides.get(normalizePath(a.path));
+            const overrideB = sidebarOverrides.get(normalizePath(b.path));
+
+            if (overrideA && overrideB) return overrideA.order - overrideB.order;
+            if (overrideA) return -1;
+            if (overrideB) return 1;
+            return (fallbackOrder.get(normalizePath(a.path)) ?? 0) - (fallbackOrder.get(normalizePath(b.path)) ?? 0);
+        });
+
+        return sorted;
+    }, [enabledRoutes, sidebarOverrides]);
 
     const bottomNavigationRoutes = useMemo(() => enabledRoutes.filter(route => route.showInBottomNav), [enabledRoutes]);
 

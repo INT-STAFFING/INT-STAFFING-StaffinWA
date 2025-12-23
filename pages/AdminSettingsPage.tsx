@@ -5,13 +5,14 @@ import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
-import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole, DashboardCategory } from '../types';
+import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole, DashboardCategory, PageVisibility } from '../types';
 import { useEntitiesContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
 import { createAuthorizedFetcher, useAuthorizedResource } from '../src/hooks/useAuthorizedResource';
 import { authorizedFetch, authorizedJsonFetch } from '../src/utils/api';
+import { routesManifest } from '../src/routes';
 
 const UserManagementSection: React.FC = () => {
     const { data: usersData, loading: usersLoading, refresh: refreshUsers, updateCache: updateUsersCache } = useAuthorizedResource<AppUser[]>(
@@ -823,20 +824,14 @@ const RoleHomePageEditor: React.FC = () => {
     // Available Roles
     const roles: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR', 'ADMIN'];
     
-    // Available Pages (simplified list)
-    const availablePages = [
-        { path: '/dashboard', label: 'Dashboard' },
-        { path: '/staffing', label: 'Staffing' },
-        { path: '/workload', label: 'Carico Risorse' },
-        { path: '/projects', label: 'Progetti' },
-        { path: '/resources', label: 'Risorse' },
-        { path: '/resource-requests', label: 'Richieste Risorse' },
-        { path: '/interviews', label: 'Colloqui' },
-        { path: '/leaves', label: 'Assenze' },
-        { path: '/notifications', label: 'Notifiche' },
-        { path: '/simple-user-manual', label: 'Guida Assenze' },
-        { path: '/manuale-utente', label: 'Manuale Utente' }
-    ];
+    const availablePages = useMemo(
+        () =>
+            routesManifest
+                .filter(route => route.requiresAuth !== false)
+                .map(route => ({ path: route.path, label: route.label }))
+                .sort((a, b) => a.label.localeCompare(b.label)),
+        []
+    );
 
     useEffect(() => {
         if (roleHomePages) setLocalConfig(roleHomePages);
@@ -880,7 +875,7 @@ const RoleHomePageEditor: React.FC = () => {
                     <div key={role} className="bg-surface-container-low p-3 rounded-lg border border-outline-variant">
                         <label className="block text-xs font-bold text-on-surface-variant mb-1 uppercase">{role}</label>
                         <select 
-                            value={localConfig[role] || '/staffing'} 
+                            value={localConfig[role] || availablePages[0]?.path || '/staffing'}
                             onChange={(e) => handleChange(role, e.target.value)}
                             className="form-select w-full text-sm"
                         >
@@ -888,6 +883,120 @@ const RoleHomePageEditor: React.FC = () => {
                                 <option key={page.path} value={page.path}>{page.label} ({page.path})</option>
                             ))}
                         </select>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const PageVisibilityEditor: React.FC = () => {
+    const { pageVisibility, updatePageVisibility, isActionLoading } = useEntitiesContext();
+    const [localVisibility, setLocalVisibility] = useState<PageVisibility>(pageVisibility);
+    const [hasChanges, setHasChanges] = useState(false);
+    const { addToast } = useToast();
+
+    const manageableRoutes = useMemo(
+        () =>
+            routesManifest
+                .filter(route => route.featureFlag === 'pageVisibility' && route.requiresAuth !== false)
+                .sort((a, b) => a.label.localeCompare(b.label)),
+        []
+    );
+
+    const groupedRoutes = useMemo(() => manageableRoutes.reduce<Record<string, typeof manageableRoutes>>((acc, route) => {
+        const section = route.section || 'Altro';
+        if (!acc[section]) acc[section] = [];
+        acc[section].push(route);
+        return acc;
+    }, {}), [manageableRoutes]);
+
+    useEffect(() => {
+        setLocalVisibility(pageVisibility);
+        setHasChanges(false);
+    }, [pageVisibility]);
+
+    const toggleRoute = (path: string) => {
+        setLocalVisibility(prev => {
+            const next = { ...prev } as PageVisibility;
+            const nextValue = !(prev[path] ?? false);
+            if (nextValue) {
+                next[path] = true;
+            } else {
+                delete next[path];
+            }
+            return next;
+        });
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        const normalized = manageableRoutes.reduce<PageVisibility>((acc, route) => {
+            if (localVisibility[route.path]) acc[route.path] = true;
+            return acc;
+        }, {});
+
+        try {
+            await updatePageVisibility(normalized);
+            addToast('Visibilità pagine aggiornata.', 'success');
+            setHasChanges(false);
+        } catch (e) {
+            addToast('Errore durante il salvataggio della visibilità.', 'error');
+        }
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6 mt-6">
+            <div className="flex justify-between items-center mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Visibilità Pagine</h2>
+                    <p className="text-xs text-on-surface-variant">Definisci quali sezioni sono riservate agli amministratori.</p>
+                </div>
+                {hasChanges && (
+                    <button
+                        onClick={handleSave}
+                        disabled={isActionLoading('updatePageVisibility')}
+                        className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isActionLoading('updatePageVisibility') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva visibilità</>}
+                    </button>
+                )}
+            </div>
+
+            <div className="space-y-4">
+                {Object.entries(groupedRoutes).map(([section, routes]) => (
+                    <div key={section} className="border border-outline-variant rounded-lg">
+                        <div className="flex items-center justify-between bg-surface-container-low px-4 py-2 text-sm font-semibold text-on-surface">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-base">category</span>
+                                <span>{section}</span>
+                            </div>
+                            <span className="text-xs text-on-surface-variant">{routes.length} pagine</span>
+                        </div>
+                        <ul className="divide-y divide-outline-variant">
+                            {routes.map(route => {
+                                const adminOnly = !!localVisibility[route.path];
+                                return (
+                                    <li key={route.path} className="flex items-center justify-between px-4 py-3 hover:bg-surface-container-low">
+                                        <div>
+                                            <p className="text-sm font-medium text-on-surface">{route.label}</p>
+                                            <p className="text-xs text-on-surface-variant font-mono">{route.path}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${adminOnly ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>
+                                                {adminOnly ? 'Solo Admin' : 'Visibile'}
+                                            </span>
+                                            <button
+                                                onClick={() => toggleRoute(route.path)}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${adminOnly ? 'bg-error' : 'bg-secondary'}`}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${adminOnly ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </button>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
                 ))}
             </div>
@@ -1054,6 +1163,7 @@ const AdminSettingsPage: React.FC = () => {
                 {activeTab === 'menu' && (
                     <>
                         <MenuConfigurationEditor />
+                        <PageVisibilityEditor />
                         <RoleHomePageEditor />
                     </>
                 )}
@@ -1586,6 +1696,8 @@ const LeaveConfigurationEditor: React.FC = () => {
     );
 };
 
+const HEX_COLOR_REGEX = /^#(?:[0-9a-fA-F]{3}){1,2}$/;
+
 const ThemeSection: React.FC = () => {
     const { theme, saveTheme, resetTheme, isDbThemeEnabled, mode, toggleMode } = useTheme();
     const [localTheme, setLocalTheme] = useState(theme);
@@ -1593,7 +1705,14 @@ const ThemeSection: React.FC = () => {
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        setLocalTheme(theme);
+        const normalizeColor = (value: string, fallback: string) => (HEX_COLOR_REGEX.test(value) ? value : fallback);
+        setLocalTheme({
+            ...theme,
+            toastSuccessBackground: normalizeColor(theme.toastSuccessBackground, '#dcfce7'),
+            toastSuccessForeground: normalizeColor(theme.toastSuccessForeground, '#14532d'),
+            toastErrorBackground: normalizeColor(theme.toastErrorBackground, '#fee2e2'),
+            toastErrorForeground: normalizeColor(theme.toastErrorForeground, '#7f1d1d'),
+        });
     }, [theme]);
 
     const handleColorChange = (modeKey: 'light' | 'dark', key: string, value: string) => {
@@ -1616,6 +1735,31 @@ const ThemeSection: React.FC = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleToastChange = (key: 'toastPosition' | 'toastSuccessBackground' | 'toastSuccessForeground' | 'toastErrorBackground' | 'toastErrorForeground', value: string) => {
+        setLocalTheme(prev => ({
+            ...prev,
+            [key]: value
+        }));
+    };
+
+    const handleVisualizationChange = (
+        chart: 'sankey' | 'network',
+        key: 'nodeWidth' | 'nodePadding' | 'linkOpacity' | 'chargeStrength' | 'linkDistance' | 'centerStrength' | 'nodeRadius',
+        value: string
+    ) => {
+        const parsed = Number(value);
+        setLocalTheme(prev => ({
+            ...prev,
+            visualizationSettings: {
+                ...prev.visualizationSettings,
+                [chart]: {
+                    ...prev.visualizationSettings[chart],
+                    [key]: Number.isNaN(parsed) ? 0 : parsed
+                }
+            }
+        }));
     };
 
     const handleReset = async () => {
@@ -1674,6 +1818,152 @@ const ThemeSection: React.FC = () => {
                                 <span className="text-xs text-on-surface-variant truncate" title={key}>{key}</span>
                             </div>
                         ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+                    <h3 className="font-semibold text-on-surface mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">notifications</span>
+                        Toast &amp; Feedback
+                    </h3>
+                    <label className="block text-xs font-bold text-on-surface-variant mb-2 uppercase">Posizione</label>
+                    <select
+                        value={localTheme.toastPosition}
+                        onChange={(e) => handleToastChange('toastPosition', e.target.value)}
+                        className="form-select w-full mb-4"
+                    >
+                        <option value="top-center">Top Center</option>
+                        <option value="top-right">Top Right</option>
+                        <option value="top-left">Top Left</option>
+                        <option value="bottom-center">Bottom Center</option>
+                        <option value="bottom-right">Bottom Right</option>
+                        <option value="bottom-left">Bottom Left</option>
+                    </select>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <p className="text-[11px] font-semibold text-green-700">Success BG</p>
+                            <input
+                                type="color"
+                                value={localTheme.toastSuccessBackground}
+                                onChange={(e) => handleToastChange('toastSuccessBackground', e.target.value)}
+                                className="w-full h-10 rounded cursor-pointer"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[11px] font-semibold text-green-900">Success FG</p>
+                            <input
+                                type="color"
+                                value={localTheme.toastSuccessForeground}
+                                onChange={(e) => handleToastChange('toastSuccessForeground', e.target.value)}
+                                className="w-full h-10 rounded cursor-pointer"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[11px] font-semibold text-red-700">Error BG</p>
+                            <input
+                                type="color"
+                                value={localTheme.toastErrorBackground}
+                                onChange={(e) => handleToastChange('toastErrorBackground', e.target.value)}
+                                className="w-full h-10 rounded cursor-pointer"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[11px] font-semibold text-red-900">Error FG</p>
+                            <input
+                                type="color"
+                                value={localTheme.toastErrorForeground}
+                                onChange={(e) => handleToastChange('toastErrorForeground', e.target.value)}
+                                className="w-full h-10 rounded cursor-pointer"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+                    <h3 className="font-semibold text-on-surface mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">device_hub</span>
+                        Sankey Diagram
+                    </h3>
+                    <div className="space-y-3">
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Larghezza Nodo
+                            <input
+                                type="number"
+                                value={localTheme.visualizationSettings.sankey.nodeWidth}
+                                onChange={(e) => handleVisualizationChange('sankey', 'nodeWidth', e.target.value)}
+                                className="form-input w-24 text-right"
+                            />
+                        </label>
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Padding Nodo
+                            <input
+                                type="number"
+                                value={localTheme.visualizationSettings.sankey.nodePadding}
+                                onChange={(e) => handleVisualizationChange('sankey', 'nodePadding', e.target.value)}
+                                className="form-input w-24 text-right"
+                            />
+                        </label>
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Opacità Link
+                            <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="1"
+                                value={localTheme.visualizationSettings.sankey.linkOpacity}
+                                onChange={(e) => handleVisualizationChange('sankey', 'linkOpacity', e.target.value)}
+                                className="form-input w-24 text-right"
+                            />
+                        </label>
+                    </div>
+                </div>
+
+                <div className="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+                    <h3 className="font-semibold text-on-surface mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">hub</span>
+                        Network Graph
+                    </h3>
+                    <div className="space-y-3">
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Forza Repulsiva
+                            <input
+                                type="number"
+                                value={localTheme.visualizationSettings.network.chargeStrength}
+                                onChange={(e) => handleVisualizationChange('network', 'chargeStrength', e.target.value)}
+                                className="form-input w-28 text-right"
+                            />
+                        </label>
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Distanza Link
+                            <input
+                                type="number"
+                                value={localTheme.visualizationSettings.network.linkDistance}
+                                onChange={(e) => handleVisualizationChange('network', 'linkDistance', e.target.value)}
+                                className="form-input w-28 text-right"
+                            />
+                        </label>
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Forza Centro
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={localTheme.visualizationSettings.network.centerStrength}
+                                onChange={(e) => handleVisualizationChange('network', 'centerStrength', e.target.value)}
+                                className="form-input w-28 text-right"
+                            />
+                        </label>
+                        <label className="flex items-center justify-between text-sm text-on-surface">
+                            Raggio Nodo
+                            <input
+                                type="number"
+                                value={localTheme.visualizationSettings.network.nodeRadius}
+                                onChange={(e) => handleVisualizationChange('network', 'nodeRadius', e.target.value)}
+                                className="form-input w-28 text-right"
+                            />
+                        </label>
                     </div>
                 </div>
             </div>
