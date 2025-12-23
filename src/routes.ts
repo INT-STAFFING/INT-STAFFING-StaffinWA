@@ -8,6 +8,7 @@ export interface AppRoute {
     label: string;
     icon: string;
     section?: string;
+    color?: string;
     showInSidebar?: boolean;
     showInBottomNav?: boolean;
     requiresAuth?: boolean;

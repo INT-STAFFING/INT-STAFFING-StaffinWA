@@ -166,6 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                             to={item.path}
                                             icon={item.icon}
                                             label={item.label}
+                                            color={item.color}
                                             badgeCount={item.path === '/notifications' ? unreadNotifications : undefined}
                                             onClick={handleLinkClick}
                                         />

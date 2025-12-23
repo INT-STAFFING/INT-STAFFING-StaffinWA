@@ -779,6 +779,7 @@ export interface EntitiesActions {
     updateLeaveRequest: (req: LeaveRequest) => Promise<void>;
     deleteLeaveRequest: (id: string) => Promise<void>;
     /** Aggiorna configurazioni UI e layout del provider. */
+    updatePageVisibility: (visibility: PageVisibility) => Promise<void>;
     updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
     updateSidebarSections: (sections: string[]) => Promise<void>;
     updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
