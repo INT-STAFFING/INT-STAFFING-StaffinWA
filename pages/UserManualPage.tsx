@@ -136,6 +136,61 @@ const UserManualPage: React.FC = () => {
                 </ul>
             </Section>
 
+            <Section title="7. Sezione Tecnica per Sviluppatori">
+                <SubSection title="Architettura e fondamenti">
+                    <ul>
+                        <li><strong>SPA React + React Router:</strong> l'applicazione è una single-page application avviata da <code>App.tsx</code> con routing dichiarativo (<code>&lt;Routes&gt;</code>/<code>&lt;Route&gt;</code>) e lazy loading di tutte le pagine per ridurre il bundle iniziale.</li>
+                        <li><strong>Code splitting:</strong> le pagine sono caricate con <code>React.lazy</code> e <code>Suspense</code>, rendendo il caricamento progressivo e migliorando la percezione delle performance.</li>
+                        <li><strong>Styling:</strong> utilizza classi Tailwind (configurate in <code>tailwind.config.js</code>) combinate con le palette Material 3 presenti nelle classi <code>bg-surface</code>/<code>text-on-surface</code>.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Struttura logica dei moduli">
+                    <ul>
+                        <li><strong>pages/</strong>: contiene le viste di business (Staffing, Risorse, Progetti, Dashboard, Forecasting, ecc.) caricate in lazy loading. Ogni pagina espone un componente React predefinito.</li>
+                        <li><strong>components/</strong>: libreria di UI condivisa (es. <code>Sidebar</code>, <code>BottomNavBar</code>, icone, tabelle, card) riusata trasversalmente dalle pagine.</li>
+                        <li><strong>context/</strong>: provider React che incapsulano lo stato globale e i servizi (es. <code>AuthContext</code> per login e RBAC, <code>AppContext</code> per meta-configurazioni e dati dinamici, <code>ToastContext</code> per notifiche, <code>ThemeContext</code> per tema chiaro/scuro).</li>
+                        <li><strong>services/</strong> e <strong>libs/</strong>: adapter verso API e utility (helper per date, formattazione, fetch con gestione errori). Mantengono la logica di integrazione separata dalla UI.</li>
+                        <li><strong>config/</strong>: contiene configurazioni riusabili (es. mapping di ruoli, filtri, preset di griglie).</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Routing, layout e permessi">
+                    <ul>
+                        <li><strong>Layout composito:</strong> <code>App.tsx</code> orchestra l'app: <code>Sidebar</code> laterale, <code>Header</code> dinamico con breadcrumb e <code>BottomNavBar</code> mobile.</li>
+                        <li><strong>Protezione rotte:</strong> il wrapper <code>DynamicRoute</code> verifica i permessi via <code>AuthContext</code> prima di renderizzare la pagina; gli utenti senza permessi vengono reindirizzati.</li>
+                        <li><strong>Home dinamica:</strong> <code>HomeRedirect</code> sceglie la landing page in base al ruolo (es. admin verso configurazione, manager verso staffing).</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Flussi dati e stato applicativo">
+                    <ul>
+                        <li><strong>Fetching e caching:</strong> i servizi di <code>services/</code> recuperano dati (risorse, progetti, allocazioni) e li espongono ai componenti tramite i context; lo stato condiviso evita chiamate duplicate e semplifica le mutazioni ottimistiche.</li>
+                        <li><strong>Feedback utente:</strong> <code>ToastProvider</code> gestisce notifiche di successo/errore, mentre gli spinner di caricamento (es. <code>loadingSpinner</code> in <code>App.tsx</code>) coprono i periodi di attesa per mantenere responsività percepita.</li>
+                        <li><strong>Tema e accessibilità:</strong> <code>ThemeProvider</code> abilita dark/light mode e classi semantiche; le sezioni usano titoli gerarchici, liste e pulsanti con etichette ARIA per garantire navigabilità.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Componenti e pattern ricorrenti">
+                    <ul>
+                        <li><strong>Tabelle e liste dinamiche:</strong> le pagine di gestione (Risorse, Progetti, Ruoli) utilizzano componenti tabellari configurabili (ordinamento, filtri, paginazione) con selettori azione contestuali.</li>
+                        <li><strong>Card e pannelli informativi:</strong> la Dashboard e le viste analitiche impiegano card riusabili per KPI e grafici; gli stati di warning/errore sono evidenziati con classi cromatiche coerenti.</li>
+                        <li><strong>Form e validazioni:</strong> i form adottano controlli controllati React, validazione lato client e feedback inline; le date sono normalizzate tramite helper condivisi.</li>
+                        <li><strong>Interazioni drag & drop/resize:</strong> la griglia di staffing consente di estendere o ridurre l'allocazione temporale direttamente sulle celle, con aggiornamento immediato dello stato globale.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Come estendere o intervenire sul codice">
+                    <ol className="list-decimal list-inside space-y-2">
+                        <li><strong>Aggiungere una pagina:</strong> creare il file in <code>pages/</code>, esportare un componente React di default, aggiungere l'import lazy in <code>src/App.tsx</code> e configurare il path nel router (eventualmente in <code>src/routes.ts</code> se usato per menu dinamici).</li>
+                        <li><strong>Integrare un nuovo dato/API:</strong> incapsulare le chiamate in <code>services/</code>, tipizzare le risposte in <code>types.ts</code>, e passare i dati tramite il context pertinente per mantenerli coerenti tra le viste.</li>
+                        <li><strong>Riutilizzare componenti UI:</strong> consultare <code>components/</code> per pattern già disponibili (card, toolbar, filtri). Estendere i componenti con props tipizzate evitando <code>any</code> e mantenendo la compatibilità con Tailwind.</li>
+                        <li><strong>Gestire permessi:</strong> mappare il nuovo path nel sistema RBAC dentro <code>AuthContext</code> (o nella configurazione di ruoli) così che <code>DynamicRoute</code> possa validarlo automaticamente.</li>
+                        <li><strong>Testing manuale veloce:</strong> usare la navigazione laterale per raggiungere le nuove viste, verificare loading/error state e controllare che i toast vengano emessi correttamente dopo azioni CRUD.</li>
+                    </ol>
+                </SubSection>
+            </Section>
+
             <style>{`
                 .prose ul > li::before {
                     background-color: #2563eb;
