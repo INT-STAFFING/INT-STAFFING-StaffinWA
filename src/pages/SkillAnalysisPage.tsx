@@ -1138,8 +1138,8 @@ const SkillAnalysisPage: React.FC = () => {
     const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillCategories]);
     const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillMacroCategories]);
 
-    // ... (filteredSkills logic remains unchanged)
-    const filteredSkills = useMemo(() => {
+    // Applichiamo i filtri diretti sulle competenze
+    const baseFilteredSkills = useMemo(() => {
         return skills.filter(s => {
             if (filters.skillIds.length > 0 && !filters.skillIds.includes(s.id!)) return false;
             if (filters.categoryId) {
@@ -1159,9 +1159,9 @@ const SkillAnalysisPage: React.FC = () => {
         });
     }, [skills, filters, skillCategories]);
 
-    // ... (filteredResources logic remains unchanged)
+    // Filtriamo le risorse con i filtri selezionati e con almeno una skill valida
     const filteredResources = useMemo(() => {
-        const validSkillIds = new Set(filteredSkills.map(s => s.id));
+        const validSkillIds = new Set(baseFilteredSkills.map(s => s.id));
 
         return resources.filter(r => {
             if (r.resigned) return false;
@@ -1178,7 +1178,27 @@ const SkillAnalysisPage: React.FC = () => {
 
             return resMatch && roleMatch && locationMatch;
         });
-    }, [resources, filters, resourceSkills, filteredSkills, hideEmptyRows]);
+    }, [resources, filters, resourceSkills, baseFilteredSkills, hideEmptyRows]);
+
+    // Limitare le competenze ai soli collegamenti con le risorse filtrate rende i grafici coerenti con i filtri applicati
+    const activeSkillIds = useMemo(() => {
+        const ids = new Set<string>();
+        const validSkillIds = new Set(baseFilteredSkills.map(s => s.id));
+
+        filteredResources.forEach(r => {
+            resourceSkills
+                .filter(rs => rs.resourceId === r.id && validSkillIds.has(rs.skillId))
+                .forEach(rs => ids.add(rs.skillId));
+        });
+
+        return ids;
+    }, [filteredResources, resourceSkills, baseFilteredSkills]);
+
+    const filteredSkills = useMemo(() => {
+        const shouldRestrictByResources = filters.resourceIds.length > 0 || hideEmptyRows || filters.displayMode === 'not_empty';
+        if (!shouldRestrictByResources) return baseFilteredSkills;
+        return baseFilteredSkills.filter(s => activeSkillIds.has(s.id!));
+    }, [baseFilteredSkills, activeSkillIds, filters.resourceIds, hideEmptyRows, filters.displayMode]);
 
     // ... (networkData, heatmapData, chordData, radarData, dendrogramData, packingData, sankeyData, bubbleData logic remains unchanged)
     const networkData = useMemo(() => {
