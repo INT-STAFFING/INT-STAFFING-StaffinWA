@@ -100,7 +100,11 @@ const NotificationsContext = createContext<Pick<EntitiesContextType,
     'notifications' | 'fetchData' | 'fetchNotifications' | 'markNotificationAsRead'
 > | undefined>(undefined);
 
-const AppStateContext = createContext<{ loading: boolean; isActionLoading: (action: string) => boolean } | undefined>(undefined);
+const AppStateContext = createContext<{
+    loading: boolean;
+    isActionLoading: (action: string) => boolean;
+    fetchError: string | null;
+} | undefined>(undefined);
 
 export interface AppProvidersProps {
     children: ReactNode;
@@ -184,6 +188,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     const setActionLoading = (action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -193,6 +198,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
 
     const fetchData = useCallback(async () => {
         setLoading(true);
+        setFetchError(null);
         try {
             // 1. Metadata
             const metaData = await apiFetch<MetadataResponse>('/api/data?scope=metadata');
@@ -257,6 +263,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
 
         } catch (error) {
             console.error("Failed to fetch data", error);
+            setFetchError((error as Error).message || 'Errore durante il caricamento dei dati.');
         } finally {
             setLoading(false);
         }
@@ -994,7 +1001,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         allocations, updateAllocation, bulkUpdateAllocations
     }), [allocations, updateAllocation, bulkUpdateAllocations]);
 
-    const appStateValue = useMemo(() => ({ loading, isActionLoading }), [loading, isActionLoading]);
+    const appStateValue = useMemo(() => ({ loading, isActionLoading, fetchError }), [loading, isActionLoading, fetchError]);
 
     return (
         <AppStateContext.Provider value={appStateValue}>

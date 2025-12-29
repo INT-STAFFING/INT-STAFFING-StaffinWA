@@ -8,7 +8,7 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
-import { AppProviders, useEntitiesContext } from '../context/AppContext';
+import { AppProviders, useAppState, useEntitiesContext } from '../context/AppContext';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -142,6 +142,29 @@ const loadingSpinner = (
   </div>
 );
 
+interface ErrorScreenProps {
+  message: string;
+  onRetry: () => void;
+}
+
+const ErrorScreen: React.FC<ErrorScreenProps> = ({ message, onRetry }) => (
+  <div className="flex flex-col items-center justify-center w-full h-full min-h-[60vh] bg-background text-center space-y-4">
+    <div className="p-4 rounded-full bg-error-container text-on-error-container">
+      <span className="material-symbols-outlined text-4xl">error</span>
+    </div>
+    <div className="space-y-2">
+      <h2 className="text-xl font-semibold text-on-surface">Si è verificato un errore</h2>
+      <p className="text-on-surface-variant max-w-xl">{message}</p>
+    </div>
+    <button
+      onClick={onRetry}
+      className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90 transition-opacity"
+    >
+      Riprova
+    </button>
+  </div>
+);
+
 // RBAC Protected Route Wrapper
 const DynamicRoute: React.FC<{ path: string, children: React.ReactElement }> = ({ path, children }) => {
   const { hasPermission, isLoginProtectionEnabled } = useAuth();
@@ -182,10 +205,15 @@ interface AppContentProps {
 }
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
-  const { loading } = useEntitiesContext();
+  const { loading, fetchError } = useAppState();
+  const { fetchData } = useEntitiesContext();
 
   if (loading) {
     return loadingSpinner;
+  }
+
+  if (fetchError) {
+    return <ErrorScreen message={fetchError} onRetry={fetchData} />;
   }
 
   return (
