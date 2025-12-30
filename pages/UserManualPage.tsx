@@ -166,7 +166,7 @@ const UserManualPage: React.FC = () => {
                 <SubSection title="Flussi dati e stato applicativo">
                     <ul>
                         <li><strong>Fetching e caching:</strong> i servizi di <code>services/</code> recuperano dati (risorse, progetti, allocazioni) e li espongono ai componenti tramite i context; lo stato condiviso evita chiamate duplicate e semplifica le mutazioni ottimistiche.</li>
-                        <li><strong>Feedback utente:</strong> <code>ToastProvider</code> gestisce notifiche di successo/errore, mentre gli spinner di caricamento (es. <code>loadingSpinner</code> in <code>App.tsx</code>) coprono i periodi di attesa per mantenere responsività percepita.</li>
+                        <li><strong>Feedback utente:</strong> <code>ToastProvider</code> gestisce notifiche di successo/errore, mentre i <em>skeleton loader</em> (<code>LoadingSkeleton</code> in <code>App.tsx</code>) coprono i periodi di attesa per mantenere responsività percepita.</li>
                         <li><strong>Tema e accessibilità:</strong> <code>ThemeProvider</code> abilita dark/light mode e classi semantiche; le sezioni usano titoli gerarchici, liste e pulsanti con etichette ARIA per garantire navigabilità.</li>
                     </ul>
                 </SubSection>
