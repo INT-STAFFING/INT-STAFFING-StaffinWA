@@ -1,67 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import type { AppRoute } from '../src/routes';
+import type { SidebarFooterAction } from '../types';
 import Modal from './Modal';
 import { SpinnerIcon } from './icons';
+import SidebarHeadless, { type RenderableSidebarItem, type SidebarSectionGroup } from './sidebar/SidebarHeadless';
+import SidebarItemFactory from './sidebar/SidebarItemFactory';
 
 interface SidebarProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
 }
 
-interface NavItemProps {
-    to: string;
-    icon: string;
-    label: string;
-    color?: string;
-    badgeCount?: number;
-    onClick?: () => void;
-}
-
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, color, badgeCount, onClick }) => {
-    const location = useLocation();
-    const isActive = location.pathname === to;
-
-    // Helper to get dynamic style based on theme color key if present
-    const getColorStyle = (active: boolean) => {
-        if (active) return {}; // Active overrides color to primary usually
-        if (color) return { color: `var(--color-${color})` };
-        return {};
-    };
-
-    return (
-    <Link
-        to={to}
-        onClick={onClick}
-        className={
-            `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 justify-between ${
-                isActive
-                    ? 'text-primary bg-secondary-container border-r-4 border-primary'
-                    : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-            }`
-        }
-        style={getColorStyle(isActive)}
-    >
-        <div className="flex items-center">
-            <span className="material-symbols-outlined mr-3">{icon}</span>
-            {label}
-        </div>
-        {badgeCount !== undefined && badgeCount > 0 && (
-            <span className="bg-error text-on-error text-xs font-bold px-2 py-0.5 rounded-full">
-                {badgeCount}
-            </span>
-        )}
-    </Link>
-)};
-
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
-    const { logout, user, changePassword } = useAuth();
-    const { sidebarSections, sidebarSectionColors, notifications } = useEntitiesContext();
+    const location = useLocation();
+    const { logout, user, changePassword, hasPermission } = useAuth();
+    const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useEntitiesContext();
     const { navigationRoutes } = useRoutesManifest();
-    
+
     // State per la modale cambio password
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -69,21 +28,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const [passwordError, setPasswordError] = useState('');
     const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-    // Layout fix: Mobile is fixed (overlay/slide), Desktop is relative (flex item taking space)
-    const sidebarClasses = `fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-outline-variant transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-    }`;
-
     // Calcolo notifiche non lette
     const unreadNotifications = useMemo(() => {
         return notifications.filter(n => !n.isRead).length;
     }, [notifications]);
 
-    // Raggruppa le voci per sezione
+    // Raggruppa le voci per sezione e applica permessi opzionali
     const groupedItems = useMemo(() => {
         const groups: Record<string, AppRoute[]> = {};
 
         navigationRoutes.forEach(item => {
+            if (item.requiredPermission && !hasPermission(item.requiredPermission)) return;
             const sectionName = item.section || 'Altro';
             if (!groups[sectionName]) {
                 groups[sectionName] = [];
@@ -101,15 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         });
 
         return sortedGroups;
-    }, [navigationRoutes, sidebarSections]);
-
-    // Chiude la sidebar quando si clicca su un link (utile per mobile)
-    const handleLinkClick = () => {
-        // Close sidebar on mobile when a link is clicked
-        if (window.innerWidth < 768) {
-            setIsOpen(false);
-        }
-    };
+    }, [hasPermission, navigationRoutes, sidebarSections]);
 
     const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -137,75 +84,94 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         }
     };
 
+    const sections: SidebarSectionGroup[] = useMemo(() => {
+        return groupedItems.map(([sectionName, items]) => {
+            const sectionColor = sidebarSectionColors[sectionName];
+            const renderableItems: RenderableSidebarItem[] = items.map(item => ({
+                path: item.path,
+                label: item.label,
+                icon: item.icon,
+                section: item.section ?? sectionName,
+                color: item.color,
+                requiredPermission: item.requiredPermission,
+                badge:
+                    item.path === '/notifications' && unreadNotifications > 0 ? (
+                        <span className="bg-error text-on-error text-xs font-bold px-2 py-0.5 rounded-full">
+                            {unreadNotifications}
+                        </span>
+                    ) : null,
+                isActive: location.pathname === item.path,
+                onClick: () => {
+                    if (window.innerWidth < 768) {
+                        setIsOpen(false);
+                    }
+                }
+            }));
+
+            return {
+                name: sectionName,
+                color: sectionColor,
+                items: renderableItems
+            };
+        });
+    }, [groupedItems, location.pathname, setIsOpen, sidebarSectionColors, unreadNotifications]);
+
+    const footerActions: SidebarFooterAction[] = useMemo(() => {
+        return sidebarFooterActions
+            .filter(action => !action.requiredPermission || hasPermission(action.requiredPermission))
+            .map(action => ({
+                ...action
+            }));
+    }, [hasPermission, sidebarFooterActions]);
+
+    const handleFooterAction = (actionId: SidebarFooterAction['id']) => {
+        if (actionId === 'changePassword') {
+            setIsPasswordModalOpen(true);
+        } else if (actionId === 'logout') {
+            logout();
+        }
+    };
+
+    const renderFooterAction = (action: SidebarFooterAction) => {
+        const colorClass =
+            action.id === 'logout'
+                ? 'text-on-error-container bg-error-container'
+                : 'text-primary bg-primary-container/50 hover:bg-primary-container';
+        const style = action.color ? { color: `var(--color-${action.color})` } : undefined;
+        return (
+            <button
+                onClick={() => handleFooterAction(action.id)}
+                className={`flex items-center justify-center w-full px-4 py-2 text-sm font-medium rounded-full transition-colors ${colorClass}`}
+                style={style}
+            >
+                <span className="material-symbols-outlined mr-2 text-lg">{action.icon}</span>
+                {action.label}
+            </button>
+        );
+    };
+
     return (
         <>
-            <aside className={sidebarClasses}>
-                <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-center h-20 border-b border-outline-variant flex-shrink-0">
-                        <h1 className="text-2xl font-bold text-primary tracking-widest">PLANNER</h1>
-                    </div>
-
-                    <nav className="flex-1 overflow-y-auto py-4">
-                        {groupedItems.map(([sectionName, items]) => {
-                            if (items.length === 0) return null;
-
-                            const sectionColor = sidebarSectionColors[sectionName];
-                            const sectionStyle = sectionColor ? { color: `var(--color-${sectionColor})` } : {};
-
-                            return (
-                                <div key={sectionName} className="pb-4">
-                                    <p
-                                        className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2"
-                                        style={sectionStyle}
-                                    >
-                                        {sectionName}
-                                    </p>
-                                    {items.map(item => (
-                                        <NavItem
-                                            key={item.path}
-                                            to={item.path}
-                                            icon={item.icon}
-                                            label={item.label}
-                                            color={item.color}
-                                            badgeCount={item.path === '/notifications' ? unreadNotifications : undefined}
-                                            onClick={handleLinkClick}
-                                        />
-                                    ))}
-                                </div>
-                            );
-                        })}
-                    </nav>
-
-                    <div className="p-4 border-t border-outline-variant flex-shrink-0 bg-surface">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                                {user?.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="overflow-hidden">
-                                <p className="text-sm font-medium text-on-surface truncate">{user?.username}</p>
-                                <p className="text-xs text-on-surface-variant truncate">{user?.role}</p>
-                            </div>
+            <SidebarHeadless
+                isOpen={isOpen}
+                onCloseMobile={() => setIsOpen(false)}
+                headerSlot={<h1 className="text-2xl font-bold text-primary tracking-widest">PLANNER</h1>}
+                userSlot={
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                            {user?.username.charAt(0).toUpperCase()}
                         </div>
-                        
-                        <div className="space-y-2">
-                            <button
-                                onClick={() => setIsPasswordModalOpen(true)}
-                                className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-primary bg-primary-container/50 rounded-full hover:bg-primary-container transition-colors"
-                            >
-                                <span className="material-symbols-outlined mr-2 text-lg">lock_reset</span>
-                                Cambia Password
-                            </button>
-                            <button
-                                onClick={logout}
-                                className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-on-error-container bg-error-container rounded-full hover:opacity-90 transition-opacity"
-                            >
-                                <span className="material-symbols-outlined mr-2 text-lg">logout</span>
-                                Logout
-                            </button>
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-medium text-on-surface truncate">{user?.username}</p>
+                            <p className="text-xs text-on-surface-variant truncate">{user?.role}</p>
                         </div>
                     </div>
-                </div>
-            </aside>
+                }
+                sections={sections}
+                footerActions={footerActions}
+                renderItem={(item) => <SidebarItemFactory item={item} />}
+                renderFooterAction={renderFooterAction}
+            />
 
             {/* Change Password Modal */}
             {isPasswordModalOpen && (

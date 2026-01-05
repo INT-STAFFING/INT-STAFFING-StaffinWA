@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
-import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole, DashboardCategory, PageVisibility } from '../types';
+import { AppUser, RolePermission, SidebarItem, AuditLogEntry, UserRole, DashboardCategory, PageVisibility, SidebarFooterAction } from '../types';
 import { useEntitiesContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -1163,6 +1163,7 @@ const AdminSettingsPage: React.FC = () => {
                 {activeTab === 'menu' && (
                     <>
                         <MenuConfigurationEditor />
+                        <SidebarFooterActionsEditor />
                         <PageVisibilityEditor />
                         <RoleHomePageEditor />
                     </>
@@ -1371,8 +1372,9 @@ const MenuConfigurationEditor: React.FC = () => {
                     <div className="col-span-1 text-center">Ordine</div>
                     <div className="col-span-3">Etichetta</div>
                     <div className="col-span-3">Icona & Colore</div>
-                    <div className="col-span-3">Sezione</div>
-                    <div className="col-span-2 text-right">Path (Info)</div>
+                    <div className="col-span-2">Sezione</div>
+                    <div className="col-span-2">Permesso</div>
+                    <div className="col-span-1 text-right">Path</div>
                 </div>
                 <div className="max-h-[600px] overflow-y-auto divide-y divide-outline-variant bg-surface">
                     {config.map((item, index) => (
@@ -1418,7 +1420,7 @@ const MenuConfigurationEditor: React.FC = () => {
                                     {colorOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
                             </div>
-                            <div className="col-span-3">
+                            <div className="col-span-2">
                                 <select 
                                     value={item.section}
                                     onChange={(e) => handleChange(index, 'section', e.target.value)}
@@ -1429,8 +1431,17 @@ const MenuConfigurationEditor: React.FC = () => {
                                     ))}
                                 </select>
                             </div>
-                            <div className="col-span-2 text-right text-xs text-on-surface-variant font-mono truncate" title={item.path}>
-                                {item.path}
+                            <div className="col-span-2">
+                                <input
+                                    type="text"
+                                    value={item.requiredPermission || ''}
+                                    onChange={(e) => handleChange(index, 'requiredPermission', e.target.value)}
+                                    className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1"
+                                    placeholder="es. /reports"
+                                />
+                            </div>
+                            <div className="col-span-1 text-right text-xs text-on-surface-variant font-mono truncate" title={item.path}>
+                                {item.path.replace(/\/$/, '') || '/'}
                             </div>
                         </div>
                     ))}
@@ -1525,6 +1536,113 @@ const MenuConfigurationEditor: React.FC = () => {
                     </div>
                 </Modal>
             )}
+        </div>
+    );
+};
+
+const SidebarFooterActionsEditor: React.FC = () => {
+    const { sidebarFooterActions, updateSidebarFooterActions, isActionLoading } = useEntitiesContext();
+    const { theme } = useTheme();
+    const { addToast } = useToast();
+    const [actions, setActions] = useState<SidebarFooterAction[]>(sidebarFooterActions);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    useEffect(() => { setActions(sidebarFooterActions); }, [sidebarFooterActions]);
+
+    const colorOptions = useMemo(() => [
+        { value: 'primary', label: `Primary (${theme.light.primary})` },
+        { value: 'secondary', label: `Secondary (${theme.light.secondary})` },
+        { value: 'tertiary', label: `Tertiary (${theme.light.tertiary})` },
+        { value: 'error', label: `Error (${theme.light.error})` },
+    ], [theme.light.error, theme.light.primary, theme.light.secondary, theme.light.tertiary]);
+
+    const handleChange = (index: number, field: keyof SidebarFooterAction, value: string) => {
+        const next = [...actions];
+        next[index] = { ...next[index], [field]: value };
+        setActions(next);
+        setHasChanges(true);
+    };
+
+    const handleSave = async () => {
+        try {
+            await updateSidebarFooterActions(actions);
+            addToast('Azioni footer salvate.', 'success');
+            setHasChanges(false);
+        } catch (e) {
+            addToast('Errore salvataggio azioni footer.', 'error');
+        }
+    };
+
+    return (
+        <div className="bg-surface rounded-2xl shadow p-6">
+            <div className="flex justify-between items-start gap-4 mb-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-on-surface">Azioni Footer Sidebar</h2>
+                    <p className="text-xs text-on-surface-variant">
+                        Personalizza etichetta, icona, colore e permessi delle azioni disponibili nel footer della sidebar.
+                        I colori usano i token del tema (CSS vars <code>--color-*</code>).
+                    </p>
+                </div>
+                {hasChanges && (
+                    <button
+                        onClick={handleSave}
+                        disabled={isActionLoading('updateSidebarFooterActions')}
+                        className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-medium flex items-center gap-2 hover:opacity-90"
+                    >
+                        {isActionLoading('updateSidebarFooterActions') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva</>}
+                    </button>
+                )}
+            </div>
+
+            <div className="divide-y divide-outline-variant border border-outline-variant rounded-lg overflow-hidden">
+                {actions.map((action, index) => (
+                    <div key={action.id} className="grid grid-cols-12 gap-4 p-3 bg-surface">
+                        <div className="col-span-2">
+                            <p className="text-xs uppercase text-on-surface-variant font-bold">Azione</p>
+                            <p className="text-sm font-semibold text-on-surface">{action.id}</p>
+                        </div>
+                        <div className="col-span-3">
+                            <label className="text-xs font-bold text-on-surface-variant uppercase block">Etichetta</label>
+                            <input 
+                                type="text" 
+                                value={action.label} 
+                                onChange={(e) => handleChange(index, 'label', e.target.value)}
+                                className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1"
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="text-xs font-bold text-on-surface-variant uppercase block">Icona</label>
+                            <input 
+                                type="text" 
+                                value={action.icon} 
+                                onChange={(e) => handleChange(index, 'icon', e.target.value)}
+                                className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1 font-mono"
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="text-xs font-bold text-on-surface-variant uppercase block">Colore</label>
+                            <select
+                                value={action.color || ''}
+                                onChange={(e) => handleChange(index, 'color', e.target.value)}
+                                className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1"
+                            >
+                                <option value="">Default</option>
+                                {colorOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                        </div>
+                        <div className="col-span-3">
+                            <label className="text-xs font-bold text-on-surface-variant uppercase block">Permesso Richiesto</label>
+                            <input 
+                                type="text" 
+                                value={action.requiredPermission || ''} 
+                                onChange={(e) => handleChange(index, 'requiredPermission', e.target.value)}
+                                className="w-full bg-transparent border-b border-transparent hover:border-outline focus:border-primary text-sm text-on-surface outline-none py-1"
+                                placeholder="es. /config"
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };

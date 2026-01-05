@@ -75,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarConfigRes,
                 sidebarSectionsRes,
                 sidebarSectionColorsRes,
+                sidebarFooterActionsRes,
                 dashboardLayoutRes,
                 roleHomePagesRes,
                 analyticsRes,
@@ -105,6 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_sections_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_section_colors';`,
+                db.sql`SELECT value FROM app_config WHERE key = 'sidebar_footer_actions_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'dashboard_layout_v2';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'role_home_pages_v1';`,
                 db.sql`SELECT * FROM analytics_cache WHERE key = 'dashboard_kpi_current';`,
@@ -154,6 +156,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             let sidebarSectionColors = {};
             if (sidebarSectionColorsRes.rows.length > 0) { try { sidebarSectionColors = JSON.parse(sidebarSectionColorsRes.rows[0].value); } catch (e) {} }
+
+            let sidebarFooterActions = null;
+            if (sidebarFooterActionsRes.rows.length > 0) { try { sidebarFooterActions = JSON.parse(sidebarFooterActionsRes.rows[0].value); } catch (e) {} }
 
             let dashboardLayout = null;
             if (dashboardLayoutRes.rows.length > 0) { try { dashboardLayout = JSON.parse(dashboardLayoutRes.rows[0].value); } catch (e) {} }
@@ -256,6 +261,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarConfig,
                 sidebarSections,
                 sidebarSectionColors,
+                sidebarFooterActions,
                 dashboardLayout,
                 roleHomePages,
                 analyticsCache

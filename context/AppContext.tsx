@@ -5,7 +5,7 @@ import {
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill,
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState
+    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -49,6 +49,11 @@ const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
 
 const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
 
+const DEFAULT_SIDEBAR_FOOTER_ACTIONS: SidebarFooterAction[] = [
+    { id: 'changePassword', label: 'Cambia Password', icon: 'lock_reset', color: 'primary' },
+    { id: 'logout', label: 'Logout', icon: 'logout', color: 'error' }
+];
+
 const DEFAULT_DASHBOARD_LAYOUT: DashboardCategory[] = [
     { id: 'generale', label: 'Generale', cards: ['kpiHeader', 'attentionCards', 'leavesOverview'] },
     { id: 'staffing', label: 'Staffing Risorse', cards: ['averageAllocation', 'unallocatedFte', 'underutilizedResources', 'saturationTrend', 'locationAnalysis', 'effortByHorizontal'] },
@@ -89,9 +94,9 @@ const PlanningContext = createContext<(Pick<EntitiesContextType,
 const ConfigContext = createContext<Pick<EntitiesContextType,
     'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations' |
     'pageVisibility' | 'skillThresholds' | 'managerResourceIds' | 'sidebarConfig' | 'sidebarSections' |
-    'sidebarSectionColors' | 'dashboardLayout' | 'roleHomePages' | 'analyticsCache' |
+    'sidebarSectionColors' | 'sidebarFooterActions' | 'dashboardLayout' | 'roleHomePages' | 'analyticsCache' |
     'leaveTypes' | 'addConfigOption' | 'updateConfigOption' | 'deleteConfigOption' | 'updateSkillThresholds' |
-    'updateSidebarConfig' | 'updateSidebarSections' | 'updateSidebarSectionColors' |
+    'updateSidebarConfig' | 'updateSidebarSections' | 'updateSidebarSectionColors' | 'updateSidebarFooterActions' |
     'updateDashboardLayout' | 'updateRoleHomePages' | 'updatePageVisibility' | 'forceRecalculateAnalytics' |
     'addLeaveType' | 'updateLeaveType' | 'deleteLeaveType'
 > | undefined>(undefined);
@@ -113,6 +118,7 @@ export interface AppProvidersProps {
         sidebarLayoutKey?: string;
         sidebarSectionsKey?: string;
         sidebarSectionColorsKey?: string;
+        sidebarFooterActionsKey?: string;
         dashboardLayoutKey?: string;
         roleHomePagesKey?: string;
     };
@@ -142,6 +148,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         sidebarLayoutKey: configKeys?.sidebarLayoutKey ?? 'sidebar_layout_v1',
         sidebarSectionsKey: configKeys?.sidebarSectionsKey ?? 'sidebar_sections_v1',
         sidebarSectionColorsKey: configKeys?.sidebarSectionColorsKey ?? 'sidebar_section_colors',
+        sidebarFooterActionsKey: configKeys?.sidebarFooterActionsKey ?? 'sidebar_footer_actions_v1',
         dashboardLayoutKey: configKeys?.dashboardLayoutKey ?? 'dashboard_layout_v2',
         roleHomePagesKey: configKeys?.roleHomePagesKey ?? 'role_home_pages_v1'
     };
@@ -184,6 +191,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
+    const [sidebarFooterActions, setSidebarFooterActions] = useState<SidebarFooterAction[]>(DEFAULT_SIDEBAR_FOOTER_ACTIONS);
     const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT);
     const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
     const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -227,6 +235,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             if (metaData.sidebarConfig) setSidebarConfig(metaData.sidebarConfig);
             if (metaData.sidebarSections) setSidebarSections(metaData.sidebarSections);
             if (metaData.sidebarSectionColors) setSidebarSectionColors(metaData.sidebarSectionColors);
+            if (metaData.sidebarFooterActions) setSidebarFooterActions(metaData.sidebarFooterActions);
             if (metaData.dashboardLayout) setDashboardLayout(metaData.dashboardLayout);
             if (metaData.roleHomePages) setRoleHomePages(metaData.roleHomePages);
 
@@ -922,6 +931,17 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         } catch (e) { console.error(e); }
     };
 
+    const updateSidebarFooterActions = async (actions: SidebarFooterAction[]) => {
+        setActionLoading('updateSidebarFooterActions', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.sidebarFooterActionsKey, value: JSON.stringify(actions) }] })
+            });
+            setSidebarFooterActions(actions);
+        } finally { setActionLoading('updateSidebarFooterActions', false); }
+    };
+
     const updatePageVisibility = async (visibility: PageVisibility) => {
         setActionLoading('updatePageVisibility', true);
         try {
@@ -964,7 +984,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages,
         notifications, analyticsCache, loading, isActionLoading,
         fetchData, fetchNotifications, markNotificationAsRead,
         addResource, updateResource, deleteResource,
@@ -985,7 +1005,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         addLeaveType, updateLeaveType, deleteLeaveType,
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
         updatePageVisibility,
-        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateDashboardLayout, updateRoleHomePages,
+        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages,
         forceRecalculateAnalytics,
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro
@@ -993,7 +1013,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, dashboardLayout, roleHomePages,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages,
         notifications, analyticsCache, loading
     ]);
 
@@ -1178,6 +1198,7 @@ function ConfigProvider({ children }: { children: ReactNode }) {
         sidebarConfig: entities.sidebarConfig,
         sidebarSections: entities.sidebarSections,
         sidebarSectionColors: entities.sidebarSectionColors,
+        sidebarFooterActions: entities.sidebarFooterActions,
         dashboardLayout: entities.dashboardLayout,
         roleHomePages: entities.roleHomePages,
         analyticsCache: entities.analyticsCache,
@@ -1190,6 +1211,7 @@ function ConfigProvider({ children }: { children: ReactNode }) {
         updateSidebarConfig: entities.updateSidebarConfig,
         updateSidebarSections: entities.updateSidebarSections,
         updateSidebarSectionColors: entities.updateSidebarSectionColors,
+        updateSidebarFooterActions: entities.updateSidebarFooterActions,
         updateDashboardLayout: entities.updateDashboardLayout,
         updateRoleHomePages: entities.updateRoleHomePages,
         forceRecalculateAnalytics: entities.forceRecalculateAnalytics,

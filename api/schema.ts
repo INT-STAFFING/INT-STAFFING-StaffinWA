@@ -539,6 +539,16 @@ export async function ensureDbTablesExist(db: VercelPool) {
         ON CONFLICT (key) DO NOTHING;
     `;
 
+    const defaultFooterActions = [
+        { id: 'changePassword', label: 'Cambia Password', icon: 'lock_reset', color: 'primary' },
+        { id: 'logout', label: 'Logout', icon: 'logout', color: 'error' }
+    ];
+    await db.sql`
+        INSERT INTO app_config (key, value)
+        VALUES ('sidebar_footer_actions_v1', ${JSON.stringify(defaultFooterActions)})
+        ON CONFLICT (key) DO NOTHING;
+    `;
+
     // --- SEED DEFAULT ROLE HOME PAGES ---
     const defaultRoleHomePages = {
         'SIMPLE': '/dashboard',
