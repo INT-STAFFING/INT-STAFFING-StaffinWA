@@ -152,6 +152,23 @@ const HomeRedirect: React.FC = () => {
     return <Navigate to={target} replace />;
 };
 
+const ErrorScreen: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
+  <div className="flex flex-col items-center justify-center p-6 gap-4">
+    <div className="flex flex-col items-center text-center gap-1">
+      <span className="material-symbols-outlined text-4xl text-error">error</span>
+      <h2 className="text-lg font-semibold text-on-surface">Errore di caricamento</h2>
+      <p className="text-sm text-on-surface-variant max-w-md">{message}</p>
+    </div>
+    <button
+      onClick={onRetry}
+      className="px-4 py-2 bg-primary text-on-primary rounded-full font-medium flex items-center gap-2 hover:opacity-90"
+    >
+      <span className="material-symbols-outlined text-base">refresh</span>
+      Riprova
+    </button>
+  </div>
+);
+
 interface AppContentProps {
   onToggleSidebar: () => void;
 }

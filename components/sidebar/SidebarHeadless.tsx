@@ -1,10 +1,12 @@
 import React from 'react';
 import type { SidebarFooterAction, SidebarItem } from '../../types';
 
-export interface RenderableSidebarItem extends SidebarItem {
+export interface RenderableSidebarItem extends Omit<SidebarItem, 'section'> {
+    section?: string;
     badge?: React.ReactNode;
     isActive?: boolean;
     onClick?: () => void;
+    requiredPermission?: string;
 }
 
 export interface SidebarSectionGroup {

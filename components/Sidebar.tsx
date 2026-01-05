@@ -88,7 +88,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         return groupedItems.map(([sectionName, items]) => {
             const sectionColor = sidebarSectionColors[sectionName];
             const renderableItems: RenderableSidebarItem[] = items.map(item => ({
-                ...item,
+                path: item.path,
+                label: item.label,
+                icon: item.icon,
+                section: item.section ?? sectionName,
+                color: item.color,
+                requiredPermission: item.requiredPermission,
                 badge:
                     item.path === '/notifications' && unreadNotifications > 0 ? (
                         <span className="bg-error text-on-error text-xs font-bold px-2 py-0.5 rounded-full">
