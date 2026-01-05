@@ -593,6 +593,23 @@ export interface SidebarItem {
     icon: string;
     section: string; // 'Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'
     color?: string; // 'primary', 'secondary', 'tertiary', 'error' etc.
+    /**
+     * @property {string} requiredPermission - Permesso opzionale per visualizzare l'elemento.
+     * Se valorizzato, l'elemento viene renderizzato solo se l'utente dispone del permesso.
+     */
+    requiredPermission?: string;
+}
+
+/**
+ * @interface SidebarFooterAction
+ * @description Azione configurabile nel footer della sidebar.
+ */
+export interface SidebarFooterAction {
+    id: 'changePassword' | 'logout';
+    label: string;
+    icon: string;
+    color?: string;
+    requiredPermission?: string;
 }
 
 /**
@@ -680,6 +697,7 @@ export interface EntitiesState {
     sidebarConfig: SidebarItem[];
     sidebarSections: string[];
     sidebarSectionColors: SidebarSectionColors;
+    sidebarFooterActions: SidebarFooterAction[];
     dashboardLayout: DashboardCategory[];
     roleHomePages: Record<string, string>;
     notifications: Notification[];
@@ -783,6 +801,7 @@ export interface EntitiesActions {
     updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
     updateSidebarSections: (sections: string[]) => Promise<void>;
     updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
+    updateSidebarFooterActions: (actions: SidebarFooterAction[]) => Promise<void>;
     updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
     updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
     /** Innesca il ricalcolo dei dati analitici sul backend e aggiorna la cache locale. */

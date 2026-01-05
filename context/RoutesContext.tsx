@@ -66,13 +66,14 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const enabledRoutes = useMemo(() => routesManifest.filter(canAccessRoute), [canAccessRoute]);
 
     const sidebarOverrides = useMemo(() => {
-        const map = new Map<string, { label?: string; icon?: string; section?: string; color?: string; order: number }>();
+        const map = new Map<string, { label?: string; icon?: string; section?: string; color?: string; requiredPermission?: string; order: number }>();
         sidebarConfig.forEach((item, index) => {
             map.set(normalizePath(item.path), {
                 label: item.label,
                 icon: item.icon,
                 section: item.section,
                 color: item.color,
+                requiredPermission: item.requiredPermission,
                 order: index
             });
         });
@@ -91,6 +92,7 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     icon: override.icon || route.icon,
                     section: override.section || route.section,
                     color: override.color ?? route.color,
+                    requiredPermission: override.requiredPermission ?? route.requiredPermission,
                 };
             });
 
