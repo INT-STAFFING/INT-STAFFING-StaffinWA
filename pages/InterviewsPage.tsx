@@ -33,6 +33,23 @@ const calculateAge = (birthDate: string | null): number | null => {
 
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
 
+const normalizeInterview = <T extends Interview | Omit<Interview, 'id'>>(interview: T): T => {
+  return {
+    ...interview,
+    resourceRequestId: interview.resourceRequestId || null,
+    roleId: interview.roleId || null,
+    horizontal: interview.horizontal || null,
+    cvSummary: interview.cvSummary || null,
+    interviewDate: interview.interviewDate || null,
+    birthDate: interview.birthDate || null,
+    entryDate: interview.entryDate || null,
+    feedback: interview.feedback || null,
+    notes: interview.notes || null,
+    hiringStatus: interview.hiringStatus || null,
+    interviewersIds: interview.interviewersIds && interview.interviewersIds.length > 0 ? interview.interviewersIds : null
+  };
+};
+
 const getStatusBadgeClass = (status: InterviewStatus) => {
   switch (status) {
     case 'Aperto':
@@ -175,7 +192,7 @@ const InterviewsPage: React.FC = () => {
   const hiringStatusOptions = [
     { value: 'SI', label: 'Sì' },
     { value: 'NO', label: 'No' },
-    { value: 'No Rifiutato', label: 'No (Rifiutato)' },
+    { value: 'No Rifiutato', label: 'No Rifiutato' },
     { value: 'In Fase di Offerta', label: 'In Fase di Offerta' }
   ];
   const statusOptions = [
@@ -214,9 +231,10 @@ const InterviewsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingInterview) return;
+    const normalizedInterview = normalizeInterview(editingInterview);
     try {
-      if ('id' in editingInterview) await updateInterview(editingInterview as Interview);
-      else await addInterview(editingInterview as Omit<Interview, 'id'>);
+      if ('id' in normalizedInterview) await updateInterview(normalizedInterview as Interview);
+      else await addInterview(normalizedInterview as Omit<Interview, 'id'>);
       addToast('Colloquio salvato correttamente.', 'success');
       handleCloseModal();
     } catch (err) {
