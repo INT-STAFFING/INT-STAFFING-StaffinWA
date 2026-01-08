@@ -142,8 +142,13 @@ const InterviewsPage: React.FC = () => {
     const upcomingHires = dataToSummarize
       .filter((i) => i.hiringStatus === 'SI' && i.entryDate && new Date(i.entryDate) >= new Date())
       .sort((a, b) => new Date(a.entryDate!).getTime() - new Date(b.entryDate!).getTime());
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcomingEntries = dataToSummarize
+      .filter((i) => i.entryDate && new Date(i.entryDate) > today)
+      .sort((a, b) => new Date(a.entryDate!).getTime() - new Date(b.entryDate!).getTime());
 
-    return { activeCandidates, standByCandidates, positiveFeedback, positiveOnHoldFeedback, upcomingHires };
+    return { activeCandidates, standByCandidates, positiveFeedback, positiveOnHoldFeedback, upcomingHires, upcomingEntries };
   }, [enrichedData]);
 
   // Options for selects
@@ -323,7 +328,7 @@ const InterviewsPage: React.FC = () => {
   return (
     <div>
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
                 <p className="text-sm text-on-surface-variant">Candidati Attivi</p>
                 <p className="text-2xl font-bold text-on-surface">{summaryCards.activeCandidates}</p>
@@ -339,6 +344,21 @@ const InterviewsPage: React.FC = () => {
             <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500">
                 <p className="text-sm text-on-surface-variant">StandBy</p>
                 <p className="text-2xl font-bold text-on-surface">{summaryCards.standByCandidates}</p>
+            </div>
+            <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary md:col-span-2">
+                <p className="text-sm text-on-surface-variant">Ingressi Previsti</p>
+                {summaryCards.upcomingEntries.length > 0 ? (
+                  <ul className="mt-2 space-y-2">
+                    {summaryCards.upcomingEntries.map((entry) => (
+                      <li key={entry.id} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium text-on-surface">{entry.candidateName} {entry.candidateSurname}</span>
+                        <span className="text-xs text-on-surface-variant">{formatDateFull(entry.entryDate!)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-on-surface-variant">Nessun ingresso previsto.</p>
+                )}
             </div>
         </div>
 
@@ -360,8 +380,8 @@ const InterviewsPage: React.FC = () => {
         {/* Edit Modal */}
         {editingInterview && (
             <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>
-                <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[80vh]">
-                    <div className="flex-grow overflow-y-auto px-1 space-y-6">
+                <form onSubmit={handleSubmit} className="flex flex-col">
+                    <div className="px-1 space-y-6">
                         
                         {/* Dati Candidato */}
                         <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
