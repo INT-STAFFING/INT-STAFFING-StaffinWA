@@ -345,7 +345,7 @@ const InterviewsPage: React.FC = () => {
                 <p className="text-sm text-on-surface-variant">StandBy</p>
                 <p className="text-2xl font-bold text-on-surface">{summaryCards.standByCandidates}</p>
             </div>
-            <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary md:col-span-2">
+            <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
                 <p className="text-sm text-on-surface-variant">Ingressi Previsti</p>
                 {summaryCards.upcomingEntries.length > 0 ? (
                   <ul className="mt-2 space-y-2">
