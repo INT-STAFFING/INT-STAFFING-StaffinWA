@@ -32,6 +32,16 @@ const calculateAge = (birthDate: string | null): number | null => {
 };
 
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
+const normalizeInterviewPayload = <T extends Interview | Omit<Interview, 'id'>>(interview: T): T => ({
+  ...interview,
+  resourceRequestId: interview.resourceRequestId || null,
+  roleId: interview.roleId || null,
+  birthDate: interview.birthDate || null,
+  interviewDate: interview.interviewDate || null,
+  entryDate: interview.entryDate || null,
+  feedback: interview.feedback || null,
+  hiringStatus: interview.hiringStatus || null
+});
 
 const getStatusBadgeClass = (status: InterviewStatus) => {
   switch (status) {
@@ -215,8 +225,9 @@ const InterviewsPage: React.FC = () => {
     e.preventDefault();
     if (!editingInterview) return;
     try {
-      if ('id' in editingInterview) await updateInterview(editingInterview as Interview);
-      else await addInterview(editingInterview as Omit<Interview, 'id'>);
+      const normalizedInterview = normalizeInterviewPayload(editingInterview);
+      if ('id' in normalizedInterview) await updateInterview(normalizedInterview as Interview);
+      else await addInterview(normalizedInterview as Omit<Interview, 'id'>);
       addToast('Colloquio salvato correttamente.', 'success');
       handleCloseModal();
     } catch (err) {
