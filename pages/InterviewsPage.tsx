@@ -175,7 +175,7 @@ const InterviewsPage: React.FC = () => {
   const hiringStatusOptions = [
     { value: 'SI', label: 'Sì' },
     { value: 'NO', label: 'No' },
-    { value: 'No Rifiutato', label: 'No (Rifiutato)' },
+    { value: 'No Rifiutato', label: 'No Rifiutato' },
     { value: 'In Fase di Offerta', label: 'In Fase di Offerta' }
   ];
   const statusOptions = [
