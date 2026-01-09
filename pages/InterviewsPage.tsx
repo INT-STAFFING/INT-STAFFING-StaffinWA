@@ -44,6 +44,31 @@ const normalizeInterviewPayload = <T extends Interview | Omit<Interview, 'id'>>(
   interviewersIds: interview.interviewersIds && interview.interviewersIds.length > 0 ? interview.interviewersIds : null
 });
 
+const buildInterviewPayload = (interview: Interview | Omit<Interview, 'id'>): Interview | Omit<Interview, 'id'> => {
+  const basePayload: Omit<Interview, 'id'> = {
+    resourceRequestId: interview.resourceRequestId || null,
+    candidateName: interview.candidateName,
+    candidateSurname: interview.candidateSurname,
+    birthDate: interview.birthDate || null,
+    horizontal: interview.horizontal || null,
+    roleId: interview.roleId || null,
+    cvSummary: interview.cvSummary || null,
+    interviewersIds: interview.interviewersIds && interview.interviewersIds.length > 0 ? interview.interviewersIds : null,
+    interviewDate: interview.interviewDate || null,
+    feedback: interview.feedback || null,
+    notes: interview.notes || null,
+    hiringStatus: interview.hiringStatus || null,
+    entryDate: interview.entryDate || null,
+    status: interview.status
+  };
+
+  if ('id' in interview) {
+    return { id: interview.id, ...basePayload };
+  }
+
+  return basePayload;
+};
+
 const getStatusBadgeClass = (status: InterviewStatus) => {
   switch (status) {
     case 'Aperto':
@@ -226,7 +251,7 @@ const InterviewsPage: React.FC = () => {
     e.preventDefault();
     if (!editingInterview) return;
     try {
-      const normalizedInterview = normalizeInterviewPayload(editingInterview);
+      const normalizedInterview = normalizeInterviewPayload(buildInterviewPayload(editingInterview));
       if ('id' in normalizedInterview) await updateInterview(normalizedInterview as Interview);
       else await addInterview(normalizedInterview as Omit<Interview, 'id'>);
       addToast('Colloquio salvato correttamente.', 'success');
