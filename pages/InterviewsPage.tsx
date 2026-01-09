@@ -40,7 +40,8 @@ const normalizeInterviewPayload = <T extends Interview | Omit<Interview, 'id'>>(
   interviewDate: interview.interviewDate || null,
   entryDate: interview.entryDate || null,
   feedback: interview.feedback || null,
-  hiringStatus: interview.hiringStatus || null
+  hiringStatus: interview.hiringStatus || null,
+  interviewersIds: interview.interviewersIds && interview.interviewersIds.length > 0 ? interview.interviewersIds : null
 });
 
 const getStatusBadgeClass = (status: InterviewStatus) => {
