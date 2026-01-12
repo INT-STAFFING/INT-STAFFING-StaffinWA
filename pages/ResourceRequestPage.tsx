@@ -93,7 +93,6 @@ export const ResourceRequestPage: React.FC = () => {
     const [editingRequest, setEditingRequest] = useState<ResourceRequest | Omit<ResourceRequest, 'id'> | null>(null);
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
     const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
-    const [view, setView] = useState<'table' | 'card'>('table');
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const emptyRequest: Omit<ResourceRequest, 'id'> = {
@@ -127,42 +126,6 @@ export const ResourceRequestPage: React.FC = () => {
                 requestorName: resources.find(r => r.id === req.requestorId)?.name || null,
             }));
     }, [resourceRequests, projects, roles, resources, filters]);
-
-     const summaryData = useMemo(() => {
-        const fteByRole: { [roleName: string]: number } = {};
-        const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
-
-        // Escludi le richieste in standby da entrambi i riepiloghi
-        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY' && req.status !== 'CHIUSA' );
-
-        relevantRequests.forEach(req => {
-            // Calcolo FTE per ruolo
-            if (!fteByRole[req.roleName]) {
-                fteByRole[req.roleName] = 0;
-            }
-            fteByRole[req.roleName] += req.commitmentPercentage / 100;
-
-            // Raggruppamento per progetto
-            if (!requestsByProject[req.projectName]) {
-                requestsByProject[req.projectName] = [];
-            }
-            requestsByProject[req.projectName].push({
-                roleName: req.roleName,
-                commitmentPercentage: req.commitmentPercentage,
-            });
-        });
-
-        const fteArray = Object.entries(fteByRole)
-            .map(([roleName, fte]) => ({ roleName, fte }))
-            .sort((a, b) => b.fte - a.fte);
-
-        const projectArray = Object.entries(requestsByProject)
-            .map(([projectName, requests]) => ({ projectName, requests }))
-            .sort((a, b) => a.projectName.localeCompare(b.projectName));
-
-        return { fteArray, projectArray };
-    }, [dataForTable]);
-
 
     const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
@@ -219,7 +182,7 @@ export const ResourceRequestPage: React.FC = () => {
             return;
         }
 
-        const validRequest = validationResult.data;
+        const validRequest = validationResult.data as ResourceRequest;
 
         const startDate = new Date(validRequest.startDate);
         const endDate = new Date(validRequest.endDate);
@@ -389,9 +352,6 @@ export const ResourceRequestPage: React.FC = () => {
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}
                 numActions={2}
-                view={view}
-                onViewChange={setView}
-                summaryData={summaryData}
             />
 
             {editingRequest && (
@@ -400,41 +360,41 @@ export const ResourceRequestPage: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto *</label>
                             <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto" />
-                            {formErrors.projectId && <FormFieldFeedback message={formErrors.projectId} type="error" />}
+                            {formErrors.projectId && <FormFieldFeedback error={formErrors.projectId} />}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Richiesto *</label>
                             <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo" />
-                            {formErrors.roleId && <FormFieldFeedback message={formErrors.roleId} type="error" />}
+                            {formErrors.roleId && <FormFieldFeedback error={formErrors.roleId} />}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Richiedente</label>
                             <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente" />
-                            {formErrors.requestorId && <FormFieldFeedback message={formErrors.requestorId} type="error" />}
+                            {formErrors.requestorId && <FormFieldFeedback error={formErrors.requestorId} />}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
                                 <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input" />
-                                {formErrors.startDate && <FormFieldFeedback message={formErrors.startDate} type="error" />}
+                                {formErrors.startDate && <FormFieldFeedback error={formErrors.startDate} />}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
                                 <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input" />
-                                {formErrors.endDate && <FormFieldFeedback message={formErrors.endDate} type="error" />}
+                                {formErrors.endDate && <FormFieldFeedback error={formErrors.endDate} />}
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Impegno (%) *</label>
                             <input type="number" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} required className="form-input" />
-                            {formErrors.commitmentPercentage && <FormFieldFeedback message={formErrors.commitmentPercentage} type="error" />}
+                            {formErrors.commitmentPercentage && <FormFieldFeedback error={formErrors.commitmentPercentage} />}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
                             <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
                                 {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                             </select>
-                            {formErrors.status && <FormFieldFeedback message={formErrors.status} type="error" />}
+                            {formErrors.status && <FormFieldFeedback error={formErrors.status} />}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
@@ -456,7 +416,7 @@ export const ResourceRequestPage: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Numero OSR *</label>
                                 <input type="text" name="osrNumber" value={editingRequest.osrNumber || ''} onChange={handleChange} className="form-input" />
-                                {formErrors.osrNumber && <FormFieldFeedback message={formErrors.osrNumber} type="error" />}
+                                {formErrors.osrNumber && <FormFieldFeedback error={formErrors.osrNumber} />}
                             </div>
                         )}
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
