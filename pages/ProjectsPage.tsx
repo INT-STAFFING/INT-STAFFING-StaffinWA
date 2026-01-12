@@ -23,6 +23,27 @@ type EnrichedProject = Project & {
     assignedResources: number;
 };
 
+const buildProjectPayload = (project: Project | Omit<Project, 'id'>): Project | Omit<Project, 'id'> => {
+    const basePayload: Omit<Project, 'id'> = {
+        name: project.name,
+        clientId: project.clientId || null,
+        startDate: project.startDate || null,
+        endDate: project.endDate || null,
+        budget: project.budget,
+        realizationPercentage: project.realizationPercentage,
+        projectManager: project.projectManager || null,
+        status: project.status || null,
+        notes: project.notes ?? null,
+        contractId: project.contractId ?? null,
+    };
+
+    if ('id' in project) {
+        return { id: project.id, ...basePayload };
+    }
+
+    return basePayload;
+};
+
 const ProjectsPage: React.FC = () => {
     const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments, loading, skills, projectSkills, addProjectSkill, deleteProjectSkill } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -145,12 +166,13 @@ const ProjectsPage: React.FC = () => {
         e.preventDefault();
         if (editingProject) {
             try {
-                if ('id' in editingProject) {
+                const projectPayload = buildProjectPayload(editingProject);
+                if ('id' in projectPayload) {
                     // Update Project
-                    await updateProject(editingProject as Project);
+                    await updateProject(projectPayload as Project);
                     
                     // Update Skills
-                    const projectId = editingProject.id!;
+                    const projectId = projectPayload.id!;
                     const oldSkills = projectSkills.filter(ps => ps.projectId === projectId).map(ps => ps.skillId);
                     const toAdd = selectedSkills.filter(id => !oldSkills.includes(id));
                     const toRemove = oldSkills.filter(id => !selectedSkills.includes(id));
@@ -162,7 +184,7 @@ const ProjectsPage: React.FC = () => {
 
                 } else {
                     // Create Project
-                    const newProject = await addProject(editingProject as Omit<Project, 'id'>);
+                    const newProject = await addProject(projectPayload as Omit<Project, 'id'>);
                     // Add Skills
                     if (newProject && newProject.id) {
                         await Promise.all(selectedSkills.map(skillId => addProjectSkill({ projectId: newProject.id!, skillId })));
@@ -199,7 +221,13 @@ const ProjectsPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateProject(inlineEditingData); handleCancelInlineEdit(); } };
+    const handleSaveInlineEdit = async () => { 
+        if (inlineEditingData) { 
+            const projectPayload = buildProjectPayload(inlineEditingData);
+            await updateProject(projectPayload as Project); 
+            handleCancelInlineEdit(); 
+        } 
+    };
 
     const getStatusBadgeClass = (status: string | null): string => {
         switch (status) {
@@ -239,126 +267,110 @@ const ProjectsPage: React.FC = () => {
             return (
                 <tr key={project.id} className="h-16">
                     <td className="px-6 py-4 sticky left-0 bg-inherit"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                    <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></td>
-                    <td className="px-6 py-4 text-center text-on-surface-variant">{project.assignedResources}</td>
-                    <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></td>
-                    <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4"><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Seleziona cliente" /></td>
                     <td className="px-6 py-4"><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
-                    <td className="px-6 py-4 text-right sticky right-0 bg-inherit"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full hover:bg-surface-container text-primary disabled:opacity-50">
-                           {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
-                        </button>
-                        <button onClick={handleCancelInlineEdit} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant"><span className="material-symbols-outlined">close</span></button>
-                    </div></td>
+                    <td className="px-6 py-4"><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Seleziona stato" /></td>
+                    <td className="px-6 py-4"><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
+                    <td className="px-6 py-4 text-right sticky right-0 bg-inherit">
+                        <div className="flex items-center justify-end space-x-2">
+                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full text-tertiary hover:bg-surface-container disabled:opacity-50">
+                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
+                            </button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container"><span className="material-symbols-outlined">close</span></button>
+                        </div>
+                    </td>
                 </tr>
             );
         }
         return (
             <tr key={project.id} className="group h-16 hover:bg-surface-container">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit" title={col.sortKey ? String((project as any)[col.sortKey]) : undefined}>{col.cell(project)}</td>)}
+                {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((project as Project)[col.sortKey]) : undefined}>{col.cell(project)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-2">
-                        <button onClick={() => openModalForEdit(project)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
-                        <button onClick={() => deleteProject(project.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                        <button onClick={() => navigate(`/workload?projectId=${project.id}`)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Vedi Carichi"><span className="material-symbols-outlined">bar_chart</span></button>
+                        <button onClick={() => openModalForEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteProject(project.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error" title="Elimina">
+                            {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </td>
             </tr>
         );
     };
-    
+
     const renderMobileCard = (project: EnrichedProject) => {
         const isEditing = inlineEditingId === project.id;
         const isSaving = isActionLoading(`updateProject-${project.id}`);
-        if (isEditing) {
+        if(isEditing){
             return (
-               <div key={project.id} className="p-4 rounded-lg shadow-md bg-surface-container border border-primary">
-                   <div className="space-y-3">
-                       <div><label className="text-xs font-medium text-on-surface-variant">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div><label className="text-xs font-medium text-on-surface-variant">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Nessun cliente" /></div>
-                       <div><label className="text-xs font-medium text-on-surface-variant">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Nessuno stato" /></div>
-                       <div><label className="text-xs font-medium text-on-surface-variant">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div><label className="text-xs font-medium text-on-surface-variant">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
-                       <div className="flex justify-end space-x-2 pt-2">
-                           <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
+                <div key={project.id} className="p-4 rounded-lg shadow-md bg-surface-container border border-primary">
+                    <div className="space-y-3">
+                        <div><label className="text-xs font-medium text-on-surface-variant">Nome Progetto</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Cliente</label><SearchableSelect name="clientId" value={inlineEditingData!.clientId || ''} onChange={handleInlineSelectChange} options={clientOptions} placeholder="Seleziona cliente" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Budget</label><input type="number" name="budget" value={inlineEditingData!.budget} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Stato</label><SearchableSelect name="status" value={inlineEditingData!.status || ''} onChange={handleInlineSelectChange} options={statusOptions} placeholder="Seleziona stato" /></div>
+                        <div><label className="text-xs font-medium text-on-surface-variant">Data Inizio</label><input type="date" name="startDate" value={inlineEditingData!.startDate || ''} onChange={handleInlineFormChange} className="w-full form-input p-1" /></div>
+                        <div className="flex justify-end space-x-2 pt-2">
+                            <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
-                           </button>
-                           <button onClick={handleCancelInlineEdit} className="p-2 bg-surface-container-high text-on-surface-variant rounded-full"><span className="material-symbols-outlined">close</span></button>
-                       </div>
-                   </div>
-               </div>
-           );
+                            </button>
+                            <button onClick={handleCancelInlineEdit} className="p-2 bg-surface-container-high text-on-surface-variant rounded-full"><span className="material-symbols-outlined">close</span></button>
+                        </div>
+                    </div>
+                </div>
+            );
         }
         return (
-            <div key={project.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${project.status === 'Completato' ? 'border-tertiary' : 'border-primary'}`}>
+            <div key={project.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 ${project.status === 'Completato' ? 'border-tertiary' : project.status === 'In corso' ? 'border-primary' : 'border-outline'}`}>
                 <div className="flex justify-between items-start">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <p className="font-bold text-lg text-on-surface">{project.name}</p>
-                             {!project.isStaffed && project.status === 'In corso' && <span className="px-2 py-0.5 text-xs font-semibold text-on-yellow-container bg-yellow-container rounded-full">Senza Staff</span>}
-                        </div>
+                        <p className="font-bold text-lg text-on-surface">{project.name}</p>
                         <p className="text-sm text-on-surface-variant">{project.clientName}</p>
                     </div>
-                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
+                    <div className="flex items-center space-x-1">
+                        <button onClick={() => navigate(`/workload?projectId=${project.id}`)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">bar_chart</span></button>
                         <button onClick={() => openModalForEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit_note</span></button>
-                        <button onClick={() => handleStartInlineEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit</span></button>
                         <button onClick={() => deleteProject(project.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
-                             {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                            {isActionLoading(`deleteProject-${project.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
-                    <div><p className="text-on-surface-variant">Stato</p><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(project.status)}`}>{project.status || 'Non definito'}</span></p></div>
-                    <div><p className="text-on-surface-variant">Risorse Assegnate</p><p className="font-medium text-on-surface">{project.assignedResources}</p></div>
-                    <div><p className="text-on-surface-variant">Data Inizio</p><p className="font-medium text-on-surface">{formatDateFull(project.startDate)}</p></div>
                     <div><p className="text-on-surface-variant">Budget</p><p className="font-medium text-on-surface">{formatCurrency(project.budget)}</p></div>
+                    <div><p className="text-on-surface-variant">Data Inizio</p><p className="font-medium text-on-surface">{formatDateFull(project.startDate)}</p></div>
                 </div>
             </div>
         );
     };
-    
+
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
-            <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti"/>
-            <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati"/>
-            <div className="flex items-center space-x-4">
-                <label htmlFor="unstaffed-filter" className="flex items-center cursor-pointer">
-                    <div className="relative">
-                        <input
-                            type="checkbox"
-                            id="unstaffed-filter"
-                            className="sr-only"
-                            checked={showOnlyUnstaffed}
-                            onChange={(e) => setShowOnlyUnstaffed(e.target.checked)}
-                        />
-                        <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
-                        <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${showOnlyUnstaffed ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
-                    </div>
-                    <span className="ml-3 text-sm text-on-surface">Solo senza staff</span>
-                </label>
-                <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset Filtri</button>
+            <SearchableSelect name="clientId" value={filters.clientId} onChange={handleFilterSelectChange} options={clientOptions} placeholder="Tutti i clienti" />
+            <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Tutti gli stati" />
+            <div className="flex items-center space-x-3">
+                <input type="checkbox" id="showOnlyUnstaffed" checked={showOnlyUnstaffed} onChange={(e) => setShowOnlyUnstaffed(e.target.checked)} className="form-checkbox" />
+                <label htmlFor="showOnlyUnstaffed" className="text-sm text-on-surface">Solo senza staff</label>
             </div>
         </div>
     );
-    
+
     return (
         <div>
             {/* KPI Summary Cards */}
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
-                    <p className="text-sm text-on-surface-variant">Progetti In Corso</p>
+                    <p className="text-sm text-on-surface-variant">Progetti Attivi</p>
                     <p className="text-2xl font-bold text-on-surface">{kpis.countActive}</p>
                 </div>
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
-                     <p className="text-sm text-on-surface-variant">Budget Attivo Totale</p>
-                     <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalBudget)}</p>
+                    <p className="text-sm text-on-surface-variant">Budget Totale</p>
+                    <p className="text-2xl font-bold text-on-surface">{formatCurrency(kpis.totalBudget)}</p>
                 </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-container">
-                     <p className="text-sm text-on-surface-variant">In Scadenza (30gg)</p>
-                     <p className="text-2xl font-bold text-on-surface">{kpis.endingSoon}</p>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary">
+                    <p className="text-sm text-on-surface-variant">Progetti in Scadenza</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.endingSoon}</p>
                 </div>
             </div>
 
@@ -371,87 +383,68 @@ const ProjectsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                initialSortKey="startDate"
+                initialSortKey="name"
                 isLoading={loading}
-                tableLayout={{
-                    dense: true,
-                    striped: true,
-                    headerSticky: true,
-                    headerBackground: true,
-                    headerBorder: true,
-                }}
-                tableClassNames={{
-                    base: 'w-full text-sm',
-                }}
-                numActions={3} // MODIFICA, EDIT VELOCE, ELIMINA
+                tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                tableClassNames={{ base: 'w-full text-sm' }}
+                numActions={4} // VEDI CARICHI, MODIFICA, EDIT VELOCE, ELIMINA
             />
-            
+
             {editingProject && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingProject ? 'Modifica Progetto' : 'Aggiungi Progetto'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome Progetto *</label>
-                            <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="w-full form-input"/>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Progetto *</label>
+                            <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="form-input" />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cliente</label>
-                                <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona un cliente" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contratto Associato</label>
-                                <SearchableSelect name="contractId" value={editingProject.contractId || ''} onChange={handleSelectChange} options={contractOptions} placeholder="Nessun contratto" />
-                            </div>
-                        </div>
-                        
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tecnologie / Competenze</label>
-                            <MultiSelectDropdown
-                                name="skills"
-                                selectedValues={selectedSkills}
-                                onChange={(_, values) => setSelectedSkills(values)}
-                                options={skillOptions}
-                                placeholder="Seleziona competenze..."
-                            />
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente *</label>
+                            <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona cliente" required />
                         </div>
-
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Inizio</label>
-                                <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="w-full form-input"/>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>
+                                <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="form-input" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fine</label>
-                                <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="w-full form-input"/>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label>
+                                <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="form-input" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 items-end">
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Budget (€)</label>
-                                <input type="number" step="0.01" name="budget" value={editingProject.budget} onChange={handleChange} className="w-full form-input"/>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Budget *</label>
+                                <input type="number" name="budget" value={editingProject.budget} onChange={handleChange} required className="form-input" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">% Realizzazione</label>
-                                <input type="range" min="30" max="100" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="w-full"/>
-                                <div className="text-center text-sm text-gray-500">{editingProject.realizationPercentage}%</div>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Realization %</label>
+                                <input type="number" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="form-input" />
                             </div>
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Manager</label>
-                            <SearchableSelect name="projectManager" value={editingProject.projectManager || ''} onChange={handleSelectChange} options={projectManagerOptions} placeholder="Seleziona un PM" />
-                        </div>
-                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stato</label>
-                            <SearchableSelect name="status" value={editingProject.status || ''} onChange={handleSelectChange} options={statusOptions} placeholder="Seleziona uno stato" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
-                            <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} rows={3} className="w-full form-textarea"></textarea>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
+                            <SearchableSelect name="projectManager" value={editingProject.projectManager || ''} onChange={handleSelectChange} options={projectManagerOptions} placeholder="Seleziona PM" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato</label>
+                            <SearchableSelect name="status" value={editingProject.status || ''} onChange={handleSelectChange} options={statusOptions} placeholder="Seleziona stato" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Contratto</label>
+                            <SearchableSelect name="contractId" value={editingProject.contractId || ''} onChange={handleSelectChange} options={contractOptions} placeholder="Seleziona contratto" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
+                            <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} className="form-textarea" rows={2}></textarea>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Skill Richieste</label>
+                            <MultiSelectDropdown name="skills" selectedValues={selectedSkills} onChange={(_, values) => setSelectedSkills(values)} options={skillOptions} placeholder="Seleziona skill" />
                         </div>
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
                             <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
-                               {(isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                                {(isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
