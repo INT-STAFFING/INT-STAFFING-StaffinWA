@@ -192,6 +192,7 @@ export const ResourceRequestPage: React.FC = () => {
 
         const requestToSave = buildResourceRequestPayload({
             ...validRequest,
+            id: 'id' in editingRequest ? editingRequest.id : undefined,
             isLongTerm: diffDays > 60,
             osrNumber,
         });
