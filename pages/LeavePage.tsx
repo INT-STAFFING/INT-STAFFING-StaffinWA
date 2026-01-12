@@ -16,6 +16,27 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { DataTable, ColumnDef } from '../components/DataTable';
 
+
+const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id'>): LeaveRequest | Omit<LeaveRequest, 'id'> => {
+    const basePayload: Omit<LeaveRequest, 'id'> = {
+        resourceId: request.resourceId,
+        typeId: request.typeId,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        status: request.status,
+        managerId: request.managerId ?? null,
+        approverIds: request.approverIds ?? [],
+        notes: request.notes ?? '',
+        isHalfDay: request.isHalfDay ?? false,
+    };
+
+    if ('id' in request) {
+        return { id: request.id, ...basePayload };
+    }
+
+    return basePayload;
+};
+
 const LeavePage: React.FC = () => {
     const { 
         leaveRequests, resources, leaveTypes, companyCalendar, 
@@ -172,7 +193,8 @@ const LeavePage: React.FC = () => {
     };
 
     const openEditRequestModal = (req: LeaveRequest) => {
-        setEditingRequest({ ...req });
+        const sanitizedRequest = buildLeaveRequestPayload(req);
+        setEditingRequest({ ...sanitizedRequest });
         setIsModalOpen(true);
     };
 
@@ -181,10 +203,11 @@ const LeavePage: React.FC = () => {
         if (!editingRequest) return;
         
         try {
-            if ('id' in editingRequest) {
-                await updateLeaveRequest(editingRequest as LeaveRequest);
+            const requestPayload = buildLeaveRequestPayload(editingRequest);
+            if ('id' in requestPayload) {
+                await updateLeaveRequest(requestPayload as LeaveRequest);
             } else {
-                await addLeaveRequest(editingRequest as Omit<LeaveRequest, 'id'>);
+                await addLeaveRequest(requestPayload as Omit<LeaveRequest, 'id'>);
             }
             setIsModalOpen(false);
             setEditingRequest(null);
