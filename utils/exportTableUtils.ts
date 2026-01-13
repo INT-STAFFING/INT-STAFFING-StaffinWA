@@ -51,7 +51,7 @@ const toExportableCell = (value: unknown): ExportableCell => {
 export const normalizeExportData = (data: ExportableInput[]): ExportableData[] =>
   data.map((row) => {
     const normalized: ExportableData = {};
-    Object.entries(row).forEach(([key, value]) => {
+    Object.entries(row as Record<string, unknown>).forEach(([key, value]) => {
       normalized[key] = toExportableCell(value);
     });
     return normalized;
