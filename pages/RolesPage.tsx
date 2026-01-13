@@ -11,6 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatCurrency } from '../utils/formatters';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole, isActionLoading, loading } = useEntitiesContext();
@@ -188,6 +189,7 @@ const RolesPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
+                headerActions={<ExportButton data={filteredRoles} title="Gestione Ruoli" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

@@ -15,6 +15,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 
 const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id'>): LeaveRequest | Omit<LeaveRequest, 'id'> => {
@@ -406,6 +407,7 @@ const LeavePage: React.FC = () => {
                     onAddNew={openNewRequestModal}
                     renderRow={renderRow}
                     renderMobileCard={renderMobileCard}
+                    headerActions={<ExportButton data={enrichedRequests} title="Gestione Assenze" />}
                     initialSortKey="startDate"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
@@ -418,9 +420,12 @@ const LeavePage: React.FC = () => {
                     {/* Header Manuale per Vista Calendario */}
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
-                        <button onClick={openNewRequestModal} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                            <span className="material-symbols-outlined">add</span> Nuova Richiesta
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={openNewRequestModal} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                                <span className="material-symbols-outlined">add</span> Nuova Richiesta
+                            </button>
+                            <ExportButton data={enrichedRequests} title="Gestione Assenze" />
+                        </div>
                     </div>
 
                     {/* Filtri Manuali per Vista Calendario */}

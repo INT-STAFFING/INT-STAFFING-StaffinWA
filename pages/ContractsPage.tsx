@@ -13,6 +13,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -253,6 +254,7 @@ export const ContractsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
+                headerActions={<ExportButton data={dataForTable} title="Gestione Contratti" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}

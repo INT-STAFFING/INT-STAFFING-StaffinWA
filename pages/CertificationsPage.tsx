@@ -14,6 +14,7 @@ import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 // --- Types ---
 type EnrichedCertification = Skill & {
@@ -402,6 +403,7 @@ const CertificationsPage: React.FC = () => {
                     onAddNew={() => handleOpenModal()}
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
+                    headerActions={<ExportButton data={filteredData} title="Gestione Certificazioni" />}
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
@@ -412,9 +414,12 @@ const CertificationsPage: React.FC = () => {
                     {/* Header Manuale per la vista Card */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <h1 className="text-3xl font-bold text-on-surface">Gestione Certificazioni</h1>
-                        <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                            <span className="material-symbols-outlined">add_verified</span> Nuova Certificazione
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
+                                <span className="material-symbols-outlined">add_verified</span> Nuova Certificazione
+                            </button>
+                            <ExportButton data={filteredData} title="Gestione Certificazioni" />
+                        </div>
                     </div>
 
                     {/* Filtri per la vista Card (riutilizziamo filtersNode in un container) */}

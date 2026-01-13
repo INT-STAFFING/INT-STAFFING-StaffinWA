@@ -14,6 +14,7 @@ import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 // --- Types ---
 type EnrichedSkill = Skill & {
@@ -431,6 +432,7 @@ const SkillsPage: React.FC = () => {
                     onAddNew={() => handleOpenModal()}
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
+                    headerActions={<ExportButton data={filteredSkills} title="Gestione Competenze" />}
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
@@ -441,7 +443,10 @@ const SkillsPage: React.FC = () => {
                     {/* Header Manuale per vista Card */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <h1 className="text-3xl font-bold text-on-surface">Gestione Competenze</h1>
-                        <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Competenza</button>
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Competenza</button>
+                            <ExportButton data={filteredSkills} title="Gestione Competenze" />
+                        </div>
                     </div>
 
                     {/* Filtri manuali per vista Card */}

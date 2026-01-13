@@ -11,6 +11,7 @@ import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween,
 import SearchableSelect from '../components/SearchableSelect';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 type ViewMode = 'day' | 'week' | 'month';
 type WorkloadFilterStatus = 'ALL' | 'UNDER' | 'OVER' | 'ISSUES';
@@ -395,6 +396,7 @@ const WorkloadPage: React.FC = () => {
                             <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>{level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}</button>
                         ))}
                     </div>
+                    <ExportButton data={paginatedData} title="Carico Risorse" />
                 </div>
 
                 <div className="p-4 bg-surface rounded-2xl shadow flex flex-col gap-4">

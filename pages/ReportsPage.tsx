@@ -10,6 +10,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';
@@ -153,9 +154,12 @@ const ProjectCostsReport: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
             <SearchableSelect name="status" value={filters.status} onChange={(_, v) => setFilters(f => ({...f, status: v}))} options={statusOptions} placeholder="Tutti gli Stati"/>
-            <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
-                <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+                <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
+                    <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
+                </button>
+                <ExportButton data={reportData} title="Costi per Progetto" />
+            </div>
         </div>
     );
 
@@ -331,9 +335,12 @@ const ResourceUtilizationReport: React.FC = () => {
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
             <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
             <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
-            <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
-                <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+                <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
+                    <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
+                </button>
+                <ExportButton data={reportData} title="Utilizzo Risorse" />
+            </div>
         </div>
     );
 

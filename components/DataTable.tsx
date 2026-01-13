@@ -45,6 +45,7 @@ interface DataTableProps<T extends { id?: string }> {
     onAddNew: () => void;
     renderRow: (item: T) => React.ReactNode;
     renderMobileCard: (item: T) => React.ReactNode;
+    headerActions?: React.ReactNode;
     initialSortKey?: string;
     isLoading?: boolean;
     loadingMessage?: React.ReactNode;
@@ -68,6 +69,7 @@ export function DataTable<T extends { id?: string }>({
     onAddNew,
     renderRow,
     renderMobileCard,
+    headerActions,
     initialSortKey,
     isLoading,
     loadingMessage,
@@ -279,14 +281,19 @@ export function DataTable<T extends { id?: string }>({
                     <h1 className="text-3xl font-bold text-on-surface self-start">
                         {title}
                     </h1>
-                    {title && addNewButtonLabel && (
-                        <button
-                            onClick={onAddNew}
-                            className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
-                        >
-                            {addNewButtonLabel}
-                        </button>
-                    )}
+                    {(title && addNewButtonLabel) || headerActions ? (
+                        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            {title && addNewButtonLabel && (
+                                <button
+                                    onClick={onAddNew}
+                                    className="w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90"
+                                >
+                                    {addNewButtonLabel}
+                                </button>
+                            )}
+                            {headerActions}
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="mb-6 p-4 bg-surface rounded-2xl shadow">

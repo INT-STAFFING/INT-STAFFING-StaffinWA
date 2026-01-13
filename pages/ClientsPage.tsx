@@ -10,6 +10,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 /**
  * Componente per la pagina di gestione dei Clienti.
@@ -215,6 +216,7 @@ const ClientsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
+                headerActions={<ExportButton data={filteredClients} title="Gestione Clienti" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

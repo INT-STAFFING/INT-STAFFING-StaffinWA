@@ -15,6 +15,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 
 type EnrichedProject = Project & { 
@@ -383,6 +384,7 @@ const ProjectsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
+                headerActions={<ExportButton data={dataForTable} title="Gestione Progetti" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
