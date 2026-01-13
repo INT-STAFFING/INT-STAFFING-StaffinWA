@@ -56,6 +56,32 @@ const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
     }
 };
 
+const buildResourceRequestPayload = (
+    request: ResourceRequest | Omit<ResourceRequest, 'id'>
+): ResourceRequest | Omit<ResourceRequest, 'id'> => {
+    const basePayload: Omit<ResourceRequest, 'id'> = {
+        projectId: request.projectId,
+        roleId: request.roleId,
+        requestorId: request.requestorId ?? null,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        commitmentPercentage: request.commitmentPercentage,
+        isUrgent: request.isUrgent,
+        isLongTerm: request.isLongTerm,
+        isTechRequest: request.isTechRequest,
+        isOsrOpen: !!request.isOsrOpen,
+        osrNumber: request.osrNumber ?? null,
+        notes: request.notes ?? '',
+        status: request.status,
+    };
+
+    if ('id' in request) {
+        return { id: request.id, ...basePayload };
+    }
+
+    return basePayload;
+};
+
 export const ResourceRequestPage: React.FC = () => {
     const { 
         resourceRequests, projects, roles, resources, 
@@ -67,7 +93,6 @@ export const ResourceRequestPage: React.FC = () => {
     const [editingRequest, setEditingRequest] = useState<ResourceRequest | Omit<ResourceRequest, 'id'> | null>(null);
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
     const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
-    const [view, setView] = useState<'table' | 'card'>('table');
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const emptyRequest: Omit<ResourceRequest, 'id'> = {
@@ -102,21 +127,18 @@ export const ResourceRequestPage: React.FC = () => {
             }));
     }, [resourceRequests, projects, roles, resources, filters]);
 
-     const summaryData = useMemo(() => {
+    const summaryData = useMemo(() => {
         const fteByRole: { [roleName: string]: number } = {};
         const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
 
-        // Escludi le richieste in standby da entrambi i riepiloghi
-        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY' && req.status !== 'CHIUSA' );
+        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY' && req.status !== 'CHIUSA');
 
         relevantRequests.forEach(req => {
-            // Calcolo FTE per ruolo
             if (!fteByRole[req.roleName]) {
                 fteByRole[req.roleName] = 0;
             }
             fteByRole[req.roleName] += req.commitmentPercentage / 100;
 
-            // Raggruppamento per progetto
             if (!requestsByProject[req.projectName]) {
                 requestsByProject[req.projectName] = [];
             }
@@ -137,7 +159,6 @@ export const ResourceRequestPage: React.FC = () => {
         return { fteArray, projectArray };
     }, [dataForTable]);
 
-
     const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
@@ -152,13 +173,14 @@ export const ResourceRequestPage: React.FC = () => {
     };
 
     const openModalForEdit = (request: ResourceRequest) => {
+        const sanitizedRequest = buildResourceRequestPayload(request);
         const formattedRequest = {
-            ...request,
-            startDate: request.startDate ? request.startDate.split('T')[0] : '',
-            endDate: request.endDate ? request.endDate.split('T')[0] : '',
-            isOsrOpen: !!request.isOsrOpen,
-            osrNumber: request.osrNumber ?? '',
-            requestorId: request.requestorId ?? null,
+            ...sanitizedRequest,
+            startDate: sanitizedRequest.startDate ? sanitizedRequest.startDate.split('T')[0] : '',
+            endDate: sanitizedRequest.endDate ? sanitizedRequest.endDate.split('T')[0] : '',
+            isOsrOpen: !!sanitizedRequest.isOsrOpen,
+            osrNumber: sanitizedRequest.osrNumber ?? '',
+            requestorId: sanitizedRequest.requestorId ?? null,
         };
         setEditingRequest(formattedRequest);
         setIsModalOpen(true);
@@ -192,7 +214,7 @@ export const ResourceRequestPage: React.FC = () => {
             return;
         }
 
-        const validRequest = validationResult.data;
+        const validRequest = validationResult.data as ResourceRequest;
 
         const startDate = new Date(validRequest.startDate);
         const endDate = new Date(validRequest.endDate);
@@ -200,16 +222,17 @@ export const ResourceRequestPage: React.FC = () => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         const osrNumber = validRequest.isOsrOpen ? validRequest.osrNumber : null;
 
-        const requestToSave = {
+        const requestToSave = buildResourceRequestPayload({
             ...validRequest,
+            id: 'id' in editingRequest ? editingRequest.id : undefined,
             isLongTerm: diffDays > 60,
             osrNumber,
-        };
+        });
 
         setFormErrors({});
 
         try {
-            if ('id' in requestToSave) {
+            if ('id' in editingRequest) {
                 await updateResourceRequest(requestToSave as ResourceRequest);
                 addToast('Richiesta aggiornata con successo.', 'success');
             } else {
@@ -338,54 +361,45 @@ export const ResourceRequestPage: React.FC = () => {
             <div className="md:col-span-3">
                 <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
             </div>
-            <div className="md:col-span-2">
-                <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions.map(s => ({ value: s.value, label: s.label }))} placeholder="Stato"/>
+            <div className="md:col-span-3">
+                <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
             </div>
-            
-            <div className="md:col-span-2">
-                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
-                    <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                    <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
-                </div>
-            </div>
-
-            <div className="md:col-span-2">
-                <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">Reset</button>
+            <div className="md:col-span-3">
+                <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
             </div>
         </div>
     );
-    
+
     return (
         <div>
-            {/* KPI Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-surface-container-low rounded-2xl shadow p-6 border-l-4 border-primary">
-                    <h2 className="text-lg font-semibold text-on-surface mb-4">Riepilogo Risorse Richieste (FTE)</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+                    <p className="text-sm text-on-surface-variant">FTE Totali per Figura Professionale</p>
                     {summaryData.fteArray.length > 0 ? (
-                        <ul className="space-y-2 max-h-48 overflow-y-auto">
+                        <ul className="mt-3 space-y-2">
                             {summaryData.fteArray.map(({ roleName, fte }) => (
-                                <li key={roleName} className="flex justify-between items-center text-sm">
-                                    <span className="text-on-surface-variant">{roleName}</span>
-                                    <span className="font-bold text-primary">{fte.toFixed(2)}</span>
+                                <li key={roleName} className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-on-surface">{roleName}</span>
+                                    <span className="text-on-surface-variant">{fte.toFixed(2)} FTE</span>
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-on-surface-variant">Nessun dato da aggregare in base ai filtri correnti.</p>
+                        <p className="mt-3 text-sm text-on-surface-variant">Nessun dato disponibile.</p>
                     )}
                 </div>
-
-                <div className="bg-surface-container-low rounded-2xl shadow p-6 border-l-4 border-secondary">
-                    <h2 className="text-lg font-semibold text-on-surface mb-4">Dettaglio Richieste per Progetto</h2>
-                     {summaryData.projectArray.length > 0 ? (
-                        <div className="space-y-4 max-h-48 overflow-y-auto">
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
+                    <p className="text-sm text-on-surface-variant">FTE per Progetto e Figura Professionale</p>
+                    {summaryData.projectArray.length > 0 ? (
+                        <div className="mt-3 space-y-4">
                             {summaryData.projectArray.map(({ projectName, requests }) => (
                                 <div key={projectName}>
-                                    <h3 className="font-semibold text-on-surface text-sm">{projectName}</h3>
-                                    <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
+                                    <p className="text-sm font-semibold text-on-surface">{projectName}</p>
+                                    <ul className="mt-2 space-y-1">
                                         {requests.map((req, index) => (
-                                            <li key={index} className="text-sm text-on-surface-variant">
-                                                {req.roleName} <span className="font-medium text-on-surface">({req.commitmentPercentage}%)</span>
+                                            <li key={`${projectName}-${req.roleName}-${index}`} className="flex items-center justify-between text-sm text-on-surface-variant">
+                                                <span>{req.roleName}</span>
+                                                <span>{(req.commitmentPercentage / 100).toFixed(2)} FTE</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -393,171 +407,94 @@ export const ResourceRequestPage: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                         <p className="text-sm text-on-surface-variant">Nessun dato da aggregare in base ai filtri correnti.</p>
+                        <p className="mt-3 text-sm text-on-surface-variant">Nessun dato disponibile.</p>
                     )}
                 </div>
             </div>
+            <DataTable<EnrichedRequest>
+                title="Richieste di Risorse"
+                addNewButtonLabel="Aggiungi Richiesta"
+                data={dataForTable}
+                columns={columns}
+                filtersNode={filtersNode}
+                onAddNew={openModalForNew}
+                renderRow={renderRow}
+                renderMobileCard={renderCard}
+                initialSortKey="startDate"
+                isLoading={loading}
+                tableLayout={{ dense: true, striped: true, headerSticky: true }}
+                numActions={2}
+            />
 
-            {view === 'table' ? (
-                <div className="overflow-y-auto overflow-x-auto">
-                    <DataTable<EnrichedRequest>
-                        title="Richiesta Risorse"
-                        addNewButtonLabel="Nuova Richiesta"
-                        data={dataForTable}
-                        columns={columns}
-                        filtersNode={filtersNode}
-                        onAddNew={openModalForNew}
-                        renderRow={renderRow}
-                        renderMobileCard={renderCard}
-                        initialSortKey="startDate"
-                        isLoading={loading}
-                        tableLayout={{
-                            dense: true,
-                            striped: true,
-                            headerSticky: true,
-                            headerBackground: true,
-                            headerBorder: true,
-                        }}
-                        tableClassNames={{
-                            base: 'w-full text-sm',
-                        }}
-                        numActions={2} 
-                    />
-                </div>
-            ) : (
-                <>
-                    {/* Header Manuale per Vista Card */}
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <h1 className="text-3xl font-bold text-on-surface">Richiesta Risorse</h1>
-                        <button onClick={openModalForNew} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                            <span className="material-symbols-outlined">add</span> Nuova Richiesta
-                        </button>
-                    </div>
-
-                    {/* Filtri Manuali per Vista Card */}
-                    <div className="bg-surface rounded-2xl shadow p-4 mb-6">
-                        {filtersNode}
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
-                        {dataForTable.length > 0 ? (
-                            dataForTable.map(renderCard)
-                        ) : (
-                            <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna richiesta trovata.</p>
-                        )}
-                    </div>
-                </>
-            )}
-
-            {/* Modals */}
             {editingRequest && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Progetto *</label>
-                                <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto..." required/>
-                                <FormFieldFeedback
-                                    error={formErrors.projectId}
-                                    helperText="Campo obbligatorio per collegare la richiesta al progetto corretto."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Ruolo Richiesto *</label>
-                                <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." required/>
-                                <FormFieldFeedback
-                                    error={formErrors.roleId}
-                                    helperText="Identifica la seniority necessaria per valutare l'assegnazione."
-                                />
-                            </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto *</label>
+                            <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto" />
+                            {formErrors.projectId && <FormFieldFeedback error={formErrors.projectId} />}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Richiedente (Opzionale)</label>
-                            <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente..." />
-                            <FormFieldFeedback
-                                error={formErrors.requestorId}
-                                helperText="Indica chi ha aperto la richiesta per facilitare il follow-up."
-                            />
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Richiesto *</label>
+                            <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo" />
+                            {formErrors.roleId && <FormFieldFeedback error={formErrors.roleId} />}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Richiedente</label>
+                            <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente" />
+                            {formErrors.requestorId && <FormFieldFeedback error={formErrors.requestorId} />}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Data Inizio *</label>
-                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/>
-                                <FormFieldFeedback
-                                    error={formErrors.startDate}
-                                    helperText="Usa il formato ISO per evitare errori di parsing."
-                                />
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
+                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input" />
+                                {formErrors.startDate && <FormFieldFeedback error={formErrors.startDate} />}
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Data Fine *</label>
-                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/>
-                                <FormFieldFeedback
-                                    error={formErrors.endDate}
-                                    helperText="La data di fine deve essere successiva alla data di inizio."
-                                />
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
+                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input" />
+                                {formErrors.endDate && <FormFieldFeedback error={formErrors.endDate} />}
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Impegno % ({editingRequest.commitmentPercentage}%)</label>
-                            <input type="range" min="0" max="100" step="10" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="w-full"/>
-                            <FormFieldFeedback
-                                error={formErrors.commitmentPercentage}
-                                helperText="Imposta l'impegno previsto tra 0% e 100%."
-                            />
-                        </div>
-
-                        <div className="bg-surface-container-low p-3 rounded border border-outline-variant">
-                            <div className="flex items-center gap-2 mb-2">
-                                <input type="checkbox" name="isOsrOpen" checked={editingRequest.isOsrOpen || false} onChange={handleChange} className="form-checkbox"/>
-                                <label className="text-sm font-semibold">OSR Aperta</label>
-                            </div>
-                            {editingRequest.isOsrOpen && (
-                                <div>
-                                    <label className="block text-xs font-medium mb-1 text-on-surface-variant">Numero OSR</label>
-                                    <input
-                                        type="text"
-                                        name="osrNumber"
-                                        value={editingRequest.osrNumber || ''}
-                                        onChange={handleChange}
-                                        className="form-input text-sm py-1"
-                                        placeholder="Inserisci numero OSR..."
-                                    />
-                                    <FormFieldFeedback
-                                        error={formErrors.osrNumber}
-                                        helperText="Compila il numero OSR solo se la richiesta è aperta."
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                                <input type="checkbox" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox"/>
-                                <label className="text-sm">Urgente</label>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input type="checkbox" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox"/>
-                                <label className="text-sm">Richiesta TECH</label>
-                            </div>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Impegno (%) *</label>
+                            <input type="number" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} required className="form-input" />
+                            {formErrors.commitmentPercentage && <FormFieldFeedback error={formErrors.commitmentPercentage} />}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Stato</label>
-                            <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
-                                {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
+                            <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
+                                {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                             </select>
-                            <FormFieldFeedback
-                                error={formErrors.status}
-                                helperText="Aggiorna lo stato in base all'avanzamento della richiesta."
-                            />
+                            {formErrors.status && <FormFieldFeedback error={formErrors.status} />}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Note</label>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
                             <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3}></textarea>
                         </div>
-                        <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
-                            <button type="button" onClick={handleCloseModal} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold disabled:opacity-50">
-                                {isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="isUrgent" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox" />
+                            <label htmlFor="isUrgent" className="text-sm text-on-surface">Urgente</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="isTechRequest" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox" />
+                            <label htmlFor="isTechRequest" className="text-sm text-on-surface">Richiesta TECH</label>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                            <input type="checkbox" id="isOsrOpen" name="isOsrOpen" checked={editingRequest.isOsrOpen} onChange={handleChange} className="form-checkbox" />
+                            <label htmlFor="isOsrOpen" className="text-sm text-on-surface">OSR Aperta</label>
+                        </div>
+                        {editingRequest.isOsrOpen && (
+                            <div>
+                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Numero OSR *</label>
+                                <input type="text" name="osrNumber" value={editingRequest.osrNumber || ''} onChange={handleChange} className="form-input" />
+                                {formErrors.osrNumber && <FormFieldFeedback error={formErrors.osrNumber} />}
+                            </div>
+                        )}
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
+                                {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
@@ -570,10 +507,12 @@ export const ResourceRequestPage: React.FC = () => {
                     onClose={() => setRequestToDelete(null)}
                     onConfirm={handleDelete}
                     title="Elimina Richiesta"
-                    message="Sei sicuro di voler eliminare questa richiesta? L'azione è irreversibile."
+                    message={`Sei sicuro di voler eliminare la richiesta ${requestToDelete.requestCode}?`}
                     isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
                 />
             )}
         </div>
     );
 };
+
+export default ResourceRequestPage;
