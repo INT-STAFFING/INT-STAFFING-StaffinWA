@@ -1,16 +1,16 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { ExportableData } from '../types';
+import { ExportableInput } from '../types';
 import ExportModal from '../components/ExportModal';
 
 interface ExportPayload {
   title: string;
-  data: ExportableData[];
+  data: ExportableInput[];
 }
 
 interface ExportContextValue {
   isOpen: boolean;
   title: string;
-  data: ExportableData[];
+  data: ExportableInput[];
   openExport: (payload: ExportPayload) => void;
   closeExport: () => void;
 }
@@ -20,7 +20,7 @@ const ExportContext = createContext<ExportContextValue | undefined>(undefined);
 export const ExportProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [data, setData] = useState<ExportableData[]>([]);
+  const [data, setData] = useState<ExportableInput[]>([]);
 
   const openExport = useCallback((payload: ExportPayload) => {
     setTitle(payload.title);

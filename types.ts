@@ -195,6 +195,12 @@ export type ExportableCell =
 export type ExportableData = Record<string, ExportableCell>;
 
 /**
+ * @type ExportableInput
+ * @description Oggetto generico di input da normalizzare per l'esportazione.
+ */
+export type ExportableInput = Record<string, unknown>;
+
+/**
  * @interface Assignment
  * @description Rappresenta l'assegnazione di una risorsa a un progetto.
  */

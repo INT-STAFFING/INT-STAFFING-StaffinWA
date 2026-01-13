@@ -1,9 +1,9 @@
 import React, { useCallback } from 'react';
 import { useExportContext } from '../context/ExportContext';
-import { ExportableData } from '../types';
+import { ExportableInput } from '../types';
 
 interface ExportButtonProps {
-  data: ExportableData[];
+  data: ExportableInput[];
   title: string;
   label?: string;
   showLabel?: boolean;

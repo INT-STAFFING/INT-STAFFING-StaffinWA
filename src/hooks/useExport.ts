@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import { ExportableData } from '../../types';
+import { ExportableInput } from '../../types';
 import { buildHtmlTable, buildTsv } from '../../utils/exportTableUtils';
 
 interface UseExportOptions {
-  data: ExportableData[];
+  data: ExportableInput[];
   title?: string;
 }
 

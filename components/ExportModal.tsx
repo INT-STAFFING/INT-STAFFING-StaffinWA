@@ -2,10 +2,9 @@ import React, { useMemo } from 'react';
 import Modal from './Modal';
 import { useExportContext } from '../context/ExportContext';
 import { useExport } from '../src/hooks/useExport';
-import { ExportableData } from '../types';
-import { getExportColumns } from '../utils/exportTableUtils';
+import { getExportColumns, normalizeExportData } from '../utils/exportTableUtils';
 
-const formatCellValue = (value: ExportableData[string]): string => {
+const formatCellValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map((item) => formatCellValue(item)).join(', ');
@@ -17,6 +16,7 @@ const ExportModal: React.FC = () => {
   const { isOpen, title, data, closeExport } = useExportContext();
   const { copyToClipboard, isCopying, hasCopied, error } = useExport({ data, title });
 
+  const normalizedData = useMemo(() => normalizeExportData(data), [data]);
   const columns = useMemo(() => getExportColumns(data), [data]);
 
   return (
@@ -51,7 +51,7 @@ const ExportModal: React.FC = () => {
         )}
 
         <div className="max-h-[60vh] overflow-auto rounded-xl border border-outline-variant bg-surface">
-          {data.length === 0 ? (
+          {normalizedData.length === 0 ? (
             <div className="p-6 text-center text-sm text-on-surface-variant">Nessun dato da esportare.</div>
           ) : (
             <table className="min-w-full text-sm">
@@ -68,7 +68,7 @@ const ExportModal: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant">
-                {data.map((row, rowIndex) => (
+                {normalizedData.map((row, rowIndex) => (
                   <tr key={`export-row-${rowIndex}`} className="hover:bg-surface-container-low">
                     {columns.map((column) => (
                       <td key={`${column}-${rowIndex}`} className="px-4 py-2 text-on-surface-variant">

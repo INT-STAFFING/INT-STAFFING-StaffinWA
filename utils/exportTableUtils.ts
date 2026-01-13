@@ -3,7 +3,7 @@
  * @description Utility per generare output clipboard-friendly (TSV + HTML table).
  */
 
-import { ExportableCell, ExportableData } from '../types';
+import { ExportableCell, ExportableData, ExportableInput, ExportablePrimitive } from '../types';
 
 interface ExportTableOptions {
   title?: string;
@@ -28,11 +28,41 @@ const formatCell = (value: ExportableCell): string => {
   return String(value);
 };
 
-export const getExportColumns = (data: ExportableData[]): string[] => {
+const toExportablePrimitive = (value: unknown): ExportablePrimitive => {
+  if (value === null || value === undefined) return '';
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'symbol') return value.toString();
+  if (typeof value === 'function') return '[Function]';
+  return JSON.stringify(value);
+};
+
+const toExportableCell = (value: unknown): ExportableCell => {
+  if (Array.isArray(value)) {
+    return value.map((item) => toExportablePrimitive(item));
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    return JSON.stringify(value);
+  }
+  return toExportablePrimitive(value);
+};
+
+export const normalizeExportData = (data: ExportableInput[]): ExportableData[] =>
+  data.map((row) => {
+    const normalized: ExportableData = {};
+    Object.entries(row).forEach(([key, value]) => {
+      normalized[key] = toExportableCell(value);
+    });
+    return normalized;
+  });
+
+export const getExportColumns = (data: ExportableInput[]): string[] => {
+  const normalized = normalizeExportData(data);
   const columns: string[] = [];
   const seen = new Set<string>();
 
-  data.forEach((row) => {
+  normalized.forEach((row) => {
     Object.keys(row).forEach((key) => {
       if (!seen.has(key)) {
         seen.add(key);
@@ -44,11 +74,12 @@ export const getExportColumns = (data: ExportableData[]): string[] => {
   return columns;
 };
 
-export const buildTsv = (data: ExportableData[]): string => {
+export const buildTsv = (data: ExportableInput[]): string => {
   if (data.length === 0) return '';
+  const normalized = normalizeExportData(data);
   const columns = getExportColumns(data);
   const header = columns.join('\t');
-  const rows = data.map((row) =>
+  const rows = normalized.map((row) =>
     columns
       .map((column) => normalizeText(formatCell(row[column])))
       .join('\t')
@@ -56,7 +87,8 @@ export const buildTsv = (data: ExportableData[]): string => {
   return [header, ...rows].join('\n');
 };
 
-export const buildHtmlTable = (data: ExportableData[], options: ExportTableOptions = {}): string => {
+export const buildHtmlTable = (data: ExportableInput[], options: ExportTableOptions = {}): string => {
+  const normalized = normalizeExportData(data);
   const columns = getExportColumns(data);
   const title = options.title ? escapeHtml(options.title) : undefined;
   const tableStyle = 'border-collapse:collapse;width:100%;font-family:Arial,sans-serif;font-size:12px;';
@@ -67,7 +99,7 @@ export const buildHtmlTable = (data: ExportableData[], options: ExportTableOptio
     .map((column) => `<th style="${headerCellStyle}">${escapeHtml(column)}</th>`)
     .join('');
 
-  const bodyRows = data
+  const bodyRows = normalized
     .map((row) => {
       const cells = columns
         .map((column) => `<td style="${cellStyle}">${escapeHtml(formatCell(row[column]))}</td>`)
