@@ -12,6 +12,7 @@ import { AppProviders, useAppState, useEntitiesContext } from '../context/AppCon
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ToastProvider } from '../context/ToastContext';
 import { ThemeProvider } from '../context/ThemeContext';
+import { ExportProvider } from '../context/ExportContext';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import Sidebar from '../components/Sidebar';
 import BottomNavBar from '../components/BottomNavBar';
@@ -402,7 +403,9 @@ const App: React.FC = () => {
         <ToastProvider>
           <AppProviders>
             <AuthProvider>
-               <AppRoutes />
+              <ExportProvider>
+                <AppRoutes />
+              </ExportProvider>
             </AuthProvider>
           </AppProviders>
         </ToastProvider>

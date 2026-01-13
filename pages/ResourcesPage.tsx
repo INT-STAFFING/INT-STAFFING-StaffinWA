@@ -15,6 +15,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -515,6 +516,7 @@ const ResourcesPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
+                headerActions={<ExportButton data={dataForTable} title="Gestione Risorse" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

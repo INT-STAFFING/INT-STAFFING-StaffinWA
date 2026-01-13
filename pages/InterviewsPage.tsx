@@ -9,6 +9,7 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { useToast } from '../context/ToastContext';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatDateFull } from '../utils/dateUtils';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 // --- Types ---
 type EnrichedInterview = Interview & {
@@ -408,6 +409,7 @@ const InterviewsPage: React.FC = () => {
             onAddNew={openModalForNew}
             renderRow={renderRow}
             renderMobileCard={renderMobileCard}
+            headerActions={<ExportButton data={filteredData} title="Gestione Colloqui" />}
             initialSortKey="interviewDate"
             isLoading={loading}
             tableLayout={{ dense: true, striped: true, headerSticky: true }}

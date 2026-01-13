@@ -9,6 +9,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react
 
 import { AppProviders, useEntitiesContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ExportProvider } from './context/ExportContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { RoutesProvider, useRoutesManifest } from './context/RoutesContext';
@@ -305,9 +306,11 @@ const App: React.FC = () => {
         <ToastProvider>
           <AppProviders>
             <AuthProvider>
-              <RoutesProvider>
-                <AppRoutes />
-              </RoutesProvider>
+              <ExportProvider>
+                <RoutesProvider>
+                  <AppRoutes />
+                </RoutesProvider>
+              </ExportProvider>
             </AuthProvider>
           </AppProviders>
         </ToastProvider>

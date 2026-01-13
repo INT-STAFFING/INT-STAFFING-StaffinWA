@@ -26,6 +26,7 @@ import { line } from 'd3-shape';
 import { format } from 'd3-format';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
+import { ExportButton } from '@/components/shared/ExportButton';
 import 'd3-transition'; // Import transition to avoid crashes
 
 // --- Colori Centralizzati per la Dashboard ---
@@ -274,6 +275,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                     <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="Allocazione Media" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -321,6 +323,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="FTE per Progetto" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -370,6 +373,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="Analisi Budget" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -422,6 +426,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
                         <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
+                        <ExportButton data={data} title="Analisi Budget Temporale" />
                     </div>
                 </div>
             </div>
@@ -471,11 +476,12 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
             <div className="flex-shrink-0 mb-4">
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                     <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
-                     <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-start xl:justify-end items-center">
+                    <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-start xl:justify-end items-center">
                         <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
                         <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
+                        <ExportButton data={data} title="Tariffa Media Giornaliera" />
                     </div>
                 </div>
             </div>
@@ -516,6 +522,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
                 <div className="flex items-center gap-4">
                     <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/>
                     <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="Risorse Sottoutilizzate" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -550,7 +557,10 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
-                 <ViewToggleButton view={view} setView={setView} />
+                 <div className="flex items-center gap-2">
+                    <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="Costo Mensile per Cliente" />
+                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
@@ -591,7 +601,10 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
-                 <ViewToggleButton view={view} setView={setView} />
+                 <div className="flex items-center gap-2">
+                    <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="Analisi Sforzo per Horizontal" />
+                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
@@ -628,7 +641,10 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
-                <ViewToggleButton view={view} setView={setView} />
+                <div className="flex items-center gap-2">
+                    <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={data} title="Analisi per Sede (Mese Corrente)" />
+                </div>
             </div>
             <div className="flex-grow h-[30rem]">
                 {view === 'table' ? (
@@ -694,7 +710,10 @@ const SaturationTrendCard: React.FC<{
         <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
-                <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
+                <div className="flex items-center gap-2">
+                    <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
+                    <ExportButton data={data} title="Trend Saturazione Risorsa" />
+                </div>
             </div>
             <div className="flex-grow h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
         </div>
@@ -736,7 +755,10 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
 
     return (
         <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
-            <h2 className="text-lg font-semibold mb-4 flex-shrink-0">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                <h2 className="text-lg font-semibold">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
+                <ExportButton data={data} title="Forecast Costo Mensile (Rolling 3 Mesi)" />
+            </div>
             <div className="flex-grow h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
         </div>
     );

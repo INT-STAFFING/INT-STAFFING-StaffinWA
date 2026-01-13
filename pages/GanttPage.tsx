@@ -8,6 +8,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
+import { ExportButton } from '@/components/shared/ExportButton';
 
 type ZoomLevel = 'month' | 'quarter' | 'year';
 type SortDirection = 'ascending' | 'descending';
@@ -336,24 +337,27 @@ const GanttPage: React.FC = () => {
                     <h1 className="text-3xl font-bold text-on-background">
                         Gantt Progetti
                     </h1>
-                    <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
-                        {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
-                            <button
-                                key={level}
-                                onClick={() => setZoom(level)}
-                                className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
-                                    zoom === level
-                                        ? 'bg-surface text-primary shadow'
-                                        : 'text-on-surface-variant'
-                                }`}
-                            >
-                                {level === 'month'
-                                    ? 'Mese'
-                                    : level === 'quarter'
-                                    ? 'Trim.'
-                                    : 'Anno'}
-                            </button>
-                        ))}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
+                            {(['month', 'quarter', 'year'] as ZoomLevel[]).map(level => (
+                                <button
+                                    key={level}
+                                    onClick={() => setZoom(level)}
+                                    className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${
+                                        zoom === level
+                                            ? 'bg-surface text-primary shadow'
+                                            : 'text-on-surface-variant'
+                                    }`}
+                                >
+                                    {level === 'month'
+                                        ? 'Mese'
+                                        : level === 'quarter'
+                                        ? 'Trim.'
+                                        : 'Anno'}
+                                </button>
+                            ))}
+                        </div>
+                        <ExportButton data={sortedAndFilteredProjects} title="Gantt Progetti" />
                     </div>
                 </div>
 

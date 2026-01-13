@@ -20,6 +20,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
+import { ExportButton } from '@/components/shared/ExportButton';
 import {
   FormDialog,
   FormFieldDefinition,
@@ -946,7 +947,10 @@ export const StaffingPage: React.FC = () => {
                   </button>
               ))}
           </div>
-          <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"><span className="material-symbols-outlined mr-2 text-xl">add</span>Assegna Risorsa</button>
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"><span className="material-symbols-outlined mr-2 text-xl">add</span>Assegna Risorsa</button>
+              <ExportButton data={paginatedResources} title="Staffing" />
+          </div>
         </div>
         
         {/* Filters */}
