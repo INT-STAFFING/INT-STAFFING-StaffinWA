@@ -127,6 +127,38 @@ export const ResourceRequestPage: React.FC = () => {
             }));
     }, [resourceRequests, projects, roles, resources, filters]);
 
+    const summaryData = useMemo(() => {
+        const fteByRole: { [roleName: string]: number } = {};
+        const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
+
+        const relevantRequests = dataForTable.filter(req => req.status !== 'STANDBY' && req.status !== 'CHIUSA');
+
+        relevantRequests.forEach(req => {
+            if (!fteByRole[req.roleName]) {
+                fteByRole[req.roleName] = 0;
+            }
+            fteByRole[req.roleName] += req.commitmentPercentage / 100;
+
+            if (!requestsByProject[req.projectName]) {
+                requestsByProject[req.projectName] = [];
+            }
+            requestsByProject[req.projectName].push({
+                roleName: req.roleName,
+                commitmentPercentage: req.commitmentPercentage,
+            });
+        });
+
+        const fteArray = Object.entries(fteByRole)
+            .map(([roleName, fte]) => ({ roleName, fte }))
+            .sort((a, b) => b.fte - a.fte);
+
+        const projectArray = Object.entries(requestsByProject)
+            .map(([projectName, requests]) => ({ projectName, requests }))
+            .sort((a, b) => a.projectName.localeCompare(b.projectName));
+
+        return { fteArray, projectArray };
+    }, [dataForTable]);
+
     const handleFilterChange = (name: string, value: string) => {
         setFilters(prev => ({ ...prev, [name]: value }));
     };
@@ -200,7 +232,7 @@ export const ResourceRequestPage: React.FC = () => {
         setFormErrors({});
 
         try {
-            if ('id' in requestToSave) {
+            if ('id' in editingRequest) {
                 await updateResourceRequest(requestToSave as ResourceRequest);
                 addToast('Richiesta aggiornata con successo.', 'success');
             } else {
@@ -340,6 +372,45 @@ export const ResourceRequestPage: React.FC = () => {
 
     return (
         <div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
+                    <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">FTE Totali per Figura Professionale</h3>
+                    {summaryData.fteArray.length > 0 ? (
+                        <ul className="mt-4 space-y-2">
+                            {summaryData.fteArray.map(({ roleName, fte }) => (
+                                <li key={roleName} className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-on-surface">{roleName}</span>
+                                    <span className="text-on-surface-variant">{fte.toFixed(2)} FTE</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="mt-4 text-sm text-on-surface-variant">Nessun dato disponibile.</p>
+                    )}
+                </div>
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
+                    <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">FTE per Progetto e Figura Professionale</h3>
+                    {summaryData.projectArray.length > 0 ? (
+                        <div className="mt-4 space-y-4">
+                            {summaryData.projectArray.map(({ projectName, requests }) => (
+                                <div key={projectName}>
+                                    <p className="text-sm font-semibold text-on-surface">{projectName}</p>
+                                    <ul className="mt-2 space-y-1">
+                                        {requests.map((req, index) => (
+                                            <li key={`${projectName}-${req.roleName}-${index}`} className="flex items-center justify-between text-sm text-on-surface-variant">
+                                                <span>{req.roleName}</span>
+                                                <span>{(req.commitmentPercentage / 100).toFixed(2)} FTE</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="mt-4 text-sm text-on-surface-variant">Nessun dato disponibile.</p>
+                    )}
+                </div>
+            </div>
             <DataTable<EnrichedRequest>
                 title="Richieste di Risorse"
                 addNewButtonLabel="Aggiungi Richiesta"
