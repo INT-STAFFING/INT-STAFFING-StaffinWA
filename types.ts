@@ -174,6 +174,27 @@ export interface ContractManager {
 }
 
 /**
+ * @type ExportablePrimitive
+ * @description Valori supportati per l'esportazione clipboard-friendly.
+ */
+export type ExportablePrimitive = string | number | boolean | null | undefined | Date;
+
+/**
+ * @type ExportableCell
+ * @description Valore di cella esportabile (primitive, array, o oggetto semplice).
+ */
+export type ExportableCell =
+    | ExportablePrimitive
+    | ExportablePrimitive[]
+    | Record<string, ExportablePrimitive>;
+
+/**
+ * @type ExportableData
+ * @description Record esportabile con chiavi stringa e valori compatibili.
+ */
+export type ExportableData = Record<string, ExportableCell>;
+
+/**
  * @interface Assignment
  * @description Rappresenta l'assegnazione di una risorsa a un progetto.
  */
