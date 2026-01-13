@@ -24,6 +24,23 @@ type EnrichedContract = Contract & {
 
 // --- Helper Functions ---
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
+const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contract | Omit<Contract, 'id'> => {
+    const basePayload: Omit<Contract, 'id'> = {
+        name: contract.name,
+        startDate: contract.startDate || null,
+        endDate: contract.endDate || null,
+        cig: contract.cig,
+        cigDerivato: contract.cigDerivato || null,
+        capienza: contract.capienza,
+        backlog: contract.backlog,
+    };
+
+    if ('id' in contract) {
+        return { id: contract.id, ...basePayload };
+    }
+
+    return basePayload;
+};
 
 // --- Component ---
 export const ContractsPage: React.FC = () => {
@@ -119,10 +136,11 @@ export const ContractsPage: React.FC = () => {
         e.preventDefault();
         if (editingContract) {
             try {
-                if ('id' in editingContract) {
-                    await updateContract(editingContract as Contract, associatedProjectIds, associatedManagerIds);
+                const contractPayload = buildContractPayload(editingContract);
+                if ('id' in contractPayload) {
+                    await updateContract(contractPayload as Contract, associatedProjectIds, associatedManagerIds);
                 } else {
-                    await addContract(editingContract as Omit<Contract, 'id'>, associatedProjectIds, associatedManagerIds);
+                    await addContract(contractPayload as Omit<Contract, 'id'>, associatedProjectIds, associatedManagerIds);
                 }
                 handleCloseModal();
             } catch (err) {
@@ -258,33 +276,34 @@ export const ContractsPage: React.FC = () => {
                              <div><label className="block text-sm font-medium mb-1">Data Fine</label><input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className="form-input"/></div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Progetti Associati</label>
-                            <MultiSelectDropdown name="projectIds" selectedValues={associatedProjectIds} onChange={(_, v) => setAssociatedProjectIds(v)} options={projectOptions} placeholder="Seleziona progetti..."/>
+                            <label className="block text-sm font-medium mb-1">Progetti Collegati</label>
+                            <MultiSelectDropdown name="projects" selectedValues={associatedProjectIds} onChange={(_, values) => setAssociatedProjectIds(values)} options={projectOptions} placeholder="Seleziona progetti" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium mb-1">Manager di Contratto</label>
-                            <MultiSelectDropdown name="managerIds" selectedValues={associatedManagerIds} onChange={(_, v) => setAssociatedManagerIds(v)} options={resourceOptions} placeholder="Seleziona manager..."/>
+                            <label className="block text-sm font-medium mb-1">Manager Collegati</label>
+                            <MultiSelectDropdown name="managers" selectedValues={associatedManagerIds} onChange={(_, values) => setAssociatedManagerIds(values)} options={resourceOptions} placeholder="Seleziona manager" />
                         </div>
-                        
-                        <div className="flex justify-end space-x-3 pt-4">
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold">
-                               {isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
+                                {(isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
-             {contractToDelete && (
+            {contractToDelete && (
                 <ConfirmationModal
                     isOpen={!!contractToDelete}
                     onClose={() => setContractToDelete(null)}
                     onConfirm={handleDelete}
-                    title="Conferma Eliminazione"
-                    message={`Sei sicuro di voler eliminare il contratto "${contractToDelete.name}"?`}
+                    title="Elimina Contratto"
+                    message={`Sei sicuro di voler eliminare il contratto ${contractToDelete.name}?`}
                     isConfirming={isActionLoading(`deleteContract-${contractToDelete.id}`)}
                 />
             )}
         </div>
     );
 };
+
+export default ContractsPage;
