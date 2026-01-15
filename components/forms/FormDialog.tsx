@@ -1,243 +1,136 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import type { SafeParseError, SafeParseResult } from 'zod';
+
+import React, { useState } from 'react';
 import Modal from '../Modal';
+// FIX: Using relative path for custom zod implementation.
+import { z } from '../../libs/zod';
+import { FormFieldDefinition } from './types';
 import SearchableSelect from '../SearchableSelect';
 import MultiSelectDropdown from '../MultiSelectDropdown';
-import { FormFieldFeedback } from './FormFieldFeedback';
-import { FormFieldDefinition } from './types';
 
-type ResolvedField = FormFieldDefinition & { resolvedLabel: string; resolvedHelperText?: string };
-
-interface FormDialogProps<TValues extends Record<string, unknown>> {
+interface FormDialogProps {
     isOpen: boolean;
-    title: string;
-    defaultValues: TValues;
     onClose: () => void;
-    onSubmit: (values: TValues) => void | Promise<void>;
+    title: string;
+    defaultValues: any;
+    onSubmit: (values: any) => void;
     fields: FormFieldDefinition[];
-    schema?: { safeParse: (values: TValues) => SafeParseResult<TValues> };
+    schema: any;
     submitLabel?: string;
-    cancelLabel?: string;
 }
 
-const resolveLabel = (label: FormFieldDefinition['label'], values: Record<string, unknown>): string =>
-    typeof label === 'function' ? label(values) : label;
-
-const resolveHelperText = (
-    helperText: FormFieldDefinition['helperText'],
-    values: Record<string, unknown>
-): string | undefined => {
-    if (!helperText) return undefined;
-    return typeof helperText === 'function' ? helperText(values) : helperText;
-};
-
-export const FormDialog = <TValues extends Record<string, unknown>>({
+export const FormDialog: React.FC<FormDialogProps> = ({
     isOpen,
+    onClose,
     title,
     defaultValues,
-    onClose,
     onSubmit,
     fields,
     schema,
     submitLabel = 'Salva',
-    cancelLabel = 'Annulla',
-}: FormDialogProps<TValues>) => {
-    const [values, setValues] = useState<TValues>(defaultValues);
+}) => {
+    const [values, setValues] = useState(defaultValues);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            setValues(defaultValues);
-            setErrors({});
-        }
-    }, [defaultValues, isOpen]);
-
-    const handleFieldChange = (fieldName: string, nextValue: unknown) => {
-        setValues(prev => ({ ...prev, [fieldName]: nextValue } as TValues));
+    const handleChange = (name: string, value: any) => {
+        setValues((prev: any) => ({ ...prev, [name]: value }));
+        setErrors((prev) => ({ ...prev, [name]: '' }));
     };
 
-    const fieldConfigs = useMemo<ResolvedField[]>(
-        () =>
-            fields.map(field => ({
-                ...field,
-                resolvedLabel: resolveLabel(field.label, values),
-                resolvedHelperText: resolveHelperText(field.helperText, values),
-            })),
-        [fields, values]
-    );
-
-    const handleSubmit = async (event: React.FormEvent) => {
-        event.preventDefault();
-        setErrors({});
-
-        let parsedValues = values;
-        if (schema) {
-            const result = schema.safeParse(values);
-            if (!result.success) {
-                const nextErrors: Record<string, string> = {};
-                (result as SafeParseError).error.issues.forEach(issue => {
-                    const pathKey = issue.path[0];
-                    if (typeof pathKey === 'string' && !nextErrors[pathKey]) {
-                        nextErrors[pathKey] = issue.message;
-                    }
-                });
-                setErrors(nextErrors);
-                return;
-            }
-            parsedValues = result.data;
-        }
-
-        try {
-            setIsSubmitting(true);
-            await onSubmit(parsedValues);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const renderField = (field: ResolvedField) => {
-        const fieldId = `${field.name}-input`;
-        const describedById = errors[field.name]
-            ? `${fieldId}-error`
-            : field.resolvedHelperText
-                ? `${fieldId}-helper`
-                : undefined;
-
-        switch (field.type) {
-            case 'text':
-            case 'number':
-            case 'date':
-            case 'range':
-                return (
-                    <div key={field.name} className="flex flex-col">
-                        <label htmlFor={fieldId} className="block text-sm font-medium text-on-surface-variant mb-1">
-                            {field.resolvedLabel}
-                        </label>
-                        <input
-                            id={fieldId}
-                            name={field.name}
-                            type={field.type === 'range' ? 'range' : field.type}
-                            min={field.min}
-                            max={field.max}
-                            step={field.step}
-                            required={field.required}
-                            value={
-                                (typeof values[field.name] === 'number' || typeof values[field.name] === 'string'
-                                    ? values[field.name]
-                                    : '') as string | number
-                            }
-                            onChange={event => {
-                                const baseValue = event.target.value;
-                                const nextValue =
-                                    field.type === 'number' || field.type === 'range'
-                                        ? Number(baseValue)
-                                        : baseValue;
-                                handleFieldChange(field.name, nextValue);
-                            }}
-                            className="form-input"
-                            placeholder={field.placeholder}
-                            aria-invalid={Boolean(errors[field.name])}
-                            aria-describedby={describedById}
-                        />
-                        <FormFieldFeedback
-                            id={describedById}
-                            error={errors[field.name]}
-                            helperText={field.resolvedHelperText}
-                        />
-                    </div>
-                );
-            case 'textarea':
-                return (
-                    <div key={field.name} className="flex flex-col">
-                        <label htmlFor={fieldId} className="block text-sm font-medium text-on-surface-variant mb-1">
-                            {field.resolvedLabel}
-                        </label>
-                        <textarea
-                            id={fieldId}
-                            name={field.name}
-                            required={field.required}
-                            value={(values[field.name] as string) || ''}
-                            onChange={event => handleFieldChange(field.name, event.target.value)}
-                            className="form-input min-h-[96px]"
-                            placeholder={field.placeholder}
-                            aria-invalid={Boolean(errors[field.name])}
-                            aria-describedby={describedById}
-                        />
-                        <FormFieldFeedback
-                            id={describedById}
-                            error={errors[field.name]}
-                            helperText={field.resolvedHelperText}
-                        />
-                    </div>
-                );
-            case 'select':
-                return (
-                    <div key={field.name} className="flex flex-col">
-                        <label className="block text-sm font-medium text-on-surface-variant mb-1">
-                            {field.resolvedLabel}
-                        </label>
-                        <SearchableSelect
-                            name={field.name}
-                            value={(values[field.name] as string) || ''}
-                            onChange={(name, optionValue) => handleFieldChange(name, optionValue)}
-                            options={field.options || []}
-                            placeholder={field.placeholder}
-                            required={field.required}
-                            loadOptions={field.loadOptions}
-                        />
-                        <FormFieldFeedback
-                            id={describedById}
-                            error={errors[field.name]}
-                            helperText={field.resolvedHelperText}
-                        />
-                    </div>
-                );
-            case 'multiselect':
-                return (
-                    <div key={field.name} className="flex flex-col">
-                        <label className="block text-sm font-medium text-on-surface-variant mb-1">
-                            {field.resolvedLabel}
-                        </label>
-                        <MultiSelectDropdown
-                            name={field.name}
-                            selectedValues={(values[field.name] as string[]) || []}
-                            onChange={(name, selected) => handleFieldChange(name, selected)}
-                            options={field.options || []}
-                            placeholder={field.placeholder}
-                            loadOptions={field.loadOptions}
-                        />
-                        <FormFieldFeedback
-                            id={describedById}
-                            error={errors[field.name]}
-                            helperText={field.resolvedHelperText}
-                        />
-                    </div>
-                );
-            default:
-                return null;
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const result = schema.safeParse(values);
+        if (result.success) {
+            onSubmit(result.data);
+            onClose();
+        } else {
+            const fieldErrors = result.error.flatten().fieldErrors;
+            const mappedErrors: Record<string, string> = {};
+            Object.keys(fieldErrors).forEach(key => {
+                if (fieldErrors[key]) mappedErrors[key] = fieldErrors[key][0];
+            });
+            setErrors(mappedErrors);
         }
     };
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
-            <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                <div className="space-y-4 flex-grow">
-                    {fieldConfigs.map(renderField)}
-                </div>
-                <div className="mt-6 flex justify-end space-x-3 pt-4 border-t border-outline-variant">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold"
-                    >
-                        {cancelLabel}
-                    </button>
-                    <button
-                        type="submit"
-                        className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90 disabled:opacity-60"
-                        disabled={isSubmitting}
-                    >
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {fields.map((field) => {
+                    const label = typeof field.label === 'function' ? field.label(values) : field.label;
+                    const helper = typeof field.helperText === 'function' ? field.helperText(values) : field.helperText;
+
+                    return (
+                        <div key={field.name}>
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">
+                                {label} {field.required && '*'}
+                            </label>
+                            {field.type === 'date' && (
+                                <input
+                                    type="date"
+                                    value={values[field.name] || ''}
+                                    onChange={(e) => handleChange(field.name, e.target.value)}
+                                    className="form-input w-full"
+                                    required={field.required}
+                                />
+                            )}
+                            {field.type === 'number' && (
+                                <input
+                                    type="number"
+                                    value={values[field.name] ?? ''}
+                                    onChange={(e) => handleChange(field.name, e.target.value === '' ? undefined : Number(e.target.value))}
+                                    className="form-input w-full"
+                                    required={field.required}
+                                    min={field.min}
+                                    max={field.max}
+                                    step={field.step}
+                                />
+                            )}
+                            {field.type === 'range' && (
+                                <div className="space-y-1">
+                                    <input
+                                        type="range"
+                                        value={values[field.name] ?? 0}
+                                        onChange={(e) => handleChange(field.name, Number(e.target.value))}
+                                        className="w-full accent-primary"
+                                        min={field.min}
+                                        max={field.max}
+                                        step={field.step}
+                                    />
+                                    <div className="flex justify-between text-[10px] text-on-surface-variant">
+                                        <span>{field.min}%</span>
+                                        <span>{field.max}%</span>
+                                    </div>
+                                </div>
+                            )}
+                            {field.type === 'select' && (
+                                <SearchableSelect
+                                    name={field.name}
+                                    value={values[field.name] || ''}
+                                    onChange={handleChange}
+                                    options={field.options || []}
+                                    loadOptions={field.loadOptions}
+                                    placeholder={field.placeholder}
+                                    required={field.required}
+                                />
+                            )}
+                            {field.type === 'multiselect' && (
+                                <MultiSelectDropdown
+                                    name={field.name}
+                                    selectedValues={values[field.name] || []}
+                                    onChange={handleChange}
+                                    options={field.options || []}
+                                    loadOptions={field.loadOptions}
+                                    placeholder={field.placeholder}
+                                />
+                            )}
+                            {errors[field.name] && <p className="mt-1 text-xs text-error">{errors[field.name]}</p>}
+                            {helper && <p className="mt-1 text-xs text-on-surface-variant opacity-70">{helper}</p>}
+                        </div>
+                    );
+                })}
+                <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
+                    <button type="button" onClick={onClose} className="px-4 py-2 border border-outline rounded-full text-primary hover:bg-surface-container-low transition-colors">Annulla</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 shadow-sm transition-all">
                         {submitLabel}
                     </button>
                 </div>

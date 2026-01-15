@@ -1,3 +1,4 @@
+
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -16,8 +17,9 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
-          'zod': path.resolve(__dirname, 'libs/zod'),
+          // FIX: In ESM, __dirname is not available. Using process.cwd() as root reference for path.resolve.
+          '@': path.resolve(process.cwd(), '.'),
+          'zod': path.resolve(process.cwd(), 'libs/zod'),
         }
       }
     };

@@ -1,3 +1,4 @@
+
 import { describe, expect, it } from 'vitest';
 import { loginSchema } from '../LoginPage';
 import { resourceRequestSchema } from '../ResourceRequestPage';
@@ -35,7 +36,8 @@ describe('resourceRequestSchema', () => {
         const result = resourceRequestSchema.safeParse({ ...baseResourceRequest, endDate: '2024-04-01' });
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.flatten().fieldErrors.endDate?.[0]).toContain('fine');
+            // FIX: Using explicit any cast for result to access error property as narrowing fails here.
+            expect((result as any).error.flatten().fieldErrors.endDate?.[0]).toContain('fine');
         }
     });
 
@@ -43,7 +45,8 @@ describe('resourceRequestSchema', () => {
         const result = resourceRequestSchema.safeParse({ ...baseResourceRequest, isOsrOpen: true, osrNumber: '' });
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.error.flatten().fieldErrors.osrNumber?.[0]).toBeDefined();
+            // FIX: Using explicit any cast for result to access error property as narrowing fails here.
+            expect((result as any).error.flatten().fieldErrors.osrNumber?.[0]).toBeDefined();
         }
     });
 

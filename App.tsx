@@ -2,12 +2,13 @@
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
+ * Unifica la logica precedentemente divisa tra root e src/ per coerenza architetturale.
  */
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
-import { AppProviders, useEntitiesContext } from './context/AppContext';
+import { AppProviders, useEntitiesContext, useAppState } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ExportProvider } from './context/ExportContext';
 import { ToastProvider } from './context/ToastContext';
@@ -17,7 +18,38 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
 import { SpinnerIcon } from './components/icons';
-import type { AppRoute } from './src/routes';
+
+// Lazy load all page components
+const StaffingPage = lazy(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
+const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
+const ClientsPage = lazy(() => import('./pages/ClientsPage'));
+const RolesPage = lazy(() => import('./pages/RolesPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ExportPage = lazy(() => import('./pages/ExportPage'));
+const ConfigPage = lazy(() => import('./pages/ConfigPage'));
+const ImportPage = lazy(() => import('./pages/ImportPage'));
+const ForecastingPage = lazy(() => import('./pages/ForecastingPage'));
+const GanttPage = lazy(() => import('./pages/GanttPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
+const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
+const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
+const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
+const UserManualPage = lazy(() => import('./pages/UserManualPage'));
+const SimpleUserManualPage = lazy(() => import('./pages/SimpleUserManualPage'));
+const InterviewsPage = lazy(() => import('./pages/InterviewsPage'));
+const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
+const SkillsPage = lazy(() => import('./pages/SkillsPage'));
+const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
+const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
+const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
+const LeavePage = lazy(() => import('./pages/LeavePage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
+const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -65,15 +97,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 };
 
 // RBAC Protected Route Wrapper
-const DynamicRoute: React.FC<{ route: AppRoute; children: React.ReactElement }> = ({ route, children }) => {
-  const { isLoginProtectionEnabled } = useAuth();
-  const { canAccessRoute } = useRoutesManifest();
+const DynamicRoute: React.FC<{ path: string; children: React.ReactElement }> = ({ path, children }) => {
+  const { isLoginProtectionEnabled, hasPermission } = useAuth();
 
   if (!isLoginProtectionEnabled) {
     return children;
   }
 
-  if (!canAccessRoute(route)) {
+  if (!hasPermission(path)) {
     return <Navigate to="/" replace />;
   }
 
@@ -83,7 +114,7 @@ const DynamicRoute: React.FC<{ route: AppRoute; children: React.ReactElement }> 
 // Dynamic Home Redirect Component
 const HomeRedirect: React.FC = () => {
   const { user, isLoginProtectionEnabled } = useAuth();
-  const { loading } = useEntitiesContext();
+  const { loading } = useAppState();
   const { getHomeForRole } = useRoutesManifest();
 
   if (loading) return <LoadingSkeleton />;
@@ -100,17 +131,29 @@ const HomeRedirect: React.FC = () => {
   return <Navigate to={target} replace />;
 };
 
+const ErrorScreen: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
+  <div className="flex flex-col items-center justify-center h-full p-6 gap-4 text-center">
+    <span className="material-symbols-outlined text-4xl text-error">error</span>
+    <h2 className="text-lg font-semibold text-on-surface">Errore di caricamento</h2>
+    <p className="text-sm text-on-surface-variant max-w-md">{message}</p>
+    <button onClick={onRetry} className="px-6 py-2 bg-primary text-on-primary rounded-full font-medium hover:opacity-90">Riprova</button>
+  </div>
+);
+
 interface AppContentProps {
   onToggleSidebar: () => void;
 }
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
-  const { loading } = useEntitiesContext();
-  const { manifest } = useRoutesManifest();
-  const protectedRoutes = manifest.filter(route => route.requiresAuth !== false);
+  const { loading, fetchError } = useAppState();
+  const { fetchData } = useEntitiesContext();
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  if (fetchError) {
+    return <ErrorScreen message={fetchError} onRetry={fetchData} />;
   }
 
   return (
@@ -122,16 +165,37 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
           <Suspense fallback={<LoadingSkeleton />}>
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
-              {protectedRoutes.map(route => {
-                const RouteComponent = route.component;
-                return (
-                  <Route
-                    key={route.path}
-                    path={route.path}
-                    element={<DynamicRoute route={route}><RouteComponent /></DynamicRoute>}
-                  />
-                );
-              })}
+              <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
+              <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
+              <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />
+              <Route path="/certifications" element={<DynamicRoute path="/certifications"><CertificationsPage /></DynamicRoute>} />
+              <Route path="/projects" element={<DynamicRoute path="/projects"><ProjectsPage /></DynamicRoute>} />
+              <Route path="/clients" element={<DynamicRoute path="/clients"><ClientsPage /></DynamicRoute>} />
+              <Route path="/roles" element={<DynamicRoute path="/roles"><RolesPage /></DynamicRoute>} />
+              <Route path="/contracts" element={<DynamicRoute path="/contracts"><ContractsPage /></DynamicRoute>} />
+              <Route path="/dashboard" element={<DynamicRoute path="/dashboard"><DashboardPage /></DynamicRoute>} />
+              <Route path="/forecasting" element={<DynamicRoute path="/forecasting"><ForecastingPage /></DynamicRoute>} />
+              <Route path="/workload" element={<DynamicRoute path="/workload"><WorkloadPage /></DynamicRoute>} />
+              <Route path="/gantt" element={<DynamicRoute path="/gantt"><GanttPage /></DynamicRoute>} />
+              <Route path="/calendar" element={<DynamicRoute path="/calendar"><CalendarPage /></DynamicRoute>} />
+              <Route path="/export" element={<DynamicRoute path="/export"><ExportPage /></DynamicRoute>} />
+              <Route path="/import" element={<DynamicRoute path="/import"><ImportPage /></DynamicRoute>} />
+              <Route path="/config" element={<DynamicRoute path="/config"><ConfigPage /></DynamicRoute>} />
+              <Route path="/reports" element={<DynamicRoute path="/reports"><ReportsPage /></DynamicRoute>} />
+              <Route path="/resource-requests" element={<DynamicRoute path="/resource-requests"><ResourceRequestPage /></DynamicRoute>} />
+              <Route path="/interviews" element={<DynamicRoute path="/interviews"><InterviewsPage /></DynamicRoute>} />
+              <Route path="/skills-map" element={<DynamicRoute path="/skills-map"><SkillsMapPage /></DynamicRoute>} />
+              <Route path="/skill-analysis" element={<DynamicRoute path="/skill-analysis"><SkillAnalysisPage /></DynamicRoute>} />
+              <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
+              <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
+              <Route path="/simple-user-manual" element={<DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>} />
+              <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
+              <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
+              <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
+              
+              <Route path="/admin-settings" element={<DynamicRoute path="/admin-settings"><AdminSettingsPage /></DynamicRoute>} />
+              <Route path="/db-inspector" element={<DynamicRoute path="/db-inspector"><DbInspectorPage /></DynamicRoute>} />
+              
               <Route path="*" element={<HomeRedirect />} />
             </Routes>
           </Suspense>
@@ -151,25 +215,10 @@ const ForcePasswordChange: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        
-        if (newPassword.length < 8) {
-            setError('La password deve essere di almeno 8 caratteri.');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setError('Le password non coincidono.');
-            return;
-        }
-
+        if (newPassword.length < 8) { setError('La password deve essere di almeno 8 caratteri.'); return; }
+        if (newPassword !== confirmPassword) { setError('Le password non coincidono.'); return; }
         setLoading(true);
-        try {
-            await changePassword(newPassword);
-            window.location.reload();
-        } catch (e) {
-            setError('Errore durante il cambio password.');
-        } finally {
-            setLoading(false);
-        }
+        try { await changePassword(newPassword); window.location.reload(); } catch (e) { setError('Errore durante il cambio password.'); } finally { setLoading(false); }
     };
 
     return (
@@ -178,49 +227,23 @@ const ForcePasswordChange: React.FC = () => {
                 <div className="text-center mb-6">
                     <span className="material-symbols-outlined text-5xl text-primary mb-2">lock_reset</span>
                     <h1 className="text-2xl font-bold text-on-surface">Cambio Password Obbligatorio</h1>
-                    <p className="text-sm text-on-surface-variant mt-2">
-                        Per motivi di sicurezza, devi cambiare la tua password al primo accesso.
-                    </p>
+                    <p className="text-sm text-on-surface-variant mt-2">Per motivi di sicurezza, devi cambiare la tua password al primo accesso.</p>
                 </div>
-
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Nuova Password</label>
-                        <input 
-                            type="password" 
-                            required 
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="form-input w-full"
-                            placeholder="Minimo 8 caratteri"
-                        />
+                        <input type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="form-input w-full" placeholder="Minimo 8 caratteri"/>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Conferma Password</label>
-                        <input 
-                            type="password" 
-                            required 
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="form-input w-full"
-                            placeholder="Ripeti password"
-                        />
+                        <input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="form-input w-full" placeholder="Ripeti password"/>
                     </div>
-
                     {error && <div className="text-error text-sm text-center font-medium">{error}</div>}
-
-                    <button 
-                        type="submit" 
-                        disabled={loading}
-                        className="w-full py-2 px-4 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 disabled:opacity-50 flex justify-center items-center"
-                    >
+                    <button type="submit" disabled={loading} className="w-full py-2 px-4 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 disabled:opacity-50 flex justify-center items-center">
                         {loading ? <SpinnerIcon className="w-5 h-5" /> : 'Cambia Password e Accedi'}
                     </button>
                 </form>
-                
-                <button onClick={logout} className="mt-4 text-sm text-on-surface-variant hover:text-on-surface w-full text-center">
-                    Torna al Login
-                </button>
+                <button onClick={logout} className="mt-4 text-sm text-on-surface-variant hover:text-on-surface w-full text-center">Torna al Login</button>
             </div>
         </div>
     );
@@ -229,20 +252,10 @@ const ForcePasswordChange: React.FC = () => {
 const MainLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user } = useAuth();
-
-  // If user must change password, block standard layout
-  if (user?.mustChangePassword) {
-      return <ForcePasswordChange />;
-  }
-
+  if (user?.mustChangePassword) return <ForcePasswordChange />;
   return (
     <>
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-scrim bg-opacity-50 z-40 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+      {isSidebarOpen && <div className="fixed inset-0 bg-scrim bg-opacity-50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}/>}
       <div className="flex h-screen w-screen overflow-hidden bg-background">
         <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
         <AppContent onToggleSidebar={() => setIsSidebarOpen(true)} />
@@ -254,51 +267,20 @@ const MainLayout: React.FC = () => {
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isAuthLoading, isLoginProtectionEnabled, isAuthenticated } = useAuth();
-
-  if (isAuthLoading) {
-    return <LoadingSkeleton />;
-  }
-
-  if (isLoginProtectionEnabled && !isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (isAuthLoading) return <LoadingSkeleton />;
+  if (isLoginProtectionEnabled && !isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 };
 
 const AppRoutes: React.FC = () => {
-  const { manifest } = useRoutesManifest();
-  const publicRoutes = manifest.filter(route => route.requiresAuth === false);
-
   return (
     <Routes>
-      {publicRoutes.map(route => {
-        const RouteComponent = route.component;
-        return (
-          <Route
-            key={route.path}
-            path={route.path}
-            element={
-              <Suspense fallback={<LoadingSkeleton />}>
-                <RouteComponent />
-              </Suspense>
-            }
-          />
-        );
-      })}
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/login" element={<Suspense fallback={<LoadingSkeleton />}><LoginPage /></Suspense>} />
+      <Route path="/*" element={<ProtectedRoute><MainLayout /></ProtectedRoute>} />
     </Routes>
   );
 };
 
-// App Component - Simplified to just providers and the router
 const App: React.FC = () => {
   return (
     <BrowserRouter>

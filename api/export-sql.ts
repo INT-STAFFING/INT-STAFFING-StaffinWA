@@ -2,10 +2,28 @@
 /**
  * @file api/export-sql.ts
  * @description Endpoint API to generate a full SQL dump (schema + data) for the entire database.
+ * Rafforzato con controllo RBAC ADMIN.
  */
 
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// --- SECURITY HELPER ---
+const verifyAdmin = (req: VercelRequest): boolean => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return false;
+    const token = authHeader.split(' ')[1];
+    if (!token) return false;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET!) as any;
+        return decoded.role === 'ADMIN';
+    } catch (e) {
+        return false;
+    }
+};
 
 const TABLE_WHITELIST = [
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
@@ -73,6 +91,10 @@ const escapeSqlValue = (value: any, dialect: 'postgres' | 'mysql'): string => {
 
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (!verifyAdmin(req)) {
+        return res.status(403).json({ error: 'Access denied: Admin role required for SQL Export.' });
+    }
+
     const { dialect } = req.query;
 
     if (dialect !== 'postgres' && dialect !== 'mysql') {
@@ -82,12 +104,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         let sqlScript = `--- Database dump for ${dialect} ---\n\n`;
         
-        // 1. Add schema
         const schemaStatements = dialect === 'postgres' ? pgSchema : pgSchema.map(translateToMysql);
         sqlScript += schemaStatements.join('\n\n');
         sqlScript += '\n\n';
 
-        // 2. Add data in insertion order
         for (const table of TABLE_WHITELIST) {
             const { rows } = await db.query(`SELECT * FROM ${table}`);
             if (rows.length > 0) {
@@ -96,15 +116,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 sqlScript += `-- Data for table ${table}\n`;
                 for (const row of rows) {
-                    // SECURITY: Sanitize sensitive data
-                    if (table === 'app_users') {
-                        // Create a shallow copy or modify strictly if confident no side effects in loop
-                        // Since we are iterating, modifying `row` is fine as it is transient for this iteration.
-                        // Ideally we remove the column, but to keep the INSERT valid with `columnsList` (which includes password_hash), 
-                        // we set it to a safe dummy value.
-                        if ('password_hash' in row) row.password_hash = 'EXCLUDED_FOR_SECURITY';
+                    if (table === 'app_users' && 'password_hash' in row) {
+                        row.password_hash = 'EXCLUDED_FOR_SECURITY';
                     }
-
                     const valuesList = columns.map(col => escapeSqlValue(row[col], dialect as 'postgres' | 'mysql')).join(', ');
                     sqlScript += `INSERT INTO ${table} (${columnsList}) VALUES (${valuesList});\n`;
                 }

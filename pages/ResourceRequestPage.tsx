@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { z, type SafeParseError } from 'zod';
+// FIX: Use relative import for custom zod implementation.
+import { z } from '../libs/zod';
 import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -32,7 +33,8 @@ export const resourceRequestSchema = z.object({
     isOsrOpen: z.boolean(),
     osrNumber: z.string().trim().optional().nullable(),
     notes: z.string().optional().nullable(),
-    status: z.enum(['ATTIVA', 'STANDBY', 'CHIUSA'], { required_error: 'Seleziona lo stato della richiesta.' }),
+    // FIX: Enforce tuple type for enum values to match BaseSchema requirements in libs/zod.ts.
+    status: z.enum(['ATTIVA', 'STANDBY', 'CHIUSA'] as [string, string, string], { required_error: 'Seleziona lo stato della richiesta.' }),
 }).refine(data => {
     if (!data.isOsrOpen) return true;
     return !!data.osrNumber && data.osrNumber.trim().length > 0;
@@ -198,8 +200,9 @@ export const ResourceRequestPage: React.FC = () => {
 
         const validationResult = resourceRequestSchema.safeParse(editingRequest);
 
+        // FIX: Using explicit type assertion for (validationResult as any) to bypass failing discriminant narrowing in this environment.
         if (!validationResult.success) {
-            const fieldErrors = (validationResult as SafeParseError).error.flatten().fieldErrors;
+            const fieldErrors = (validationResult as any).error.flatten().fieldErrors;
             setFormErrors({
                 projectId: fieldErrors.projectId?.[0] ?? '',
                 roleId: fieldErrors.roleId?.[0] ?? '',
@@ -492,8 +495,8 @@ export const ResourceRequestPage: React.FC = () => {
                             </div>
                         )}
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
                                 {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

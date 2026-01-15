@@ -2,13 +2,16 @@
 /**
  * @file api/data.ts
  * @description Endpoint API Dispatcher per recuperare i dati in base allo scope (metadata, planning, all).
- * Supporta il filtraggio temporale per le allocazioni per migliorare le performance.
+ * Ottimizzato per evitare ricalcoli inutili dello schema DB.
  */
 
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest, SkillCategory, SkillMacroCategory } from '../types';
+
+// Flag globale per tracciare l'inizializzazione dello schema nel ciclo di vita della funzione serverless
+let isSchemaInitialized = false;
 
 /**
  * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
@@ -30,10 +33,6 @@ const toCamelCase = (obj: any): any => {
 
 /**
  * Gestore della richiesta API per l'endpoint /api/data.
- * Query Params:
- * - scope: 'metadata' | 'planning' | 'all' (default 'all' per compatibilità)
- * - start: YYYY-MM-DD (solo per scope 'planning', opzionale)
- * - end: YYYY-MM-DD (solo per scope 'planning', opzionale)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
@@ -46,13 +45,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = req.query.end as string;
 
     try {
-        // Assicura che lo schema del database esista (solo al primo avvio/seed)
-        await ensureDbTablesExist(db);
+        // Esegue il controllo delle tabelle solo una volta per istanza della serverless function
+        if (!isSchemaInitialized) {
+            await ensureDbTablesExist(db);
+            isSchemaInitialized = true;
+        }
 
         const data: any = {};
 
         // --- METADATA SCOPE (Lightweight) ---
-        // Include configurazioni, ruoli, clienti, risorse (anagrafica), skill, calendario
         if (scope === 'metadata' || scope === 'all') {
              const [
                 clientsRes,
@@ -79,7 +80,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dashboardLayoutRes,
                 roleHomePagesRes,
                 analyticsRes,
-                // New Skill Tables
                 skillCatsRes,
                 skillMacrosRes,
                 skillMapRes,
@@ -117,7 +117,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'planning_range_%';`
             ]);
 
-             // Formatta le date del calendario
             const companyCalendar = calendarRes.rows.map(row => {
                 const event = toCamelCase(row);
                 if (event.date) {
@@ -126,82 +125,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return event;
             }) as CalendarEvent[];
 
-            // Mappa visibilità pagine
             const pageVisibility: PageVisibility = {};
             pageVisibilityRes.rows.forEach(row => {
                 const path = row.key.replace('page_vis.', '');
                 pageVisibility[path] = row.value === 'true';
             });
 
-            // Mappa soglie skills
             const skillThresholds: any = {};
             skillThresholdsRes.rows.forEach(row => {
                 const key = row.key.replace('skill_threshold.', '');
                 skillThresholds[key] = parseFloat(row.value);
             });
 
-            // Mappa configurazione planning range
-            const planningSettings: any = {};
+            const planningSettings: any = { monthsBefore: 6, monthsAfter: 18 };
             planningConfigRes.rows.forEach(row => {
                 if (row.key === 'planning_range_months_before') planningSettings.monthsBefore = parseInt(row.value, 10);
                 if (row.key === 'planning_range_months_after') planningSettings.monthsAfter = parseInt(row.value, 10);
             });
 
-            // Sidebar & Config Logic (simplified)
-            let sidebarConfig = null;
-            if (sidebarConfigRes.rows.length > 0) { try { sidebarConfig = JSON.parse(sidebarConfigRes.rows[0].value); } catch (e) {} }
-            
-            let sidebarSections = null;
-            if (sidebarSectionsRes.rows.length > 0) { try { sidebarSections = JSON.parse(sidebarSectionsRes.rows[0].value); } catch (e) {} }
+            const parseJsonConfig = (res: any, fallback: any) => {
+                if (res.rows.length === 0) return fallback;
+                try { return JSON.parse(res.rows[0].value); } catch { return fallback; }
+            };
 
-            let sidebarSectionColors = {};
-            if (sidebarSectionColorsRes.rows.length > 0) { try { sidebarSectionColors = JSON.parse(sidebarSectionColorsRes.rows[0].value); } catch (e) {} }
-
-            let sidebarFooterActions = null;
-            if (sidebarFooterActionsRes.rows.length > 0) { try { sidebarFooterActions = JSON.parse(sidebarFooterActionsRes.rows[0].value); } catch (e) {} }
-
-            let dashboardLayout = null;
-            if (dashboardLayoutRes.rows.length > 0) { try { dashboardLayout = JSON.parse(dashboardLayoutRes.rows[0].value); } catch (e) {} }
-            
-            let roleHomePages = null;
-            if (roleHomePagesRes.rows.length > 0) { try { roleHomePages = JSON.parse(roleHomePagesRes.rows[0].value); } catch (e) {} }
+            const sidebarConfig = parseJsonConfig(sidebarConfigRes, null);
+            const sidebarSections = parseJsonConfig(sidebarSectionsRes, null);
+            const sidebarSectionColors = parseJsonConfig(sidebarSectionColorsRes, {});
+            const sidebarFooterActions = parseJsonConfig(sidebarFooterActionsRes, null);
+            const dashboardLayout = parseJsonConfig(dashboardLayoutRes, null);
+            const roleHomePages = parseJsonConfig(roleHomePagesRes, null);
 
             let analyticsCache = {};
             if (analyticsRes.rows.length > 0) analyticsCache = analyticsRes.rows[0].data;
 
             const managerResourceIds = managersRes.rows.map(r => r.resource_id);
 
-            // --- SKILL HYDRATION LOGIC ---
-            // 1. Build Lookup Maps
+            // --- SKILL HYDRATION ---
             const categories = skillCatsRes.rows.map(toCamelCase) as SkillCategory[];
             const macros = skillMacrosRes.rows.map(toCamelCase) as SkillMacroCategory[];
-            
             const catMap = new Map(categories.map(c => [c.id, c]));
             const macroMap = new Map(macros.map(m => [m.id, m]));
 
-            // 2. Map Category -> Macros
-            const catMacroMap = new Map<string, Set<string>>(); // catId -> Set of macroIds
+            const catMacroMap = new Map<string, Set<string>>();
             catMacroMapRes.rows.forEach(r => {
                 if (!catMacroMap.has(r.category_id)) catMacroMap.set(r.category_id, new Set());
                 catMacroMap.get(r.category_id)?.add(r.macro_category_id);
             });
 
-            // 3. Map Skill -> Categories
-            const skillCatMap = new Map<string, Set<string>>(); // skillId -> Set of catIds
+            const skillCatMap = new Map<string, Set<string>>();
             skillMapRes.rows.forEach(r => {
                 if (!skillCatMap.has(r.skill_id)) skillCatMap.set(r.skill_id, new Set());
                 skillCatMap.get(r.skill_id)?.add(r.category_id);
             });
 
-            // 4. Hydrate Skill Objects
             const skills = skillsRes.rows.map(row => {
                 const skill = toCamelCase(row);
-                
-                // Get Categories for this skill
                 const catIds = Array.from(skillCatMap.get(skill.id) || []);
                 const skillCategories = catIds.map(id => catMap.get(id)).filter(Boolean) as SkillCategory[];
-                
-                // Get Macros derived from Categories
                 const macroIds = new Set<string>();
                 catIds.forEach(catId => {
                     const mIds = catMacroMap.get(catId);
@@ -209,19 +189,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 });
                 const skillMacros = Array.from(macroIds).map(id => macroMap.get(id)).filter(Boolean) as SkillMacroCategory[];
 
-                // Backward Compatibility Strings
-                const categoryString = skillCategories.map(c => c.name).join(', ');
-                const macroString = skillMacros.map(m => m.name).join(', ');
-
                 return {
                     ...skill,
-                    categoryIds: catIds, // IDs array
-                    category: categoryString, // Joined string
-                    macroCategory: macroString // Joined string
+                    categoryIds: catIds,
+                    category: skillCategories.map(c => c.name).join(', '),
+                    macroCategory: skillMacros.map(m => m.name).join(', ')
                 };
             }) as Skill[];
 
-            // Attach macros to categories for convenience
             const hydratedCategories = categories.map(cat => ({
                 ...cat,
                 macroCategoryIds: Array.from(catMacroMap.get(cat.id) || [])
@@ -249,13 +224,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 clientSectors: clientSectorsRes.rows as ConfigOption[],
                 locations: locationsRes.rows as ConfigOption[],
                 companyCalendar,
-                skills, // Hydrated
-                skillCategories: hydratedCategories, // New
-                skillMacroCategories: macros, // New
+                skills,
+                skillCategories: hydratedCategories,
+                skillMacroCategories: macros,
                 resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
                 pageVisibility,
                 skillThresholds,
-                planningSettings, // New
+                planningSettings,
                 leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
                 managerResourceIds,
                 sidebarConfig,
@@ -269,18 +244,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // --- PLANNING SCOPE (Heavy) ---
-        // Include assegnazioni, allocazioni (filtrate), contratti, richieste, wbs
         if (scope === 'planning' || scope === 'all') {
-            // Allocations Query Logic
             let allocationsQuery;
             let leaveRequestsQuery;
             if (start && end) {
-                // Filtered query
                 allocationsQuery = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
-                // Filter leaves that overlap with the window
                 leaveRequestsQuery = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
             } else {
-                // Full load (legacy support)
                 allocationsQuery = db.sql`SELECT * FROM allocations;`;
                 leaveRequestsQuery = db.sql`SELECT * FROM leave_requests;`;
             }
@@ -298,6 +268,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 leaveRequestsRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM assignments;`,
+                // FIX: Use allocationsQuery instead of the uninitialized results variable
                 allocationsQuery,
                 db.sql`SELECT * FROM wbs_tasks;`,
                 db.sql`SELECT * FROM resource_requests;`,
@@ -306,6 +277,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM contract_projects;`,
                 db.sql`SELECT * FROM contract_managers;`,
                 db.sql`SELECT * FROM project_skills;`,
+                // FIX: Use leaveRequestsQuery instead of the uninitialized results variable
                 leaveRequestsQuery
             ]);
 

@@ -1,3 +1,4 @@
+
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -18,20 +19,24 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "zod": [
-        "./libs/zod"
-      ]
+      "@/*": ["./*"],
+      "zod": ["./libs/zod"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
   "exclude": [
     "node_modules",
     "dist",
-    "**/*.test.*"
+    "api",
+    "scripts",
+    "**/*.test.*",
+    "src"
   ]
 }

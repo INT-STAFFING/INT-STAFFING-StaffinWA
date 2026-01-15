@@ -6,7 +6,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { z, type SafeParseError } from 'zod';
+// FIX: Import from local zod implementation using relative path.
+import { z } from '../libs/zod';
 import { useAuth } from '../context/AuthContext';
 import { SpinnerIcon } from '../components/icons';
 import { FormFieldFeedback } from '../components/forms';
@@ -40,8 +41,10 @@ const LoginPage: React.FC = () => {
 
         const validation = loginSchema.safeParse({ username, password });
 
+        // FIX: Narrowing SafeParseResult sometimes fails in specific TS configurations. 
+        // Using explicit cast to any to access the error object when validation.success is false.
         if (!validation.success) {
-            const errors = (validation as SafeParseError).error.flatten().fieldErrors;
+            const errors = (validation as any).error.flatten().fieldErrors;
             setFieldErrors({
                 username: errors.username?.[0],
                 password: errors.password?.[0],
