@@ -133,7 +133,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
 
     try {
-        // --- READ PROTECTION FOR SENSITIVE ENTITIES ---
         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme'];
             if (sensitiveEntities.includes(entity as string)) {
@@ -236,9 +235,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (entity === 'theme') {
             if (method === 'GET') return res.status(200).json((await client.query("SELECT key, value FROM app_config WHERE key LIKE 'theme.%'")).rows);
             if (method === 'POST') {
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
                 const { updates } = req.body;
                 await client.query('BEGIN');
-                for (const [key, value] of Object.entries(updates)) await client.query(`INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [key, value]);
+                for (const [key, value] of Object.entries(updates)) {
+                    await client.query(`INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [key, value]);
+                }
+                // Force Enable and Bump Version
+                await client.query(`INSERT INTO app_config (key, value) VALUES ('theme.db.enabled', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
+                await client.query(`INSERT INTO app_config (key, value) VALUES ('theme.version', (COALESCE((SELECT value::int FROM app_config WHERE key = 'theme.version'), 0) + 1)::text) ON CONFLICT (key) DO UPDATE SET value = (app_config.value::int + 1)::text`);
+                
+                await logAction(client, currentUser, 'UPDATE_THEME', 'theme', null, updates, req);
                 await client.query('COMMIT');
                 return res.status(200).json({ success: true });
             }

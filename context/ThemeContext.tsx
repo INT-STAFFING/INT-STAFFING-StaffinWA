@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo, useCallback } from 'react';
 
 // --- Types ---
@@ -152,10 +153,10 @@ export const defaultTheme: Theme = {
     },
     // Toast Defaults
     toastPosition: 'top-center',
-    toastSuccessBackground: 'rgba(220, 252, 231, 0.95)', // green-100 with opacity
-    toastSuccessForeground: '#14532d', // green-900
-    toastErrorBackground: 'rgba(254, 226, 226, 0.95)', // red-100 with opacity
-    toastErrorForeground: '#7f1d1d', // red-900
+    toastSuccessBackground: 'rgba(220, 252, 231, 0.95)',
+    toastSuccessForeground: '#14532d',
+    toastErrorBackground: 'rgba(254, 226, 226, 0.95)',
+    toastErrorForeground: '#7f1d1d',
 
     // Visualization Setting Defaults
     visualizationSettings: {
@@ -187,24 +188,48 @@ const hexRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
 const parseDbTheme = (dbConfig: { key: string; value: string }[]): Theme => {
     const lightPalette: Partial<M3Palette> = {};
     const darkPalette: Partial<M3Palette> = {};
+    const viz: any = { sankey: { ...defaultTheme.visualizationSettings.sankey }, network: { ...defaultTheme.visualizationSettings.network } };
+    let toastPos = defaultTheme.toastPosition;
+    let toastSuccessBg = defaultTheme.toastSuccessBackground;
+    let toastSuccessFg = defaultTheme.toastSuccessForeground;
+    let toastErrorBg = defaultTheme.toastErrorBackground;
+    let toastErrorFg = defaultTheme.toastErrorForeground;
 
     for (const { key, value } of dbConfig) {
-        if (!hexRegex.test(value)) continue; // Skip invalid hex codes
-        
         if (key.startsWith('theme.light.')) {
             const paletteKey = key.substring(12) as keyof M3Palette;
-            lightPalette[paletteKey] = value;
+            if (hexRegex.test(value)) lightPalette[paletteKey] = value;
         } else if (key.startsWith('theme.dark.')) {
             const paletteKey = key.substring(11) as keyof M3Palette;
-            darkPalette[paletteKey] = value;
+            if (hexRegex.test(value)) darkPalette[paletteKey] = value;
+        } else if (key === 'theme.toastPosition') {
+            toastPos = value as any;
+        } else if (key === 'theme.toastSuccessBackground') {
+            toastSuccessBg = value;
+        } else if (key === 'theme.toastSuccessForeground') {
+            toastSuccessFg = value;
+        } else if (key === 'theme.toastErrorBackground') {
+            toastErrorBg = value;
+        } else if (key === 'theme.toastErrorForeground') {
+            toastErrorFg = value;
+        } else if (key.startsWith('theme.viz.')) {
+            const parts = key.split('.');
+            const chart = parts[2] as 'sankey' | 'network';
+            const prop = parts[3];
+            viz[chart][prop] = Number(value);
         }
     }
     
-    // Merge with defaults to ensure all keys are present
     return {
         ...defaultTheme,
         light: { ...defaultTheme.light, ...lightPalette },
         dark: { ...defaultTheme.dark, ...darkPalette },
+        toastPosition: toastPos,
+        toastSuccessBackground: toastSuccessBg,
+        toastSuccessForeground: toastSuccessFg,
+        toastErrorBackground: toastErrorBg,
+        toastErrorForeground: toastErrorFg,
+        visualizationSettings: viz
     };
 };
 
@@ -224,16 +249,32 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     const loadAndApplyTheme = useCallback(async () => {
         try {
-            const dbConfig: { key: string; value: string }[] = await fetch('/api/resources?entity=theme').then(res => res.json());
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                 _setTheme(defaultTheme);
+                 return;
+            }
 
-            const enabled = dbConfig.find(c => c.key === 'theme.db.enabled')?.value === 'true';
+            const response = await fetch('/api/resources?entity=theme', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!response.ok) {
+                console.warn('Theme fetch failed or unauthorized');
+                return;
+            }
+
+            const dbConfig: { key: string; value: string }[] = await response.json();
+            const enabledEntry = dbConfig.find(c => c.key === 'theme.db.enabled');
+            
+            // If the key is missing but we're in admin context, we consider it enabled by default once saved.
+            const enabled = enabledEntry ? enabledEntry.value === 'true' : true;
             setIsDbThemeEnabled(enabled);
 
             if (!enabled) {
                 _setTheme(defaultTheme);
                 localStorage.removeItem(THEME_STORAGE_KEY);
                 localStorage.removeItem(THEME_VERSION_KEY);
-                console.warn('DB theme is disabled. Using default theme.');
                 return;
             }
 
@@ -241,7 +282,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const localVersion = localStorage.getItem(THEME_VERSION_KEY);
             const localThemeJSON = localStorage.getItem(THEME_STORAGE_KEY);
 
-            if (dbVersion === localVersion && localThemeJSON) {
+            if (dbVersion && dbVersion === localVersion && localThemeJSON) {
                 _setTheme(JSON.parse(localThemeJSON));
                 return;
             }
@@ -253,7 +294,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 localStorage.setItem(THEME_VERSION_KEY, dbVersion);
             }
         } catch (error) {
-            console.error("Failed to load theme from DB, falling back to default:", error);
+            console.error("Failed to load theme from DB:", error);
             _setTheme(defaultTheme);
         }
     }, []);
@@ -302,35 +343,46 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const saveTheme = useCallback(async (newTheme: Theme) => {
         const updates: Record<string, string> = {};
         
-        // Compare light palettes
+        // 1. Palettes
         for (const key of Object.keys(defaultTheme.light) as (keyof M3Palette)[]) {
-            if (theme.light[key] !== newTheme.light[key]) {
-                updates[`theme.light.${key}`] = newTheme.light[key];
-            }
+            updates[`theme.light.${key}`] = newTheme.light[key];
         }
-        // Compare dark palettes
         for (const key of Object.keys(defaultTheme.dark) as (keyof M3Palette)[]) {
-            if (theme.dark[key] !== newTheme.dark[key]) {
-                updates[`theme.dark.${key}`] = newTheme.dark[key];
-            }
+            updates[`theme.dark.${key}`] = newTheme.dark[key];
         }
 
-        if (Object.keys(updates).length === 0) {
-            return;
-        }
+        // 2. Toasts
+        updates['theme.toastPosition'] = newTheme.toastPosition;
+        updates['theme.toastSuccessBackground'] = newTheme.toastSuccessBackground;
+        updates['theme.toastSuccessForeground'] = newTheme.toastSuccessForeground;
+        updates['theme.toastErrorBackground'] = newTheme.toastErrorBackground;
+        updates['theme.toastErrorForeground'] = newTheme.toastErrorForeground;
+
+        // 3. Viz
+        updates['theme.viz.sankey.nodeWidth'] = String(newTheme.visualizationSettings.sankey.nodeWidth);
+        updates['theme.viz.sankey.nodePadding'] = String(newTheme.visualizationSettings.sankey.nodePadding);
+        updates['theme.viz.sankey.linkOpacity'] = String(newTheme.visualizationSettings.sankey.linkOpacity);
+        updates['theme.viz.network.chargeStrength'] = String(newTheme.visualizationSettings.network.chargeStrength);
+        updates['theme.viz.network.linkDistance'] = String(newTheme.visualizationSettings.network.linkDistance);
+        updates['theme.viz.network.centerStrength'] = String(newTheme.visualizationSettings.network.centerStrength);
+        updates['theme.viz.network.nodeRadius'] = String(newTheme.visualizationSettings.network.nodeRadius);
 
         try {
+            const token = localStorage.getItem('authToken');
             await fetch('/api/resources?entity=theme', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ updates }),
             });
-            await loadAndApplyTheme(); // Refresh from DB to get new version and apply
+            await loadAndApplyTheme();
         } catch (error) {
             console.error("Failed to save theme to DB", error);
             throw error;
         }
-    }, [loadAndApplyTheme, theme]);
+    }, [loadAndApplyTheme]);
 
     const resetTheme = useCallback(async () => {
         await saveTheme(defaultTheme);

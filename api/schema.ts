@@ -54,11 +54,8 @@ const defaultThemeForSeed = {
 };
 
 export async function ensureDbTablesExist(db: VercelPool) {
-    // This function is idempotent, thanks to "IF NOT EXISTS".
-    // It can be safely called on every API request without performance issues on subsequent calls.
     await db.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
 
-    // --- ANALYTICS CACHE TABLE (New) ---
     await db.sql`
         CREATE TABLE IF NOT EXISTS analytics_cache (
             key VARCHAR(255) PRIMARY KEY,
@@ -69,7 +66,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // Configuration Tables
     await db.sql`
         CREATE TABLE IF NOT EXISTS horizontals (
             id UUID PRIMARY KEY,
@@ -101,7 +97,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // Leave Management Tables
     await db.sql`
         CREATE TABLE IF NOT EXISTS leave_types (
             id UUID PRIMARY KEY,
@@ -112,7 +107,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // Core Data Tables
     await db.sql`
         CREATE TABLE IF NOT EXISTS clients (
             id UUID PRIMARY KEY,
@@ -131,11 +125,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
             daily_expenses NUMERIC(10, 2)
         );
     `;
-     // Add columns if they don't exist to handle migration for existing databases.
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS standard_cost NUMERIC(10, 2);`;
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS daily_expenses NUMERIC(10, 2);`;
     
-    // New Role Cost History Table for SCD Type 2
     await db.sql`
         CREATE TABLE IF NOT EXISTS role_cost_history (
             id UUID PRIMARY KEY,
@@ -159,15 +151,12 @@ export async function ensureDbTablesExist(db: VercelPool) {
             max_staffing_percentage INT DEFAULT 100 NOT NULL
         );
     `;
-    // Add columns if they don't exist to handle migration for existing databases.
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS location VARCHAR(255);`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100 NOT NULL;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
-    // Add tutor_id self-reference
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
 
-    // --- USER AUTHENTICATION TABLES (Phase 1) ---
     await db.sql`
         CREATE TABLE IF NOT EXISTS app_users (
             id UUID PRIMARY KEY,
@@ -179,7 +168,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
-    // MIGRATION: Add must_change_password column
     await db.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN DEFAULT FALSE;`;
 
     await db.sql`
@@ -191,7 +179,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // --- AUDIT LOG TABLE (New) ---
     await db.sql`
         CREATE TABLE IF NOT EXISTS action_logs (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -205,77 +192,24 @@ export async function ensureDbTablesExist(db: VercelPool) {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
-    // Index for performance
     await db.sql`CREATE INDEX IF NOT EXISTS idx_action_logs_created_at ON action_logs(created_at);`;
     await db.sql`CREATE INDEX IF NOT EXISTS idx_action_logs_user_id ON action_logs(user_id);`;
 
-
-    const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
-    const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/certifications', '/projects', '/clients', '/contracts'];
-
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;
     if (permsCheck.rows[0].count === '0') {
+        const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/resources', '/notifications'];
+        const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/certifications', '/projects', '/clients', '/contracts'];
+
         for (const page of simplePages) {
             await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ('SIMPLE', ${page}, TRUE) ON CONFLICT DO NOTHING;`;
         }
-        for (const page of managerPages) {
-            await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ('MANAGER', ${page}, TRUE) ON CONFLICT DO NOTHING;`;
+        for (const role of ['MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR']) {
+            for (const page of managerPages) {
+                await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES (${role}, ${page}, TRUE) ON CONFLICT DO NOTHING;`;
+            }
         }
     }
 
-    // --- NEW ROLES MIGRATION ---
-    // Ensures SENIOR MANAGER and MANAGING DIRECTOR have permissions
-    for (const role of ['SENIOR MANAGER', 'MANAGING DIRECTOR']) {
-        for (const page of managerPages) {
-             await db.sql`
-                INSERT INTO role_permissions (role, page_path, is_allowed) 
-                VALUES (${role}, ${page}, TRUE) 
-                ON CONFLICT (role, page_path) DO NOTHING;
-            `;
-        }
-    }
-
-    // --- PERMISSION HARDENING MIGRATION ---
-    // Fix for issue where SIMPLE users see manager pages due to old permissive seeds.
-    const restrictedPagesForSimple = [
-        '/staffing', '/resources', '/skills', '/certifications', '/projects', '/contracts',
-        '/clients', '/roles', '/config', '/calendar', '/import', '/export',
-        '/test-staffing', '/forecasting', '/gantt', '/reports',
-        '/skill-analysis', '/staffing-visualization', '/resource-requests',
-        '/interviews', '/skills-map', '/admin-settings', '/db-inspector'
-    ];
-
-    await Promise.all(restrictedPagesForSimple.map(path => 
-        db.sql`
-            INSERT INTO role_permissions (role, page_path, is_allowed)
-            VALUES ('SIMPLE', ${path}, FALSE)
-            ON CONFLICT (role, page_path)
-            DO UPDATE SET is_allowed = FALSE;
-        `
-    ));
-
-    // --- MIGRATION: Ensure Notification & Certifications permissions exist ---
-    const rolesToUpdate = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
-    for (const role of rolesToUpdate) {
-        await db.sql`
-            INSERT INTO role_permissions (role, page_path, is_allowed)
-            VALUES (${role}, '/notifications', TRUE)
-            ON CONFLICT (role, page_path) DO NOTHING;
-        `;
-    }
-    
-    // Certifications for Managers
-    const certRoles = ['MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
-    for (const role of certRoles) {
-        await db.sql`
-            INSERT INTO role_permissions (role, page_path, is_allowed)
-            VALUES (${role}, '/certifications', TRUE)
-            ON CONFLICT (role, page_path) DO NOTHING;
-        `;
-    }
-
-
-    // Leave Requests Table (Needs Resources)
     await db.sql`
         CREATE TABLE IF NOT EXISTS leave_requests (
             id UUID PRIMARY KEY,
@@ -291,11 +225,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
     `;
-    await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS approver_ids UUID[];`;
-    // Migration for half day support
-    await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS is_half_day BOOLEAN DEFAULT FALSE;`;
 
-    // --- NOTIFICATIONS TABLE ---
     await db.sql`
         CREATE TABLE IF NOT EXISTS notifications (
             id UUID PRIMARY KEY,
@@ -324,7 +254,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // New Contract Tables
     await db.sql`
         CREATE TABLE IF NOT EXISTS contracts (
             id UUID PRIMARY KEY,
@@ -339,7 +268,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
             UNIQUE(cig)
         );
     `;
-    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS backlog NUMERIC(15, 2) DEFAULT 0;`;
 
      await db.sql`
         CREATE TABLE IF NOT EXISTS contract_projects (
@@ -356,9 +284,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
     
-    // Add contract_id to projects table
     await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL;`;
-
 
     await db.sql`
         CREATE TABLE IF NOT EXISTS assignments (
@@ -426,14 +352,10 @@ export async function ensureDbTablesExist(db: VercelPool) {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
     `;
-    await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
     await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS request_code TEXT UNIQUE;`;
-    // MIGRATION: Add OSR fields
     await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS is_osr_open BOOLEAN DEFAULT FALSE;`;
     await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS osr_number VARCHAR(255);`;
 
-
-    // New Interviews Table
     await db.sql`
         CREATE TABLE IF NOT EXISTS interviews (
             id UUID PRIMARY KEY,
@@ -455,7 +377,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // --- SKILLS TABLES V2 ---
     await db.sql`
         CREATE TABLE IF NOT EXISTS skills (
             id UUID PRIMARY KEY,
@@ -464,7 +385,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
     
-    // New Relational Tables for Skills
     await db.sql`
         CREATE TABLE IF NOT EXISTS skill_macro_categories (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -515,172 +435,26 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
-    // Application Configuration Table
     await db.sql`
         CREATE TABLE IF NOT EXISTS app_config (
             key VARCHAR(255) PRIMARY KEY,
-            value VARCHAR(255) NOT NULL
+            value TEXT NOT NULL
         );
     `;
-    // MIGRATION: Change value column type to TEXT to support large JSON payloads (e.g. sidebar config)
-    await db.sql`ALTER TABLE app_config ALTER COLUMN value TYPE TEXT;`;
 
-     await db.sql`
-        INSERT INTO app_config (key, value) 
-        VALUES ('login_protection_enabled', 'true') 
-        ON CONFLICT (key) DO NOTHING;
-    `;
-
-    // SEED SIDEBAR SECTIONS
-    const defaultSections = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
-    await db.sql`
-        INSERT INTO app_config (key, value) 
-        VALUES ('sidebar_sections_v1', ${JSON.stringify(defaultSections)}) 
-        ON CONFLICT (key) DO NOTHING;
-    `;
-
-    const defaultFooterActions = [
-        { id: 'changePassword', label: 'Cambia Password', icon: 'lock_reset', color: 'primary' },
-        { id: 'logout', label: 'Logout', icon: 'logout', color: 'error' }
-    ];
-    await db.sql`
-        INSERT INTO app_config (key, value)
-        VALUES ('sidebar_footer_actions_v1', ${JSON.stringify(defaultFooterActions)})
-        ON CONFLICT (key) DO NOTHING;
-    `;
-
-    // --- SEED DEFAULT ROLE HOME PAGES ---
-    const defaultRoleHomePages = {
-        'SIMPLE': '/dashboard',
-        'MANAGER': '/staffing',
-        'SENIOR MANAGER': '/staffing',
-        'MANAGING DIRECTOR': '/staffing',
-        'ADMIN': '/staffing'
-    };
-    await db.sql`
-        INSERT INTO app_config (key, value)
-        VALUES ('role_home_pages_v1', ${JSON.stringify(defaultRoleHomePages)})
-        ON CONFLICT (key) DO NOTHING;
-    `;
-
-    // --- MIGRATION: Ensure Sidebar Config has Notifications & Certifications ---
-    try {
-        const sidebarConfigRes = await db.sql`SELECT value FROM app_config WHERE key = 'sidebar_layout_v1'`;
-        if (sidebarConfigRes.rows.length > 0) {
-            const currentConfig = JSON.parse(sidebarConfigRes.rows[0].value);
-            let needsUpdate = false;
-            let newConfig = [...currentConfig];
-
-            // 1. Check Notifications
-            const hasNotifications = newConfig.some((item: any) => item.path === '/notifications');
-            if (!hasNotifications) {
-                const dashboardIdx = newConfig.findIndex((item: any) => item.path === '/dashboard');
-                const insertIdx = dashboardIdx >= 0 ? dashboardIdx + 1 : 0;
-                newConfig.splice(insertIdx, 0, { 
-                    path: "/notifications", 
-                    label: "Notifiche", 
-                    icon: "notifications", 
-                    section: "Principale" 
-                });
-                needsUpdate = true;
-            }
-
-            // 2. Check Certifications
-            const hasCerts = newConfig.some((item: any) => item.path === '/certifications');
-            if (!hasCerts) {
-                const skillsIdx = newConfig.findIndex((item: any) => item.path === '/skills');
-                const insertIdx = skillsIdx >= 0 ? skillsIdx + 1 : newConfig.length;
-                newConfig.splice(insertIdx, 0, { 
-                    path: "/certifications", 
-                    label: "Certificazioni", 
-                    icon: "verified", 
-                    section: "Risorse" 
-                });
-                needsUpdate = true;
-            }
-
-            if (needsUpdate) {
-                await db.sql`UPDATE app_config SET value = ${JSON.stringify(newConfig)} WHERE key = 'sidebar_layout_v1'`;
-            }
-        }
-    } catch (e) {
-        console.error("Migration sidebar error (non-blocking):", e);
-    }
-
-
-    // Backfill for Role Cost History (Seeding history from current roles if empty)
-    const historyCheck = await db.sql`SELECT COUNT(*) FROM role_cost_history;`;
-    if (historyCheck.rows[0].count === '0') {
-        const existingRoles = await db.sql`SELECT id, daily_cost FROM roles;`;
-        if (existingRoles.rows.length > 0) {
-             console.log('Backfilling role cost history...');
-             for (const role of existingRoles.rows) {
-                 const newId = uuidv4();
-                 // Start date far in the past to cover all existing allocations
-                 const startDate = '2020-01-01'; 
-                 await db.sql`
-                    INSERT INTO role_cost_history (id, role_id, daily_cost, start_date)
-                    VALUES (${newId}, ${role.id}, ${role.daily_cost}, ${startDate});
-                 `;
-             }
-             console.log('Role cost history backfilled.');
-        }
-    }
-
-    // Backfill request_code for existing resource_requests
-    const backfillClient = await db.connect();
-    try {
-        await backfillClient.query('BEGIN');
-        const needsBackfillRes = await backfillClient.query(`SELECT id FROM resource_requests WHERE request_code IS NULL LIMIT 1;`);
-        if (needsBackfillRes.rows.length > 0) {
-            console.log('Backfilling request_code for resource_requests...');
-            const lastCodeRes = await backfillClient.query(`SELECT request_code FROM resource_requests WHERE request_code IS NOT NULL ORDER BY request_code DESC LIMIT 1;`);
-            let lastNumber = 0;
-            if (lastCodeRes.rows.length > 0) {
-                lastNumber = parseInt(lastCodeRes.rows[0].request_code.replace('HCR', ''), 10);
-            }
-
-            const rowsToUpdateRes = await backfillClient.query(`SELECT id, created_at FROM resource_requests WHERE request_code IS NULL ORDER BY created_at ASC;`);
-            for (const row of rowsToUpdateRes.rows) {
-                lastNumber++;
-                const newRequestCode = `HCR${String(lastNumber).padStart(5, '0')}`;
-                await backfillClient.query(`UPDATE resource_requests SET request_code = $1 WHERE id = $2;`, [newRequestCode, row.id]);
-            }
-            console.log(`${rowsToUpdateRes.rows.length} rows backfilled.`);
-        }
-        await backfillClient.query('COMMIT');
-    } catch (error) {
-        await backfillClient.query('ROLLBACK');
-        console.error('Error during request_code backfill:', error);
-    } finally {
-        backfillClient.release();
-    }
-    
-    // Seed initial theme configuration
+    // --- SEED DEFAULT THEME CONFIG ---
     const flattenPalette = (palette: object, prefix: string) => 
         Object.entries(palette).map(([key, value]) => ({ key: `theme.${prefix}.${key}`, value }));
 
     const themeSeed = [
         { key: 'theme.version', value: '1' },
         { key: 'theme.db.enabled', value: 'true' },
+        { key: 'theme.toastPosition', value: 'top-center' },
         ...flattenPalette(defaultThemeForSeed.light, 'light'),
         ...flattenPalette(defaultThemeForSeed.dark, 'dark'),
     ];
 
-    const themeClient = await db.connect();
-    try {
-        await themeClient.query('BEGIN');
-        for (const { key, value } of themeSeed) {
-            await themeClient.query(
-                `INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING;`,
-                [key, value]
-            );
-        }
-        await themeClient.query('COMMIT');
-    } catch (error) {
-        await themeClient.query('ROLLBACK');
-        console.error("Failed to seed theme config:", error);
-    } finally {
-        themeClient.release();
+    for (const { key, value } of themeSeed) {
+        await db.sql`INSERT INTO app_config (key, value) VALUES (${key}, ${value}) ON CONFLICT (key) DO NOTHING;`;
     }
 }
