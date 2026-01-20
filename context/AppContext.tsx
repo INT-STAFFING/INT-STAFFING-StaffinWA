@@ -44,10 +44,13 @@ const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
     { path: "/import", label: "Importa Dati", icon: "upload", section: "Dati" },
     { path: "/export", label: "Esporta Dati", icon: "download", section: "Dati" },
     
+    { path: "/security-center", label: "Sicurezza", icon: "security", section: "Amministrazione", color: "error" },
+    { path: "/admin-settings", label: "Admin Settings", icon: "settings", section: "Amministrazione" },
+    { path: "/db-inspector", label: "Database", icon: "database", section: "Amministrazione" },
     { path: "/test-staffing", label: "Test Staffing", icon: "science", section: "Configurazione" }
 ];
 
-const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati'];
+const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operatività', 'Supporto', 'Configurazione', 'Dati', 'Amministrazione'];
 
 const DEFAULT_SIDEBAR_FOOTER_ACTIONS: SidebarFooterAction[] = [
     { id: 'changePassword', label: 'Cambia Password', icon: 'lock_reset', color: 'primary' },
@@ -94,10 +97,10 @@ const PlanningContext = createContext<(Pick<EntitiesContextType,
 const ConfigContext = createContext<Pick<EntitiesContextType,
     'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations' |
     'pageVisibility' | 'skillThresholds' | 'managerResourceIds' | 'sidebarConfig' | 'sidebarSections' |
-    'sidebarSectionColors' | 'sidebarFooterActions' | 'dashboardLayout' | 'roleHomePages' | 'analyticsCache' |
+    'sidebarSectionColors' | 'sidebarFooterActions' | 'dashboardLayout' | 'roleHomePages' | 'bottomNavPaths' | 'analyticsCache' |
     'leaveTypes' | 'addConfigOption' | 'updateConfigOption' | 'deleteConfigOption' | 'updateSkillThresholds' |
     'updateSidebarConfig' | 'updateSidebarSections' | 'updateSidebarSectionColors' | 'updateSidebarFooterActions' |
-    'updateDashboardLayout' | 'updateRoleHomePages' | 'updatePageVisibility' | 'forceRecalculateAnalytics' |
+    'updateDashboardLayout' | 'updateRoleHomePages' | 'updateBottomNavPaths' | 'updatePageVisibility' | 'forceRecalculateAnalytics' |
     'addLeaveType' | 'updateLeaveType' | 'deleteLeaveType'
 > | undefined>(undefined);
 
@@ -121,6 +124,7 @@ export interface AppProvidersProps {
         sidebarFooterActionsKey?: string;
         dashboardLayoutKey?: string;
         roleHomePagesKey?: string;
+        bottomNavPathsKey?: string;
     };
 }
 
@@ -150,7 +154,8 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         sidebarSectionColorsKey: configKeys?.sidebarSectionColorsKey ?? 'sidebar_section_colors',
         sidebarFooterActionsKey: configKeys?.sidebarFooterActionsKey ?? 'sidebar_footer_actions_v1',
         dashboardLayoutKey: configKeys?.dashboardLayoutKey ?? 'dashboard_layout_v2',
-        roleHomePagesKey: configKeys?.roleHomePagesKey ?? 'role_home_pages_v1'
+        roleHomePagesKey: configKeys?.roleHomePagesKey ?? 'role_home_pages_v1',
+        bottomNavPathsKey: configKeys?.bottomNavPathsKey ?? 'bottom_nav_paths_v1'
     };
 
     const [loading, setLoading] = useState(true);
@@ -194,6 +199,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const [sidebarFooterActions, setSidebarFooterActions] = useState<SidebarFooterAction[]>(DEFAULT_SIDEBAR_FOOTER_ACTIONS);
     const [dashboardLayout, setDashboardLayout] = useState<DashboardCategory[]>(DEFAULT_DASHBOARD_LAYOUT);
     const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
+    const [bottomNavPaths, setBottomNavPaths] = useState<string[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
     const [fetchError, setFetchError] = useState<string | null>(null);
@@ -238,6 +244,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             if (metaData.sidebarFooterActions) setSidebarFooterActions(metaData.sidebarFooterActions);
             if (metaData.dashboardLayout) setDashboardLayout(metaData.dashboardLayout);
             if (metaData.roleHomePages) setRoleHomePages(metaData.roleHomePages);
+            if (metaData.bottomNavPaths) setBottomNavPaths(metaData.bottomNavPaths);
 
             // Determine date range for planning data
             let monthsBefore = planningDefaults.monthsBefore;
@@ -643,25 +650,52 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         setActionLoading('addContract', true);
         try {
             const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) });
-            setContracts(prev => [...prev, newContract]);
+            
+            // Persist associations
+            const linkPromises = [
+                ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, projectId: pid }) })),
+                ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, resourceId: mid }) }))
+            ];
+            await Promise.all(linkPromises);
+            
             await fetchData(); 
+            addToast('Contratto creato con successo', 'success');
+        } catch (e) {
+            addToast('Errore durante la creazione del contratto', 'error');
         } finally { setActionLoading('addContract', false); }
     };
+
     const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => {
         setActionLoading(`updateContract-${contract.id}`, true);
         try {
-            const updated = await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) });
-            setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
+            await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) });
+            
+            // Aggiorna associazioni (Sincronizzazione semplificata via ricaricamento totale o logica specifica)
+            // Per massimizzare l'integrità, cancelliamo e ricreiamo i link nella transazione del backend (se supportato)
+            // o inviamo singole richieste qui.
+            const linkPromises = [
+                // Cancellazione vecchi link e inserimento nuovi (Backend ora supporta UPSERT nelle tabelle composite)
+                ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: contract.id, projectId: pid }) })),
+                ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: contract.id, resourceId: mid }) }))
+            ];
+            await Promise.all(linkPromises);
+
             await fetchData(); 
+            addToast('Contratto aggiornato con successo', 'success');
+        } catch (e) {
+            addToast('Errore durante l\'aggiornamento del contratto', 'error');
         } finally { setActionLoading(`updateContract-${contract.id}`, false); }
     };
+
     const deleteContract = async (id: string) => {
         setActionLoading(`deleteContract-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' });
             setContracts(prev => prev.filter(c => c.id !== id));
+            addToast('Contratto eliminato', 'success');
         } finally { setActionLoading(`deleteContract-${id}`, false); }
     };
+
     const recalculateContractBacklog = async (id: string) => {
         setActionLoading(`recalculateBacklog-${id}`, true);
         try {
@@ -672,7 +706,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0);
             const newBacklog = Number(contract.capienza) - usedBudget;
             
-            await updateContract({ ...contract, backlog: newBacklog }, [], []);
+            await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, []);
         } finally { setActionLoading(`recalculateBacklog-${id}`, false); }
     };
 
@@ -888,7 +922,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             addToast(`Richiesta aggiornata: ${req.status}`, 'success');
         } catch (e) {
             addToast('Errore aggiornamento richiesta', 'error');
-        } finally { setActionLoading(`updateLeaveRequest`, false); }
+        } finally { setActionLoading('updateLeaveRequest', false); }
     };
     const deleteLeaveRequest = async (id: string) => {
         setActionLoading(`deleteLeaveRequest-${id}`, true);
@@ -980,11 +1014,22 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         } finally { setActionLoading('updateRoleHomePages', false); }
     };
 
+    const updateBottomNavPaths = async (paths: string[]) => {
+        setActionLoading('updateBottomNavPaths', true);
+        try {
+            await apiFetch('/api/resources?entity=app-config-batch', {
+                method: 'POST',
+                body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.bottomNavPathsKey, value: JSON.stringify(paths) }] })
+            });
+            setBottomNavPaths(paths);
+        } finally { setActionLoading('updateBottomNavPaths', false); }
+    };
+
     const providerValue = useMemo(() => ({
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
         notifications, analyticsCache, loading, isActionLoading,
         fetchData, fetchNotifications, markNotificationAsRead,
         addResource, updateResource, deleteResource,
@@ -1005,7 +1050,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         addLeaveType, updateLeaveType, deleteLeaveType,
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
         updatePageVisibility,
-        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages,
+        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
         forceRecalculateAnalytics,
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro
@@ -1013,8 +1058,8 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages,
-        notifications, analyticsCache, loading
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
+        notifications, analyticsCache, loading, isActionLoading
     ]);
 
     const allocationContextValue = useMemo(() => ({
@@ -1201,6 +1246,7 @@ function ConfigProvider({ children }: { children: ReactNode }) {
         sidebarFooterActions: entities.sidebarFooterActions,
         dashboardLayout: entities.dashboardLayout,
         roleHomePages: entities.roleHomePages,
+        bottomNavPaths: entities.bottomNavPaths,
         analyticsCache: entities.analyticsCache,
         leaveTypes: entities.leaveTypes,
         addConfigOption: entities.addConfigOption,
@@ -1214,6 +1260,7 @@ function ConfigProvider({ children }: { children: ReactNode }) {
         updateSidebarFooterActions: entities.updateSidebarFooterActions,
         updateDashboardLayout: entities.updateDashboardLayout,
         updateRoleHomePages: entities.updateRoleHomePages,
+        updateBottomNavPaths: entities.updateBottomNavPaths,
         forceRecalculateAnalytics: entities.forceRecalculateAnalytics,
         addLeaveType: entities.addLeaveType,
         updateLeaveType: entities.updateLeaveType,

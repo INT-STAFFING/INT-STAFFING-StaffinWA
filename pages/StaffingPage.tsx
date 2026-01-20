@@ -20,7 +20,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 import {
   FormDialog,
   FormFieldDefinition,
@@ -505,7 +505,7 @@ const MobileResourceCard: React.FC<{
               </div>
 
               {/* Visual Load Indicator */}
-              <div className="w-full bg-surface-container-highest rounded-full h-2.5">
+              <div className="w-full bg-surface-container-highest rounded-full h-2.5 mt-1">
                   <div 
                       className={`h-2.5 rounded-full ${getBarColor(data.totalLoad)}`} 
                       style={{ width: `${Math.min(data.totalLoad, 100)}%` }}
@@ -812,7 +812,7 @@ export const StaffingPage: React.FC = () => {
           let d = new Date(req.startDate);
           const end = new Date(req.endDate);
           
-          // Optimization: Clamp start/end to visible range
+          // Optimization: Avoid long loops using date difference logic
           if (d.getTime() < rangeStart.getTime()) d = new Date(rangeStart.getTime());
           const effectiveEnd = end.getTime() > rangeEnd.getTime() ? rangeEnd : end;
 

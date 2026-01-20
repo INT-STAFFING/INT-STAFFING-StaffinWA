@@ -79,6 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarFooterActionsRes,
                 dashboardLayoutRes,
                 roleHomePagesRes,
+                bottomNavPathsRes,
                 analyticsRes,
                 skillCatsRes,
                 skillMacrosRes,
@@ -109,6 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT value FROM app_config WHERE key = 'sidebar_footer_actions_v1';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'dashboard_layout_v2';`,
                 db.sql`SELECT value FROM app_config WHERE key = 'role_home_pages_v1';`,
+                db.sql`SELECT value FROM app_config WHERE key = 'bottom_nav_paths_v1';`,
                 db.sql`SELECT * FROM analytics_cache WHERE key = 'dashboard_kpi_current';`,
                 db.sql`SELECT * FROM skill_categories;`,
                 db.sql`SELECT * FROM skill_macro_categories;`,
@@ -154,6 +156,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const sidebarFooterActions = parseJsonConfig(sidebarFooterActionsRes, null);
             const dashboardLayout = parseJsonConfig(dashboardLayoutRes, null);
             const roleHomePages = parseJsonConfig(roleHomePagesRes, null);
+            const bottomNavPaths = parseJsonConfig(bottomNavPathsRes, []);
 
             let analyticsCache = {};
             if (analyticsRes.rows.length > 0) analyticsCache = analyticsRes.rows[0].data;
@@ -239,20 +242,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarFooterActions,
                 dashboardLayout,
                 roleHomePages,
+                bottomNavPaths,
                 analyticsCache
             });
         }
 
         // --- PLANNING SCOPE (Heavy) ---
         if (scope === 'planning' || scope === 'all') {
-            let allocationsQuery;
-            let leaveRequestsQuery;
+            let allocationsQueryPromise;
+            let leaveRequestsQueryPromise;
             if (start && end) {
-                allocationsQuery = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
-                leaveRequestsQuery = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
+                allocationsQueryPromise = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
+                leaveRequestsQueryPromise = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
             } else {
-                allocationsQuery = db.sql`SELECT * FROM allocations;`;
-                leaveRequestsQuery = db.sql`SELECT * FROM leave_requests;`;
+                allocationsQueryPromise = db.sql`SELECT * FROM allocations;`;
+                leaveRequestsQueryPromise = db.sql`SELECT * FROM leave_requests;`;
             }
 
             const [
@@ -268,8 +272,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 leaveRequestsRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM assignments;`,
-                // FIX: Use allocationsQuery instead of the uninitialized results variable
-                allocationsQuery,
+                allocationsQueryPromise,
                 db.sql`SELECT * FROM wbs_tasks;`,
                 db.sql`SELECT * FROM resource_requests;`,
                 db.sql`SELECT * FROM interviews;`,
@@ -277,8 +280,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM contract_projects;`,
                 db.sql`SELECT * FROM contract_managers;`,
                 db.sql`SELECT * FROM project_skills;`,
-                // FIX: Use leaveRequestsQuery instead of the uninitialized results variable
-                leaveRequestsQuery
+                leaveRequestsQueryPromise
             ]);
 
             const allocations: Allocation = {};

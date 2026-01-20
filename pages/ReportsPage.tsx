@@ -10,7 +10,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';

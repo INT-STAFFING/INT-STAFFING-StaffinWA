@@ -33,7 +33,6 @@ export const resourceRequestSchema = z.object({
     isOsrOpen: z.boolean(),
     osrNumber: z.string().trim().optional().nullable(),
     notes: z.string().optional().nullable(),
-    // FIX: Enforce tuple type for enum values to match BaseSchema requirements in libs/zod.ts.
     status: z.enum(['ATTIVA', 'STANDBY', 'CHIUSA'] as [string, string, string], { required_error: 'Seleziona lo stato della richiesta.' }),
 }).refine(data => {
     if (!data.isOsrOpen) return true;
@@ -200,7 +199,6 @@ export const ResourceRequestPage: React.FC = () => {
 
         const validationResult = resourceRequestSchema.safeParse(editingRequest);
 
-        // FIX: Using explicit type assertion for (validationResult as any) to bypass failing discriminant narrowing in this environment.
         if (!validationResult.success) {
             const fieldErrors = (validationResult as any).error.flatten().fieldErrors;
             setFormErrors({
@@ -218,7 +216,6 @@ export const ResourceRequestPage: React.FC = () => {
         }
 
         const validRequest = validationResult.data as ResourceRequest;
-
         const startDate = new Date(validRequest.startDate);
         const endDate = new Date(validRequest.endDate);
         const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
@@ -307,8 +304,8 @@ export const ResourceRequestPage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
+                    <button onClick={() => openModalForEdit(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => setRequestToDelete(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina">
                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
@@ -317,106 +314,117 @@ export const ResourceRequestPage: React.FC = () => {
     );
     
     const renderCard = (request: EnrichedRequest) => (
-        <div key={request.id} className="p-4 rounded-2xl shadow-md bg-surface-container-low flex flex-col md:flex-row gap-4 justify-between border-l-4 border-primary">
-            <div className="flex-grow">
-                <div className="flex items-baseline gap-3">
-                    <p className="font-bold text-lg text-on-surface">{request.projectName}</p>
-                    <span className="font-mono text-sm text-on-surface-variant">{request.requestCode}</span>
-                </div>
-                <p className="text-sm text-on-surface-variant">{request.roleName}</p>
-                <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDateFull(request.startDate)} - {formatDateFull(request.endDate)}</p></div>
-                    <div><p className="text-on-surface-variant">Impegno</p><p className="font-medium text-on-surface">{request.commitmentPercentage}%</p></div>
-                    <div className="col-span-2"><p className="text-on-surface-variant">Richiedente</p><p className="font-medium text-on-surface">{request.requestorName || 'N/A'}</p></div>
-                    {request.isOsrOpen && (
-                        <div className="col-span-2 mt-2">
-                            <span className="px-2 py-1 rounded text-xs font-semibold bg-primary-container text-on-primary-container">
-                                OSR Aperta: {request.osrNumber || 'N/D'}
-                            </span>
-                        </div>
-                    )}
-                </div>
-            </div>
-            <div className="flex flex-col items-start md:items-end justify-between flex-shrink-0 md:pl-4 md:border-l border-outline-variant md:w-48">
-                <div className="flex flex-col md:items-end gap-2 w-full">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
-                    <div className="flex gap-2 mt-1 flex-wrap justify-end">
-                        {request.isUrgent && <span className="px-2 py-0.5 text-xs font-semibold text-on-error-container bg-error-container rounded-full">URGENTE</span>}
-                        {request.isTechRequest && <span className="px-2 py-0.5 text-xs font-semibold text-on-secondary-container bg-secondary-container rounded-full">TECH</span>}
+        <div key={request.id} className="p-5 rounded-2xl shadow-md bg-surface-container-low border-l-4 border-primary flex flex-col gap-4 relative">
+            <div className="flex justify-between items-start">
+                <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{request.requestCode}</span>
+                        <span className={`px-2 py-0.5 inline-flex text-[10px] leading-5 font-bold rounded-full uppercase tracking-tighter ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
                     </div>
+                    <h3 className="font-bold text-lg text-on-surface truncate pr-8" title={request.projectName}>{request.projectName}</h3>
+                    <p className="text-sm text-on-surface-variant font-medium">{request.roleName}</p>
                 </div>
-                <div className="flex items-center space-x-2 mt-4 md:mt-0 self-end">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container" title="Elimina">
-                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={() => openModalForEdit(request)} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container transition-colors" title="Modifica"><span className="material-symbols-outlined text-xl">edit</span></button>
+                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container transition-colors" title="Elimina">
+                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined text-xl">delete</span>}
                     </button>
                 </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-outline-variant">
+                <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Periodo</span>
+                    <span className="text-xs font-semibold text-on-surface">{formatDateFull(request.startDate)} - {formatDateFull(request.endDate)}</span>
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Impegno</span>
+                    <span className="text-xs font-semibold text-on-surface">{request.commitmentPercentage}%</span>
+                </div>
+                <div className="col-span-2 flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Richiedente</span>
+                    <span className="text-xs font-semibold text-on-surface">{request.requestorName || 'Non specificato'}</span>
+                </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-auto pt-2">
+                {request.isUrgent && <span className="px-2 py-1 text-[10px] font-bold text-on-error-container bg-error-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">priority_high</span>Urgente</span>}
+                {request.isTechRequest && <span className="px-2 py-1 text-[10px] font-bold text-on-secondary-container bg-secondary-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">code</span>Tech</span>}
+                {request.isOsrOpen && <span className="px-2 py-1 text-[10px] font-bold text-on-primary-container bg-primary-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">assignment</span>OSR {request.osrNumber || 'N/D'}</span>}
             </div>
         </div>
     );
     
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            <div className="md:col-span-3">
-                <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
-            </div>
-            <div className="md:col-span-3">
-                <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
-            </div>
-            <div className="md:col-span-3">
-                <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
-            </div>
-            <div className="md:col-span-3">
-                <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <SearchableSelect name="projectId" value={filters.projectId} onChange={handleFilterChange} options={projectOptions} placeholder="Tutti i Progetti"/>
+            <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti i Ruoli"/>
+            <SearchableSelect name="requestorId" value={filters.requestorId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutti i Richiedenti"/>
+            <div className="flex gap-2 w-full">
+                <div className="flex-grow">
+                    <SearchableSelect name="status" value={filters.status} onChange={handleFilterChange} options={statusOptions} placeholder="Tutti gli Stati"/>
+                </div>
+                <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 font-bold transition-opacity"><span className="material-symbols-outlined text-base">refresh</span></button>
             </div>
         </div>
     );
 
     return (
-        <div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
-                    <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">FTE Totali per Figura Professionale</h3>
+        <div className="space-y-6">
+            {/* KPI Summary Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary overflow-hidden relative">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                             <span className="material-symbols-outlined text-lg">engineering</span> FTE per Figura
+                        </h3>
+                    </div>
                     {summaryData.fteArray.length > 0 ? (
-                        <ul className="mt-4 space-y-2">
+                        <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-outline-variant">
                             {summaryData.fteArray.map(({ roleName, fte }) => (
-                                <li key={roleName} className="flex items-center justify-between text-sm">
-                                    <span className="font-medium text-on-surface">{roleName}</span>
-                                    <span className="text-on-surface-variant">{fte.toFixed(2)} FTE</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="mt-4 text-sm text-on-surface-variant">Nessun dato disponibile.</p>
-                    )}
-                </div>
-                <div className="bg-surface-container-low p-5 rounded-2xl shadow">
-                    <h3 className="text-sm font-semibold text-on-surface-variant uppercase tracking-wide">FTE per Progetto e Figura Professionale</h3>
-                    {summaryData.projectArray.length > 0 ? (
-                        <div className="mt-4 space-y-4">
-                            {summaryData.projectArray.map(({ projectName, requests }) => (
-                                <div key={projectName}>
-                                    <p className="text-sm font-semibold text-on-surface">{projectName}</p>
-                                    <ul className="mt-2 space-y-1">
-                                        {requests.map((req, index) => (
-                                            <li key={`${projectName}-${req.roleName}-${index}`} className="flex items-center justify-between text-sm text-on-surface-variant">
-                                                <span>{req.roleName}</span>
-                                                <span>{(req.commitmentPercentage / 100).toFixed(2)} FTE</span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                <div key={roleName} className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-high transition-colors group">
+                                    <span className="text-sm font-medium text-on-surface">{roleName}</span>
+                                    <span className="text-sm font-bold text-primary bg-primary/10 px-3 py-0.5 rounded-full">{fte.toFixed(2)} FTE</span>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="mt-4 text-sm text-on-surface-variant">Nessun dato disponibile.</p>
+                        <div className="flex flex-col items-center justify-center py-8 text-on-surface-variant opacity-50 italic text-sm">Nessuna richiesta attiva</div>
+                    )}
+                </div>
+
+                <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-tertiary overflow-hidden relative">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-bold text-tertiary uppercase tracking-wider flex items-center gap-2">
+                             <span className="material-symbols-outlined text-lg">folder_shared</span> FTE per Progetto
+                        </h3>
+                    </div>
+                    {summaryData.projectArray.length > 0 ? (
+                        <div className="max-h-48 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-outline-variant">
+                            {summaryData.projectArray.map(({ projectName, requests }) => (
+                                <div key={projectName} className="space-y-1">
+                                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-tighter mb-1">{projectName}</p>
+                                    <div className="space-y-1 pl-2 border-l-2 border-outline-variant">
+                                        {requests.map((req, index) => (
+                                            <div key={`${projectName}-${req.roleName}-${index}`} className="flex items-center justify-between text-xs">
+                                                <span className="text-on-surface">{req.roleName}</span>
+                                                <span className="font-bold text-tertiary">{(req.commitmentPercentage / 100).toFixed(2)} FTE</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-on-surface-variant opacity-50 italic text-sm">Nessuna richiesta attiva</div>
                     )}
                 </div>
             </div>
+
             <DataTable<EnrichedRequest>
                 title="Richieste di Risorse"
-                addNewButtonLabel="Aggiungi Richiesta"
+                addNewButtonLabel="Nuova Richiesta"
                 data={dataForTable}
                 columns={columns}
                 filtersNode={filtersNode}
@@ -431,69 +439,105 @@ export const ResourceRequestPage: React.FC = () => {
 
             {editingRequest && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto *</label>
-                            <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto" />
-                            {formErrors.projectId && <FormFieldFeedback error={formErrors.projectId} />}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Richiesto *</label>
-                            <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo" />
-                            {formErrors.roleId && <FormFieldFeedback error={formErrors.roleId} />}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Richiedente</label>
-                            <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente" />
-                            {formErrors.requestorId && <FormFieldFeedback error={formErrors.requestorId} />}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
-                                <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input" />
-                                {formErrors.startDate && <FormFieldFeedback error={formErrors.startDate} />}
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
-                                <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input" />
-                                {formErrors.endDate && <FormFieldFeedback error={formErrors.endDate} />}
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Sezione Progetto */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">work</span> Info Progetto
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetto *</label>
+                                    <SearchableSelect name="projectId" value={editingRequest.projectId} onChange={handleSelectChange} options={projectOptions} placeholder="Seleziona progetto" />
+                                    {formErrors.projectId && <FormFieldFeedback error={formErrors.projectId} />}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Ruolo Richiesto *</label>
+                                    <SearchableSelect name="roleId" value={editingRequest.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo" />
+                                    {formErrors.roleId && <FormFieldFeedback error={formErrors.roleId} />}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Richiedente</label>
+                                    <SearchableSelect name="requestorId" value={editingRequest.requestorId || ''} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona richiedente" />
+                                    {formErrors.requestorId && <FormFieldFeedback error={formErrors.requestorId} />}
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Impegno (%) *</label>
-                            <input type="number" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} required className="form-input" />
-                            {formErrors.commitmentPercentage && <FormFieldFeedback error={formErrors.commitmentPercentage} />}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
-                            <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
-                                {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                            </select>
-                            {formErrors.status && <FormFieldFeedback error={formErrors.status} />}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
-                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3}></textarea>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <input type="checkbox" id="isUrgent" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox" />
-                            <label htmlFor="isUrgent" className="text-sm text-on-surface">Urgente</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <input type="checkbox" id="isTechRequest" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox" />
-                            <label htmlFor="isTechRequest" className="text-sm text-on-surface">Richiesta TECH</label>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <input type="checkbox" id="isOsrOpen" name="isOsrOpen" checked={editingRequest.isOsrOpen} onChange={handleChange} className="form-checkbox" />
-                            <label htmlFor="isOsrOpen" className="text-sm text-on-surface">OSR Aperta</label>
-                        </div>
-                        {editingRequest.isOsrOpen && (
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Numero OSR *</label>
-                                <input type="text" name="osrNumber" value={editingRequest.osrNumber || ''} onChange={handleChange} className="form-input" />
-                                {formErrors.osrNumber && <FormFieldFeedback error={formErrors.osrNumber} />}
+
+                        {/* Sezione Periodo ed Impegno */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">calendar_month</span> Periodo & Impegno
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio *</label>
+                                        <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input" />
+                                        {formErrors.startDate && <FormFieldFeedback error={formErrors.startDate} />}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine *</label>
+                                        <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input" />
+                                        {formErrors.endDate && <FormFieldFeedback error={formErrors.endDate} />}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Impegno (%) *</label>
+                                    <div className="flex items-center gap-4">
+                                        <input type="range" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="flex-grow accent-primary" min="0" max="100" step="5" />
+                                        <span className="text-sm font-bold text-primary w-12 text-right">{editingRequest.commitmentPercentage}%</span>
+                                    </div>
+                                    {formErrors.commitmentPercentage && <FormFieldFeedback error={formErrors.commitmentPercentage} />}
+                                </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Sezione Dettagli e Stato */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">info</span> Dettagli & Stato
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
+                                    <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
+                                        {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                    </select>
+                                    {formErrors.status && <FormFieldFeedback error={formErrors.status} />}
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
+                                        <input type="checkbox" id="isUrgent" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox" />
+                                        <label htmlFor="isUrgent" className="text-sm text-on-surface font-medium">Urgente</label>
+                                    </div>
+                                    <div className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
+                                        <input type="checkbox" id="isTechRequest" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox" />
+                                        <label htmlFor="isTechRequest" className="text-sm text-on-surface font-medium">Richiesta TECH</label>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
+                                    <input type="checkbox" id="isOsrOpen" name="isOsrOpen" checked={editingRequest.isOsrOpen} onChange={handleChange} className="form-checkbox" />
+                                    <label htmlFor="isOsrOpen" className="text-sm text-on-surface font-medium">OSR Aperta</label>
+                                </div>
+
+                                {editingRequest.isOsrOpen && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Numero OSR *</label>
+                                        <input type="text" name="osrNumber" value={editingRequest.osrNumber || ''} onChange={handleChange} className="form-input" placeholder="es. OSR-12345" />
+                                        {formErrors.osrNumber && <FormFieldFeedback error={formErrors.osrNumber} />}
+                                    </div>
+                                )}
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
+                                    <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3} placeholder="Eventuali annotazioni..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
                             <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">

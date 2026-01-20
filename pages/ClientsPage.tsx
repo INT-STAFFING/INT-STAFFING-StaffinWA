@@ -1,3 +1,4 @@
+
 /**
  * @file ClientsPage.tsx
  * @description Pagina per la gestione dei clienti (CRUD e visualizzazione).
@@ -10,7 +11,7 @@ import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 /**
  * Componente per la pagina di gestione dei Clienti.
@@ -234,28 +235,37 @@ const ClientsPage: React.FC = () => {
             
             {editingClient && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingClient ? 'Modifica Cliente' : 'Aggiungi Cliente'}>
-                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Cliente *</label>
-                            <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="form-input"/>
+                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Sezione Dati Aziendali */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">business</span> Dati Aziendali
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Cliente *</label>
+                                    <input type="text" name="name" value={editingClient.name} onChange={handleChange} required className="form-input" placeholder="es. Mario Rossi SPA"/>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Settore</label>
+                                     <SearchableSelect
+                                        name="sector"
+                                        value={editingClient.sector}
+                                        onChange={handleSelectChange}
+                                        options={sectorOptions}
+                                        placeholder="Seleziona un settore"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Email Contatto *</label>
+                                    <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="form-input" placeholder="es. info@cliente.it"/>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Settore</label>
-                             <SearchableSelect
-                                name="sector"
-                                value={editingClient.sector}
-                                onChange={handleSelectChange}
-                                options={sectorOptions}
-                                placeholder="Seleziona un settore"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Email Contatto *</label>
-                            <input type="email" name="contactEmail" value={editingClient.contactEmail} onChange={handleChange} required className="form-input"/>
-                        </div>
+
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
                                 {(isActionLoading('addClient') || isActionLoading(`updateClient-${'id' in editingClient ? editingClient.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

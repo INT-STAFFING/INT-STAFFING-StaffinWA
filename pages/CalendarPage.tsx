@@ -1,3 +1,4 @@
+
 /**
  * @file CalendarPage.tsx
  * @description Pagina per la gestione del calendario aziendale (festività, chiusure) utilizzando DataTable.
@@ -164,7 +165,7 @@ const CalendarPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca evento..." />
             <SearchableSelect name="type" value={filters.type} onChange={handleFilterSelectChange} options={eventTypeOptions} placeholder="Tutti i tipi" />
-            <button onClick={resetFilters} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
+            <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
         </div>
     );
 
@@ -188,31 +189,57 @@ const CalendarPage: React.FC = () => {
 
             {editingEvent && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingEvent ? 'Modifica Evento' : 'Aggiungi Evento'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Evento *</label>
-                            <input type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input"/>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Sezione Dettagli Evento */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">event</span> Informazioni Evento
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Evento *</label>
+                                    <input type="text" name="name" value={editingEvent.name} onChange={handleChange} required className="form-input" placeholder="es. Natale, Chiusura Estiva..."/>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data *</label>
+                                        <input type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Tipo *</label>
+                                        <select name="type" value={editingEvent.type} onChange={handleChange} required className="form-select">
+                                            {eventTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Data *</label>
-                            <input type="date" name="date" value={editingEvent.date} onChange={handleChange} required className="form-input"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Tipo *</label>
-                            <select name="type" value={editingEvent.type} onChange={handleChange} required className="form-select">
-                                {eventTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                            </select>
-                        </div>
+
+                        {/* Sezione Sede (solo se Festività Locale) */}
                         {editingEvent.type === 'LOCAL_HOLIDAY' && (
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Sede *</label>
-                                <SearchableSelect name="location" value={editingEvent.location || ''} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required/>
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant animate-fade-in">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">location_on</span> Ambito Territoriale
+                                </h4>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Sede *</label>
+                                    <SearchableSelect 
+                                        name="location" 
+                                        value={editingEvent.location || ''} 
+                                        onChange={handleSelectChange} 
+                                        options={locationOptions} 
+                                        placeholder="Seleziona la sede di riferimento" 
+                                        required
+                                    />
+                                </div>
                             </div>
                         )}
+
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
-                               {(isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                            {/* FIX: Corrected editingEvent.event to editingEvent.id on line 240 */}
+                            <button type="submit" disabled={isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? editingEvent.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
+                               {(isActionLoading('addCalendarEvent') || isActionLoading(`updateCalendarEvent-${'id' in editingEvent ? (editingEvent as any).id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva Evento'}
                             </button>
                         </div>
                     </form>

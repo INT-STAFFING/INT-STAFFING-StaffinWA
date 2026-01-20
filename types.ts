@@ -727,6 +727,7 @@ export interface EntitiesState {
     sidebarFooterActions: SidebarFooterAction[];
     dashboardLayout: DashboardCategory[];
     roleHomePages: Record<string, string>;
+    bottomNavPaths: string[]; // Nuova proprietà per la navigazione mobile dinamica
     notifications: Notification[];
     analyticsCache: Record<string, unknown>;
     loading: boolean;
@@ -831,6 +832,7 @@ export interface EntitiesActions {
     updateSidebarFooterActions: (actions: SidebarFooterAction[]) => Promise<void>;
     updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
     updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
+    updateBottomNavPaths: (paths: string[]) => Promise<void>; // Nuova azione
     /** Innesca il ricalcolo dei dati analitici sul backend e aggiorna la cache locale. */
     forceRecalculateAnalytics: () => Promise<void>;
 }

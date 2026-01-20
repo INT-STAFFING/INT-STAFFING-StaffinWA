@@ -17,9 +17,12 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          // FIX: In ESM, __dirname is not available. Using process.cwd() as root reference for path.resolve.
-          '@': path.resolve(process.cwd(), '.'),
-          'zod': path.resolve(process.cwd(), 'libs/zod'),
+          // FIX: In ESM environments where the global 'process' might not have 'cwd' typed correctly,
+          // path.resolve() can be used to get the current working directory.
+          '@': path.resolve('.'),
+          // FIX: Using path.resolve('libs/zod') instead of path.resolve(process.cwd(), 'libs/zod')
+          // to avoid the same TypeScript error.
+          'zod': path.resolve('libs/zod'),
         }
       }
     };

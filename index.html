@@ -10,6 +10,60 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    
+    <!-- Tailwind CDN per l'ambiente di anteprima -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Manrope', 'sans-serif'],
+            },
+            colors: {
+              'primary': 'var(--color-primary)',
+              'on-primary': 'var(--color-on-primary)',
+              'primary-container': 'var(--color-primary-container)',
+              'on-primary-container': 'var(--color-on-primary-container)',
+              'secondary': 'var(--color-secondary)',
+              'on-secondary': 'var(--color-on-secondary)',
+              'secondary-container': 'var(--color-secondary-container)',
+              'on-secondary-container': 'var(--color-on-secondary-container)',
+              'tertiary': 'var(--color-tertiary)',
+              'on-tertiary': 'var(--color-on-tertiary)',
+              'tertiary-container': 'var(--color-tertiary-container)',
+              'on-tertiary-container': 'var(--color-on-tertiary-container)',
+              'error': 'var(--color-error)',
+              'on-error': 'var(--color-on-error)',
+              'error-container': 'var(--color-error-container)',
+              'on-error-container': 'var(--color-on-error-container)',
+              'background': 'var(--color-background)',
+              'on-background': 'var(--color-on-background)',
+              'surface': 'var(--color-surface)',
+              'on-surface': 'var(--color-on-surface)',
+              'surface-variant': 'var(--color-surface-variant)',
+              'on-surface-variant': 'var(--color-on-surface-variant)',
+              'outline': 'var(--color-outline)',
+              'outline-variant': 'var(--color-outline-variant)',
+              'shadow': 'var(--color-shadow)',
+              'scrim': 'var(--color-scrim)',
+              'inverse-surface': 'var(--color-inverse-surface)',
+              'inverse-on-surface': 'var(--color-inverse-on-surface)',
+              'inverse-primary': 'var(--color-inverse-primary)',
+              'surface-container-lowest': 'var(--color-surface-container-lowest)',
+              'surface-container-low': 'var(--color-surface-container-low)',
+              'surface-container': 'var(--color-surface-container)',
+              'surface-container-high': 'var(--color-surface-container-high)',
+              'surface-container-highest': 'var(--color-surface-container-highest)',
+              'yellow-container': 'var(--color-yellow-container)',
+              'on-yellow-container': 'var(--color-on-yellow-container)',
+            }
+          }
+        }
+      }
+    </script>
+
 <script type="importmap">
 {
   "imports": {
@@ -49,6 +103,47 @@
   }
 }
 </script>
+<style>
+  /* Fallback CSS Variables in case ThemeContext injection is delayed */
+  :root {
+    --color-primary: #006493;
+    --color-on-primary: #ffffff;
+    --color-primary-container: #cae6ff;
+    --color-on-primary-container: #001e2f;
+    --color-secondary: #50606e;
+    --color-on-secondary: #ffffff;
+    --color-secondary-container: #d3e5f5;
+    --color-on-secondary-container: #0c1d29;
+    --color-tertiary: #64597b;
+    --color-on-tertiary: #ffffff;
+    --color-tertiary-container: #eaddff;
+    --color-on-tertiary-container: #1f1635;
+    --color-error: #ba1a1a;
+    --color-on-error: #ffffff;
+    --color-error-container: #ffdad6;
+    --color-on-error-container: #410002;
+    --color-background: #f8fafc;
+    --color-on-background: #191c1e;
+    --color-surface: #f8fafc;
+    --color-on-surface: #191c1e;
+    --color-surface-variant: #dee3e9;
+    --color-on-surface-variant: #42474c;
+    --color-outline: #72787d;
+    --color-outline-variant: #c2c7cd;
+    --color-shadow: #000000;
+    --color-scrim: #000000;
+    --color-inverse-surface: #2e3133;
+    --color-inverse-on-surface: #f0f1f3;
+    --color-inverse-primary: #8dcdff;
+    --color-surface-container-lowest: #ffffff;
+    --color-surface-container-low: #f2f4f7;
+    --color-surface-container: #eceef1;
+    --color-surface-container-high: #e6e8eb;
+    --color-surface-container-highest: #e1e3e5;
+    --color-yellow-container: #ffea9f;
+    --color-on-yellow-container: #5e4500;
+  }
+</style>
 </head>
 <body class="bg-background text-on-background">
     <div id="root"></div>

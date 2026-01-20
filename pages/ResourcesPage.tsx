@@ -1,9 +1,4 @@
 
-/**
- * @file ResourcesPage.tsx
- * @description Pagina per la gestione delle risorse umane (CRUD e visualizzazione).
- */
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
@@ -15,7 +10,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -414,7 +409,7 @@ const ResourcesPage: React.FC = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-2">
                         <button onClick={() => openModalForEdit(resource)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
-                        <button onClick={() => handleStartInlineEdit(resource)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => handleStartInlineEdit(resource)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
                         <button onClick={() => deleteResource(resource.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
                              {isActionLoading(`deleteResource-${resource.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
@@ -532,142 +527,172 @@ const ResourcesPage: React.FC = () => {
                 numActions={3} // MODIFICA, EDIT VELOCE, ELIMINA
             />
             
-            {/* Modals are the same as previous version, just keeping them for completeness if needed */}
             {editingResource && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingResource ? 'Modifica Risorsa' : 'Aggiungi Risorsa'}>
-                    <form onSubmit={handleSubmit} className="space-y-4 flex flex-col h-[80vh]">
-                        <div className="flex-grow overflow-y-auto px-1 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome e Cognome *</label>
-                                    <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className="form-input"/>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
-                                    <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input"/>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo *</label>
-                                    <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required />
-                            </div>
-                            <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horizontal *</label>
-                                    <SearchableSelect name="horizontal" value={editingResource.horizontal} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona un horizontal" required />
-                            </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
-                                    <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
-                                    <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
+                    <form onSubmit={handleSubmit} className="space-y-6 flex flex-col h-[80vh]">
+                        <div className="flex-grow overflow-y-auto px-1 space-y-6">
+                            
+                            {/* Sezione Anagrafica */}
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">person</span> Anagrafica
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome e Cognome *</label>
+                                        <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className="form-input"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                                        <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input"/>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Tutor Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tutor</label>
-                                <SearchableSelect 
-                                    name="tutorId" 
-                                    value={editingResource.tutorId || ''} 
-                                    onChange={handleSelectChange} 
-                                    options={resourceOptions.filter(o => o.value !== ('id' in editingResource ? editingResource.id : ''))} 
-                                    placeholder="Seleziona un Tutor" 
-                                />
-                            </div>
-                            
-                            {/* Skills Section */}
-                            <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Competenze</label>
-                                <div className="flex gap-2 mb-3">
-                                    <div className="flex-grow">
-                                        <SearchableSelect
-                                            name="tempSkillId"
-                                            value={tempSelectedSkillId}
-                                            onChange={(_, val) => setTempSelectedSkillId(val)}
-                                            options={skillOptions.filter(s => !selectedSkillDetails.some(sd => sd.skillId === s.value))}
-                                            placeholder="Aggiungi competenza..."
-                                        />
+                            {/* Sezione Inquadramento */}
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">badge</span> Inquadramento
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo *</label>
+                                        <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required />
                                     </div>
-                                    <button type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50">
-                                        <span className="material-symbols-outlined">add</span>
-                                    </button>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horizontal *</label>
+                                        <SearchableSelect name="horizontal" value={editingResource.horizontal} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona un horizontal" required />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
+                                        <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
+                                        <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
+                                    <div className="flex items-center gap-4">
+                                        <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="flex-grow accent-primary" disabled={editingResource.resigned}/>
+                                        <span className="text-sm font-bold text-primary w-12 text-right">{editingResource.maxStaffingPercentage}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sezione Tutor e Competenze */}
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">school</span> Tutor & Competenze
+                                </h4>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tutor</label>
+                                    <SearchableSelect 
+                                        name="tutorId" 
+                                        value={editingResource.tutorId || ''} 
+                                        onChange={handleSelectChange} 
+                                        options={resourceOptions.filter(o => o.value !== ('id' in editingResource ? editingResource.id : ''))} 
+                                        placeholder="Seleziona un Tutor" 
+                                    />
                                 </div>
                                 
-                                {selectedSkillDetails.length > 0 && (
-                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                        {selectedSkillDetails.map(detail => {
-                                            const skillName = skills.find(s => s.id === detail.skillId)?.name || 'Unknown';
-                                            return (
-                                                <div key={detail.skillId} className="p-2 bg-surface rounded border border-outline flex flex-col gap-2">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="font-medium text-sm text-on-surface">{skillName}</span>
-                                                        <button type="button" onClick={() => handleRemoveSkill(detail.skillId)} className="text-error hover:text-error-container">
-                                                            <span className="material-symbols-outlined text-sm">close</span>
-                                                        </button>
-                                                    </div>
-                                                    <div className="grid grid-cols-3 gap-2">
-                                                        <div className="col-span-3 md:col-span-1">
-                                                            <label className="text-xs text-on-surface-variant block">Livello</label>
-                                                            <select 
-                                                                value={detail.level || 1} 
-                                                                onChange={(e) => handleSkillLevelChange(detail.skillId, e.target.value)}
-                                                                className="w-full text-xs p-1 border rounded bg-transparent"
-                                                            >
-                                                                {Object.entries(SKILL_LEVELS).map(([val, label]) => (
-                                                                    <option key={val} value={val}>{label}</option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-on-surface-variant block">Data Conseguimento</label>
-                                                            <input 
-                                                                type="date" 
-                                                                value={detail.acquisitionDate} 
-                                                                onChange={(e) => handleSkillDateChange(detail.skillId, 'acquisitionDate', e.target.value)}
-                                                                className="w-full text-xs p-1 border rounded bg-transparent"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-xs text-on-surface-variant block">Data Scadenza</label>
-                                                            <input 
-                                                                type="date" 
-                                                                value={detail.expirationDate} 
-                                                                onChange={(e) => handleSkillDateChange(detail.skillId, 'expirationDate', e.target.value)}
-                                                                className="w-full text-xs p-1 border rounded bg-transparent"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                <div className="bg-surface p-3 rounded-lg border border-outline-variant">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gestione Skills</label>
+                                    <div className="flex gap-2 mb-3">
+                                        <div className="flex-grow">
+                                            <SearchableSelect
+                                                name="tempSkillId"
+                                                value={tempSelectedSkillId}
+                                                onChange={(_, val) => setTempSelectedSkillId(val)}
+                                                options={skillOptions.filter(s => !selectedSkillDetails.some(sd => sd.skillId === s.value))}
+                                                placeholder="Aggiungi competenza..."
+                                            />
+                                        </div>
+                                        <button type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50">
+                                            <span className="material-symbols-outlined">add</span>
+                                        </button>
                                     </div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
-                                    <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="w-full" disabled={editingResource.resigned}/>
+                                    
+                                    {selectedSkillDetails.length > 0 && (
+                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                            {selectedSkillDetails.map(detail => {
+                                                const skillName = skills.find(s => s.id === detail.skillId)?.name || 'Unknown';
+                                                return (
+                                                    <div key={detail.skillId} className="p-2 bg-surface-container-low rounded border border-outline flex flex-col gap-2">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="font-medium text-sm text-on-surface">{skillName}</span>
+                                                            <button type="button" onClick={() => handleRemoveSkill(detail.skillId)} className="text-error hover:text-error-container">
+                                                                <span className="material-symbols-outlined text-sm">close</span>
+                                                            </button>
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            <div className="col-span-3 md:col-span-1">
+                                                                <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Livello</label>
+                                                                <select 
+                                                                    value={detail.level || 1} 
+                                                                    onChange={(e) => handleSkillLevelChange(detail.skillId, e.target.value)}
+                                                                    className="w-full text-xs p-1 border rounded bg-transparent"
+                                                                >
+                                                                    {Object.entries(SKILL_LEVELS).map(([val, label]) => (
+                                                                        <option key={val} value={val}>{label}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Conseguimento</label>
+                                                                <input 
+                                                                    type="date" 
+                                                                    value={detail.acquisitionDate} 
+                                                                    onChange={(e) => handleSkillDateChange(detail.skillId, 'acquisitionDate', e.target.value)}
+                                                                    className="w-full text-xs p-1 border rounded bg-transparent"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Scadenza</label>
+                                                                <input 
+                                                                    type="date" 
+                                                                    value={detail.expirationDate} 
+                                                                    onChange={(e) => handleSkillDateChange(detail.skillId, 'expirationDate', e.target.value)}
+                                                                    className="w-full text-xs p-1 border rounded bg-transparent"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                <label className="flex items-center space-x-3 mt-4">
-                                    <input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Risorsa Dimessa</span>
-                                </label>
 
-                                {editingResource.resigned && (
-                                    <div className="mt-4">
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ultimo Giorno di Lavoro *</label>
-                                        <input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className="form-input"/>
+                            {/* Sezione Stato (Dimissioni) */}
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">no_accounts</span> Status Risorsa
+                                </h4>
+                                <div className="space-y-4">
+                                    <label className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
+                                        <input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="form-checkbox h-5 w-5"/>
+                                        <span className="text-sm font-medium text-on-surface">Risorsa Dimessa</span>
+                                    </label>
+
+                                    {editingResource.resigned && (
+                                        <div className="animate-fade-in">
+                                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ultimo Giorno di Lavoro *</label>
+                                            <input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className="form-input"/>
+                                        </div>
+                                    )}
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
+                                        <textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note sulla risorsa..."></textarea>
                                     </div>
-                                )}
+                                </div>
                             </div>
+
                         </div>
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>

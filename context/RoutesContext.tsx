@@ -1,8 +1,9 @@
+
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import { useEntitiesContext } from './AppContext';
-import { routesManifest, type AppRoute } from '../src/routes';
-import { normalizePath } from '../src/utils/paths';
+import { routesManifest, type AppRoute } from '../routes';
+import { normalizePath } from '../utils/paths';
 import type { UserRole } from '../types';
 
 type BreadcrumbItem = { path: string; label: string };
@@ -41,7 +42,7 @@ const matchRole = (route: AppRoute, role?: UserRole | null) => {
 };
 
 export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { pageVisibility, roleHomePages, sidebarConfig } = useEntitiesContext();
+    const { pageVisibility, roleHomePages, sidebarConfig, bottomNavPaths } = useEntitiesContext();
     const { user, hasPermission, isLoginProtectionEnabled, isAdmin } = useAuth();
 
     const isRouteEnabled = useCallback(
@@ -112,7 +113,17 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return sorted;
     }, [enabledRoutes, sidebarOverrides]);
 
-    const bottomNavigationRoutes = useMemo(() => enabledRoutes.filter(route => route.showInBottomNav), [enabledRoutes]);
+    const bottomNavigationRoutes = useMemo(() => {
+        if (bottomNavPaths && bottomNavPaths.length > 0) {
+            // Se esiste una configurazione dinamica, usiamola
+            const paths = bottomNavPaths.map(p => normalizePath(p));
+            return enabledRoutes
+                .filter(route => paths.includes(normalizePath(route.path)))
+                .sort((a, b) => paths.indexOf(normalizePath(a.path)) - paths.indexOf(normalizePath(b.path)));
+        }
+        // Fallback al flag statico se non configurato
+        return enabledRoutes.filter(route => route.showInBottomNav);
+    }, [enabledRoutes, bottomNavPaths]);
 
     const getHomeForRole = useCallback(
         (role?: UserRole | null) => {

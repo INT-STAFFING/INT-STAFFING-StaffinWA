@@ -1,4 +1,9 @@
 
+/**
+ * @file context/ThemeContext.tsx
+ * @description Gestione del tema Material 3 e sincronizzazione con il database.
+ */
+
 import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo, useCallback } from 'react';
 
 // --- Types ---
@@ -39,7 +44,6 @@ export type M3Palette = {
     surfaceContainerHigh: string;
     surfaceContainerHighest: string;
 };
-
 
 export type Theme = {
     light: M3Palette;
@@ -151,38 +155,21 @@ export const defaultTheme: Theme = {
         surfaceContainerHigh: '#272a2d',
         surfaceContainerHighest: '#323538',
     },
-    // Toast Defaults
     toastPosition: 'top-center',
-    toastSuccessBackground: 'rgba(220, 252, 231, 0.95)',
-    toastSuccessForeground: '#14532d',
-    toastErrorBackground: 'rgba(254, 226, 226, 0.95)',
-    toastErrorForeground: '#7f1d1d',
-
-    // Visualization Setting Defaults
+    toastSuccessBackground: '#2e7d32',
+    toastSuccessForeground: '#ffffff',
+    toastErrorBackground: '#c62828',
+    toastErrorForeground: '#ffffff',
     visualizationSettings: {
-        sankey: {
-            nodeWidth: 20,
-            nodePadding: 10,
-            linkOpacity: 0.5,
-        },
-        network: {
-            chargeStrength: -400,
-            linkDistance: 200,
-            centerStrength: 0.05,
-            nodeRadius: 15,
-        },
+        sankey: { nodeWidth: 20, nodePadding: 10, linkOpacity: 0.5 },
+        network: { chargeStrength: -400, linkDistance: 200, centerStrength: 0.05, nodeRadius: 15 },
     }
 };
 
-// --- Context ---
-
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-// --- Provider ---
 
 const THEME_STORAGE_KEY = 'staffing-app-db-theme';
 const THEME_VERSION_KEY = 'staffing-app-db-theme-version';
-
 const hexRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
 
 const parseDbTheme = (dbConfig: { key: string; value: string }[]): Theme => {
@@ -246,35 +233,59 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         return 'light';
     });
-    
+
+    const createCssProperties = useCallback((palette: M3Palette) => {
+        return (Object.entries(palette) as [keyof M3Palette, string][]).map(([key, value]) => {
+            const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+            return `${cssVarName}: ${value};`;
+        }).join('\n');
+    }, []);
+
+    const injectStyles = useCallback((currentTheme: Theme) => {
+        let styleElement = document.getElementById('dynamic-theme-styles');
+        if (!styleElement) {
+            styleElement = document.createElement('style');
+            styleElement.id = 'dynamic-theme-styles';
+            document.head.appendChild(styleElement);
+        }
+
+        styleElement.innerHTML = `
+            :root {
+                ${createCssProperties(currentTheme.light)}
+                --toast-success-bg: ${currentTheme.toastSuccessBackground};
+                --toast-success-fg: ${currentTheme.toastSuccessForeground};
+                --toast-error-bg: ${currentTheme.toastErrorBackground};
+                --toast-error-fg: ${currentTheme.toastErrorForeground};
+            }
+            .dark {
+                ${createCssProperties(currentTheme.dark)}
+            }
+        `;
+    }, [createCssProperties]);
+
+    useEffect(() => {
+        injectStyles(theme);
+    }, [theme, injectStyles]);
+
     const loadAndApplyTheme = useCallback(async () => {
         try {
             const token = localStorage.getItem('authToken');
-            if (!token) {
-                 _setTheme(defaultTheme);
-                 return;
-            }
+            if (!token) return;
 
             const response = await fetch('/api/resources?entity=theme', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            if (!response.ok) {
-                console.warn('Theme fetch failed or unauthorized');
-                return;
-            }
+            if (!response.ok) return;
 
             const dbConfig: { key: string; value: string }[] = await response.json();
             const enabledEntry = dbConfig.find(c => c.key === 'theme.db.enabled');
-            
-            // If the key is missing but we're in admin context, we consider it enabled by default once saved.
             const enabled = enabledEntry ? enabledEntry.value === 'true' : true;
             setIsDbThemeEnabled(enabled);
 
             if (!enabled) {
                 _setTheme(defaultTheme);
-                localStorage.removeItem(THEME_STORAGE_KEY);
-                localStorage.removeItem(THEME_VERSION_KEY);
+                injectStyles(defaultTheme);
                 return;
             }
 
@@ -283,82 +294,44 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const localThemeJSON = localStorage.getItem(THEME_STORAGE_KEY);
 
             if (dbVersion && dbVersion === localVersion && localThemeJSON) {
-                _setTheme(JSON.parse(localThemeJSON));
+                const parsed = JSON.parse(localThemeJSON);
+                _setTheme(parsed);
+                injectStyles(parsed);
                 return;
             }
             
             const newTheme = parseDbTheme(dbConfig);
             _setTheme(newTheme);
+            injectStyles(newTheme);
             localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
-            if (dbVersion) {
-                localStorage.setItem(THEME_VERSION_KEY, dbVersion);
-            }
+            if (dbVersion) localStorage.setItem(THEME_VERSION_KEY, dbVersion);
         } catch (error) {
             console.error("Failed to load theme from DB:", error);
-            _setTheme(defaultTheme);
         }
-    }, []);
+    }, [injectStyles]);
 
     useEffect(() => {
         loadAndApplyTheme();
     }, [loadAndApplyTheme]);
     
-     useEffect(() => {
-        const styleElement = document.getElementById('dynamic-theme-styles') || document.createElement('style');
-        styleElement.id = 'dynamic-theme-styles';
-
-        const createCssProperties = (palette: M3Palette) => {
-            return (Object.entries(palette) as [keyof M3Palette, string][]).map(([key, value]) => {
-                const cssVarName = `--color-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-                return `${cssVarName}: ${value};`;
-            }).join('\n');
-        };
-
-        styleElement.innerHTML = `
-            :root {
-                ${createCssProperties(theme.light)}
-            }
-            .dark {
-                ${createCssProperties(theme.dark)}
-            }
-        `;
-
-        document.head.appendChild(styleElement);
-    }, [theme]);
-    
     useEffect(() => {
         const root = window.document.documentElement;
-        if (mode === 'dark') {
-            root.classList.add('dark');
-        } else {
-            root.classList.remove('dark');
-        }
-        try {
-            localStorage.setItem('themeMode', mode);
-        } catch (error) {
-            console.error("Failed to save theme mode to localStorage", error);
-        }
+        if (mode === 'dark') root.classList.add('dark');
+        else root.classList.remove('dark');
+        localStorage.setItem('themeMode', mode);
     }, [mode]);
 
     const saveTheme = useCallback(async (newTheme: Theme) => {
         const updates: Record<string, string> = {};
-        
-        // 1. Palettes
-        for (const key of Object.keys(defaultTheme.light) as (keyof M3Palette)[]) {
-            updates[`theme.light.${key}`] = newTheme.light[key];
-        }
-        for (const key of Object.keys(defaultTheme.dark) as (keyof M3Palette)[]) {
-            updates[`theme.dark.${key}`] = newTheme.dark[key];
-        }
+        for (const key of Object.keys(defaultTheme.light) as (keyof M3Palette)[]) updates[`theme.light.${key}`] = newTheme.light[key];
+        for (const key of Object.keys(defaultTheme.dark) as (keyof M3Palette)[]) updates[`theme.dark.${key}`] = newTheme.dark[key];
 
-        // 2. Toasts
         updates['theme.toastPosition'] = newTheme.toastPosition;
         updates['theme.toastSuccessBackground'] = newTheme.toastSuccessBackground;
         updates['theme.toastSuccessForeground'] = newTheme.toastSuccessForeground;
         updates['theme.toastErrorBackground'] = newTheme.toastErrorBackground;
         updates['theme.toastErrorForeground'] = newTheme.toastErrorForeground;
 
-        // 3. Viz
         updates['theme.viz.sankey.nodeWidth'] = String(newTheme.visualizationSettings.sankey.nodeWidth);
         updates['theme.viz.sankey.nodePadding'] = String(newTheme.visualizationSettings.sankey.nodePadding);
         updates['theme.viz.sankey.linkOpacity'] = String(newTheme.visualizationSettings.sankey.linkOpacity);
@@ -371,10 +344,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const token = localStorage.getItem('authToken');
             await fetch('/api/resources?entity=theme', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ updates }),
             });
             await loadAndApplyTheme();
@@ -384,37 +354,18 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     }, [loadAndApplyTheme]);
 
-    const resetTheme = useCallback(async () => {
-        await saveTheme(defaultTheme);
-    }, [saveTheme]);
-
-    const toggleMode = () => {
-        setMode(prevMode => (prevMode === 'light' ? 'dark' : 'light'));
-    };
+    const resetTheme = useCallback(async () => { await saveTheme(defaultTheme); }, [saveTheme]);
+    const toggleMode = () => { setMode(prevMode => (prevMode === 'light' ? 'dark' : 'light')); };
     
     const contextValue = useMemo(() => ({
-        theme,
-        saveTheme,
-        resetTheme,
-        refreshTheme: loadAndApplyTheme,
-        isDbThemeEnabled,
-        mode,
-        toggleMode,
+        theme, saveTheme, resetTheme, refreshTheme: loadAndApplyTheme, isDbThemeEnabled, mode, toggleMode,
     }), [theme, mode, saveTheme, resetTheme, loadAndApplyTheme, isDbThemeEnabled]);
 
-    return (
-        <ThemeContext.Provider value={contextValue}>
-            {children}
-        </ThemeContext.Provider>
-    );
+    return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;
 };
-
-// --- Hook ---
 
 export const useTheme = () => {
     const context = useContext(ThemeContext);
-    if (context === undefined) {
-        throw new Error('useTheme must be used within a ThemeProvider');
-    }
+    if (context === undefined) throw new Error('useTheme must be used within a ThemeProvider');
     return context;
 };

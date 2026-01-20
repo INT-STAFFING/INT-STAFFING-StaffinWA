@@ -26,7 +26,7 @@ import { line } from 'd3-shape';
 import { format } from 'd3-format';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 import 'd3-transition'; // Import transition to avoid crashes
 
 // --- Colori Centralizzati per la Dashboard ---
@@ -965,6 +965,7 @@ const DashboardPage: React.FC = () => {
                 }
             });
 
+            // FIX: Corrected typo from totalPerson_days to totalPersonDays
             return { ...project, totalPersonDays, fte: totalPersonDays / totalWorkingDays };
         }).filter(p => p.totalPersonDays > 0);
     }, [projects, assignments, allocations, companyCalendar, resources, fteFilter]);

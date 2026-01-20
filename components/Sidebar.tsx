@@ -1,9 +1,10 @@
+
 import React, { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
-import type { AppRoute } from '../src/routes';
+import type { AppRoute } from '../routes';
 import type { SidebarFooterAction } from '../types';
 import Modal from './Modal';
 import { SpinnerIcon } from './icons';
@@ -17,7 +18,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const location = useLocation();
-    const { logout, user, changePassword, hasPermission } = useAuth();
+    const logout = useAuth().logout;
+    const user = useAuth().user;
+    const changePassword = useAuth().changePassword;
+    const hasPermission = useAuth().hasPermission;
     const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useEntitiesContext();
     const { navigationRoutes } = useRoutesManifest();
 
@@ -140,6 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         const style = action.color ? { color: `var(--color-${action.color})` } : undefined;
         return (
             <button
+                key={action.id}
                 onClick={() => handleFooterAction(action.id)}
                 className={`flex items-center justify-center w-full px-4 py-2 text-sm font-medium rounded-full transition-colors ${colorClass}`}
                 style={style}

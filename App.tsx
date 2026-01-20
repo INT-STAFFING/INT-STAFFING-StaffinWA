@@ -2,11 +2,11 @@
 /**
  * @file App.tsx
  * @description Componente radice dell'applicazione che imposta il routing, il layout generale e il provider di contesto.
- * Unifica la logica precedentemente divisa tra root e src/ per coerenza architetturale.
+ * Utilizza HashRouter per massima compatibilità in ambienti di anteprima e sandbox.
  */
 
 import React, { useState, Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
 import { AppProviders, useEntitiesContext, useAppState } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -36,6 +36,7 @@ const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
+const SecurityCenterPage = lazy(() => import('./pages/SecurityCenterPage'));
 const DbInspectorPage = lazy(() => import('./pages/DbInspectorPage'));
 const StaffingVisualizationPage = lazy(() => import('./pages/StaffingVisualizationPage'));
 const UserManualPage = lazy(() => import('./pages/UserManualPage'));
@@ -59,6 +60,10 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const location = useLocation();
   const { getBreadcrumb } = useRoutesManifest();
   const breadcrumbs = getBreadcrumb(location.pathname);
+  
+  const isMockMode = window.location.hostname === 'localhost' || 
+                    window.location.hostname.includes('webcontainer') || 
+                    window.location.hostname.includes('usercontent.goog');
 
   return (
     <header className="flex-shrink-0 bg-surface border-b border-outline-variant sticky top-0 z-30">
@@ -72,22 +77,30 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         </button>
         
         <nav aria-label="breadcrumb" className="flex-1 min-w-0">
-          <ol className="flex items-center space-x-1 text-sm md:text-base truncate">
-            {breadcrumbs.map((crumb, index) => (
-              <li key={crumb.path} className="flex items-center">
-                {index > 0 && (
-                  <span className="material-symbols-outlined text-on-surface-variant text-base mx-1">chevron_right</span>
-                )}
-                {index === breadcrumbs.length - 1 ? (
-                  <span className="font-semibold text-on-surface truncate" aria-current="page">{crumb.label}</span>
-                ) : (
-                  <Link to={crumb.path} className="text-on-surface-variant hover:text-on-surface hover:underline">
-                    {crumb.label}
-                  </Link>
-                )}
-              </li>
-            ))}
-          </ol>
+          <div className="flex items-center gap-4">
+            <ol className="flex items-center space-x-1 text-sm md:text-base truncate">
+              {breadcrumbs.map((crumb, index) => (
+                <li key={crumb.path} className="flex items-center">
+                  {index > 0 && (
+                    <span className="material-symbols-outlined text-on-surface-variant text-base mx-1">chevron_right</span>
+                  )}
+                  {index === breadcrumbs.length - 1 ? (
+                    <span className="font-semibold text-on-surface truncate" aria-current="page">{crumb.label}</span>
+                  ) : (
+                    <Link to={crumb.path} className="text-on-surface-variant hover:text-on-surface hover:underline">
+                      {crumb.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ol>
+            {isMockMode && (
+              <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                <span className="w-2 h-2 rounded-full bg-yellow-400 mr-1.5 animate-pulse"></span>
+                Demo / Mock Mode
+              </span>
+            )}
+          </div>
         </nav>
         
         <div className="md:hidden w-10" />
@@ -194,6 +207,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
               
               <Route path="/admin-settings" element={<DynamicRoute path="/admin-settings"><AdminSettingsPage /></DynamicRoute>} />
+              <Route path="/security-center" element={<DynamicRoute path="/security-center"><SecurityCenterPage /></DynamicRoute>} />
               <Route path="/db-inspector" element={<DynamicRoute path="/db-inspector"><DbInspectorPage /></DynamicRoute>} />
               
               <Route path="*" element={<HomeRedirect />} />
@@ -283,7 +297,7 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <ThemeProvider>
         <ToastProvider>
           <AppProviders>
@@ -297,7 +311,7 @@ const App: React.FC = () => {
           </AppProviders>
         </ToastProvider>
       </ThemeProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 

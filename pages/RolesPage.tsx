@@ -1,3 +1,4 @@
+
 /**
  * @file RolesPage.tsx
  * @description Pagina per la gestione dei ruoli professionali (CRUD e visualizzazione).
@@ -11,7 +12,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatCurrency } from '../utils/formatters';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole, isActionLoading, loading } = useEntitiesContext();
@@ -100,24 +101,24 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4"><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></td>
                     <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                     <td className="px-6 py-4"><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
-                    <td className="px-6 py-4 text-sm">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
+                    <td className="px-6 py-4 text-sm font-medium">{formatCurrency((inlineEditingData!.dailyCost || 0) * 0.035)}</td>
                     <td className="px-6 py-4 text-right sticky right-0 bg-inherit"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full hover:bg-surface-container text-primary disabled:opacity-50">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full hover:bg-surface-container text-primary transition-colors disabled:opacity-50">
                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant"><span className="material-symbols-outlined">close</span></button>
+                        <button onClick={handleCancelInlineEdit} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors"><span className="material-symbols-outlined">close</span></button>
                     </div></td>
                 </tr>
             );
         }
         return (
             <tr key={role.id} className="group h-16 hover:bg-surface-container">
-                {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((role as any)[col.sortKey] || '') : undefined}>{col.cell(role)}</td>)}
+                {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit text-sm text-on-surface-variant`} title={col.sortKey ? String((role as any)[col.sortKey] || '') : undefined}>{col.cell(role)}</td>)}
                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-2">
-                        <button onClick={() => openModalForEdit(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
-                        <button onClick={() => handleStartInlineEdit(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error" title="Elimina">
+                        <button onClick={() => openModalForEdit(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
+                        <button onClick={() => handleStartInlineEdit(role)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
+                        <button onClick={() => deleteRole(role.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina">
                            {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
@@ -135,8 +136,8 @@ const RolesPage: React.FC = () => {
                     <div className="space-y-3">
                          <div><label className="text-xs font-medium text-on-surface-variant">Nome Ruolo</label><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
                          <div><label className="text-xs font-medium text-on-surface-variant">Livello</label><SearchableSelect name="seniorityLevel" value={inlineEditingData!.seniorityLevel} onChange={handleInlineSelectChange} options={seniorityOptions} placeholder="Seleziona livello"/></div>
-                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
-                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={inlineEditingData!.standardCost || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Giornaliero</label><input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} className="w-full form-input p-1"/></div>
+                         <div><label className="text-xs font-medium text-on-surface-variant">Costo Standard</label><input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || 0} onChange={handleChange} className="w-full form-input p-1"/></div>
                         <div className="flex justify-end space-x-2 pt-2">
                              <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 bg-primary-container text-on-primary-container rounded-full disabled:opacity-50">
                                 {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
@@ -174,12 +175,12 @@ const RolesPage: React.FC = () => {
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <SearchableSelect name="seniorityLevel" value={filters.seniorityLevel} onChange={handleFilterSelectChange} options={seniorityOptions} placeholder="Tutti i livelli" />
-            <button onClick={resetFilters} className="px-4 py-2 bg-surface-container-high text-on-surface-variant rounded-full hover:bg-surface-container-highest w-full md:w-auto">Reset</button>
+            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full md:w-auto">Reset</button>
         </div>
     );
 
     return (
-        <div>
+        <div className="space-y-6">
             <DataTable
                 title="Gestione Ruoli"
                 addNewButtonLabel="Aggiungi Ruolo"
@@ -207,28 +208,47 @@ const RolesPage: React.FC = () => {
             
             {editingRole && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingRole ? 'Modifica Ruolo' : 'Aggiungi Ruolo'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Ruolo *</label>
-                            <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="form-input"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Livello Seniority</label>
-                            <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" />
-                        </div>
-                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Giornaliero (€) *</label>
-                                <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="form-input"/>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        
+                        {/* Sezione Identità Ruolo */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">badge</span> Definizione Ruolo
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Ruolo *</label>
+                                    {/* FIX: handleInputChange changed to handleChange for consistency */}
+                                    <input type="text" name="name" value={editingRole.name} onChange={handleChange} required className="form-input" placeholder="es. Senior Developer" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Livello Seniority</label>
+                                    <SearchableSelect name="seniorityLevel" value={editingRole.seniorityLevel} onChange={handleSelectChange} options={seniorityOptions} placeholder="Seleziona un livello" />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Standard (€)</label>
-                                <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || 0} onChange={handleChange} className="form-input"/>
-                            </div>
                         </div>
+
+                        {/* Sezione Costi */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">payments</span> Parametri Economici
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Giornaliero (€) *</label>
+                                    <input type="number" step="0.01" name="dailyCost" value={editingRole.dailyCost} onChange={handleChange} required className="form-input" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Costo Standard (€)</label>
+                                    <input type="number" step="0.01" name="standardCost" value={editingRole.standardCost || 0} onChange={handleChange} className="form-input" />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-on-surface-variant mt-2 italic">* Le spese giornaliere vengono calcolate automaticamente come il 3.5% del costo giornaliero.</p>
+                        </div>
+
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                             <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
                                 {(isActionLoading('addRole') || isActionLoading(`updateRole-${'id' in editingRole ? editingRole.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>

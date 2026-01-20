@@ -10,7 +10,7 @@ import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInter
 import { SpinnerIcon } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
 import { AppUser, RolePermission } from '../types';
-import { authorizedJsonFetch } from '../src/utils/api';
+import { authorizedJsonFetch } from '../utils/api';
 
 type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users' | 'tutor';
 

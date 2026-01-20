@@ -107,13 +107,14 @@ const normalize = (str: any): string => {
 // --- IMPORT FUNCTIONS ---
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
-    const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects, calendar: importedCalendar, horizontals: importedHorizontals, seniorityLevels: importedSeniority, projectStatuses: importedStatuses, clientSectors: importedSectors, locations: importedLocations } = body;
+    const { clients: importedClients, roles: importedRoles, resources: importedResources, projects: importedProjects, calendar: importedCalendar, horizontals: importedHorizontals, seniorityLevels: importedSeniority, projectStatuses: importedStatuses, clientSectors: importedSectors, locations: importedLocations, contracts: importedContracts } = body;
     
     const roleNameMap = new Map<string, string>();
     const clientNameMap = new Map<string, string>();
     const resourceEmailMap = new Map<string, string>();
     const resourceNameMap = new Map<string, string>();
     const skillNameMap = new Map<string, string>();
+    const contractNameMap = new Map<string, string>();
     
     const importConfig = async (tableName: string, items: { Valore: string }[]) => {
         if (!Array.isArray(items) || items.length === 0) return;
@@ -232,15 +233,28 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
         await executeBulkInsert(client, 'resource_skills', ['resource_id', 'skill_id'], resourceSkillRows, 'ON CONFLICT (resource_id, skill_id) DO NOTHING');
     }
 
+    if (Array.isArray(importedContracts)) {
+        const contractRows: any[][] = [];
+        for (const cont of importedContracts) {
+            const { 'Nome Contratto': name, CIG: cig, 'CIG Derivato': cigDerivato, 'Capienza (€)': capienza, 'Data Inizio': startDate, 'Data Fine': endDate } = cont;
+            if (!name || !cig) continue;
+            const newId = uuidv4();
+            contractRows.push([newId, name, formatDateForDB(parseDate(startDate)), formatDateForDB(parseDate(endDate)), cig, cigDerivato, capienza, capienza]);
+            contractNameMap.set(normalize(name), newId);
+        }
+        await executeBulkInsert(client, 'contracts', ['id', 'name', 'start_date', 'end_date', 'cig', 'cig_derivato', 'capienza', 'backlog'], contractRows, 'ON CONFLICT (cig) DO UPDATE SET capienza = EXCLUDED.capienza, end_date = EXCLUDED.end_date');
+    }
+
     if (Array.isArray(importedProjects)) {
         const projectRows: any[][] = [];
         for (const proj of importedProjects) {
-            const { 'Nome Progetto': name, Cliente: clientName, Stato: status, 'Budget (€)': budget, 'Realizzazione (%)': realizationPercentage, 'Data Inizio': startDate, 'Data Fine': endDate, 'Project Manager': projectManager, Note: notes } = proj;
+            const { 'Nome Progetto': name, Cliente: clientName, Stato: status, 'Budget (€)': budget, 'Realizzazione (%)': realizationPercentage, 'Data Inizio': startDate, 'Data Fine': endDate, 'Project Manager': projectManager, Note: notes, 'Contratto Quadro': contractName } = proj;
             if (!name) continue;
             const clientId = clientName ? clientNameMap.get(clientName) : null;
-            projectRows.push([uuidv4(), name, clientId, status, budget, realizationPercentage, formatDateForDB(parseDate(startDate)), formatDateForDB(parseDate(endDate)), projectManager, notes]);
+            const contractId = contractName ? contractNameMap.get(normalize(contractName)) : null;
+            projectRows.push([uuidv4(), name, clientId, status, budget, realizationPercentage, formatDateForDB(parseDate(startDate)), formatDateForDB(parseDate(endDate)), projectManager, notes, contractId]);
         }
-        await executeBulkInsert(client, 'projects', ['id', 'name', 'client_id', 'status', 'budget', 'realization_percentage', 'start_date', 'end_date', 'project_manager', 'notes'], projectRows, 'ON CONFLICT (name, client_id) DO UPDATE SET status = EXCLUDED.status, budget = EXCLUDED.budget, end_date = EXCLUDED.end_date, realization_percentage = EXCLUDED.realization_percentage');
+        await executeBulkInsert(client, 'projects', ['id', 'name', 'client_id', 'status', 'budget', 'realization_percentage', 'start_date', 'end_date', 'project_manager', 'notes', 'contract_id'], projectRows, 'ON CONFLICT (name, client_id) DO UPDATE SET status = EXCLUDED.status, budget = EXCLUDED.budget, end_date = EXCLUDED.end_date, realization_percentage = EXCLUDED.realization_percentage, contract_id = EXCLUDED.contract_id');
     }
 };
 
@@ -391,6 +405,7 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     const rowsToInsert: any[][] = [];
     for (const leave of importedLeaves) {
         const { 'Nome Risorsa': resName, 'Tipologia Assenza': typeName, 'Data Inizio': startDate, 'Data Fine': endDate, 'Approvatori': approverNames, 'Stato': status, 'Note': notes } = leave;
+        const isHalfDay = leave.isHalfDay === true || String(leave.isHalfDay).toUpperCase() === 'SI';
         const start = parseDate(startDate);
         const end = parseDate(endDate);
         if (!resName || !typeName || !start || !end) continue;
@@ -403,9 +418,9 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
             approverIds = approverNames.split(',').map(n => resourceMap.get(normalize(n.trim()))).filter(id => id) as string[];
             if (approverIds.length === 0) approverIds = null;
         }
-        rowsToInsert.push([uuidv4(), resourceId, typeId, formatDateForDB(start), formatDateForDB(end), normalizedStatus, notes, approverIds]);
+        rowsToInsert.push([uuidv4(), resourceId, typeId, formatDateForDB(start), formatDateForDB(end), normalizedStatus, notes, approverIds, isHalfDay]);
     }
-    await executeBulkInsert(client, 'leave_requests', ['id', 'resource_id', 'type_id', 'start_date', 'end_date', 'status', 'notes', 'approver_ids'], rowsToInsert);
+    await executeBulkInsert(client, 'leave_requests', ['id', 'resource_id', 'type_id', 'start_date', 'end_date', 'status', 'notes', 'approver_ids', 'is_half_day'], rowsToInsert);
 };
 
 const importUsersPermissions = async (client: any, body: any, warnings: string[]) => {

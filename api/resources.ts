@@ -126,20 +126,64 @@ export const performFullRecalculation = async (client: any) => {
     return kpiData;
 };
 
+// Mappatura per entità i cui nomi frontend differiscono da quelli DB
+const TABLE_MAPPING: Record<string, string> = {
+    'leaves': 'leave_requests',
+    'leave_types': 'leave_types',
+    'role-permissions': 'role_permissions',
+    'security-users': 'app_users'
+};
+
+// Helper per convertire snake_case a camelCase e normalizzare le date
+const toCamelAndNormalize = (o: any) => {
+    if (!o) return {};
+    const n: any = {};
+    for (const k in o) {
+        const camelKey = k.replace(/(_\w)/g, m => m[1].toUpperCase());
+        let value = o[k];
+        // Normalizza le colonne data in stringhe YYYY-MM-DD
+        if (value instanceof Date && 
+           (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork')) {
+            value = value.toISOString().split('T')[0];
+        }
+        n[camelKey] = value;
+    }
+    return n;
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
-    const { entity, id, action, table, olderThanDays } = req.query;
+    const { entity, id, action, olderThanDays } = req.query;
     const client = await db.connect();
     const currentUser = getUserFromRequest(req);
 
     try {
         if (method === 'GET') {
-            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme'];
+            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
             if (sensitiveEntities.includes(entity as string)) {
                 if (!verifyAdmin(req)) {
                     return res.status(403).json({ error: 'Forbidden: Admin access required for this entity.' });
                 }
             }
+        }
+        
+        // --- GESTIONE BULK PERMISSIONS (Security Center) ---
+        if ((entity === 'role-permissions' || entity === 'role_permissions') && method === 'POST' && req.body.permissions && Array.isArray(req.body.permissions)) {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { permissions } = req.body;
+             await client.query('BEGIN');
+             for (const p of permissions) {
+                 await client.query(
+                     `INSERT INTO role_permissions (role, page_path, is_allowed) 
+                      VALUES ($1, $2, $3) 
+                      ON CONFLICT (role, page_path) 
+                      DO UPDATE SET is_allowed = $3`,
+                     [p.role, p.pagePath, p.allowed]
+                 );
+             }
+             await logAction(client, currentUser, 'UPDATE_RBAC_MATRIX', 'role_permissions', null, { count: permissions.length }, req);
+             await client.query('COMMIT');
+             return res.status(200).json({ success: true });
         }
 
         if (entity === 'roles' && method === 'PUT') {
@@ -292,19 +336,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        if (entity === 'app-users') {
+        if (entity === 'app-users' || entity === 'security-users') {
+            const tableName = 'app_users';
             if (action === 'change_password' && method === 'PUT') {
                 if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
                 if (!verifyAdmin(req) && currentUser.id !== id) return res.status(403).json({ error: 'Forbidden' });
                 const hash = await bcrypt.hash(req.body.newPassword, 10);
-                await client.query('UPDATE app_users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [hash, id]);
-                await logAction(client, currentUser, 'CHANGE_PASSWORD', 'app_users', id as string, { targetUser: id }, req);
+                await client.query(`UPDATE ${tableName} SET password_hash = $1, must_change_password = FALSE WHERE id = $2`, [hash, id]);
+                await logAction(client, currentUser, 'CHANGE_PASSWORD', tableName, id as string, { targetUser: id }, req);
                 return res.status(200).json({ success: true });
             }
             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
             if (action === 'bulk_status_update' && method === 'PUT') {
-                const updateResult = await client.query(`UPDATE app_users SET is_active = $1 WHERE role = $2 AND username != 'admin'`, [req.body.isActive, req.body.role]);
-                await logAction(client, currentUser, 'BULK_UPDATE_USER_STATUS', 'app_users', null, req.body, req);
+                const updateResult = await client.query(`UPDATE ${tableName} SET is_active = $1 WHERE role = $2 AND username != 'admin'`, [req.body.isActive, req.body.role]);
+                await logAction(client, currentUser, 'BULK_UPDATE_USER_STATUS', tableName, null, req.body, req);
                 return res.status(200).json({ success: true, updatedCount: updateResult.rowCount });
             }
             if (action === 'bulk_password_reset' && method === 'POST') {
@@ -313,79 +358,100 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 for (const u of req.body.users) {
                     try {
                         const h = await bcrypt.hash(u.password, 10);
-                        const r = await client.query(`UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2 AND username != 'admin'`, [h, u.username]);
+                        const r = await client.query(`UPDATE ${tableName} SET password_hash = $1, must_change_password = TRUE WHERE username = $2 AND username != 'admin'`, [h, u.username]);
                         if (r.rowCount > 0) s++;
                     } catch (e) {}
                 }
                 await client.query('COMMIT');
                 return res.status(200).json({ success: true, successCount: s });
             }
-            if (method === 'GET') return res.status(200).json((await client.query('SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName" FROM app_users u LEFT JOIN resources r ON u.resource_id = r.id ORDER BY u.username')).rows.map(r => ({ ...r, isActive: r.is_active, resourceId: r.resource_id, mustChangePassword: r.must_change_password })));
+            if (method === 'GET') return res.status(200).json((await client.query(`SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName" FROM ${tableName} u LEFT JOIN resources r ON u.resource_id = r.id ORDER BY u.username`)).rows.map(r => ({ ...r, isActive: r.is_active, resourceId: r.resource_id, mustChangePassword: r.must_change_password })));
             if (method === 'POST') {
                 const { username, password, role, isActive, resourceId, mustChangePassword } = req.body;
-                const h = await bcrypt.hash(password, 10); const newId = uuidv4();
-                await client.query('INSERT INTO app_users (id, username, password_hash, role, is_active, resource_id, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7)', [newId, username, h, role, isActive, resourceId || null, mustChangePassword || false]);
-                return res.status(201).json({ id: newId });
+                const h = await bcrypt.hash(password || "Staffing2024!", 10); const newId = uuidv4();
+                await client.query(`INSERT INTO ${tableName} (id, username, password_hash, role, is_active, resource_id, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [newId, username, h, role, isActive, resourceId || null, mustChangePassword || false]);
+                return res.status(201).json({ id: newId, username, role, isActive, resourceId, mustChangePassword });
             }
             if (method === 'PUT') {
                 const { username, role, isActive, resourceId, mustChangePassword } = req.body;
-                await client.query('UPDATE app_users SET username=$1, role=$2, is_active=$3, resource_id=$4, must_change_password=$5 WHERE id=$6', [username, role, isActive, resourceId || null, mustChangePassword || false, id]);
+                await client.query(`UPDATE ${tableName} SET username=$1, role=$2, is_active=$3, resource_id=$4, must_change_password=$5 WHERE id=$6`, [username, role, isActive, resourceId || null, mustChangePassword || false, id]);
                 return res.status(200).json({ success: true });
             }
-            if (method === 'DELETE') { await client.query('DELETE FROM app_users WHERE id=$1', [id]); return res.status(204).end(); }
+            if (method === 'DELETE') { await client.query(`DELETE FROM ${tableName} WHERE id=$1`, [id]); return res.status(204).end(); }
         }
 
-        if (entity === 'role-permissions') {
-            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-            if (method === 'GET') return res.status(200).json((await client.query('SELECT * FROM role_permissions')).rows.map(r => ({ role: r.role, pagePath: r.page_path, allowed: r.is_allowed })));
-            if (method === 'POST') {
-                await client.query('BEGIN');
-                for (const p of req.body.permissions) await client.query(`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3) ON CONFLICT (role, page_path) DO UPDATE SET is_allowed = EXCLUDED.is_allowed`, [p.role, p.pagePath, p.allowed]);
-                await client.query('COMMIT');
-                return res.status(200).json({ success: true, permissions: (await client.query('SELECT * FROM role_permissions')).rows.map(r => ({ role: r.role, pagePath: r.page_path, allowed: r.is_allowed })) });
-            }
-        }
-
-        const validTables = ['resources', 'projects', 'clients', 'company_calendar', 'interviews', 'contracts', 'resource_skills', 'project_skills', 'skill_macro_categories'];
-        if (validTables.includes(entity as string)) {
+        const validTables = ['resources', 'projects', 'clients', 'company_calendar', 'interviews', 'contracts', 'resource_skills', 'project_skills', 'skill_macro_categories', 'leaves', 'leave_types', 'role_permissions', 'contract_projects', 'contract_managers', 'roles', 'skills', 'skill_categories'];
+        if (validTables.includes(entity as string) || TABLE_MAPPING[entity as string]) {
             const writeMethods = ['POST', 'PUT', 'DELETE'];
-            if (writeMethods.includes(method) && (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role))) return res.status(403).json({ error: 'Unauthorized' });
+            
+            // Check Permissions
+            if (writeMethods.includes(method)) {
+                if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
+                
+                const isOperational = OPERATIONAL_ROLES.includes(currentUser.role);
+                // Allow 'SIMPLE' role (or any authenticated user) to manage leaves, consistent with typical self-service usage.
+                // Stricter logic can be applied if needed (e.g. only own leaves), but basic access is required here.
+                const isLeaves = entity === 'leaves' || entity === 'leave_requests';
+                
+                if (!isOperational && !isLeaves) {
+                     return res.status(403).json({ error: 'Unauthorized' });
+                }
+            }
+            
+            // Determina il nome effettivo della tabella nel database
+            const tableName = TABLE_MAPPING[entity as string] || (entity as string);
+
             if (method === 'POST') {
                 const keys = Object.keys(req.body); const values = Object.values(req.body);
                 const toSnake = (s: string) => s.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`);
                 const dbKeys = keys.map(toSnake);
-                if (entity === 'resource_skills' || entity === 'project_skills') {
-                    const ct = entity === 'resource_skills' ? '(resource_id, skill_id)' : '(project_id, skill_id)';
+                
+                // Gestione tabelle associative con chiavi composte
+                const compositeKeyTables: Record<string, string> = {
+                    'resource_skills': '(resource_id, skill_id)',
+                    'project_skills': '(project_id, skill_id)',
+                    'role_permissions': '(role, page_path)',
+                    'contract_projects': '(contract_id, project_id)',
+                    'contract_managers': '(contract_id, resource_id)'
+                };
+
+                if (compositeKeyTables[tableName]) {
+                    const ct = compositeKeyTables[tableName];
                     const ph = values.map((_, i) => `$${i + 1}`).join(',');
-                    const uc = dbKeys.filter(k => !['resource_id', 'skill_id', 'project_id'].includes(k)).map(k => `${k} = EXCLUDED.${k}`).join(', ');
-                    let q = `INSERT INTO ${entity} (${dbKeys.join(',')}) VALUES (${ph})`;
+                    const uc = dbKeys.filter(k => !ct.includes(k)).map(k => `${k} = EXCLUDED.${k}`).join(', ');
+                    let q = `INSERT INTO ${tableName} (${dbKeys.join(',')}) VALUES (${ph})`;
                     q += uc.length > 0 ? ` ON CONFLICT ${ct} DO UPDATE SET ${uc}` : ` ON CONFLICT ${ct} DO NOTHING`;
                     const { rows } = await client.query(q + ' RETURNING *', values);
-                    await logAction(client, currentUser, `UPSERT_${(entity as string).toUpperCase()}`, entity as string, null, req.body, req);
-                    const toCamel = (o: any) => { if (!o) return {}; const n: any = {}; for (const k in o) n[k.replace(/(_\w)/g, m => m[1].toUpperCase())] = o[k]; return n; };
-                    return res.status(201).json(rows[0] ? toCamel(rows[0]) : {});
+                    await logAction(client, currentUser, `UPSERT_${tableName.toUpperCase()}`, tableName, null, req.body, req);
+                    return res.status(201).json(rows[0] ? toCamelAndNormalize(rows[0]) : {});
                 }
-                if (!keys.includes('id')) { keys.push('id'); dbKeys.push('id'); values.push(uuidv4()); }
-                const { rows } = await client.query(`INSERT INTO ${entity} (${dbKeys.join(',')}) VALUES (${values.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, values);
-                await logAction(client, currentUser, `CREATE_${(entity as string).toUpperCase()}`, entity as string, rows[0]?.id, req.body, req);
-                const toCamel = (o: any) => { const n: any = {}; for (const k in o) n[k.replace(/(_\w)/g, m => m[1].toUpperCase())] = o[k]; return n; };
-                return res.status(201).json(toCamel(rows[0]));
+                
+                if (!keys.includes('id')) { 
+                    keys.push('id'); 
+                    dbKeys.push('id'); 
+                    values.push(uuidv4()); 
+                }
+                
+                const { rows } = await client.query(`INSERT INTO ${tableName} (${dbKeys.join(',')}) VALUES (${values.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, values);
+                await logAction(client, currentUser, `CREATE_${tableName.toUpperCase()}`, tableName, rows[0]?.id, req.body, req);
+                return res.status(201).json(toCamelAndNormalize(rows[0]));
             }
             if (method === 'PUT' && id) {
                 const setClauses = []; const values = []; let idx = 1;
                 for (const [k, v] of Object.entries(req.body)) { if (k === 'id') continue; setClauses.push(`${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${idx++}`); values.push(v); }
                 if (setClauses.length === 0) return res.status(200).json(req.body);
                 values.push(id);
-                const { rows } = await client.query(`UPDATE ${entity} SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`, values);
-                await logAction(client, currentUser, `UPDATE_${(entity as string).toUpperCase()}`, entity as string, id as string, req.body, req);
-                const toCamel = (o: any) => { const n: any = {}; for (const k in o) n[k.replace(/(_\w)/g, m => m[1].toUpperCase())] = o[k]; return n; };
-                return res.status(200).json(toCamel(rows[0]));
+                const { rows } = await client.query(`UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = $${idx} RETURNING *`, values);
+                await logAction(client, currentUser, `UPDATE_${tableName.toUpperCase()}`, tableName, id as string, req.body, req);
+                return res.status(200).json(toCamelAndNormalize(rows[0]));
             }
             if (method === 'DELETE') {
-                if (id) await client.query(`DELETE FROM ${entity} WHERE id = $1`, [id]);
-                else if (entity === 'resource_skills') await client.query(`DELETE FROM resource_skills WHERE resource_id = $1 AND skill_id = $2`, [req.query.resourceId, req.query.skillId]);
-                else if (entity === 'project_skills') await client.query(`DELETE FROM project_skills WHERE project_id = $1 AND skill_id = $2`, [req.query.projectId, req.query.skillId]);
-                await logAction(client, currentUser, `DELETE_${(entity as string).toUpperCase()}`, entity as string, id as string, {}, req);
+                if (id) await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
+                else if (tableName === 'resource_skills') await client.query(`DELETE FROM resource_skills WHERE resource_id = $1 AND skill_id = $2`, [req.query.resourceId, req.query.skillId]);
+                else if (tableName === 'project_skills') await client.query(`DELETE FROM project_skills WHERE project_id = $1 AND skill_id = $2`, [req.query.projectId, req.query.skillId]);
+                else if (tableName === 'contract_projects') await client.query(`DELETE FROM contract_projects WHERE contract_id = $1 AND project_id = $2`, [req.query.contractId, req.query.projectId]);
+                else if (tableName === 'contract_managers') await client.query(`DELETE FROM contract_managers WHERE contract_id = $1 AND resource_id = $2`, [req.query.contractId, req.query.resourceId]);
+                await logAction(client, currentUser, `DELETE_${tableName.toUpperCase()}`, tableName, id as string, {}, req);
                 return res.status(204).end();
             }
         }

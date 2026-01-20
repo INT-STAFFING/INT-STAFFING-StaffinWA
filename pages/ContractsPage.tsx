@@ -1,3 +1,4 @@
+
 /**
  * @file ContractsPage.tsx
  * @description Pagina per la gestione dei contratti (CRUD e visualizzazione).
@@ -13,7 +14,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -182,11 +183,11 @@ export const ContractsPage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 bg-inherit">{col.cell(contract)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-3">
-                    <button onClick={() => recalculateContractBacklog(contract.id!)} className="text-gray-500 hover:text-blue-600 disabled:opacity-50" title="Ricalcola Backlog" disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}>
+                    <button onClick={() => recalculateContractBacklog(contract.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Ricalcola Backlog" disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}>
                         {isActionLoading(`recalculateBacklog-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">refresh</span>}
                     </button>
-                    <button onClick={() => openModalForEdit(contract)} className="text-gray-500 hover:text-blue-600" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => setContractToDelete(contract)} className="text-gray-500 hover:text-red-600" title="Elimina">
+                    <button onClick={() => openModalForEdit(contract)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                    <button onClick={() => setContractToDelete(contract)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina">
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
@@ -223,7 +224,7 @@ export const ContractsPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <input type="text" name="cig" value={filters.cig} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per CIG..."/>
-            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">Reset</button>
+            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
     
@@ -261,46 +262,91 @@ export const ContractsPage: React.FC = () => {
                 tableClassNames={{ base: 'w-full text-sm' }}
                 numActions={3} // RICALCOLA, MODIFICA, ELIMINA
             />
+
             {editingContract && (
-                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingContract ? 'Modifica Contratto' : 'Nuovo Contratto'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* form content here */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Nome Contratto *</label><input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input"/></div>
-                            <div><label className="block text-sm font-medium mb-1">Capienza (€) *</label><input type="number" name="capienza" value={editingContract.capienza} onChange={handleChange} required className="form-input" step="0.01"/></div>
+                <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingContract ? 'Modifica Contratto' : 'Aggiungi Contratto'}>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        
+                        {/* Sezione Identità Contratto */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">description</span> Definizione Contratto
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Contratto *</label>
+                                    <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input" placeholder="es. Accordo Quadro 2024" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">CIG *</label>
+                                        <input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input" placeholder="Codice CIG" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">CIG Derivato</label>
+                                        <input type="text" name="cigDerivato" value={editingContract.cigDerivato || ''} onChange={handleChange} className="form-input" placeholder="Opzionale" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">CIG *</label><input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input"/></div>
-                            <div><label className="block text-sm font-medium mb-1">CIG Derivato</label><input type="text" name="cigDerivato" value={editingContract.cigDerivato || ''} onChange={handleChange} className="form-input"/></div>
+
+                        {/* Sezione Economica e Temporale */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">payments</span> Parametri Economici & Tempi
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Capienza (€) *</label>
+                                    <input type="number" name="capienza" value={editingContract.capienza} onChange={handleChange} required className="form-input" step="0.01" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>
+                                        <input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className="form-input"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label>
+                                        <input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className="form-input"/>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div><label className="block text-sm font-medium mb-1">Data Inizio</label><input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className="form-input"/></div>
-                             <div><label className="block text-sm font-medium mb-1">Data Fine</label><input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className="form-input"/></div>
+
+                        {/* Sezione Associazioni */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">group_add</span> Associazioni & Team
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Progetti Collegati</label>
+                                    <MultiSelectDropdown name="projects" selectedValues={associatedProjectIds} onChange={(_, values) => setAssociatedProjectIds(values)} options={projectOptions} placeholder="Seleziona progetti..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Manager Responsabili</label>
+                                    <MultiSelectDropdown name="managers" selectedValues={associatedManagerIds} onChange={(_, values) => setAssociatedManagerIds(values)} options={resourceOptions} placeholder="Seleziona manager..." />
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Progetti Collegati</label>
-                            <MultiSelectDropdown name="projects" selectedValues={associatedProjectIds} onChange={(_, values) => setAssociatedProjectIds(values)} options={projectOptions} placeholder="Seleziona progetti" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Manager Collegati</label>
-                            <MultiSelectDropdown name="managers" selectedValues={associatedManagerIds} onChange={(_, values) => setAssociatedManagerIds(values)} options={resourceOptions} placeholder="Seleziona manager" />
-                        </div>
+
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">
-                                {(isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
+                                {(isActionLoading('addContract') || isActionLoading(`updateContract-${'id' in editingContract ? editingContract.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva Contratto'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
+
             {contractToDelete && (
                 <ConfirmationModal
                     isOpen={!!contractToDelete}
                     onClose={() => setContractToDelete(null)}
                     onConfirm={handleDelete}
                     title="Elimina Contratto"
-                    message={`Sei sicuro di voler eliminare il contratto ${contractToDelete.name}?`}
+                    message={`Sei sicuro di voler eliminare il contratto ${contractToDelete.name}? Questa azione non eliminerà i progetti associati, ma rimuoverà il loro collegamento finanziario.`}
                     isConfirming={isActionLoading(`deleteContract-${contractToDelete.id}`)}
                 />
             )}

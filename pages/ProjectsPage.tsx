@@ -1,9 +1,4 @@
 
-/**
- * @file ProjectsPage.tsx
- * @description Pagina per la gestione dei progetti (CRUD e visualizzazione).
- */
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Project } from '../types';
@@ -15,7 +10,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 
 type EnrichedProject = Project & { 
@@ -394,55 +389,83 @@ const ProjectsPage: React.FC = () => {
 
             {editingProject && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingProject ? 'Modifica Progetto' : 'Aggiungi Progetto'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Progetto *</label>
-                            <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="form-input" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente *</label>
-                            <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona cliente" required />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>
-                                <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="form-input" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label>
-                                <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="form-input" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Budget *</label>
-                                <input type="number" name="budget" value={editingProject.budget} onChange={handleChange} required className="form-input" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-on-surface-variant mb-1">Realization %</label>
-                                <input type="number" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="form-input" />
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        
+                        {/* Sezione Dati Base */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">business_center</span> Dati Base
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Progetto *</label>
+                                    <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="form-input" placeholder="Nome descrittivo progetto" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente *</label>
+                                    <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona cliente" required />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
+                                    <SearchableSelect name="projectManager" value={editingProject.projectManager || ''} onChange={handleSelectChange} options={projectManagerOptions} placeholder="Seleziona PM" />
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
-                            <SearchableSelect name="projectManager" value={editingProject.projectManager || ''} onChange={handleSelectChange} options={projectManagerOptions} placeholder="Seleziona PM" />
+
+                        {/* Sezione Pianificazione e Budget */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">payments</span> Pianificazione & Budget
+                            </h4>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>
+                                        <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="form-input" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label>
+                                        <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="form-input" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Budget (€) *</label>
+                                        <input type="number" name="budget" value={editingProject.budget} onChange={handleChange} required className="form-input" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Realization (%)</label>
+                                        <input type="number" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="form-input" min="0" max="200" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato</label>
+                                    <SearchableSelect name="status" value={editingProject.status || ''} onChange={handleSelectChange} options={statusOptions} placeholder="Seleziona stato" />
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato</label>
-                            <SearchableSelect name="status" value={editingProject.status || ''} onChange={handleSelectChange} options={statusOptions} placeholder="Seleziona stato" />
+
+                        {/* Sezione Associazioni */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">link</span> Associazioni & Note
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Contratto Quadro</label>
+                                    <SearchableSelect name="contractId" value={editingProject.contractId || ''} onChange={handleSelectChange} options={contractOptions} placeholder="Seleziona contratto" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Skill Richieste</label>
+                                    <MultiSelectDropdown name="skills" selectedValues={selectedSkills} onChange={(_, values) => setSelectedSkills(values)} options={skillOptions} placeholder="Seleziona skill richieste..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Note Progetto</label>
+                                    <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} className="form-textarea" rows={3} placeholder="Dettagli aggiuntivi sul progetto..."></textarea>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Contratto</label>
-                            <SearchableSelect name="contractId" value={editingProject.contractId || ''} onChange={handleSelectChange} options={contractOptions} placeholder="Seleziona contratto" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
-                            <textarea name="notes" value={editingProject.notes || ''} onChange={handleChange} className="form-textarea" rows={2}></textarea>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Skill Richieste</label>
-                            <MultiSelectDropdown name="skills" selectedValues={selectedSkills} onChange={(_, values) => setSelectedSkills(values)} options={skillOptions} placeholder="Seleziona skill" />
-                        </div>
+
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>
                             <button type="submit" disabled={isActionLoading('addProject') || isActionLoading(`updateProject-${'id' in editingProject ? editingProject.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90">

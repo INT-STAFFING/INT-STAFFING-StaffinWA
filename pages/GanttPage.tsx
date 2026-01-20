@@ -8,7 +8,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
 
 type ZoomLevel = 'month' | 'quarter' | 'year';
 type SortDirection = 'ascending' | 'descending';

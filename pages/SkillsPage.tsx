@@ -65,7 +65,6 @@ const SkillsPage: React.FC = () => {
     });
 
     // Filter State
-    // Removed isCertification filter as this page is for skills only
     const [filters, setFilters] = useState({ name: '', category: '', macroCategory: '', unusedOnly: false });
 
     const emptySkill: Omit<Skill, 'id'> = {
@@ -77,7 +76,6 @@ const SkillsPage: React.FC = () => {
     // --- Data Processing ---
 
     const enrichedSkills = useMemo<EnrichedSkill[]>(() => {
-        // FILTER: Only show non-certifications
         const skillsOnly = skills.filter(s => !s.isCertification);
 
         const resCountMap = new Map<string, number>();
@@ -104,18 +102,13 @@ const SkillsPage: React.FC = () => {
 
     const kpis = useMemo(() => {
         const totalSkills = enrichedSkills.length;
-        
-        // Count distinct categories used
         const usedCats = new Set();
         enrichedSkills.forEach(s => s.categoryIds?.forEach(id => usedCats.add(id)));
         const totalCategories = usedCats.size;
 
-        // Most popular Macro Category
         const macroCounts: Record<string, number> = {};
-
         enrichedSkills.forEach(s => {
             if (s.macroCategory) {
-                // macroCategory is a comma joined string now, split it to count accurately
                 s.macroCategory.split(', ').forEach(m => {
                     macroCounts[m] = (macroCounts[m] || 0) + 1;
                 });
@@ -123,8 +116,6 @@ const SkillsPage: React.FC = () => {
         });
         const topMacroEntry = Object.entries(macroCounts).sort((a, b) => b[1] - a[1])[0];
         const topMacroCategory = topMacroEntry ? `${topMacroEntry[0]} (${topMacroEntry[1]})` : 'N/A';
-
-        // Unused skills
         const unusedSkills = enrichedSkills.filter(s => s.totalUsage === 0).length;
 
         return { totalSkills, totalCategories, topMacroCategory, unusedSkills };
@@ -135,16 +126,13 @@ const SkillsPage: React.FC = () => {
             const nameMatch = s.name.toLowerCase().includes(filters.name.toLowerCase());
             const catMatch = !filters.category || (s.category && s.category.includes(filters.category));
             const macroMatch = !filters.macroCategory || (s.macroCategory && s.macroCategory.includes(filters.macroCategory));
-            
             const unusedMatch = !filters.unusedOnly || s.totalUsage === 0;
-            
             return nameMatch && catMatch && macroMatch && unusedMatch;
         });
     }, [enrichedSkills, filters]);
 
     const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillCategories]);
     
-    // Filter options based on strings from the current visible set (enrichedSkills already filtered by !isCertification)
     const categoryFilterOptions = useMemo(() => {
         const cats = Array.from(new Set(skills.filter(s => !s.isCertification).flatMap(s => s.category?.split(', ') || []).filter(Boolean)));
         return cats.sort().map(c => ({ value: c as string, label: c as string }));
@@ -157,7 +145,6 @@ const SkillsPage: React.FC = () => {
 
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     
-    // Updated skillOptions with disambiguation, only showing non-certs
     const skillOptions = useMemo(() => skills.filter(s => !s.isCertification).map(s => ({ 
         value: s.id!, 
         label: `${s.name} (${s.category || 'N/A'})` 
@@ -188,11 +175,10 @@ const SkillsPage: React.FC = () => {
         if (!editingSkill) return;
 
         try {
-            // Send IDs
             const payload: any = {
                 name: editingSkill.name,
                 categoryIds: editingSkill.categoryIds,
-                isCertification: false // Force false for this page
+                isCertification: false
             };
 
             if ('id' in editingSkill && editingSkill.id) {
@@ -205,7 +191,6 @@ const SkillsPage: React.FC = () => {
             }
             handleCloseModal();
         } catch (error) {
-            console.error("Failed to save skill:", error);
             addToast('Errore durante il salvataggio.', 'error');
         }
     };
@@ -215,18 +200,13 @@ const SkillsPage: React.FC = () => {
         try {
             await deleteSkill(skillToDelete.id!);
             setSkillToDelete(null);
-        } catch (error) {
-            // Error handled by context toast
-        }
+        } catch (error) {}
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!editingSkill) return;
         const { name, value } = e.target;
-        setEditingSkill({ 
-            ...editingSkill, 
-            [name]: value 
-        });
+        setEditingSkill({ ...editingSkill, [name]: value });
     };
 
     const handleCategoryChange = (name: string, selectedIds: string[]) => {
@@ -251,12 +231,10 @@ const SkillsPage: React.FC = () => {
     const handleAssignmentSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const { selectedResourceIds, selectedSkillIds, acquisitionDate, expirationDate, level } = assignmentData;
-
         if (selectedResourceIds.length === 0 || selectedSkillIds.length === 0) {
             addToast('Seleziona almeno una risorsa e una competenza.', 'error');
             return;
         }
-
         try {
             const promises = [];
             for (const resourceId of selectedResourceIds) {
@@ -348,55 +326,32 @@ const SkillsPage: React.FC = () => {
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-3">
-                <input 
-                    type="text" 
-                    placeholder="Cerca per nome..." 
-                    className="form-input w-full"
-                    value={filters.name}
-                    onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}
-                />
+                <input type="text" placeholder="Cerca per nome..." className="form-input w-full" value={filters.name} onChange={e => setFilters(prev => ({ ...prev, name: e.target.value }))}/>
             </div>
             <div className="md:col-span-2">
-                <SearchableSelect 
-                    name="macroCategory" 
-                    value={filters.macroCategory} 
-                    onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} 
-                    options={macroCategoryFilterOptions} 
-                    placeholder="Macro Ambito"
-                />
+                <SearchableSelect name="macroCategory" value={filters.macroCategory} onChange={(_, v) => setFilters(prev => ({ ...prev, macroCategory: v }))} options={macroCategoryFilterOptions} placeholder="Macro Ambito"/>
             </div>
             <div className="md:col-span-2">
-                <SearchableSelect 
-                    name="category" 
-                    value={filters.category} 
-                    onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} 
-                    options={categoryFilterOptions} 
-                    placeholder="Ambito"
-                />
+                <SearchableSelect name="category" value={filters.category} onChange={(_, v) => setFilters(prev => ({ ...prev, category: v }))} options={categoryFilterOptions} placeholder="Ambito"/>
             </div>
-            
             <div className="md:col-span-2">
                  <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
                     <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
                     <button onClick={() => setView('card')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'card' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Card</button>
                 </div>
             </div>
-
             <div className="md:col-span-3 flex gap-2 justify-end">
                  <button onClick={() => openAssignmentModal(null)} className="px-3 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2" title="Assegnazione Massiva">
                     <span className="material-symbols-outlined text-lg">group_add</span>
                     <span className="hidden xl:inline text-sm">Assegna</span>
                 </button>
-                <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">
-                    Reset
-                </button>
+                <button onClick={() => setFilters({ name: '', category: '', macroCategory: '', unusedOnly: false })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
             </div>
         </div>
     );
 
     return (
         <div className="space-y-6">
-            {/* Dashboard Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-primary">
                     <p className="text-sm text-on-surface-variant">Totale Skills</p>
@@ -406,10 +361,7 @@ const SkillsPage: React.FC = () => {
                     <p className="text-sm text-on-surface-variant">Top Macro Ambito</p>
                     <p className="text-xl font-bold text-on-surface truncate" title={kpis.topMacroCategory}>{kpis.topMacroCategory}</p>
                 </div>
-                <div 
-                    className={`bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error cursor-pointer hover:shadow-lg transition-all ${filters.unusedOnly ? 'ring-2 ring-error' : ''}`}
-                    onClick={() => setFilters(prev => ({ ...prev, unusedOnly: !prev.unusedOnly }))}
-                >
+                <div className={`bg-surface-container-low p-5 rounded-2xl shadow border-l-4 border-error cursor-pointer hover:shadow-lg transition-all ${filters.unusedOnly ? 'ring-2 ring-error' : ''}`} onClick={() => setFilters(prev => ({ ...prev, unusedOnly: !prev.unusedOnly }))}>
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-sm text-on-surface-variant">Inutilizzate</p>
@@ -417,11 +369,9 @@ const SkillsPage: React.FC = () => {
                         </div>
                         {filters.unusedOnly && <span className="material-symbols-outlined text-error">filter_alt</span>}
                     </div>
-                    {filters.unusedOnly && <p className="text-xs text-error mt-1 font-medium">Filtro attivo</p>}
                 </div>
             </div>
 
-            {/* Content */}
              {view === 'table' ? (
                  <DataTable<EnrichedSkill>
                     title="Gestione Competenze"
@@ -436,11 +386,10 @@ const SkillsPage: React.FC = () => {
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    numActions={3} // ASSEGNA, MODIFICA, ELIMINA
+                    numActions={3}
                 />
             ) : (
                 <>
-                    {/* Header Manuale per vista Card */}
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <h1 className="text-3xl font-bold text-on-surface">Gestione Competenze</h1>
                         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -448,12 +397,7 @@ const SkillsPage: React.FC = () => {
                             <ExportButton data={filteredSkills} title="Gestione Competenze" />
                         </div>
                     </div>
-
-                    {/* Filtri manuali per vista Card */}
-                    <div className="bg-surface rounded-2xl shadow p-4">
-                        {filtersNode}
-                    </div>
-
+                    <div className="bg-surface rounded-2xl shadow p-4">{filtersNode}</div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {filteredSkills.map(renderCard)}
                         {filteredSkills.length === 0 && <p className="col-span-full text-center py-8 text-on-surface-variant">Nessuna skill trovata.</p>}
@@ -461,130 +405,91 @@ const SkillsPage: React.FC = () => {
                 </>
             )}
 
-            {/* Add/Edit Skill Modal */}
             {isModalOpen && editingSkill && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingSkill ? 'Modifica Competenza' : 'Nuova Competenza'}>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome Competenza *</label>
-                            <input 
-                                type="text" 
-                                name="name" 
-                                value={editingSkill.name} 
-                                onChange={handleInputChange} 
-                                required 
-                                className="form-input"
-                                placeholder="es. React, Project Management..."
-                            />
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">school</span> Info Base
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Nome Competenza *</label>
+                                    <input type="text" name="name" value={editingSkill.name} onChange={handleInputChange} required className="form-input" placeholder="es. React, Node.js..."/>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambiti (Categorie)</label>
-                            <MultiSelectDropdown 
-                                name="categoryIds" 
-                                selectedValues={editingSkill.categoryIds || []} 
-                                onChange={handleCategoryChange} 
-                                options={categoryOptions} 
-                                placeholder="Seleziona Ambiti..."
-                            />
-                            <p className="text-xs text-on-surface-variant mt-1">Puoi gestire le opzioni in "Opzioni - Configurazione Competenze"</p>
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">category</span> Classificazione
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Ambiti (Categorie)</label>
+                                    <MultiSelectDropdown name="categoryIds" selectedValues={editingSkill.categoryIds || []} onChange={handleCategoryChange} options={categoryOptions} placeholder="Seleziona Ambiti..."/>
+                                </div>
+                            </div>
                         </div>
 
-                         <div className="flex justify-end space-x-3 pt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
-                                Annulla
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={isActionLoading('addSkill') || isActionLoading(`updateSkill-${'id' in editingSkill ? editingSkill.id : ''}`)}
-                                className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                            >
-                                {isActionLoading('addSkill') || isActionLoading(`updateSkill-${'id' in editingSkill ? editingSkill.id : ''}`) ? (
-                                <SpinnerIcon className="w-5 h-5" />
-                                ) : (
-                                'Salva'
-                                )}
+                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
+                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addSkill') || isActionLoading(`updateSkill-${'id' in editingSkill ? editingSkill.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
+                                {(isActionLoading('addSkill') || isActionLoading(`updateSkill-${'id' in editingSkill ? editingSkill.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
             
-            {/* Assignment Modal */}
             {isAssignmentModalOpen && (
                 <Modal isOpen={isAssignmentModalOpen} onClose={() => setIsAssignmentModalOpen(false)} title={assignmentData.targetSkill ? `Assegna ${assignmentData.targetSkill.name}` : 'Assegnazione Competenze Massiva'}>
-                    <form onSubmit={handleAssignmentSubmit} className="space-y-4 flex flex-col h-[70vh]">
-                        <div className="flex-grow space-y-4 overflow-y-auto p-1">
+                    <form onSubmit={handleAssignmentSubmit} className="space-y-6 flex flex-col h-[70vh]">
+                        <div className="flex-grow space-y-6 overflow-y-auto px-1">
                              {!assignmentData.targetSkill && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Competenze da Assegnare</label>
-                                    <MultiSelectDropdown 
-                                        name="selectedSkillIds" 
-                                        selectedValues={assignmentData.selectedSkillIds} 
-                                        onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedSkillIds: v }))} 
-                                        options={skillOptions} 
-                                        placeholder="Seleziona una o più skills..."
-                                    />
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">list_alt</span> Competenze
+                                    </h4>
+                                    <MultiSelectDropdown name="selectedSkillIds" selectedValues={assignmentData.selectedSkillIds} onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedSkillIds: v }))} options={skillOptions} placeholder="Seleziona skills..."/>
                                 </div>
                             )}
                             
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Risorse Destinatarie</label>
-                                <MultiSelectDropdown 
-                                    name="selectedResourceIds" 
-                                    selectedValues={assignmentData.selectedResourceIds} 
-                                    onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedResourceIds: v }))} 
-                                    options={resourceOptions} 
-                                    placeholder="Seleziona una o più risorse..."
-                                />
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">group_add</span> Risorse
+                                </h4>
+                                <MultiSelectDropdown name="selectedResourceIds" selectedValues={assignmentData.selectedResourceIds} onChange={(_, v) => setAssignmentData(prev => ({ ...prev, selectedResourceIds: v }))} options={resourceOptions} placeholder="Seleziona risorse..."/>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-on-surface-variant">Livello Competenza</label>
-                                <select 
-                                    className="form-select"
-                                    value={assignmentData.level}
-                                    onChange={(e) => setAssignmentData(prev => ({ ...prev, level: parseInt(e.target.value, 10) }))}
-                                >
-                                    {Object.entries(SKILL_LEVELS).map(([val, label]) => (
-                                        <option key={val} value={val}>{label}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Conseguimento</label>
-                                    <input 
-                                        type="date" 
-                                        className="form-input"
-                                        value={assignmentData.acquisitionDate}
-                                        onChange={e => setAssignmentData(prev => ({ ...prev, acquisitionDate: e.target.value }))}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Scadenza</label>
-                                    <input 
-                                        type="date" 
-                                        className="form-input"
-                                        value={assignmentData.expirationDate}
-                                        onChange={e => setAssignmentData(prev => ({ ...prev, expirationDate: e.target.value }))}
-                                    />
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">tune</span> Dettagli Assegnazione
+                                </h4>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1 text-on-surface-variant">Livello Competenza</label>
+                                        <select className="form-select" value={assignmentData.level} onChange={(e) => setAssignmentData(prev => ({ ...prev, level: parseInt(e.target.value, 10) }))}>
+                                            {Object.entries(SKILL_LEVELS).map(([val, label]) => (<option key={val} value={val}>{label}</option>))}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Conseguimento</label>
+                                            <input type="date" className="form-input" value={assignmentData.acquisitionDate} onChange={e => setAssignmentData(prev => ({ ...prev, acquisitionDate: e.target.value }))}/>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1 text-on-surface-variant">Data Scadenza</label>
+                                            <input type="date" className="form-input" value={assignmentData.expirationDate} onChange={e => setAssignmentData(prev => ({ ...prev, expirationDate: e.target.value }))}/>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex justify-end space-x-3 pt-4 flex-shrink-0">
-                             <button type="button" onClick={() => setIsAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">
-                                Annulla
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={assignmentData.selectedResourceIds.length === 0 || assignmentData.selectedSkillIds.length === 0}
-                                className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                            >
-                                Assegna
-                            </button>
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-auto">
+                             <button type="button" onClick={() => setIsAssignmentModalOpen(false)} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                            <button type="submit" disabled={assignmentData.selectedResourceIds.length === 0 || assignmentData.selectedSkillIds.length === 0} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full font-semibold hover:opacity-90 shadow-sm transition-all">Assegna</button>
                         </div>
                     </form>
                 </Modal>
@@ -596,13 +501,7 @@ const SkillsPage: React.FC = () => {
                     onClose={() => setSkillToDelete(null)}
                     onConfirm={handleDelete}
                     title="Conferma Eliminazione"
-                    message={
-                        <>
-                            Sei sicuro di voler eliminare la competenza <strong>{skillToDelete.name}</strong>?
-                            <br/>
-                            <span className="text-error text-sm">Verrà rimossa da {skillToDelete.resourceCount} risorse e {skillToDelete.projectCount} progetti.</span>
-                        </>
-                    }
+                    message={<>Sei sicuro di voler eliminare <strong>{skillToDelete.name}</strong>?<br/><span className="text-error text-sm">Verrà rimossa da {skillToDelete.resourceCount} risorse e {skillToDelete.projectCount} progetti.</span></>}
                     isConfirming={isActionLoading(`deleteSkill-${skillToDelete.id}`)}
                 />
             )}

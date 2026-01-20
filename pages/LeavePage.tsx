@@ -1,9 +1,4 @@
 
-/**
- * @file LeavePage.tsx
- * @description Pagina per la gestione delle richieste di ferie e assenze.
- */
-
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -481,45 +476,64 @@ const LeavePage: React.FC = () => {
             {/* Edit Modal */}
             {isModalOpen && editingRequest && (
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
-                    <form onSubmit={handleSave} className="space-y-4">
-                        {!('id' in editingRequest) && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Risorsa Richiedente</label>
-                                <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona risorsa..." required/>
+                    <form onSubmit={handleSave} className="space-y-6">
+                        {/* Sezione Dettagli Assenza */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">event_busy</span> Dettagli Assenza
+                            </h4>
+                            <div className="space-y-4">
+                                {!('id' in editingRequest) && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Risorsa Richiedente</label>
+                                        <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona risorsa..." required/>
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Tipologia Assenza</label>
+                                    <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={handleSelectChange} options={typeOptions} placeholder="Seleziona tipo..." required/>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-sm font-medium mb-1">Data Inizio</label><input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/></div>
+                                    <div><label className="block text-sm font-medium mb-1">Data Fine</label><input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/></div>
+                                </div>
+                                <div className="flex items-center gap-2 bg-surface p-2 rounded border border-outline-variant">
+                                    <input type="checkbox" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox"/>
+                                    <label className="text-sm font-medium">Mezza Giornata (0.5 gg)</label>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Note / Motivazione</label>
+                                    <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3} placeholder="Dettagli aggiuntivi..."></textarea>
+                                </div>
                             </div>
-                        )}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Tipologia Assenza</label>
-                            <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={handleSelectChange} options={typeOptions} placeholder="Seleziona tipo..." required/>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-medium mb-1">Data Inizio</label><input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/></div>
-                            <div><label className="block text-sm font-medium mb-1">Data Fine</label><input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/></div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <input type="checkbox" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox"/>
-                            <label className="text-sm">Mezza Giornata (0.5 gg)</label>
-                        </div>
-                        {isAdmin && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Stato</label>
-                                <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
-                                    {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                </select>
+
+                        {/* Sezione Workflow Approvativo */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg">fact_check</span> Workflow & Approvazione
+                            </h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Invia richiesta a (Manager Approvatori)</label>
+                                    <MultiSelectDropdown name="approverIds" selectedValues={editingRequest.approverIds || []} onChange={handleApproversChange} options={managerOptions} placeholder="Seleziona Manager..."/>
+                                    <p className="text-[10px] text-on-surface-variant mt-1 italic">La richiesta verrà inviata a tutti i manager selezionati.</p>
+                                </div>
+                                {isAdmin && (
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Stato Forzato (Admin Only)</label>
+                                        <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
+                                            {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Richiedi Approvazione a (Opzionale)</label>
-                            <MultiSelectDropdown name="approverIds" selectedValues={editingRequest.approverIds || []} onChange={handleApproversChange} options={managerOptions} placeholder="Seleziona Manager..."/>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1">Note</label>
-                            <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3}></textarea>
-                        </div>
+
                         <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-outline rounded-full text-primary font-semibold">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-4 py-2 bg-primary text-on-primary rounded-full font-semibold disabled:opacity-50">
-                                {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 border border-outline rounded-full text-primary font-semibold transition-colors">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold disabled:opacity-50 hover:opacity-90 shadow-sm">
+                                {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-5 h-5"/> : 'Invia Richiesta'}
                             </button>
                         </div>
                     </form>

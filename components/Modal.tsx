@@ -1,3 +1,4 @@
+
 /**
  * @file Modal.tsx
  * @description Componente generico per la visualizzazione di finestre modali.
@@ -42,7 +43,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-scrim bg-opacity-50 p-4 animate-fade-in"
-            onClick={onClose}
+            // Rimossa la chiusura al click sul backdrop per evitare perdita di dati
+            // onClick={onClose} 
             role="presentation"
         >
             <div
