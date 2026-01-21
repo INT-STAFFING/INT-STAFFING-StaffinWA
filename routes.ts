@@ -1,6 +1,6 @@
 
 import { lazy } from 'react';
-import type { UserRole } from '../types';
+import type { UserRole } from './types';
 
 export type RouteFeatureFlag = 'pageVisibility';
 
@@ -28,7 +28,7 @@ export const routesManifest: AppRoute[] = [
         label: 'Login',
         icon: 'login',
         requiresAuth: false,
-        component: createLazyPage(() => import('../pages/LoginPage')),
+        component: createLazyPage(() => import('./pages/LoginPage')),
     },
     {
         path: '/dashboard',
@@ -38,7 +38,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         showInBottomNav: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/DashboardPage')),
+        component: createLazyPage(() => import('./pages/DashboardPage')),
     },
     {
         path: '/notifications',
@@ -47,7 +47,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Principale',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/NotificationsPage')),
+        component: createLazyPage(() => import('./pages/NotificationsPage')),
     },
     {
         path: '/staffing',
@@ -57,7 +57,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         isDefaultHome: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/StaffingPage').then(module => ({ default: module.StaffingPage }))),
+        component: createLazyPage(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage }))),
     },
     {
         path: '/workload',
@@ -67,7 +67,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         showInBottomNav: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/WorkloadPage')),
+        component: createLazyPage(() => import('./pages/WorkloadPage')),
     },
     {
         path: '/gantt',
@@ -77,7 +77,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         showInBottomNav: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/GanttPage')),
+        component: createLazyPage(() => import('./pages/GanttPage')),
     },
     {
         path: '/projects',
@@ -86,7 +86,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Progetti',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ProjectsPage')),
+        component: createLazyPage(() => import('./pages/ProjectsPage')),
     },
     {
         path: '/contracts',
@@ -95,7 +95,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Progetti',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ContractsPage').then(module => ({ default: module.ContractsPage }))),
+        component: createLazyPage(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage }))),
     },
     {
         path: '/clients',
@@ -104,7 +104,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Progetti',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ClientsPage')),
+        component: createLazyPage(() => import('./pages/ClientsPage')),
     },
     {
         path: '/forecasting',
@@ -113,7 +113,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Progetti',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ForecastingPage')),
+        component: createLazyPage(() => import('./pages/ForecastingPage')),
     },
     {
         path: '/resources',
@@ -122,7 +122,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ResourcesPage')),
+        component: createLazyPage(() => import('./pages/ResourcesPage')),
     },
     {
         path: '/skills',
@@ -131,7 +131,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/SkillsPage')),
+        component: createLazyPage(() => import('./pages/SkillsPage')),
     },
     {
         path: '/certifications',
@@ -140,7 +140,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/CertificationsPage')),
+        component: createLazyPage(() => import('./pages/CertificationsPage')),
     },
     {
         path: '/skill-analysis',
@@ -149,7 +149,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/SkillAnalysisPage')),
+        component: createLazyPage(() => import('./pages/SkillAnalysisPage')),
     },
     {
         path: '/roles',
@@ -158,7 +158,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/RolesPage')),
+        component: createLazyPage(() => import('./pages/RolesPage')),
     },
     {
         path: '/leaves',
@@ -167,7 +167,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/LeavePage')),
+        component: createLazyPage(() => import('./pages/LeavePage')),
     },
     {
         path: '/resource-requests',
@@ -176,7 +176,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Operatività',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage }))),
+        component: createLazyPage(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage }))),
     },
     {
         path: '/interviews',
@@ -185,7 +185,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Operatività',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/InterviewsPage')),
+        component: createLazyPage(() => import('./pages/InterviewsPage')),
     },
     {
         path: '/skills-map',
@@ -195,7 +195,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         showInBottomNav: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/SkillsMapPage')),
+        component: createLazyPage(() => import('./pages/SkillsMapPage')),
     },
     {
         path: '/staffing-visualization',
@@ -204,7 +204,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Operatività',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/StaffingVisualizationPage')),
+        component: createLazyPage(() => import('./pages/StaffingVisualizationPage')),
     },
     {
         path: '/manuale-utente',
@@ -213,7 +213,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Supporto',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/UserManualPage')),
+        component: createLazyPage(() => import('./pages/UserManualPage')),
     },
     {
         path: '/simple-user-manual',
@@ -222,7 +222,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Supporto',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/SimpleUserManualPage')),
+        component: createLazyPage(() => import('./pages/SimpleUserManualPage')),
     },
     {
         path: '/reports',
@@ -231,7 +231,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Supporto',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ReportsPage')),
+        component: createLazyPage(() => import('./pages/ReportsPage')),
     },
     {
         path: '/calendar',
@@ -240,7 +240,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Configurazione',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/CalendarPage')),
+        component: createLazyPage(() => import('./pages/CalendarPage')),
     },
     {
         path: '/config',
@@ -249,7 +249,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Configurazione',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ConfigPage')),
+        component: createLazyPage(() => import('./pages/ConfigPage')),
     },
     {
         path: '/test-staffing',
@@ -258,7 +258,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Configurazione',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/TestStaffingPage')),
+        component: createLazyPage(() => import('./pages/TestStaffingPage')),
     },
     {
         path: '/import',
@@ -267,7 +267,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Dati',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ImportPage')),
+        component: createLazyPage(() => import('./pages/ImportPage')),
     },
     {
         path: '/export',
@@ -276,7 +276,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Dati',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/ExportPage')),
+        component: createLazyPage(() => import('./pages/ExportPage')),
     },
     {
         path: '/admin-settings',
@@ -286,7 +286,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         requiredRole: 'ADMIN',
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/AdminSettingsPage')),
+        component: createLazyPage(() => import('./pages/AdminSettingsPage')),
     },
     {
         path: '/security-center',
@@ -296,7 +296,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         requiredRole: 'ADMIN',
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/SecurityCenterPage')),
+        component: createLazyPage(() => import('./pages/SecurityCenterPage')),
     },
     {
         path: '/db-inspector',
@@ -306,6 +306,6 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         requiredRole: 'ADMIN',
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('../pages/DbInspectorPage')),
+        component: createLazyPage(() => import('./pages/DbInspectorPage')),
     },
 ];
