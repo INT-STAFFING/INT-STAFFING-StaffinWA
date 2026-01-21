@@ -1,3 +1,4 @@
+
 /**
  * @file BottomNavBar.tsx
  * @description Componente per la barra di navigazione inferiore su dispositivi mobili.
@@ -10,7 +11,13 @@ interface BottomNavBarProps {
   onMenuClick: () => void;
 }
 
-const NavItem = ({ to, icon, label }: { to: string; icon: string; label: string }) => (
+interface NavItemProps {
+  to: string;
+  icon: string;
+  label: string;
+}
+
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>

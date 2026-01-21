@@ -1,5 +1,5 @@
 
-import { lazy } from 'react';
+import React, { lazy } from 'react';
 import type { UserRole } from './types';
 
 export type RouteFeatureFlag = 'pageVisibility';

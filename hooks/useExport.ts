@@ -1,6 +1,7 @@
+
 import { useCallback, useState } from 'react';
-import { ExportableInput } from '../../types';
-import { buildHtmlTable, buildTsv } from '../../utils/exportTableUtils';
+import { ExportableInput } from '../types';
+import { buildHtmlTable, buildTsv } from '../utils/exportTableUtils';
 
 interface UseExportOptions {
   data: ExportableInput[];

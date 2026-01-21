@@ -1143,7 +1143,7 @@ export const useAppState = () => {
     return context;
 };
 
-function CatalogsProvider({ children }: { children: ReactNode }) {
+const CatalogsProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
     const entities = useEntitiesContext();
 
     const value = useMemo(() => ({
@@ -1196,7 +1196,7 @@ function CatalogsProvider({ children }: { children: ReactNode }) {
     return <CatalogsContext.Provider value={value}>{children}</CatalogsContext.Provider>;
 }
 
-function PlanningProvider({ children }: { children: ReactNode }) {
+const PlanningProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
     const entities = useEntitiesContext();
     const allocationsCtx = useAllocationsContext();
 
@@ -1228,7 +1228,7 @@ function PlanningProvider({ children }: { children: ReactNode }) {
     return <PlanningContext.Provider value={value}>{children}</PlanningContext.Provider>;
 }
 
-function ConfigProvider({ children }: { children: ReactNode }) {
+const ConfigProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
     const entities = useEntitiesContext();
 
     const value = useMemo(() => ({
@@ -1270,7 +1270,7 @@ function ConfigProvider({ children }: { children: ReactNode }) {
     return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
 }
 
-function NotificationsProvider({ children }: { children: ReactNode }) {
+const NotificationsProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
     const entities = useEntitiesContext();
 
     const value = useMemo(() => ({
