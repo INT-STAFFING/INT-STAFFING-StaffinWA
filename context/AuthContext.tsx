@@ -21,6 +21,7 @@ interface AuthContextType {
     toggleLoginProtection: (enable: boolean) => Promise<void>;
     hasPermission: (path: string) => boolean;
     changePassword: (newPassword: string) => Promise<void>;
+    impersonate: (userId: string) => Promise<void>;
 }
 
 type AuthConfigResponse = { isEnabled: boolean };
@@ -144,11 +145,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             throw error;
         }
     }, [user, addToast]);
+    
+    const impersonate = useCallback(async (userId: string) => {
+        try {
+            const data = await apiFetch<LoginResponse>(`/api/resources?entity=app-users&action=impersonate&id=${userId}`, {
+                method: 'POST'
+            });
+
+            if (data.success && data.token) {
+                const userObj: AppUser = {
+                    id: data.user.id,
+                    username: data.user.username,
+                    role: data.user.role as UserRole,
+                    resourceId: data.user.resourceId || null,
+                    isActive: true,
+                    permissions: data.user.permissions || [],
+                    mustChangePassword: false // Skip pw change check during impersonation
+                };
+
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('authUser', JSON.stringify(userObj));
+                setUser(userObj);
+                addToast(`Impersonificazione avviata: ${userObj.username}`, 'success');
+                
+                // Force page reload to reset all states and contexts with new user
+                window.location.reload();
+            }
+        } catch (error) {
+            addToast(`Errore impersonificazione: ${(error as Error).message}`, 'error');
+        }
+    }, [addToast]);
 
     const hasPermission = useCallback((path: string): boolean => {
         if (!user) return false;
         // CRITICAL: Admin always has permission to everything
-        // Fix: Removed invalid 'ADMINISTRATOR' role comparison to align with UserRole type
         if (user.role === 'ADMIN') return true;
         
         const cleanPath = path.split('?')[0].replace(/\/$/, '') || '/';
@@ -158,7 +188,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const value = {
         user,
         isAuthenticated: !!user,
-        // Fix: Removed invalid 'ADMINISTRATOR' role comparison to align with UserRole type
         isAdmin: user?.role === 'ADMIN',
         isLoginProtectionEnabled,
         isAuthLoading,
@@ -166,7 +195,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         toggleLoginProtection,
         hasPermission,
-        changePassword
+        changePassword,
+        impersonate
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

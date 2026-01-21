@@ -338,6 +338,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (entity === 'app-users' || entity === 'security-users') {
             const tableName = 'app_users';
+            
+            if (action === 'impersonate' && method === 'POST') {
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+                
+                const targetUserId = req.query.id as string;
+                if (!targetUserId) return res.status(400).json({ error: 'Missing target user ID' });
+                
+                // Fetch target user details
+                const { rows } = await client.query(`SELECT id, username, role, resource_id FROM ${tableName} WHERE id = $1`, [targetUserId]);
+                const targetUser = rows[0];
+                
+                if (!targetUser) return res.status(404).json({ error: 'User not found' });
+                
+                // Generate token as if user logged in
+                const token = jwt.sign(
+                    { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
+                    JWT_SECRET!,
+                    { expiresIn: '4h' } // Shorter expiry for impersonation
+                );
+                
+                // Get permissions for the target user
+                const permRes = await client.query(`SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE`, [targetUser.role]);
+                const permissions = permRes.rows.map(r => r.page_path);
+
+                await logAction(client, currentUser, 'IMPERSONATE_USER', tableName, targetUserId, { target: targetUser.username }, req);
+
+                return res.status(200).json({
+                    success: true,
+                    token,
+                    user: {
+                        id: targetUser.id,
+                        username: targetUser.username,
+                        role: targetUser.role,
+                        resourceId: targetUser.resource_id,
+                        permissions,
+                        mustChangePassword: false // Skip pw change check during impersonation
+                    },
+                    isAdmin: targetUser.role === 'ADMIN'
+                });
+            }
+
             if (action === 'change_password' && method === 'PUT') {
                 if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
                 if (!verifyAdmin(req) && currentUser.id !== id) return res.status(403).json({ error: 'Forbidden' });
@@ -400,6 +441,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             // Determina il nome effettivo della tabella nel database
             const tableName = TABLE_MAPPING[entity as string] || (entity as string);
+
+            if (method === 'GET') {
+                if (id) {
+                     const { rows } = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
+                     return res.status(200).json(rows[0] ? toCamelAndNormalize(rows[0]) : null);
+                } else {
+                     const { rows } = await client.query(`SELECT * FROM ${tableName}`);
+                     return res.status(200).json(rows.map(toCamelAndNormalize));
+                }
+            }
 
             if (method === 'POST') {
                 const keys = Object.keys(req.body); const values = Object.values(req.body);

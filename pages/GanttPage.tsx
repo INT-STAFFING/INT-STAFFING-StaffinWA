@@ -237,6 +237,18 @@ const GanttPage: React.FC = () => {
         });
     }, [projects, filters, sortDirection]);
 
+    // Export Data Transformation
+    const exportData = useMemo(() => {
+        return sortedAndFilteredProjects.map(p => ({
+            'Nome Progetto': p.name,
+            'Cliente': p.clientId ? clientMap.get(p.clientId) || 'N/D' : 'N/D',
+            'Stato': p.status || 'N/D',
+            'Data Inizio': p.startDate,
+            'Data Fine': p.endDate,
+            'Budget': p.budget
+        }));
+    }, [sortedAndFilteredProjects, clientMap]);
+
     // Totale progetti attivi per ciascun segmento (usato per la riga di riepilogo per anno)
     const segmentProjectCounts = useMemo(() => {
         if (sortedAndFilteredProjects.length === 0) {
@@ -357,7 +369,7 @@ const GanttPage: React.FC = () => {
                                 </button>
                             ))}
                         </div>
-                        <ExportButton data={sortedAndFilteredProjects} title="Gantt Progetti" />
+                        <ExportButton data={exportData} title="Gantt Progetti" />
                     </div>
                 </div>
 

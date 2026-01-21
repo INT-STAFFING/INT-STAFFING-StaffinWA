@@ -19,6 +19,7 @@ const IdentityPillar: React.FC = () => {
     );
     const { resources } = useEntitiesContext();
     const { addToast } = useToast();
+    const { impersonate } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<Partial<AppUser>>({});
 
@@ -69,7 +70,7 @@ const IdentityPillar: React.FC = () => {
                             </span>
                         </div>
                         <div className="pt-4 border-t border-outline-variant flex justify-between items-center">
-                             <button className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                             <button onClick={() => impersonate(u.id)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
                                 <span className="material-symbols-outlined text-sm">visibility</span> Impersonifica
                              </button>
                              <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant">
@@ -240,9 +241,14 @@ const RBACPillar: React.FC = () => {
 
 // --- PILASTRO 3: NAVIGAZIONE E ARCHITETTURA ---
 const NavigationPillar: React.FC = () => {
-    const { sidebarConfig, updateSidebarConfig, roleHomePages, updateRoleHomePages } = useEntitiesContext();
+    const { sidebarConfig, updateSidebarConfig, roleHomePages, updateRoleHomePages, sidebarSections } = useEntitiesContext();
     const { addToast } = useToast();
     const [localSidebar, setLocalSidebar] = useState(sidebarConfig);
+    
+    // Sync local state with context when context updates (e.g. initial load)
+    useEffect(() => {
+        setLocalSidebar(sidebarConfig);
+    }, [sidebarConfig]);
     
     const ROLES: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR', 'ADMIN'];
     const availablePages = useMemo(() => 
@@ -252,6 +258,22 @@ const NavigationPillar: React.FC = () => {
     const handleSaveMenu = async () => {
         await updateSidebarConfig(localSidebar);
         addToast('Struttura menu aggiornata', 'success');
+    };
+
+    const handleMove = (index: number, direction: -1 | 1) => {
+        if ((direction === -1 && index === 0) || (direction === 1 && index === localSidebar.length - 1)) return;
+        
+        const newItems = [...localSidebar];
+        const temp = newItems[index];
+        newItems[index] = newItems[index + direction];
+        newItems[index + direction] = temp;
+        setLocalSidebar(newItems);
+    };
+
+    const handleSectionChange = (index: number, newSection: string) => {
+        const newItems = [...localSidebar];
+        newItems[index] = { ...newItems[index], section: newSection };
+        setLocalSidebar(newItems);
     };
 
     return (
@@ -281,39 +303,70 @@ const NavigationPillar: React.FC = () => {
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h3 className="text-2xl font-bold text-on-surface">Struttura Sidebar</h3>
-                        <p className="text-sm text-on-surface-variant">Personalizza etichette e icone visualizzate nel menu principale.</p>
+                        <p className="text-sm text-on-surface-variant">Ordina le voci e assegna le categorie per il menu principale.</p>
                     </div>
-                    <button onClick={handleSaveMenu} className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg">Salva Ordinamento</button>
+                    <button onClick={handleSaveMenu} className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg">Salva Struttura</button>
                 </div>
-                <div className="bg-surface-container-lowest border border-outline-variant rounded-[2rem] shadow-inner max-h-[500px] overflow-y-auto">
+                <div className="bg-surface-container-lowest border border-outline-variant rounded-[2rem] shadow-inner max-h-[600px] overflow-y-auto">
                     {localSidebar.map((item, idx) => (
-                        <div key={item.path} className="flex items-center gap-5 p-4 border-b border-outline-variant hover:bg-surface-container-low transition-colors">
-                            <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+                        <div key={item.path} className="flex items-center gap-4 p-3 border-b border-outline-variant hover:bg-surface-container-low transition-colors group">
+                            {/* Reorder Controls */}
+                            <div className="flex flex-col gap-1">
+                                <button 
+                                    onClick={() => handleMove(idx, -1)} 
+                                    disabled={idx === 0}
+                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-20 text-on-surface-variant"
+                                >
+                                    <span className="material-symbols-outlined text-sm">keyboard_arrow_up</span>
+                                </button>
+                                <button 
+                                    onClick={() => handleMove(idx, 1)} 
+                                    disabled={idx === localSidebar.length - 1}
+                                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-20 text-on-surface-variant"
+                                >
+                                    <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                                </button>
+                            </div>
+
+                            {/* Icon */}
+                            <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant shrink-0">
                                 <span className="material-symbols-outlined">{item.icon}</span>
                             </div>
-                            <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input 
-                                    type="text" 
-                                    value={item.label} 
-                                    onChange={e => {
-                                        const next = [...localSidebar];
-                                        next[idx] = { ...item, label: e.target.value };
-                                        setLocalSidebar(next);
-                                    }} 
-                                    className="bg-transparent font-bold text-on-surface border-none focus:ring-0 p-0"
-                                    placeholder="Etichetta menu"
-                                />
-                                <div className="flex items-center gap-2 text-[10px] font-mono text-on-surface-variant">
-                                    <span className="material-symbols-outlined text-sm">link</span>
-                                    {item.path}
+
+                            {/* Main Info */}
+                            <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                                {/* Label Input */}
+                                <div className="md:col-span-5">
+                                     <label className="text-[10px] font-bold text-primary uppercase tracking-widest block mb-1">Etichetta</label>
+                                     <input 
+                                        type="text" 
+                                        value={item.label} 
+                                        onChange={e => {
+                                            const next = [...localSidebar];
+                                            next[idx] = { ...item, label: e.target.value };
+                                            setLocalSidebar(next);
+                                        }} 
+                                        className="w-full bg-transparent font-bold text-on-surface border-b border-transparent focus:border-primary focus:ring-0 p-0 text-sm"
+                                    />
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
-                                    item.section === 'Amministrazione' ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'
-                                }`}>
-                                    {item.section}
-                                </span>
+
+                                {/* Section Selector */}
+                                <div className="md:col-span-4">
+                                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">Sezione</label>
+                                    <select 
+                                        value={item.section || ''}
+                                        onChange={(e) => handleSectionChange(idx, e.target.value)}
+                                        className="w-full bg-surface-container-high text-xs rounded-lg border-none focus:ring-1 focus:ring-primary py-1.5 px-2 font-medium"
+                                    >
+                                        {sidebarSections.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Path Info (Read-only) */}
+                                <div className="md:col-span-3 flex items-center gap-1 text-[10px] font-mono text-on-surface-variant/70 overflow-hidden">
+                                    <span className="material-symbols-outlined text-[10px]">link</span>
+                                    <span className="truncate" title={item.path}>{item.path}</span>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -329,15 +382,39 @@ const AuditPillar: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
 
+    // Filters state
+    const [filters, setFilters] = useState({
+        username: '',
+        actionType: '',
+        startDate: '',
+        endDate: ''
+    });
+
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await authorizedJsonFetch<AuditLogEntry[]>('/api/resources?entity=audit_logs&limit=50');
+            const params = new URLSearchParams();
+            params.append('entity', 'audit_logs');
+            params.append('limit', '100'); // Increased limit slightly
+            if (filters.username) params.append('username', filters.username);
+            if (filters.actionType) params.append('actionType', filters.actionType);
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+
+            const data = await authorizedJsonFetch<AuditLogEntry[]>(`/api/resources?${params.toString()}`);
             setLogs(data);
         } catch(e) {} finally { setLoading(false); }
+    }, [filters]);
+
+    // Initial load
+    useEffect(() => {
+        fetchLogs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    useEffect(() => { fetchLogs(); }, [fetchLogs]);
+    const handleReset = () => {
+        setFilters({ username: '', actionType: '', startDate: '', endDate: '' });
+    };
 
     return (
         <div className="space-y-10">
@@ -362,10 +439,66 @@ const AuditPillar: React.FC = () => {
             <section>
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-on-surface">Registro Attività (Audit)</h3>
-                    <button onClick={fetchLogs} className="p-2 rounded-full hover:bg-surface-container text-primary">
-                        <span className="material-symbols-outlined">refresh</span>
-                    </button>
                 </div>
+
+                {/* Filters Bar */}
+                <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant mb-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div className="md:col-span-3">
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Utente</label>
+                        <input 
+                            type="text" 
+                            className="form-input py-2 text-sm" 
+                            placeholder="Cerca username..." 
+                            value={filters.username}
+                            onChange={e => setFilters(prev => ({...prev, username: e.target.value}))}
+                        />
+                    </div>
+                    <div className="md:col-span-3">
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Azione</label>
+                        <input 
+                            type="text" 
+                            className="form-input py-2 text-sm" 
+                            placeholder="es. LOGIN, UPDATE..." 
+                            value={filters.actionType}
+                            onChange={e => setFilters(prev => ({...prev, actionType: e.target.value}))}
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Da</label>
+                        <input 
+                            type="date" 
+                            className="form-input py-2 text-sm" 
+                            value={filters.startDate}
+                            onChange={e => setFilters(prev => ({...prev, startDate: e.target.value}))}
+                        />
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">A</label>
+                        <input 
+                            type="date" 
+                            className="form-input py-2 text-sm" 
+                            value={filters.endDate}
+                            onChange={e => setFilters(prev => ({...prev, endDate: e.target.value}))}
+                        />
+                    </div>
+                    <div className="md:col-span-2 flex gap-2">
+                        <button 
+                            onClick={fetchLogs} 
+                            className="flex-1 bg-primary text-on-primary py-2 rounded-lg font-bold shadow-sm hover:opacity-90 transition-opacity flex justify-center items-center"
+                            title="Applica Filtri"
+                        >
+                            <span className="material-symbols-outlined text-lg">search</span>
+                        </button>
+                        <button 
+                            onClick={handleReset} 
+                            className="px-3 bg-surface-container-high text-on-surface py-2 rounded-lg font-bold hover:bg-surface-container-highest transition-colors"
+                            title="Reset Filtri"
+                        >
+                            <span className="material-symbols-outlined text-lg">filter_alt_off</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div className="overflow-hidden border border-outline-variant rounded-[2rem] bg-surface shadow-sm">
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-xs">

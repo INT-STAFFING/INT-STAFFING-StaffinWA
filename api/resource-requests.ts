@@ -18,12 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const { projectId, roleId, requestorId, startDate, endDate, commitmentPercentage, isUrgent, isLongTerm, isTechRequest, isOsrOpen, osrNumber, notes, status } = req.body;
                 
                 // 1. Generate Request Code (e.g. HCR00123)
-                // Use substring to sort numerically to find the true max
+                // Fix: Changed ordering logic to Length + Lexicographical to avoid SQL CAST errors on bad data
                 const codeRes = await db.sql`
                     SELECT request_code 
                     FROM resource_requests 
-                    WHERE request_code IS NOT NULL 
-                    ORDER BY CAST(SUBSTRING(request_code FROM 4) AS INTEGER) DESC 
+                    WHERE request_code LIKE 'HCR%' 
+                    ORDER BY LENGTH(request_code) DESC, request_code DESC 
                     LIMIT 1
                 `;
                 

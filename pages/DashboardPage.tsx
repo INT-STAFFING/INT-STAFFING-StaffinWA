@@ -267,6 +267,14 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
             <td className={`px-4 py-2 ${getAvgAllocationColor(totals.nextMonth)}`}>{totals.nextMonth.toFixed(0)}%</td>
         </tr>
     );
+
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Risorsa: d.resource.name,
+            'Mese Corrente (%)': d.currentMonth.toFixed(0),
+            'Mese Prossimo (%)': d.nextMonth.toFixed(0)
+        }));
+    }, [data]);
     
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
@@ -275,7 +283,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="Allocazione Media" />
+                    <ExportButton data={exportData} title="Allocazione Media" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -515,6 +523,13 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
         { header: "Alloc. Media", sortKey: "avgAllocation", cell: (d) => <span className={DASHBOARD_COLORS.utilization.high}>{d.avgAllocation.toFixed(0)}%</span> },
     ];
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Risorsa: d.resource.name,
+            'Allocazione Media (%)': d.avgAllocation.toFixed(0)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
@@ -522,7 +537,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
                 <div className="flex items-center gap-4">
                     <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/>
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="Risorse Sottoutilizzate" />
+                    <ExportButton data={exportData} title="Risorse Sottoutilizzate" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">

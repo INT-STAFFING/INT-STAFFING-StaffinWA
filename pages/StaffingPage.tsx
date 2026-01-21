@@ -881,6 +881,18 @@ export const StaffingPage: React.FC = () => {
       });
   }, [isMobile, paginatedResources, assignmentsByResource, timeColumns, allocations, projectsById, clientsById, rolesById]);
 
+  // --- Export Data Preparation ---
+  const exportData = useMemo(() => {
+      return paginatedResources.map(r => ({
+          Nome: r.name,
+          Ruolo: rolesById.get(r.roleId)?.name || 'N/D',
+          Sede: r.location,
+          'Max %': r.maxStaffingPercentage,
+          Email: r.email,
+          'Tutor': resources.find(t => t.id === r.tutorId)?.name || '-'
+      }));
+  }, [paginatedResources, rolesById, resources]);
+
 
   // --- JSX ---
 
@@ -949,7 +961,7 @@ export const StaffingPage: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <button onClick={() => openNewAssignmentModal()} className="flex items-center justify-center w-full md:w-auto px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm"><span className="material-symbols-outlined mr-2 text-xl">add</span>Assegna Risorsa</button>
-              <ExportButton data={paginatedResources} title="Staffing" />
+              <ExportButton data={exportData} title="Staffing" />
           </div>
         </div>
         
