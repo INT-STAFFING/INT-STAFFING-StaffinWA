@@ -129,6 +129,24 @@ export const ResourceRequestPage: React.FC = () => {
             }));
     }, [resourceRequests, projects, roles, resources, filters]);
 
+    const exportData = useMemo(() => {
+        return dataForTable.map(req => ({
+            'Codice': req.requestCode || '',
+            'Progetto': req.projectName,
+            'Ruolo Richiesto': req.roleName,
+            'Richiedente': req.requestorName || '-',
+            'Stato': req.status,
+            'Data Inizio': formatDateFull(req.startDate),
+            'Data Fine': formatDateFull(req.endDate),
+            'Impegno %': req.commitmentPercentage,
+            'Urgente': req.isUrgent ? 'Sì' : 'No',
+            'Tech': req.isTechRequest ? 'Sì' : 'No',
+            'OSR Aperta': req.isOsrOpen ? 'Sì' : 'No',
+            'Numero OSR': req.osrNumber || '',
+            'Note': req.notes || ''
+        }));
+    }, [dataForTable]);
+
     const summaryData = useMemo(() => {
         const fteByRole: { [roleName: string]: number } = {};
         const requestsByProject: { [projectName: string]: { roleName: string; commitmentPercentage: number }[] } = {};
@@ -436,7 +454,7 @@ export const ResourceRequestPage: React.FC = () => {
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}
                 numActions={2}
-                headerActions={<ExportButton data={dataForTable} title="Richieste Risorse" />}
+                headerActions={<ExportButton data={exportData} title="Richieste Risorse" />}
             />
 
             {editingRequest && (

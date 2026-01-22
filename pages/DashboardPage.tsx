@@ -324,6 +324,14 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
         </tr>
     );
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Progetto: d.name,
+            'G/U Allocati': d.totalPersonDays.toFixed(1),
+            FTE: d.fte.toFixed(2)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
@@ -331,7 +339,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="FTE per Progetto" />
+                    <ExportButton data={exportData} title="FTE per Progetto" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -374,6 +382,15 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
         </tr>
     );
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Progetto: d.name,
+            Budget: formatCurrency(d.budget),
+            'Costo Stimato': formatCurrency(d.estimatedCost),
+            Varianza: formatCurrency(d.variance)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
@@ -381,7 +398,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="Analisi Budget" />
+                    <ExportButton data={exportData} title="Analisi Budget" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -424,6 +441,15 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
         </tr>
     );
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Progetto: d.name,
+            'Budget Periodo': formatCurrency(d.periodBudget),
+            'Costo Stimato': formatCurrency(d.estimatedCost),
+            Varianza: formatCurrency(d.variance)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
@@ -434,7 +460,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
                         <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
-                        <ExportButton data={data} title="Analisi Budget Temporale" />
+                        <ExportButton data={exportData} title="Analisi Budget Temporale" />
                     </div>
                 </div>
             </div>
@@ -479,6 +505,16 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
         </tr>
     );
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Progetto: d.name,
+            Cliente: d.clientName,
+            'G/U Lavorati': d.totalPersonDays.toFixed(1),
+            'Costo Totale': formatCurrency(d.totalCost),
+            'Tariffa Media G.': formatCurrency(d.avgDailyRate)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
@@ -489,7 +525,7 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
                         <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
                         <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
-                        <ExportButton data={data} title="Tariffa Media Giornaliera" />
+                        <ExportButton data={exportData} title="Tariffa Media Giornaliera" />
                     </div>
                 </div>
             </div>
@@ -568,13 +604,20 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
         { header: "Costo Stimato", sortKey: "cost", cell: (d) => formatCurrency(d.cost) },
     ];
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Cliente: d.name,
+            'Costo Stimato': formatCurrency(d.cost)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
                  <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="Costo Mensile per Cliente" />
+                    <ExportButton data={exportData} title="Costo Mensile per Cliente" />
                  </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -612,13 +655,20 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
         </tr>
     );
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Horizontal: d.name,
+            'G/U Totali': d.totalPersonDays.toFixed(1)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
                  <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="Analisi Sforzo per Horizontal" />
+                    <ExportButton data={exportData} title="Analisi Sforzo per Horizontal" />
                  </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -652,13 +702,22 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
         { header: "Utilizzo Medio", sortKey: "avgUtilization", cell: (d) => <span className={`font-semibold ${getAvgAllocationColor(d.avgUtilization)}`}>{d.avgUtilization.toFixed(0)}%</span> },
     ];
 
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Sede: d.name,
+            'N. Risorse': d.resourceCount,
+            'G/U Allocati': d.allocatedDays.toFixed(1),
+            'Utilizzo Medio (%)': d.avgUtilization.toFixed(0)
+        }));
+    }, [data]);
+
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
                 <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={data} title="Analisi per Sede (Mese Corrente)" />
+                    <ExportButton data={exportData} title="Analisi per Sede (Mese Corrente)" />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -689,6 +748,13 @@ const SaturationTrendCard: React.FC<{
     data: any[] 
 }> = ({ trendResource, setTrendResource, resourceOptions, data }) => {
     const chartRef = useRef<SVGSVGElement>(null);
+
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Mese: d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }),
+            'Saturazione (%)': d.value.toFixed(1)
+        }));
+    }, [data]);
 
     useEffect(() => {
         if (!trendResource || !chartRef.current || data.length === 0) {
@@ -727,7 +793,7 @@ const SaturationTrendCard: React.FC<{
                 <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
                 <div className="flex items-center gap-2">
                     <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
-                    <ExportButton data={data} title="Trend Saturazione Risorsa" />
+                    <ExportButton data={exportData} title="Trend Saturazione Risorsa" />
                 </div>
             </div>
             <div className="flex-grow h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
@@ -737,6 +803,14 @@ const SaturationTrendCard: React.FC<{
 
 const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
     const chartRef = useRef<SVGSVGElement>(null);
+
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Mese: d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }),
+            'Media Storica': formatCurrency(d.historic),
+            'Forecast': formatCurrency(d.forecast)
+        }));
+    }, [data]);
 
     useEffect(() => {
         if (!chartRef.current || data.length === 0) return;
@@ -772,7 +846,7 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
         <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
-                <ExportButton data={data} title="Forecast Costo Mensile (Rolling 3 Mesi)" />
+                <ExportButton data={exportData} title="Forecast Costo Mensile (Rolling 3 Mesi)" />
             </div>
             <div className="flex-grow h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
         </div>
@@ -785,6 +859,7 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
+    // ... (rest of the component remains largely the same, mostly imports and structure)
     const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();

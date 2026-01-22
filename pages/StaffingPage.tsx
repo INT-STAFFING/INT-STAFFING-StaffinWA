@@ -883,15 +883,21 @@ export const StaffingPage: React.FC = () => {
 
   // --- Export Data Preparation ---
   const exportData = useMemo(() => {
-      return paginatedResources.map(r => ({
-          Nome: r.name,
-          Ruolo: rolesById.get(r.roleId)?.name || 'N/D',
-          Sede: r.location,
-          'Max %': r.maxStaffingPercentage,
-          Email: r.email,
-          'Tutor': resources.find(t => t.id === r.tutorId)?.name || '-'
-      }));
-  }, [paginatedResources, rolesById, resources]);
+    return paginatedResources.map(r => {
+        const assigned = assignmentsByResource.get(r.id!) || [];
+        const projectNames = assigned.map(a => projectsById.get(a.projectId)?.name).filter(Boolean).join(', ');
+        
+        return {
+            Nome: r.name,
+            Ruolo: rolesById.get(r.roleId)?.name || 'N/D',
+            'Progetti Assegnati': projectNames,
+            Sede: r.location,
+            'Max %': r.maxStaffingPercentage,
+            Email: r.email,
+            'Tutor': resources.find(t => t.id === r.tutorId)?.name || '-'
+        };
+    });
+  }, [paginatedResources, rolesById, resources, assignmentsByResource, projectsById]);
 
 
   // --- JSX ---

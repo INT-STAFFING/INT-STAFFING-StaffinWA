@@ -34,7 +34,7 @@ const DataLoadSection: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-xl font-bold text-on-surface">Caricamento Dati & Performance</h2>
-                    <p className="text-sm text-on-surface-variant">Configura l'orizzonte temporale del caricamento delle allocazioni.</p>
+                    <p className="text-sm text-on-surface-variant">Configura l'orizzonte temporale del caricamento delle allocazioni (Salvataggio su Database Globale).</p>
                 </div>
                 {hasChanges && (
                     <button 
@@ -42,7 +42,7 @@ const DataLoadSection: React.FC = () => {
                         disabled={isActionLoading('updatePlanningSettings')}
                         className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95"
                     >
-                        {isActionLoading('updatePlanningSettings') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Applica & Ricarica</>}
+                        {isActionLoading('updatePlanningSettings') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva su DB & Ricarica</>}
                     </button>
                 )}
             </div>
@@ -86,7 +86,7 @@ const DashboardConfigSection: React.FC = () => {
     const handleSave = async () => {
         try {
             await updateDashboardLayout(localLayout);
-            addToast('Layout Dashboard aggiornato con successo.', 'success');
+            addToast('Layout Dashboard salvato su Database.', 'success');
         } catch (error) {
             addToast('Errore durante il salvataggio.', 'error');
         }
@@ -131,7 +131,7 @@ const DashboardConfigSection: React.FC = () => {
             <div className="bg-surface rounded-3xl shadow-sm p-6 border border-outline-variant flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-on-surface">Configurazione Dashboard</h2>
-                    <p className="text-sm text-on-surface-variant">Gestisci i tab e le card visibili nella dashboard principale.</p>
+                    <p className="text-sm text-on-surface-variant">Gestisci i tab e le card visibili nella dashboard principale. (Persistente su DB)</p>
                 </div>
                 <div className="flex gap-3">
                     <button onClick={addTab} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-opacity">
@@ -143,7 +143,7 @@ const DashboardConfigSection: React.FC = () => {
                             disabled={isActionLoading('updateDashboardLayout')}
                             className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
                         >
-                            {isActionLoading('updateDashboardLayout') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Modifiche'}
+                            {isActionLoading('updateDashboardLayout') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva su DB'}
                         </button>
                     )}
                 </div>
@@ -259,7 +259,7 @@ const ThemeSection: React.FC = () => {
         setSaving(true);
         try {
             await saveTheme(localTheme);
-            addToast('Personalizzazione tema salvata nel database.', 'success');
+            addToast('Personalizzazione tema salvata nel Database Globale.', 'success');
         } catch (e) {
             addToast('Errore nel salvataggio del tema.', 'error');
         } finally {
@@ -270,7 +270,7 @@ const ThemeSection: React.FC = () => {
     const handleSaveBottomNav = async () => {
         try {
             await updateBottomNavPaths(localBottomPaths);
-            addToast('Configurazione navigazione mobile aggiornata.', 'success');
+            addToast('Configurazione navigazione mobile salvata su DB.', 'success');
         } catch (e) {
             addToast('Errore nel salvataggio della navigazione.', 'error');
         }
@@ -281,7 +281,7 @@ const ThemeSection: React.FC = () => {
         setSaving(true);
         try {
             await resetTheme();
-            addToast('Colori di sistema ripristinati.', 'success');
+            addToast('Colori di sistema ripristinati da Database.', 'success');
         } catch (e) {
             addToast('Errore durante il ripristino.', 'error');
         } finally {
@@ -297,7 +297,7 @@ const ThemeSection: React.FC = () => {
             <div className="bg-surface rounded-3xl shadow-sm p-6 border border-outline-variant flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-on-surface">Look & Feel</h2>
-                    <p className="text-sm text-on-surface-variant">Personalizza palette, navigazione e parametri grafici.</p>
+                    <p className="text-sm text-on-surface-variant">Personalizza palette, navigazione e parametri grafici (Salvati su DB per tutti).</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button onClick={toggleMode} className="p-3 rounded-2xl bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition-all shadow-sm">
@@ -305,7 +305,7 @@ const ThemeSection: React.FC = () => {
                     </button>
                     <button onClick={handleReset} className="text-error font-bold text-sm hover:underline px-4" disabled={saving}>Reset</button>
                     <button onClick={handleSaveTheme} disabled={saving} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
-                        {saving ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Modifiche UI'}
+                        {saving ? <SpinnerIcon className="w-4 h-4" /> : 'Salva su DB'}
                     </button>
                 </div>
             </div>
@@ -388,7 +388,7 @@ const ThemeSection: React.FC = () => {
                             disabled={isActionLoading('updateBottomNavPaths')}
                             className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold flex items-center gap-2 shadow-lg"
                         >
-                            {isActionLoading('updateBottomNavPaths') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Navigazione'}
+                            {isActionLoading('updateBottomNavPaths') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva su DB'}
                         </button>
                     )}
                 </div>

@@ -189,7 +189,6 @@ const RBACPillar: React.FC = () => {
                         <tbody className="divide-y divide-outline-variant">
                             {manageableRoutes.map(route => {
                                 const isAdminOnly = pageVisibility[route.path];
-                                const isRouteCritical = route.path === '/security-center';
 
                                 return (
                                     <tr key={route.path} className="hover:bg-surface-container-low transition-colors group">
@@ -206,7 +205,6 @@ const RBACPillar: React.FC = () => {
                                             <input 
                                                 type="checkbox" 
                                                 checked={!!isAdminOnly} 
-                                                disabled={isRouteCritical}
                                                 onChange={() => handleToggleVisibility(route.path)}
                                                 className="form-checkbox h-5 w-5 rounded-lg border-error/30 text-error focus:ring-error"
                                             />
@@ -218,7 +216,7 @@ const RBACPillar: React.FC = () => {
                                                     <input 
                                                         type="checkbox" 
                                                         checked={!!allowed && !isAdminOnly} 
-                                                        disabled={isAdminOnly || isRouteCritical}
+                                                        disabled={isAdminOnly}
                                                         onChange={() => handleTogglePerm(role, route.path)}
                                                         className={`form-checkbox h-5 w-5 rounded-lg transition-opacity ${isAdminOnly ? 'opacity-20 cursor-not-allowed' : 'cursor-pointer'}`}
                                                     />

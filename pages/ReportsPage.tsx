@@ -83,6 +83,18 @@ const ProjectCostsReport: React.FC = () => {
             });
     }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations, getRoleCost]);
     
+    const exportData = useMemo(() => {
+        return reportData.map(d => ({
+            'Progetto': d.projectName,
+            'Cliente': d.clientName,
+            'Budget': formatCurrency(d.budget),
+            'Costo Allocato': formatCurrency(d.allocatedCost),
+            'Varianza': formatCurrency(d.variance),
+            'G/U Allocati': d.personDays.toFixed(1),
+            'Costo Medio G/U': formatCurrency(d.avgCostPerDay)
+        }));
+    }, [reportData]);
+
     const exportToCSV = () => {
         const headers = ["Progetto", "Cliente", "Budget", "Costo Allocato", "Varianza", "Giorni/Uomo", "Costo Medio G/U"];
         const rows = reportData.map(d => [
@@ -158,7 +170,7 @@ const ProjectCostsReport: React.FC = () => {
                 <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                 </button>
-                <ExportButton data={reportData} title="Costi per Progetto" />
+                <ExportButton data={exportData} title="Costi per Progetto" />
             </div>
         </div>
     );
@@ -251,6 +263,17 @@ const ResourceUtilizationReport: React.FC = () => {
             }[];
     }, [resources, roles, assignments, companyCalendar, month, filters, allocations, getRoleCost]);
     
+    const exportData = useMemo(() => {
+        return reportData.map(d => ({
+            'Risorsa': d.resourceName,
+            'Ruolo': d.roleName,
+            'G/U Disponibili': d.availableDays.toFixed(1),
+            'G/U Allocati': d.allocatedDays.toFixed(1),
+            'Utilizzo (%)': d.utilization.toFixed(0),
+            'Costo Allocato': formatCurrency(d.allocatedCost)
+        }));
+    }, [reportData]);
+
     const exportToCSV = () => {
         const headers = ["Risorsa", "Ruolo", "Giorni Disponibili", "Giorni Allocati", "Utilizzo (%)", "Costo Allocato"];
         const rows = reportData.map(d => [
@@ -339,7 +362,7 @@ const ResourceUtilizationReport: React.FC = () => {
                 <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                 </button>
-                <ExportButton data={reportData} title="Utilizzo Risorse" />
+                <ExportButton data={exportData} title="Utilizzo Risorse" />
             </div>
         </div>
     );

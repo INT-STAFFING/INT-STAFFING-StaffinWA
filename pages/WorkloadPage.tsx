@@ -307,6 +307,18 @@ const WorkloadPage: React.FC = () => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         return displayData.slice(startIndex, startIndex + itemsPerPage);
     }, [displayData, currentPage, itemsPerPage]);
+    
+    // Create export data structure with meaningful names and calculated load
+    const exportData = useMemo(() => {
+        return paginatedData.map(r => ({
+            Risorsa: r.name,
+            Ruolo: roles.find(role => role.id === r.roleId)?.name || 'N/A',
+            Sede: r.location,
+            Horizontal: r.horizontal,
+            'Carico Mensile (%)': calculateMonthlyAvgLoad(r).toFixed(0),
+            'Max Staffing %': r.maxStaffingPercentage
+        }));
+    }, [paginatedData, roles, calculateMonthlyAvgLoad]);
 
     // OPTIMIZATION: Pre-calculate Assignments map for the visible resources
     // This prevents filtering assignments inside every single cell (O(N^2) -> O(N))
@@ -396,7 +408,7 @@ const WorkloadPage: React.FC = () => {
                             <button key={level} onClick={() => setViewMode(level)} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${viewMode === level ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>{level === 'day' ? 'Giorno' : level === 'week' ? 'Settimana' : 'Mese'}</button>
                         ))}
                     </div>
-                    <ExportButton data={paginatedData} title="Carico Risorse" />
+                    <ExportButton data={exportData} title="Carico Risorse" />
                 </div>
 
                 <div className="p-4 bg-surface rounded-2xl shadow flex flex-col gap-4">
