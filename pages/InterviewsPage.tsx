@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus, Resource } from '../types';
@@ -169,6 +170,26 @@ const InterviewsPage: React.FC = () => {
         (!filters.hiringStatus || i.hiringStatus === filters.hiringStatus)
     );
   }, [enrichedData, filters]);
+
+  const exportData = useMemo(() => {
+    return filteredData.map(i => ({
+      'Nome': i.candidateName,
+      'Cognome': i.candidateSurname,
+      'Data Nascita': formatDateFull(i.birthDate),
+      'Età': i.age ?? '',
+      'Horizontal': i.horizontal || '',
+      'Ruolo Proposto': i.roleName || '',
+      'Richiesta Collegata': i.resourceRequestLabel || '',
+      'Intervistatori': i.interviewersNames.join(', '),
+      'Data Colloquio': formatDateFull(i.interviewDate),
+      'Feedback': i.feedback || '',
+      'Stato Hiring': i.hiringStatus || '',
+      'Data Ingresso': formatDateFull(i.entryDate),
+      'Stato': i.status,
+      'Note': i.notes || '',
+      'CV Summary': i.cvSummary || ''
+    }));
+  }, [filteredData]);
 
   const summaryCards = useMemo(() => {
     const dataToSummarize = enrichedData;
@@ -409,7 +430,7 @@ const InterviewsPage: React.FC = () => {
             onAddNew={openModalForNew}
             renderRow={renderRow}
             renderMobileCard={renderMobileCard}
-            headerActions={<ExportButton data={filteredData} title="Gestione Colloqui" />}
+            headerActions={<ExportButton data={exportData} title="Gestione Colloqui" />}
             initialSortKey="interviewDate"
             isLoading={loading}
             tableLayout={{ dense: true, striped: true, headerSticky: true }}

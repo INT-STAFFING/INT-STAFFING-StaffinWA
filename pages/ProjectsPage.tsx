@@ -136,6 +136,20 @@ const ProjectsPage: React.FC = () => {
                 };
             });
     }, [projects, debouncedFilters, clients, assignments, showOnlyUnstaffed]);
+
+    const exportData = useMemo(() => {
+        return dataForTable.map(p => ({
+            'Nome Progetto': p.name,
+            'Cliente': p.clientName,
+            'Project Manager': p.projectManager || '',
+            'Stato': p.status || '',
+            'Budget': formatCurrency(p.budget),
+            'Data Inizio': formatDateFull(p.startDate),
+            'Data Fine': formatDateFull(p.endDate),
+            'Risorse Assegnate': p.assignedResources,
+            'Note': p.notes || ''
+        }));
+    }, [dataForTable]);
     
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
@@ -379,7 +393,7 @@ const ProjectsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={dataForTable} title="Gestione Progetti" />}
+                headerActions={<ExportButton data={exportData} title="Gestione Progetti" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}

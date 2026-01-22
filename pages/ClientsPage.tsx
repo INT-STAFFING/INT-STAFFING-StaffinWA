@@ -52,6 +52,14 @@ const ClientsPage: React.FC = () => {
         });
     }, [clients, filters]);
     
+    const exportData = useMemo(() => {
+        return filteredClients.map(client => ({
+            'Nome Cliente': client.name,
+            'Settore': client.sector,
+            'Email Contatto': client.contactEmail
+        }));
+    }, [filteredClients]);
+
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => setFilters({ name: '', sector: '' });
@@ -217,7 +225,7 @@ const ClientsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={filteredClients} title="Gestione Clienti" />}
+                headerActions={<ExportButton data={exportData} title="Gestione Clienti" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

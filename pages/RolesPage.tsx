@@ -33,6 +33,16 @@ const RolesPage: React.FC = () => {
         });
     }, [roles, filters]);
 
+    const exportData = useMemo(() => {
+        return filteredRoles.map(role => ({
+            'Nome Ruolo': role.name,
+            'Livello Seniority': role.seniorityLevel,
+            'Costo Giornaliero': formatCurrency(role.dailyCost),
+            'Costo Standard': formatCurrency(role.standardCost),
+            'Spese Giornaliere (Calc.)': formatCurrency(role.dailyExpenses)
+        }));
+    }, [filteredRoles]);
+
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => setFilters({ name: '', seniorityLevel: '' });
@@ -190,7 +200,7 @@ const RolesPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={filteredRoles} title="Gestione Ruoli" />}
+                headerActions={<ExportButton data={exportData} title="Gestione Ruoli" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

@@ -131,6 +131,16 @@ const SkillsPage: React.FC = () => {
         });
     }, [enrichedSkills, filters]);
 
+    const exportData = useMemo(() => {
+        return filteredSkills.map(s => ({
+            'Competenza': s.name,
+            'Ambito': s.category || '-',
+            'Macro Ambito': s.macroCategory || '-',
+            'Utilizzo Risorse': s.resourceCount,
+            'Utilizzo Progetti': s.projectCount
+        }));
+    }, [filteredSkills]);
+
     const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillCategories]);
     
     const categoryFilterOptions = useMemo(() => {
@@ -382,7 +392,7 @@ const SkillsPage: React.FC = () => {
                     onAddNew={() => handleOpenModal()}
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
-                    headerActions={<ExportButton data={filteredSkills} title="Gestione Competenze" />}
+                    headerActions={<ExportButton data={exportData} title="Gestione Competenze" />}
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
@@ -394,7 +404,7 @@ const SkillsPage: React.FC = () => {
                         <h1 className="text-3xl font-bold text-on-surface">Gestione Competenze</h1>
                         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                             <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Competenza</button>
-                            <ExportButton data={filteredSkills} title="Gestione Competenze" />
+                            <ExportButton data={exportData} title="Gestione Competenze" />
                         </div>
                     </div>
                     <div className="bg-surface rounded-2xl shadow p-4">{filtersNode}</div>

@@ -5,6 +5,9 @@ import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
+import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
+import { DashboardCategory } from '../types';
+import { v4 as uuidv4 } from 'uuid';
 
 const DataLoadSection: React.FC = () => {
     const { planningSettings, updatePlanningSettings, isActionLoading } = useEntitiesContext();
@@ -65,6 +68,138 @@ const DataLoadSection: React.FC = () => {
                     />
                     <p className="mt-3 text-[10px] text-on-surface-variant leading-relaxed">Definisce quanto lontano nel futuro si estende la griglia di staffing e il forecasting.</p>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const DashboardConfigSection: React.FC = () => {
+    const { dashboardLayout, updateDashboardLayout, isActionLoading } = useEntitiesContext();
+    const [localLayout, setLocalLayout] = useState<DashboardCategory[]>(dashboardLayout || []);
+    const { addToast } = useToast();
+
+    // Sync state if context updates
+    useEffect(() => {
+        if (dashboardLayout) setLocalLayout(dashboardLayout);
+    }, [dashboardLayout]);
+
+    const handleSave = async () => {
+        try {
+            await updateDashboardLayout(localLayout);
+            addToast('Layout Dashboard aggiornato con successo.', 'success');
+        } catch (error) {
+            addToast('Errore durante il salvataggio.', 'error');
+        }
+    };
+
+    const addTab = () => {
+        const newTab: DashboardCategory = {
+            id: `tab_${Date.now()}`,
+            label: 'Nuovo Tab',
+            cards: []
+        };
+        setLocalLayout([...localLayout, newTab]);
+    };
+
+    const removeTab = (id: string) => {
+        if (confirm('Sei sicuro di voler eliminare questo tab?')) {
+            setLocalLayout(localLayout.filter(t => t.id !== id));
+        }
+    };
+
+    const updateTabLabel = (id: string, newLabel: string) => {
+        setLocalLayout(localLayout.map(t => t.id === id ? { ...t, label: newLabel } : t));
+    };
+
+    const toggleCard = (tabId: string, cardId: string) => {
+        setLocalLayout(prev => prev.map(tab => {
+            if (tab.id !== tabId) return tab;
+            const hasCard = tab.cards.includes(cardId);
+            return {
+                ...tab,
+                cards: hasCard ? tab.cards.filter(c => c !== cardId) : [...tab.cards, cardId]
+            };
+        }));
+    };
+
+    // Calculate changes to show save button
+    const hasChanges = JSON.stringify(dashboardLayout) !== JSON.stringify(localLayout);
+
+    return (
+        <div className="space-y-8">
+            {/* Action Bar */}
+            <div className="bg-surface rounded-3xl shadow-sm p-6 border border-outline-variant flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-on-surface">Configurazione Dashboard</h2>
+                    <p className="text-sm text-on-surface-variant">Gestisci i tab e le card visibili nella dashboard principale.</p>
+                </div>
+                <div className="flex gap-3">
+                    <button onClick={addTab} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-opacity">
+                        <span className="material-symbols-outlined text-sm">add_tab</span> Aggiungi Tab
+                    </button>
+                    {hasChanges && (
+                        <button 
+                            onClick={handleSave} 
+                            disabled={isActionLoading('updateDashboardLayout')}
+                            className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
+                        >
+                            {isActionLoading('updateDashboardLayout') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Modifiche'}
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                {localLayout.map((tab, index) => (
+                    <div key={tab.id} className="bg-surface rounded-3xl shadow-sm p-6 border border-outline-variant">
+                        <div className="flex items-center gap-4 mb-6 border-b border-outline-variant pb-4">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                {index + 1}
+                            </div>
+                            <div className="flex-grow">
+                                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1">Nome Tab</label>
+                                <input 
+                                    type="text" 
+                                    value={tab.label} 
+                                    onChange={(e) => updateTabLabel(tab.id, e.target.value)} 
+                                    className="w-full bg-transparent text-lg font-bold text-on-surface border-none focus:ring-0 p-0 placeholder:text-on-surface-variant/30"
+                                    placeholder="Nome del tab..."
+                                />
+                            </div>
+                            <button onClick={() => removeTab(tab.id)} className="p-2 text-error hover:bg-error-container/20 rounded-full transition-colors" title="Elimina Tab">
+                                <span className="material-symbols-outlined">delete</span>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {DASHBOARD_CARDS_CONFIG.map(card => {
+                                const isSelected = tab.cards.includes(card.id);
+                                return (
+                                    <div 
+                                        key={card.id} 
+                                        onClick={() => toggleCard(tab.id, card.id)}
+                                        className={`
+                                            cursor-pointer p-4 rounded-xl border transition-all duration-200 relative overflow-hidden group
+                                            ${isSelected 
+                                                ? 'bg-primary-container/30 border-primary shadow-sm' 
+                                                : 'bg-surface-container-low border-transparent opacity-60 hover:opacity-100 hover:bg-surface-container'
+                                            }
+                                        `}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-2xl">{card.icon}</span>
+                                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'bg-primary border-primary' : 'border-outline'}`}>
+                                                {isSelected && <span className="material-symbols-outlined text-[12px] text-on-primary">check</span>}
+                                            </div>
+                                        </div>
+                                        <h4 className={`font-bold text-sm mb-1 ${isSelected ? 'text-primary' : 'text-on-surface'}`}>{card.label}</h4>
+                                        <p className="text-xs text-on-surface-variant leading-tight">{card.description}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -321,6 +456,7 @@ const AdminSettingsPage: React.FC = () => {
 
     const tabs = [
         { id: 'general', label: 'Dati & Performance', icon: 'speed' },
+        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
         { id: 'ui', label: 'Look & Feel', icon: 'palette' },
     ];
 
@@ -346,6 +482,7 @@ const AdminSettingsPage: React.FC = () => {
 
             <div className="animate-fade-in">
                 {activeTab === 'general' && <DataLoadSection />}
+                {activeTab === 'dashboard' && <DashboardConfigSection />}
                 {activeTab === 'ui' && <ThemeSection />}
             </div>
 

@@ -1,3 +1,4 @@
+
 /**
  * @file CertificationsPage.tsx
  * @description Pagina dedicata alla gestione delle Certificazioni (Skills con isCertification=true).
@@ -140,6 +141,16 @@ const CertificationsPage: React.FC = () => {
             return nameMatch && matchesCategory && matchesMacro;
         });
     }, [enrichedCertifications, filters, skillCategories]);
+
+    const exportData = useMemo(() => {
+        return filteredData.map(s => ({
+            'Certificazione': s.name,
+            'Macro Area': s.macroCategory || '-',
+            'Ambito Specifico': s.category || '-',
+            'Risorse Certificate': s.resourceCount,
+            'In Scadenza (90gg)': s.expiringCount
+        }));
+    }, [filteredData]);
 
     const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillCategories]);
     const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a,b)=>a.label.localeCompare(b.label)), [skillMacroCategories]);
@@ -325,7 +336,7 @@ const CertificationsPage: React.FC = () => {
                 onAddNew={() => handleOpenModal()}
                 renderRow={renderRow}
                 renderMobileCard={renderCard}
-                headerActions={<ExportButton data={filteredData} title="Gestione Certificazioni" />}
+                headerActions={<ExportButton data={exportData} title="Gestione Certificazioni" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}

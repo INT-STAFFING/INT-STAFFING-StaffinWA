@@ -164,6 +164,23 @@ const ResourcesPage: React.FC = () => {
         });
     }, [resources, debouncedFilters, roles, calculateResourceAllocation, assignments, showOnlyUnassigned]);
 
+    const exportData = useMemo(() => {
+        return dataForTable.map(r => ({
+            'Nome': r.name,
+            'Email': r.email,
+            'Ruolo': r.roleName,
+            'Sede': r.location,
+            'Horizontal': r.horizontal,
+            'Tutor': r.tutorName,
+            'Stato': r.resigned ? 'Dimesso' : 'Attivo',
+            'Data Assunzione': formatDateFull(r.hireDate),
+            'Anzianità (anni)': r.seniority.toFixed(1),
+            'Max Staffing %': r.maxStaffingPercentage,
+            'Allocazione Media %': r.allocation,
+            'Progetti Attivi': r.activeProjects
+        }));
+    }, [dataForTable]);
+
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => {
@@ -511,7 +528,7 @@ const ResourcesPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={dataForTable} title="Gestione Risorse" />}
+                headerActions={<ExportButton data={exportData} title="Gestione Risorse" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

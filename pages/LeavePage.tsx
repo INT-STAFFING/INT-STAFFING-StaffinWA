@@ -113,6 +113,19 @@ const LeavePage: React.FC = () => {
         });
     }, [filteredRequests, resources, leaveTypes, companyCalendar]);
 
+    const exportData = useMemo(() => {
+        const statusMap: Record<string, string> = { 'APPROVED': 'Approvata', 'PENDING': 'In Attesa', 'REJECTED': 'Rifiutata' };
+        return enrichedRequests.map(r => ({
+            'Risorsa': r.resourceName,
+            'Tipologia': r.typeName,
+            'Data Inizio': formatDateFull(r.startDate),
+            'Data Fine': formatDateFull(r.endDate),
+            'Durata (gg)': r.duration,
+            'Stato': statusMap[r.status] || r.status,
+            'Note': r.notes || ''
+        }));
+    }, [enrichedRequests]);
+
     // --- Calendar Logic ---
     
     const calendarGrid = useMemo(() => {
@@ -402,7 +415,7 @@ const LeavePage: React.FC = () => {
                     onAddNew={openNewRequestModal}
                     renderRow={renderRow}
                     renderMobileCard={renderMobileCard}
-                    headerActions={<ExportButton data={enrichedRequests} title="Gestione Assenze" />}
+                    headerActions={<ExportButton data={exportData} title="Gestione Assenze" />}
                     initialSortKey="startDate"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
@@ -419,7 +432,7 @@ const LeavePage: React.FC = () => {
                             <button onClick={openNewRequestModal} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
                                 <span className="material-symbols-outlined">add</span> Nuova Richiesta
                             </button>
-                            <ExportButton data={enrichedRequests} title="Gestione Assenze" />
+                            <ExportButton data={exportData} title="Gestione Assenze" />
                         </div>
                     </div>
 

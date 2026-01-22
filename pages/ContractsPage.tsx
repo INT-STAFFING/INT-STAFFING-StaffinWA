@@ -101,6 +101,20 @@ export const ContractsPage: React.FC = () => {
                 };
             });
     }, [contracts, projects, resources, contractProjects, contractManagers, filters]);
+
+    const exportData = useMemo(() => {
+        return dataForTable.map(c => ({
+            'Nome Contratto': c.name,
+            'CIG': c.cig,
+            'CIG Derivato': c.cigDerivato || '',
+            'Capienza': formatCurrency(c.capienza),
+            'Backlog': formatCurrency(c.backlog),
+            'Progetti Collegati': c.projectNames.join(', '),
+            'Manager Responsabili': c.managerNames.join(', '),
+            'Data Inizio': formatDateFull(c.startDate),
+            'Data Fine': formatDateFull(c.endDate)
+        }));
+    }, [dataForTable]);
     
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -255,7 +269,7 @@ export const ContractsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={dataForTable} title="Gestione Contratti" />}
+                headerActions={<ExportButton data={exportData} title="Gestione Contratti" />}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}

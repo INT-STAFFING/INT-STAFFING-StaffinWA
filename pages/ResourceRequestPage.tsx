@@ -12,6 +12,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { formatDateFull } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
 import { FormFieldFeedback } from '../components/forms';
+import ExportButton from '../components/ExportButton';
 
 // --- Types ---
 type EnrichedRequest = ResourceRequest & {
@@ -435,6 +436,7 @@ export const ResourceRequestPage: React.FC = () => {
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}
                 numActions={2}
+                headerActions={<ExportButton data={dataForTable} title="Richieste Risorse" />}
             />
 
             {editingRequest && (
