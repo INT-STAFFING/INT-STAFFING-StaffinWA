@@ -244,8 +244,26 @@ const NavigationPillar: React.FC = () => {
     const [localSidebar, setLocalSidebar] = useState(sidebarConfig);
     
     // Sync local state with context when context updates (e.g. initial load)
+    // AND MERGE WITH ROUTESMANIFEST to ensure new pages are visible
     useEffect(() => {
-        setLocalSidebar(sidebarConfig);
+        const currentPaths = new Set(sidebarConfig.map(item => item.path));
+        
+        // Find routes in manifest that are missing from the stored config
+        const newItems = routesManifest
+            .filter(r => r.showInSidebar && !currentPaths.has(r.path))
+            .map(r => ({
+                path: r.path,
+                label: r.label,
+                icon: r.icon,
+                section: r.section || 'Altro',
+                requiredPermission: r.requiredPermission
+            }));
+
+        if (newItems.length > 0) {
+            setLocalSidebar([...sidebarConfig, ...newItems]);
+        } else {
+            setLocalSidebar(sidebarConfig);
+        }
     }, [sidebarConfig]);
     
     const ROLES: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR', 'ADMIN'];
