@@ -33,6 +33,7 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
         endDate: contract.endDate || null,
         cig: contract.cig,
         cigDerivato: contract.cigDerivato || null,
+        wbs: contract.wbs || null,
         capienza: contract.capienza,
         backlog: contract.backlog,
     };
@@ -56,7 +57,7 @@ export const ContractsPage: React.FC = () => {
     const [associatedProjectIds, setAssociatedProjectIds] = useState<string[]>([]);
     const [associatedManagerIds, setAssociatedManagerIds] = useState<string[]>([]);
     const [contractToDelete, setContractToDelete] = useState<EnrichedContract | null>(null);
-    const [filters, setFilters] = useState({ name: '', cig: '' });
+    const [filters, setFilters] = useState({ name: '', cig: '', wbs: '' });
 
     const emptyContract: Omit<Contract, 'id'> = {
         name: '',
@@ -64,6 +65,7 @@ export const ContractsPage: React.FC = () => {
         endDate: null,
         cig: '',
         cigDerivato: null,
+        wbs: '',
         capienza: 0,
         backlog: 0,
     };
@@ -83,7 +85,8 @@ export const ContractsPage: React.FC = () => {
         return contracts
             .filter(c =>
                 c.name.toLowerCase().includes(filters.name.toLowerCase()) &&
-                c.cig.toLowerCase().includes(filters.cig.toLowerCase())
+                c.cig.toLowerCase().includes(filters.cig.toLowerCase()) &&
+                (c.wbs || '').toLowerCase().includes(filters.wbs.toLowerCase())
             )
             .map(contract => {
                 const pIds = contractProjects.filter(cp => cp.contractId === contract.id).map(cp => cp.projectId);
@@ -107,6 +110,7 @@ export const ContractsPage: React.FC = () => {
             'Nome Contratto': c.name,
             'CIG': c.cig,
             'CIG Derivato': c.cigDerivato || '',
+            'WBS': c.wbs || '',
             'Capienza': formatCurrency(c.capienza),
             'Backlog': formatCurrency(c.backlog),
             'Progetti Collegati': c.projectNames.join(', '),
@@ -121,7 +125,7 @@ export const ContractsPage: React.FC = () => {
     };
 
     const resetFilters = () => {
-        setFilters({ name: '', cig: '' });
+        setFilters({ name: '', cig: '', wbs: '' });
     };
 
     const openModalForNew = () => {
@@ -185,6 +189,7 @@ export const ContractsPage: React.FC = () => {
     const columns: ColumnDef<EnrichedContract>[] = [
         { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium">{c.name}</span> },
         { header: 'CIG', sortKey: 'cig', cell: c => <span className="font-mono text-xs">{c.cig}</span> },
+        { header: 'WBS', sortKey: 'wbs', cell: c => <span className="font-mono text-xs text-on-surface-variant">{c.wbs || '-'}</span> },
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
         { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={c.backlog < 0 ? 'text-error font-semibold' : ''}>{formatCurrency(c.backlog)}</span> },
         { header: 'Progetti Collegati', sortKey: 'projectCount', cell: c => c.projectCount },
@@ -214,7 +219,7 @@ export const ContractsPage: React.FC = () => {
             <div className="flex justify-between items-start">
                 <div>
                     <p className="font-bold text-lg text-on-surface">{contract.name}</p>
-                    <p className="text-sm text-on-surface-variant font-mono">{contract.cig}</p>
+                    <p className="text-sm text-on-surface-variant font-mono">{contract.cig} {contract.wbs ? `/ ${contract.wbs}` : ''}</p>
                 </div>
                 <div className="flex items-center space-x-1">
                     <button onClick={() => recalculateContractBacklog(contract.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high" disabled={isActionLoading(`recalculateBacklog-${contract.id}`)}>
@@ -235,9 +240,10 @@ export const ContractsPage: React.FC = () => {
     );
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..."/>
             <input type="text" name="cig" value={filters.cig} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per CIG..."/>
+            <input type="text" name="wbs" value={filters.wbs} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per WBS..."/>
             <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
@@ -291,7 +297,7 @@ export const ContractsPage: React.FC = () => {
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Contratto *</label>
                                     <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input" placeholder="es. Accordo Quadro 2024" />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">CIG *</label>
                                         <input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input" placeholder="Codice CIG" />
@@ -299,6 +305,10 @@ export const ContractsPage: React.FC = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">CIG Derivato</label>
                                         <input type="text" name="cigDerivato" value={editingContract.cigDerivato || ''} onChange={handleChange} className="form-input" placeholder="Opzionale" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">WBS</label>
+                                        <input type="text" name="wbs" value={editingContract.wbs || ''} onChange={handleChange} className="form-input" placeholder="Opzionale" />
                                     </div>
                                 </div>
                             </div>

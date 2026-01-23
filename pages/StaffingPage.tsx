@@ -433,9 +433,6 @@ const MobileAssignmentEditor: React.FC<{
                   
                   // Debounce logic specifically for mobile slider to avoid lag
                   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-                       // Note: For mobile slider, immediate feedback is better, but heavy DB updates should still potentially be debounced
-                       // or rely on the same AllocationCell logic if reused. Here we'll call direct for now,
-                       // but in a heavy app we'd duplicate the local state logic.
                        const val = parseInt(e.target.value, 10);
                        updateAllocation(assignment.id!, d.dateIso, val);
                   };
@@ -750,7 +747,8 @@ export const StaffingPage: React.FC = () => {
 
   // 3. Filter Resources List (Using DEBOUNCED filters)
   const displayResources = useMemo(() => {
-      let visible = resources.filter(r => !r.resigned);
+      // Explicitly filter out resigned resources (robust check)
+      let visible = resources.filter(r => r.resigned !== true);
       
       if (debouncedFilters.resourceId) {
           visible = visible.filter(r => r.id === debouncedFilters.resourceId);
@@ -903,7 +901,8 @@ export const StaffingPage: React.FC = () => {
   // --- JSX ---
 
   const resourceOptions: Option[] = useMemo(
-      () => resources.filter((r) => !r.resigned).map((r) => ({ value: r.id!, label: r.name })),
+      // Ensure dropdown also filters out resigned resources strictly
+      () => resources.filter((r) => r.resigned !== true).map((r) => ({ value: r.id!, label: r.name })),
       [resources]
   );
   const projectOptions: Option[] = useMemo(() => projects.map((p) => ({ value: p.id!, label: p.name })), [projects]);

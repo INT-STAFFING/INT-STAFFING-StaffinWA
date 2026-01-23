@@ -279,7 +279,8 @@ const WorkloadPage: React.FC = () => {
     }, [currentDate, assignments, allocations, companyCalendar]);
 
     const displayData = useMemo(() => {
-        let visibleResources = resources.filter((r) => !r.resigned);
+        // Explicitly filter out resigned resources (robust check)
+        let visibleResources = resources.filter((r) => r.resigned !== true);
         
         // Apply Manual Filters
         if (filters.resourceId) visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
@@ -380,7 +381,11 @@ const WorkloadPage: React.FC = () => {
         return map;
     }, [leaveRequests, leaveTypes, viewMode, timeColumns]);
 
-    const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const resourceOptions = useMemo(
+        // Ensure dropdown also filters out resigned resources strictly
+        () => resources.filter(r => r.resigned !== true).map(r => ({ value: r.id!, label: r.name })), 
+        [resources]
+    );
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
     const handleFilterChange = (name: string, value: string) => {

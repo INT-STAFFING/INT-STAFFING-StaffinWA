@@ -1,4 +1,5 @@
 
+// ... keep existing imports ...
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -448,6 +449,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      return res.status(200).json(rows[0] ? toCamelAndNormalize(rows[0]) : null);
                 } else {
                      const { rows } = await client.query(`SELECT * FROM ${tableName}`);
+                     
+                     // SPECIAL HANDLING FOR ROLE PERMISSIONS
+                     if (tableName === 'role_permissions') {
+                        // Manual mapping to match RolePermission interface
+                        return res.status(200).json(rows.map(r => ({
+                            role: r.role,
+                            pagePath: r.page_path,
+                            allowed: r.is_allowed
+                        })));
+                     }
+
                      return res.status(200).json(rows.map(toCamelAndNormalize));
                 }
             }

@@ -236,13 +236,13 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     if (Array.isArray(importedContracts)) {
         const contractRows: any[][] = [];
         for (const cont of importedContracts) {
-            const { 'Nome Contratto': name, CIG: cig, 'CIG Derivato': cigDerivato, 'Capienza (€)': capienza, 'Data Inizio': startDate, 'Data Fine': endDate } = cont;
+            const { 'Nome Contratto': name, CIG: cig, 'CIG Derivato': cigDerivato, WBS: wbs, 'Capienza (€)': capienza, 'Data Inizio': startDate, 'Data Fine': endDate } = cont;
             if (!name || !cig) continue;
             const newId = uuidv4();
-            contractRows.push([newId, name, formatDateForDB(parseDate(startDate)), formatDateForDB(parseDate(endDate)), cig, cigDerivato, capienza, capienza]);
+            contractRows.push([newId, name, formatDateForDB(parseDate(startDate)), formatDateForDB(parseDate(endDate)), cig, cigDerivato, wbs || null, capienza, capienza]);
             contractNameMap.set(normalize(name), newId);
         }
-        await executeBulkInsert(client, 'contracts', ['id', 'name', 'start_date', 'end_date', 'cig', 'cig_derivato', 'capienza', 'backlog'], contractRows, 'ON CONFLICT (cig) DO UPDATE SET capienza = EXCLUDED.capienza, end_date = EXCLUDED.end_date');
+        await executeBulkInsert(client, 'contracts', ['id', 'name', 'start_date', 'end_date', 'cig', 'cig_derivato', 'wbs', 'capienza', 'backlog'], contractRows, 'ON CONFLICT (cig) DO UPDATE SET capienza = EXCLUDED.capienza, end_date = EXCLUDED.end_date, wbs = EXCLUDED.wbs');
     }
 
     if (Array.isArray(importedProjects)) {

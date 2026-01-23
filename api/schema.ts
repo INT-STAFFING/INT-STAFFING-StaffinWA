@@ -113,7 +113,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
     }
 
     // 7. Projects & Planning
-    await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0 );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0 );`;
+    await db.sql `ALTER TABLE contracts ADD COLUMN IF NOT EXISTS wbs VARCHAR(255);`
     await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`;

@@ -145,6 +145,8 @@ export interface Contract {
     cig: string;
     /** @property {string | null} cigDerivato - Codice CIG derivato (opzionale). */
     cigDerivato: string | null;
+    /** @property {string | null} wbs - Work Breakdown Structure (opzionale). */
+    wbs?: string | null;
     /** @property {number} capienza - Importo totale in € del contratto. */
     capienza: number;
     /** @property {number} backlog - Capienza residua calcolata. */
