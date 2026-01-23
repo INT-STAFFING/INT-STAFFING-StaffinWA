@@ -89,6 +89,15 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/ProjectsPage')),
     },
     {
+        path: '/wbs-analysis',
+        label: 'Analisi Allocazioni WBS',
+        icon: 'account_tree',
+        section: 'Progetti',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/WbsAllocationPage').then(module => ({ default: module.WbsAllocationPage }))),
+    },
+    {
         path: '/contracts',
         label: 'Contratti',
         icon: 'description',
