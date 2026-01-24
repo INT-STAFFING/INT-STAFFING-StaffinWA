@@ -28,6 +28,7 @@ const RolesPage = lazy(() => import('./pages/RolesPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ExportPage = lazy(() => import('./pages/ExportPage'));
 const ConfigPage = lazy(() => import('./pages/ConfigPage'));
+const RateCardsPage = lazy(() => import('./pages/RateCardsPage'));
 const ImportPage = lazy(() => import('./pages/ImportPage'));
 const ForecastingPage = lazy(() => import('./pages/ForecastingPage'));
 const GanttPage = lazy(() => import('./pages/GanttPage'));
@@ -196,6 +197,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/export" element={<DynamicRoute path="/export"><ExportPage /></DynamicRoute>} />
               <Route path="/import" element={<DynamicRoute path="/import"><ImportPage /></DynamicRoute>} />
               <Route path="/config" element={<DynamicRoute path="/config"><ConfigPage /></DynamicRoute>} />
+              <Route path="/rate-cards" element={<DynamicRoute path="/rate-cards"><RateCardsPage /></DynamicRoute>} />
               <Route path="/reports" element={<DynamicRoute path="/reports"><ReportsPage /></DynamicRoute>} />
               <Route path="/resource-requests" element={<DynamicRoute path="/resource-requests"><ResourceRequestPage /></DynamicRoute>} />
               <Route path="/interviews" element={<DynamicRoute path="/interviews"><InterviewsPage /></DynamicRoute>} />

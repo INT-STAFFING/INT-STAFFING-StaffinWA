@@ -33,7 +33,7 @@ const downloadCSV = (csvContent: string, fileName: string) => {
 // --- Componenti Principali dei Report ---
 
 const ProjectCostsReport: React.FC = () => {
-    const { projects, clients, assignments, resources, roles, projectStatuses, companyCalendar, getRoleCost, loading } = useEntitiesContext();
+    const { projects, clients, assignments, resources, contracts, projectStatuses, companyCalendar, getRoleCost, getSellRate, loading, projectExpenses } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
 
@@ -42,9 +42,16 @@ const ProjectCostsReport: React.FC = () => {
             .filter(p => (!filters.clientId || p.clientId === filters.clientId) && (!filters.status || p.status === filters.status))
             .map(project => {
                 let allocatedCost = 0;
+                let estimatedRevenue = 0;
                 let personDays = 0;
+                
+                // 1. Calculate Staffing (Labor) Costs
                 const projectAssignments = assignments.filter(a => a.projectId === project.id);
                 
+                // Determine rate card ID from contract
+                const contract = contracts.find(c => c.id === project.contractId);
+                const rateCardId = contract?.rateCardId;
+
                 projectAssignments.forEach(assignment => {
                     const resource = resources.find(r => r.id === assignment.resourceId);
                     if (!resource || !assignment.id) return;
@@ -57,57 +64,84 @@ const ProjectCostsReport: React.FC = () => {
                              if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                                 const dayFraction = (assignmentAllocations[dateStr] || 0) / 100;
                                 
-                                // Use historical cost for accuracy
-                                const dailyRate = getRoleCost(resource.roleId, allocDate);
+                                // Cost Calculation (Historical)
+                                const dailyCostRate = getRoleCost(resource.roleId, allocDate);
+                                
+                                // Revenue Calculation (Sell Rate)
+                                const dailySellRate = getSellRate(rateCardId, resource.roleId);
                                 
                                 personDays += dayFraction;
-                                allocatedCost += dayFraction * dailyRate;
+                                allocatedCost += dayFraction * dailyCostRate;
+                                estimatedRevenue += dayFraction * dailySellRate;
                              }
                         }
                     }
                 });
+
+                // 2. Calculate Non-Labor Costs (Expenses)
+                const expenses = projectExpenses.filter(e => e.projectId === project.id);
+                const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
                 
+                // 3. Final Aggregation
                 const budget = Number(project.budget || 0);
-                const variance = budget - allocatedCost;
+                const totalCost = allocatedCost + totalExpenses;
+                
+                // Margin = Revenue - (Labor Cost + Expenses)
+                const margin = estimatedRevenue - totalCost;
+                const marginPercentage = estimatedRevenue > 0 ? (margin / estimatedRevenue) * 100 : 0;
+                
+                // Variance (Budget Remaining) = Budget - Total Cost
+                const variance = budget - totalCost;
 
                 return {
                     id: project.id,
                     projectName: project.name,
                     clientName: clients.find(c => c.id === project.clientId)?.name || 'N/A',
                     budget,
-                    allocatedCost,
+                    laborCost: allocatedCost,
+                    expensesCost: totalExpenses,
+                    totalCost,
+                    estimatedRevenue,
+                    margin,
+                    marginPercentage,
                     variance,
-                    personDays,
-                    avgCostPerDay: personDays > 0 ? allocatedCost / personDays : 0,
+                    personDays
                 };
             });
-    }, [projects, filters, clients, assignments, resources, roles, companyCalendar, allocations, getRoleCost]);
+    }, [projects, filters, clients, assignments, resources, contracts, companyCalendar, allocations, getRoleCost, getSellRate, projectExpenses]);
     
     const exportData = useMemo(() => {
         return reportData.map(d => ({
             'Progetto': d.projectName,
             'Cliente': d.clientName,
             'Budget': formatCurrency(d.budget),
-            'Costo Allocato': formatCurrency(d.allocatedCost),
-            'Varianza': formatCurrency(d.variance),
+            'Costo Labor': formatCurrency(d.laborCost),
+            'Spese Extra': formatCurrency(d.expensesCost),
+            'Costo Totale': formatCurrency(d.totalCost),
+            'Ricavo Stimato': formatCurrency(d.estimatedRevenue),
+            'Margine': formatCurrency(d.margin),
+            'Margine %': d.marginPercentage.toFixed(2) + '%',
+            'Varianza (Budget Residuo)': formatCurrency(d.variance),
             'G/U Allocati': d.personDays.toFixed(1),
-            'Costo Medio G/U': formatCurrency(d.avgCostPerDay)
         }));
     }, [reportData]);
 
     const exportToCSV = () => {
-        const headers = ["Progetto", "Cliente", "Budget", "Costo Allocato", "Varianza", "Giorni/Uomo", "Costo Medio G/U"];
+        const headers = ["Progetto", "Cliente", "Budget", "Costo Labor", "Spese Extra", "Costo Totale", "Ricavo Stimato", "Margine", "Margine %", "G/U"];
         const rows = reportData.map(d => [
             `"${d.projectName || ''}"`,
             `"${d.clientName || ''}"`,
             (d.budget || 0).toFixed(2),
-            (d.allocatedCost || 0).toFixed(2),
-            (d.variance || 0).toFixed(2),
-            (d.personDays || 0).toFixed(2),
-            (d.avgCostPerDay || 0).toFixed(2)
+            (d.laborCost || 0).toFixed(2),
+            (d.expensesCost || 0).toFixed(2),
+            (d.totalCost || 0).toFixed(2),
+            (d.estimatedRevenue || 0).toFixed(2),
+            (d.margin || 0).toFixed(2),
+            (d.marginPercentage || 0).toFixed(2),
+            (d.personDays || 0).toFixed(2)
         ]);
         const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csvContent, 'report_costi_progetto.csv');
+        downloadCSV(csvContent, 'report_marginalita_progetto.csv');
     };
 
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
@@ -118,46 +152,47 @@ const ProjectCostsReport: React.FC = () => {
         { header: "Progetto", sortKey: "projectName", cell: d => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{d.projectName}</span> },
         { header: "Cliente", sortKey: "clientName", cell: d => <span className="text-sm text-on-surface-variant">{d.clientName}</span> },
         { header: "Budget", sortKey: "budget", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.budget)}</span> },
-        { header: "Costo Allocato", sortKey: "allocatedCost", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.allocatedCost)}</span> },
-        { header: "Varianza", sortKey: "variance", cell: d => <span className={`text-sm font-semibold ${d.variance >= 0 ? 'text-tertiary' : 'text-error'}`}>{formatCurrency(d.variance)}</span> },
-        { header: "G/U Allocati", sortKey: "personDays", cell: d => <span className="text-sm text-on-surface-variant">{d.personDays.toFixed(1)}</span> },
-        { header: "Costo Medio G/U", sortKey: "avgCostPerDay", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.avgCostPerDay)}</span> },
+        { header: "Costo Labor", sortKey: "laborCost", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.laborCost)}</span> },
+        { header: "Spese Extra", sortKey: "expensesCost", cell: d => <span className="text-sm text-on-surface-variant">{formatCurrency(d.expensesCost)}</span> },
+        { header: "Ricavo (T&M)", sortKey: "estimatedRevenue", cell: d => <span className="text-sm font-semibold text-primary">{formatCurrency(d.estimatedRevenue)}</span> },
+        { header: "Margine", sortKey: "margin", cell: d => <span className={`text-sm font-bold ${d.margin >= 0 ? 'text-tertiary' : 'text-error'}`}>{formatCurrency(d.margin)}</span> },
+        { header: "Margine %", sortKey: "marginPercentage", cell: d => <span className={`text-xs px-2 py-0.5 rounded font-bold ${d.marginPercentage >= 30 ? 'bg-tertiary-container text-on-tertiary-container' : d.marginPercentage > 0 ? 'bg-yellow-container text-on-yellow-container' : 'bg-error-container text-on-error-container'}`}>{d.marginPercentage.toFixed(1)}%</span> },
+        { header: "G/U", sortKey: "personDays", cell: d => <span className="text-sm text-on-surface-variant">{d.personDays.toFixed(1)}</span> },
     ];
 
     const renderRow = (d: typeof reportData[0]) => (
         <tr key={d.id} className="h-12 hover:bg-surface-container-low group">
             {columns.map((col, i) => <td key={i} className="px-6 py-3 whitespace-nowrap text-sm bg-inherit">{col.cell(d)}</td>)}
-            {/* Cella vuota per allineamento azioni se necessario, o rimossa se DataTable gestisce sticky col 0 come azioni */}
             <td className="bg-inherit"></td> 
         </tr>
     );
 
     const renderMobileCard = (d: typeof reportData[0]) => (
-        <div key={d.id} className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${d.variance >= 0 ? 'border-tertiary' : 'border-error'} flex flex-col gap-3`}>
+        <div key={d.id} className={`bg-surface rounded-2xl shadow p-4 mb-4 border-l-4 ${d.margin >= 0 ? 'border-tertiary' : 'border-error'} flex flex-col gap-3`}>
              <div className="flex justify-between items-start">
                 <div>
                     <h3 className="font-bold text-lg text-on-surface">{d.projectName}</h3>
                     <p className="text-sm text-on-surface-variant">{d.clientName}</p>
                 </div>
-                 <div className={`px-2 py-1 rounded text-xs font-bold ${d.variance >= 0 ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
-                    {formatCurrency(d.variance)} Var
+                 <div className={`px-2 py-1 rounded text-xs font-bold ${d.marginPercentage >= 20 ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-yellow-container text-on-yellow-container'}`}>
+                    {d.marginPercentage.toFixed(1)}%
                 </div>
             </div>
 
              <div className="grid grid-cols-2 gap-2 mt-1">
                  <div className="bg-surface-container-low p-2 rounded">
-                     <span className="text-xs text-on-surface-variant block">Budget</span>
-                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(d.budget)}</span>
+                     <span className="text-xs text-on-surface-variant block">Ricavo T&M</span>
+                     <span className="text-sm font-semibold text-primary">{formatCurrency(d.estimatedRevenue)}</span>
                  </div>
                  <div className="bg-surface-container-low p-2 rounded">
-                     <span className="text-xs text-on-surface-variant block">Costo Allocato</span>
-                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(d.allocatedCost)}</span>
+                     <span className="text-xs text-on-surface-variant block">Costo Totale</span>
+                     <span className="text-sm font-semibold text-on-surface">{formatCurrency(d.totalCost)}</span>
                  </div>
              </div>
-
-             <div className="flex justify-between items-center text-xs text-on-surface-variant pt-2 border-t border-outline-variant">
-                <span>{d.personDays.toFixed(1)} Giorni/Uomo</span>
-                <span>Avg: {formatCurrency(d.avgCostPerDay)} / Giorno</span>
+             
+             <div className="pt-2 border-t border-outline-variant flex justify-between items-center">
+                 <span className="text-xs text-on-surface-variant">Budget Residuo: {formatCurrency(d.variance)}</span>
+                 <span className={`font-bold ${d.margin >= 0 ? 'text-tertiary' : 'text-error'}`}>Margine: {formatCurrency(d.margin)}</span>
              </div>
         </div>
     );
@@ -170,7 +205,7 @@ const ProjectCostsReport: React.FC = () => {
                 <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                 </button>
-                <ExportButton data={exportData} title="Costi per Progetto" />
+                <ExportButton data={exportData} title="Marginalità per Progetto" />
             </div>
         </div>
     );
@@ -397,7 +432,7 @@ const ReportsPage: React.FC = () => {
                         onClick={() => setActiveTab('projectCosts')} 
                         className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${activeTab === 'projectCosts' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}
                     >
-                        Costi per Progetto
+                        Costi e Margini
                     </button>
                     <button 
                         onClick={() => setActiveTab('resourceUtilization')} 
@@ -408,7 +443,10 @@ const ReportsPage: React.FC = () => {
                 </div>
             </div>
 
-            {activeTab === 'projectCosts' ? <ProjectCostsReport /> : <ResourceUtilizationReport />}
+            <div className="animate-fade-in">
+                {activeTab === 'projectCosts' && <ProjectCostsReport />}
+                {activeTab === 'resourceUtilization' && <ResourceUtilizationReport />}
+            </div>
         </div>
     );
 };

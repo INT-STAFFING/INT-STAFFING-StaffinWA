@@ -132,7 +132,10 @@ const TABLE_MAPPING: Record<string, string> = {
     'leaves': 'leave_requests',
     'leave_types': 'leave_types',
     'role-permissions': 'role_permissions',
-    'security-users': 'app_users'
+    'security-users': 'app_users',
+    'rate_cards': 'rate_cards',
+    'rate_card_entries': 'rate_card_entries',
+    'project_expenses': 'project_expenses'
 };
 
 // Helper per convertire snake_case a camelCase e normalizzare le date
@@ -199,6 +202,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await client.query('INSERT INTO role_cost_history (id, role_id, daily_cost, start_date) VALUES ($1, $2, $3, CURRENT_DATE)', [uuidv4(), id, dailyCost]);
             }
             await logAction(client, currentUser, 'UPDATE_ROLE', 'roles', id as string, req.body, req);
+            await client.query('COMMIT');
+            return res.status(200).json({ success: true });
+        }
+        
+        // --- RATE CARD ENTRIES BATCH UPDATE ---
+        if (entity === 'rate_card_entries' && method === 'POST' && req.body.entries && Array.isArray(req.body.entries)) {
+            if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+            const { entries } = req.body;
+            await client.query('BEGIN');
+            // Assuming rateCardId is same for all in batch or provided individually
+            // Clean out old entries for this card? No, simple UPSERT
+            for (const entry of entries) {
+                await client.query(
+                    `INSERT INTO rate_card_entries (rate_card_id, role_id, daily_rate)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (rate_card_id, role_id)
+                     DO UPDATE SET daily_rate = $3`,
+                    [entry.rateCardId, entry.roleId, entry.dailyRate]
+                );
+            }
+            await logAction(client, currentUser, 'UPSERT_RATE_CARD_ENTRIES', 'rate_card_entries', null, { count: entries.length }, req);
             await client.query('COMMIT');
             return res.status(200).json({ success: true });
         }
@@ -422,7 +446,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (method === 'DELETE') { await client.query(`DELETE FROM ${tableName} WHERE id=$1`, [id]); return res.status(204).end(); }
         }
 
-        const validTables = ['resources', 'projects', 'clients', 'company_calendar', 'interviews', 'contracts', 'resource_skills', 'project_skills', 'skill_macro_categories', 'leaves', 'leave_types', 'role_permissions', 'contract_projects', 'contract_managers', 'roles', 'skills', 'skill_categories'];
+        const validTables = ['resources', 'projects', 'clients', 'company_calendar', 'interviews', 'contracts', 'resource_skills', 'project_skills', 'skill_macro_categories', 'leaves', 'leave_types', 'role_permissions', 'contract_projects', 'contract_managers', 'roles', 'skills', 'skill_categories', 'rate_cards', 'rate_card_entries', 'project_expenses'];
         if (validTables.includes(entity as string) || TABLE_MAPPING[entity as string]) {
             const writeMethods = ['POST', 'PUT', 'DELETE'];
             
@@ -475,7 +499,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     'project_skills': '(project_id, skill_id)',
                     'role_permissions': '(role, page_path)',
                     'contract_projects': '(contract_id, project_id)',
-                    'contract_managers': '(contract_id, resource_id)'
+                    'contract_managers': '(contract_id, resource_id)',
+                    'rate_card_entries': '(rate_card_id, role_id)'
                 };
 
                 if (compositeKeyTables[tableName]) {

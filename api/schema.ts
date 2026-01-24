@@ -106,15 +106,21 @@ export async function ensureDbTablesExist(db: VercelPool) {
                 await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES (${role}, ${page}, TRUE);`;
             }
         }
-        const adminPages = [...managerPages, '/admin-settings', '/security-center', '/db-inspector', '/calendar', '/config', '/import', '/export'];
+        const adminPages = [...managerPages, '/admin-settings', '/security-center', '/db-inspector', '/calendar', '/config', '/import', '/export', '/rate-cards'];
         for (const page of adminPages) {
             await db.sql`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ('ADMIN', ${page}, TRUE);`;
         }
     }
 
     // 7. Projects & Planning
+    // Add Rate Cards Tables
+    await db.sql`CREATE TABLE IF NOT EXISTS rate_cards ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, currency VARCHAR(10) DEFAULT 'EUR' );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS rate_card_entries ( rate_card_id UUID REFERENCES rate_cards(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, daily_rate NUMERIC(10, 2) NOT NULL, PRIMARY KEY (rate_card_id, role_id) );`;
+
     await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0 );`;
-    await db.sql `ALTER TABLE contracts ADD COLUMN IF NOT EXISTS wbs VARCHAR(255);`
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS wbs VARCHAR(255);`;
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL;`;
+    
     await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`;
@@ -122,6 +128,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS contract_managers ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, resource_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS project_skills ( project_id UUID REFERENCES projects(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, PRIMARY KEY (project_id, skill_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS wbs_tasks ( id UUID PRIMARY KEY, elemento_wbs VARCHAR(255) NOT NULL UNIQUE, descrizione_wbe TEXT, client_id UUID REFERENCES clients(id) ON DELETE SET NULL, periodo VARCHAR(50), ore NUMERIC(10, 2), produzione_lorda NUMERIC(12, 2), ore_network_italia NUMERIC(10, 2), produzione_lorda_network_italia NUMERIC(12, 2), perdite NUMERIC(12, 2), realisation INT, spese_onorari_esterni NUMERIC(12, 2), spese_altro NUMERIC(12, 2), fatture_onorari NUMERIC(12, 2), fatture_spese NUMERIC(12, 2), iva NUMERIC(12, 2), incassi NUMERIC(12, 2), primo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL, secondo_responsabile_id UUID REFERENCES resources(id) ON DELETE SET NULL );`;
+    
+    // Add Project Expenses Table
+    await db.sql`CREATE TABLE IF NOT EXISTS project_expenses ( id UUID PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, category VARCHAR(255) NOT NULL, description TEXT, amount NUMERIC(12, 2) NOT NULL, date DATE NOT NULL, billable BOOLEAN DEFAULT FALSE );`;
 
     // 8. Recruitment & Operations
     await db.sql`CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, request_code VARCHAR(50), project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, is_osr_open BOOLEAN DEFAULT FALSE, osr_number VARCHAR(50), notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;

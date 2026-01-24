@@ -5,7 +5,8 @@ import {
     CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill,
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
-    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction
+    Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction,
+    RateCard, RateCardEntry, ProjectExpense
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -41,6 +42,7 @@ const DEFAULT_SIDEBAR_CONFIG: SidebarItem[] = [
 
     { path: "/calendar", label: "Calendario Aziendale", icon: "event", section: "Configurazione" },
     { path: "/config", label: "Opzioni", icon: "settings", section: "Configurazione" },
+    { path: "/rate-cards", label: "Listini (Rate Cards)", icon: "payments", section: "Configurazione" },
     { path: "/import", label: "Importa Dati", icon: "upload", section: "Dati" },
     { path: "/export", label: "Esporta Dati", icon: "download", section: "Dati" },
     
@@ -75,15 +77,16 @@ const DEFAULT_ROLE_HOME_PAGES: Record<string, string> = {
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
 const CatalogsContext = createContext<Pick<EntitiesContextType,
-    'clients' | 'roles' | 'roleCostHistory' | 'resources' | 'projects' | 'contracts' |
+    'clients' | 'roles' | 'roleCostHistory' | 'rateCards' | 'rateCardEntries' | 'resources' | 'projects' | 'contracts' |
     'contractProjects' | 'contractManagers' | 'skills' | 'skillCategories' | 'skillMacroCategories' |
     'resourceSkills' | 'projectSkills' | 'addResource' | 'updateResource' | 'deleteResource' |
     'addProject' | 'updateProject' | 'deleteProject' | 'addClient' | 'updateClient' | 'deleteClient' |
     'addRole' | 'updateRole' | 'deleteRole' | 'addSkill' | 'updateSkill' | 'deleteSkill' |
     'addResourceSkill' | 'deleteResourceSkill' | 'addProjectSkill' | 'deleteProjectSkill' |
     'addContract' | 'updateContract' | 'deleteContract' | 'recalculateContractBacklog' |
+    'addRateCard' | 'updateRateCard' | 'deleteRateCard' | 'upsertRateCardEntries' |
     'addSkillCategory' | 'updateSkillCategory' | 'deleteSkillCategory' |
-    'addSkillMacro' | 'updateSkillMacro' | 'deleteSkillMacro' | 'getRoleCost' | 'getResourceComputedSkills'
+    'addSkillMacro' | 'updateSkillMacro' | 'deleteSkillMacro' | 'getRoleCost' | 'getSellRate' | 'getResourceComputedSkills'
 > | undefined>(undefined);
 
 const PlanningContext = createContext<(Pick<EntitiesContextType,
@@ -166,6 +169,9 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const [clients, setClients] = useState<Client[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [roleCostHistory, setRoleCostHistory] = useState<RoleCostHistory[]>([]);
+    const [rateCards, setRateCards] = useState<RateCard[]>([]);
+    const [rateCardEntries, setRateCardEntries] = useState<RateCardEntry[]>([]);
+    const [projectExpenses, setProjectExpenses] = useState<ProjectExpense[]>([]);
     const [resources, setResources] = useState<Resource[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
@@ -235,6 +241,19 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             setLeaveTypes(metaData.leaveTypes || []);
             setManagerResourceIds(metaData.managerResourceIds || []);
             setAnalyticsCache(metaData.analyticsCache || {});
+            
+            // NEW: Fetch Rate Cards (assume they are in metadata response or separate)
+            // Ideally should be in metadata scope. If not, we fetch.
+            // For now, assuming mockHandlers handles it if we ask.
+            const rateCardsRes = await apiFetch<RateCard[]>('/api/resources?entity=rate_cards');
+            setRateCards(rateCardsRes || []);
+            const rateCardEntriesRes = await apiFetch<RateCardEntry[]>('/api/resources?entity=rate_card_entries');
+            setRateCardEntries(rateCardEntriesRes || []);
+            
+            // Fetch Project Expenses
+            const projectExpensesRes = await apiFetch<ProjectExpense[]>('/api/resources?entity=project_expenses');
+            setProjectExpenses(projectExpensesRes || []);
+            
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             
             // Config Loading
@@ -440,6 +459,69 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         } finally { setActionLoading(`deleteRole-${id}`, false); }
     };
 
+    // --- RATE CARDS CRUD ---
+    const addRateCard = async (rateCard: Omit<RateCard, 'id'>) => {
+        setActionLoading('addRateCard', true);
+        try {
+            const newRateCard = await apiFetch<RateCard>('/api/resources?entity=rate_cards', { method: 'POST', body: JSON.stringify(rateCard) });
+            setRateCards(prev => [...prev, newRateCard]);
+        } finally { setActionLoading('addRateCard', false); }
+    };
+    
+    const updateRateCard = async (rateCard: RateCard) => {
+        setActionLoading(`updateRateCard-${rateCard.id}`, true);
+        try {
+            const updated = await apiFetch<RateCard>(`/api/resources?entity=rate_cards&id=${rateCard.id}`, { method: 'PUT', body: JSON.stringify(rateCard) });
+            setRateCards(prev => prev.map(rc => rc.id === rateCard.id ? updated : rc));
+        } finally { setActionLoading(`updateRateCard-${rateCard.id}`, false); }
+    };
+    
+    const deleteRateCard = async (id: string) => {
+        setActionLoading(`deleteRateCard-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=rate_cards&id=${id}`, { method: 'DELETE' });
+            setRateCards(prev => prev.filter(rc => rc.id !== id));
+            // Should also cleanup entries locally
+            setRateCardEntries(prev => prev.filter(e => e.rateCardId !== id));
+        } finally { setActionLoading(`deleteRateCard-${id}`, false); }
+    };
+    
+    const upsertRateCardEntries = async (entries: RateCardEntry[]) => {
+        if (entries.length === 0) return;
+        setActionLoading('upsertRateCardEntries', true);
+        try {
+            await apiFetch('/api/resources?entity=rate_card_entries', { method: 'POST', body: JSON.stringify({ entries }) });
+            // Refresh entries locally
+            const entriesRes = await apiFetch<RateCardEntry[]>('/api/resources?entity=rate_card_entries');
+            setRateCardEntries(entriesRes || []);
+        } finally { setActionLoading('upsertRateCardEntries', false); }
+    };
+    
+    // --- PROJECT EXPENSES CRUD ---
+    const addProjectExpense = async (expense: Omit<ProjectExpense, 'id'>) => {
+        setActionLoading('addProjectExpense', true);
+        try {
+            const newExpense = await apiFetch<ProjectExpense>('/api/resources?entity=project_expenses', { method: 'POST', body: JSON.stringify(expense) });
+            setProjectExpenses(prev => [...prev, newExpense]);
+        } finally { setActionLoading('addProjectExpense', false); }
+    };
+    
+    const updateProjectExpense = async (expense: ProjectExpense) => {
+        setActionLoading(`updateProjectExpense-${expense.id}`, true);
+        try {
+            const updated = await apiFetch<ProjectExpense>(`/api/resources?entity=project_expenses&id=${expense.id}`, { method: 'PUT', body: JSON.stringify(expense) });
+            setProjectExpenses(prev => prev.map(e => e.id === expense.id ? updated : e));
+        } finally { setActionLoading(`updateProjectExpense-${expense.id}`, false); }
+    };
+    
+    const deleteProjectExpense = async (id: string) => {
+        setActionLoading(`deleteProjectExpense-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=project_expenses&id=${id}`, { method: 'DELETE' });
+            setProjectExpenses(prev => prev.filter(e => e.id !== id));
+        } finally { setActionLoading(`deleteProjectExpense-${id}`, false); }
+    };
+
     const addConfigOption = async (type: string, value: string) => {
         setActionLoading(`addConfig-${type}`, true);
         try {
@@ -542,6 +624,12 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         if (historicRecord) return Number(historicRecord.dailyCost);
         const role = roles.find(r => r.id === roleId);
         return role ? Number(role.dailyCost) : 0;
+    };
+    
+    const getSellRate = (rateCardId: string | null | undefined, roleId: string): number => {
+        if (!rateCardId) return 0;
+        const entry = rateCardEntries.find(e => e.rateCardId === rateCardId && e.roleId === roleId);
+        return entry ? Number(entry.dailyRate) : 0;
     };
 
     // Allocations Logic - MEMOIZED to keep references stable for children
@@ -1026,7 +1114,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     };
 
     const providerValue = useMemo(() => ({
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers, 
+        clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
@@ -1036,10 +1124,12 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         addProject, updateProject, deleteProject,
         addClient, updateClient, deleteClient,
         addRole, updateRole, deleteRole,
+        addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
+        addProjectExpense, updateProjectExpense, deleteProjectExpense,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         addMultipleAssignments, deleteAssignment,
-        getRoleCost,
+        getRoleCost, getSellRate,
         addResourceRequest, updateResourceRequest, deleteResourceRequest,
         addInterview, updateInterview, deleteInterview,
         addContract, updateContract, deleteContract, recalculateContractBacklog,
@@ -1055,7 +1145,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro
     }), [
-        clients, roles, roleCostHistory, resources, projects, contracts, contractProjects, contractManagers,
+        clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
@@ -1150,6 +1240,8 @@ const CatalogsProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
         clients: entities.clients,
         roles: entities.roles,
         roleCostHistory: entities.roleCostHistory,
+        rateCards: entities.rateCards,
+        rateCardEntries: entities.rateCardEntries,
         resources: entities.resources,
         projects: entities.projects,
         contracts: entities.contracts,
@@ -1172,6 +1264,10 @@ const CatalogsProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
         addRole: entities.addRole,
         updateRole: entities.updateRole,
         deleteRole: entities.deleteRole,
+        addRateCard: entities.addRateCard,
+        updateRateCard: entities.updateRateCard,
+        deleteRateCard: entities.deleteRateCard,
+        upsertRateCardEntries: entities.upsertRateCardEntries,
         addSkill: entities.addSkill,
         updateSkill: entities.updateSkill,
         deleteSkill: entities.deleteSkill,
@@ -1190,6 +1286,7 @@ const CatalogsProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
         updateSkillMacro: entities.updateSkillMacro,
         deleteSkillMacro: entities.deleteSkillMacro,
         getRoleCost: entities.getRoleCost,
+        getSellRate: entities.getSellRate,
         getResourceComputedSkills: entities.getResourceComputedSkills
     }), [entities]);
 

@@ -1,7 +1,8 @@
 
+// ... (imports remain) ... 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { Project } from '../types';
+import { Project, ProjectExpense } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -11,7 +12,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
-
+import { useToast } from '../context/ToastContext';
+import ConfirmationModal from '../components/ConfirmationModal'; // Ensure this is imported if not already in scope of Modal component
 
 type EnrichedProject = Project & { 
     clientName: string; 
@@ -40,12 +42,190 @@ const buildProjectPayload = (project: Project | Omit<Project, 'id'>): Project | 
     return basePayload;
 };
 
+const ProjectExpensesModal: React.FC<{ 
+    project: Project; 
+    isOpen: boolean; 
+    onClose: () => void; 
+}> = ({ project, isOpen, onClose }) => {
+    const { projectExpenses, addProjectExpense, updateProjectExpense, deleteProjectExpense, isActionLoading } = useEntitiesContext();
+    const { addToast } = useToast();
+    
+    // Local state for the new expense form
+    const [newExpense, setNewExpense] = useState<Omit<ProjectExpense, 'id' | 'projectId'>>({
+        category: 'Altro',
+        description: '',
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        billable: false
+    });
+    
+    const [expenseToDelete, setExpenseToDelete] = useState<ProjectExpense | null>(null);
+
+    const projectSpecificExpenses = useMemo(() => 
+        projectExpenses.filter(e => e.projectId === project.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [projectExpenses, project.id]);
+
+    const totalExpenses = useMemo(() => 
+        projectSpecificExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
+    [projectSpecificExpenses]);
+
+    const categoryOptions = ['Licenze Software', 'Hardware', 'Viaggi & Trasferte', 'Consulenza Esterna', 'Marketing', 'Altro'];
+
+    const handleAdd = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            await addProjectExpense({ ...newExpense, projectId: project.id! });
+            addToast('Spesa aggiunta', 'success');
+            setNewExpense({ category: 'Altro', description: '', amount: 0, date: new Date().toISOString().split('T')[0], billable: false });
+        } catch (err) {
+            addToast('Errore aggiunta spesa', 'error');
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (expenseToDelete) {
+            try {
+                await deleteProjectExpense(expenseToDelete.id!);
+                addToast('Spesa eliminata', 'success');
+            } catch (err) { 
+                addToast('Errore eliminazione', 'error'); 
+            } finally {
+                setExpenseToDelete(null);
+            }
+        }
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={`Spese Extra: ${project.name}`}>
+            <div className="flex flex-col h-[70vh]">
+                <div className="flex-shrink-0 bg-surface-container-low p-4 rounded-xl border border-outline-variant mb-4 flex justify-between items-center">
+                    <div>
+                        <p className="text-sm text-on-surface-variant font-medium">Totale Spese Extra</p>
+                        <p className="text-2xl font-bold text-primary">{formatCurrency(totalExpenses)}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-on-surface-variant">Budget Progetto: {formatCurrency(project.budget)}</p>
+                        <p className="text-xs text-on-surface-variant">Incidenza: {project.budget > 0 ? ((totalExpenses / project.budget) * 100).toFixed(1) : 0}%</p>
+                    </div>
+                </div>
+
+                <div className="flex-grow overflow-y-auto pr-1 space-y-2 mb-4">
+                    {projectSpecificExpenses.length === 0 ? (
+                        <p className="text-center text-sm text-on-surface-variant py-8">Nessuna spesa registrata.</p>
+                    ) : (
+                        projectSpecificExpenses.map(expense => (
+                            <div key={expense.id} className="flex justify-between items-center p-3 bg-surface border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors group">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm text-on-surface">{expense.category}</span>
+                                        {expense.billable && <span className="px-1.5 py-0.5 rounded text-[10px] bg-tertiary-container text-on-tertiary-container font-bold">Rifatturabile</span>}
+                                    </div>
+                                    <p className="text-xs text-on-surface-variant">{expense.description || '-'}</p>
+                                    <p className="text-[10px] text-on-surface-variant">{formatDateFull(expense.date)}</p>
+                                </div>
+                                <div className="text-right flex items-center gap-2">
+                                    <p className="font-mono font-bold text-sm text-on-surface">{formatCurrency(expense.amount)}</p>
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setExpenseToDelete(expense); }}
+                                        className="text-error hover:bg-error-container p-2 rounded transition-colors"
+                                        disabled={isActionLoading(`deleteProjectExpense-${expense.id}`)}
+                                        title="Elimina"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <form onSubmit={handleAdd} className="flex-shrink-0 pt-4 border-t border-outline-variant grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-3">
+                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Categoria</label>
+                        <select 
+                            className="form-select text-xs p-2" 
+                            value={newExpense.category} 
+                            onChange={e => setNewExpense({...newExpense, category: e.target.value})}
+                        >
+                            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                    </div>
+                    <div className="col-span-3">
+                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Descrizione</label>
+                        <input 
+                            type="text" 
+                            className="form-input text-xs p-2" 
+                            placeholder="Dettagli..." 
+                            value={newExpense.description} 
+                            onChange={e => setNewExpense({...newExpense, description: e.target.value})}
+                            required
+                        />
+                    </div>
+                    <div className="col-span-2">
+                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Data</label>
+                        <input 
+                            type="date" 
+                            className="form-input text-xs p-2" 
+                            value={newExpense.date} 
+                            onChange={e => setNewExpense({...newExpense, date: e.target.value})}
+                            required
+                        />
+                    </div>
+                    <div className="col-span-2">
+                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Importo</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            className="form-input text-xs p-2" 
+                            placeholder="€" 
+                            value={newExpense.amount || ''} 
+                            onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})}
+                            required
+                        />
+                    </div>
+                    <div className="col-span-2 flex justify-end">
+                        <button type="submit" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addProjectExpense')}>
+                            {isActionLoading('addProjectExpense') ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">add</span>}
+                        </button>
+                    </div>
+                    <div className="col-span-12 flex items-center gap-2 mt-1">
+                         <input 
+                            type="checkbox" 
+                            id="billable" 
+                            className="form-checkbox h-4 w-4"
+                            checked={newExpense.billable}
+                            onChange={e => setNewExpense({...newExpense, billable: e.target.checked})}
+                        />
+                        <label htmlFor="billable" className="text-xs text-on-surface cursor-pointer select-none">Spesa rifatturabile al cliente</label>
+                    </div>
+                </form>
+            </div>
+
+            {expenseToDelete && (
+                <ConfirmationModal
+                    isOpen={!!expenseToDelete}
+                    onClose={() => setExpenseToDelete(null)}
+                    onConfirm={confirmDelete}
+                    title="Elimina Spesa"
+                    message="Sei sicuro di voler eliminare questa spesa dal progetto? L'operazione è irreversibile."
+                    isConfirming={isActionLoading(`deleteProjectExpense-${expenseToDelete.id}`)}
+                />
+            )}
+        </Modal>
+    );
+};
+
 const ProjectsPage: React.FC = () => {
+    // ... (rest of the file remains same, including ProjectsPage main component)
     const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments, loading, skills, projectSkills, addProjectSkill, deleteProjectSkill } = useEntitiesContext();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
+    
+    // State for Expenses Modal
+    const [expenseModalProject, setExpenseModalProject] = useState<Project | null>(null);
 
     // Debounce Effect
     useEffect(() => {
@@ -91,7 +271,6 @@ const ProjectsPage: React.FC = () => {
     const kpis = useMemo(() => {
         const activeProjects = projects.filter(p => p.status === 'In corso');
         const countActive = activeProjects.length;
-        // Ensure p.budget is treated as a number to prevent string concatenation issues
         const totalBudget = activeProjects.reduce((sum, p) => sum + Number(p.budget || 0), 0);
         
         const today = new Date();
@@ -107,20 +286,16 @@ const ProjectsPage: React.FC = () => {
         return { countActive, totalBudget, endingSoon };
     }, [projects]);
 
-    // Uses debouncedFilters for heavy calculations
     const dataForTable = useMemo<EnrichedProject[]>(() => {
         const staffedProjectIds = new Set(assignments.map(a => a.projectId));
         return projects
             .filter(project => {
                 const isStaffed = staffedProjectIds.has(project.id!);
-
-                // "Solo senza staff" filter: Must be unstaffed AND 'In corso'
                 if (showOnlyUnstaffed) {
                     if (isStaffed || project.status !== 'In corso') {
                         return false;
                     }
                 }
-                // Use debouncedFilters
                 const nameMatch = project.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
                 const clientMatch = debouncedFilters.clientId ? project.clientId === debouncedFilters.clientId : true;
                 const statusMatch = debouncedFilters.status ? project.status === debouncedFilters.status : true;
@@ -178,24 +353,17 @@ const ProjectsPage: React.FC = () => {
             try {
                 const projectPayload = buildProjectPayload(editingProject);
                 if ('id' in projectPayload) {
-                    // Update Project
                     await updateProject(projectPayload as Project);
-                    
-                    // Update Skills
                     const projectId = projectPayload.id!;
                     const oldSkills = projectSkills.filter(ps => ps.projectId === projectId).map(ps => ps.skillId);
                     const toAdd = selectedSkills.filter(id => !oldSkills.includes(id));
                     const toRemove = oldSkills.filter(id => !selectedSkills.includes(id));
-                    
                     await Promise.all([
                         ...toAdd.map(skillId => addProjectSkill({ projectId, skillId })),
                         ...toRemove.map(skillId => deleteProjectSkill(projectId, skillId))
                     ]);
-
                 } else {
-                    // Create Project
                     const newProject = await addProject(projectPayload as Omit<Project, 'id'>);
-                    // Add Skills
                     if (newProject && newProject.id) {
                         await Promise.all(selectedSkills.map(skillId => addProjectSkill({ projectId: newProject.id!, skillId })));
                     }
@@ -254,7 +422,6 @@ const ProjectsPage: React.FC = () => {
     const contractOptions = useMemo(() => contracts.map(c => ({ value: c.id!, label: c.name })), [contracts]);
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
 
-
     const columns: ColumnDef<EnrichedProject>[] = [
         { header: 'Nome Progetto', sortKey: 'name', cell: p => (
             <div className="flex items-center sticky left-0 bg-inherit pl-6">
@@ -265,7 +432,6 @@ const ProjectsPage: React.FC = () => {
         { header: 'Cliente', sortKey: 'clientName', cell: p => <span className="text-sm text-on-surface-variant">{p.clientName}</span> },
         { header: 'Risorse Assegnate', sortKey: 'assignedResources', cell: p => <span className="text-sm text-center font-semibold text-on-surface-variant">{p.assignedResources}</span> },
         { header: 'Stato', sortKey: 'status', cell: p => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(p.status)}`}>{p.status || 'Non definito'}</span> },
-        // Updated Date Format
         { header: 'Data Inizio', sortKey: 'startDate', cell: p => <span className="text-sm text-on-surface-variant">{formatDateFull(p.startDate)}</span> },
         { header: 'Budget', sortKey: 'budget', cell: p => <span className="text-sm text-on-surface-variant">{formatCurrency(p.budget)}</span> },
     ];
@@ -297,6 +463,9 @@ const ProjectsPage: React.FC = () => {
                 {columns.map((col, i) => <td key={i} className={`px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis bg-inherit`} title={col.sortKey ? String((project as Project)[col.sortKey]) : undefined}>{col.cell(project)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium sticky right-0 bg-inherit">
                     <div className="flex items-center justify-end space-x-2">
+                        <button onClick={() => setExpenseModalProject(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-secondary" title="Gestisci Spese Extra">
+                            <span className="material-symbols-outlined">receipt_long</span>
+                        </button>
                         <button onClick={() => navigate(`/workload?projectId=${project.id}`)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Vedi Carichi"><span className="material-symbols-outlined">bar_chart</span></button>
                         <button onClick={() => openModalForEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
                         <button onClick={() => handleStartInlineEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
@@ -339,6 +508,7 @@ const ProjectsPage: React.FC = () => {
                         <p className="text-sm text-on-surface-variant">{project.clientName}</p>
                     </div>
                     <div className="flex items-center space-x-1">
+                        <button onClick={() => setExpenseModalProject(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high" title="Spese"><span className="material-symbols-outlined">receipt_long</span></button>
                         <button onClick={() => navigate(`/workload?projectId=${project.id}`)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">bar_chart</span></button>
                         <button onClick={() => openModalForEdit(project)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit_note</span></button>
                         <button onClick={() => deleteProject(project.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
@@ -398,7 +568,7 @@ const ProjectsPage: React.FC = () => {
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
                 tableClassNames={{ base: 'w-full text-sm' }}
-                numActions={4} // VEDI CARICHI, MODIFICA, EDIT VELOCE, ELIMINA
+                numActions={5} // SPESE, VEDI CARICHI, MODIFICA, EDIT VELOCE, ELIMINA
             />
 
             {editingProject && (
@@ -488,6 +658,14 @@ const ProjectsPage: React.FC = () => {
                         </div>
                     </form>
                 </Modal>
+            )}
+
+            {expenseModalProject && (
+                <ProjectExpensesModal 
+                    project={expenseModalProject} 
+                    isOpen={!!expenseModalProject} 
+                    onClose={() => setExpenseModalProject(null)} 
+                />
             )}
         </div>
     );

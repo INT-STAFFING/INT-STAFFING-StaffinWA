@@ -10,6 +10,7 @@ import { Contract } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
@@ -22,6 +23,7 @@ type EnrichedContract = Contract & {
     managerCount: number;
     projectNames: string[];
     managerNames: string[];
+    rateCardName?: string;
 };
 
 // --- Helper Functions ---
@@ -36,6 +38,7 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
         wbs: contract.wbs || null,
         capienza: contract.capienza,
         backlog: contract.backlog,
+        rateCardId: contract.rateCardId || null
     };
 
     if ('id' in contract) {
@@ -48,7 +51,7 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
 // --- Component ---
 export const ContractsPage: React.FC = () => {
     const {
-        contracts, projects, resources, contractProjects, contractManagers,
+        contracts, projects, resources, contractProjects, contractManagers, rateCards,
         addContract, updateContract, deleteContract, recalculateContractBacklog, isActionLoading, loading
     } = useEntitiesContext();
 
@@ -68,6 +71,7 @@ export const ContractsPage: React.FC = () => {
         wbs: '',
         capienza: 0,
         backlog: 0,
+        rateCardId: null
     };
 
     // KPI Calculations
@@ -94,6 +98,8 @@ export const ContractsPage: React.FC = () => {
                 
                 const mIds = contractManagers.filter(cm => cm.contractId === contract.id).map(cm => cm.resourceId);
                 const managerNames = mIds.map(mid => resources.find(r => r.id === mid)?.name || 'N/A');
+                
+                const rc = rateCards.find(r => r.id === contract.rateCardId);
 
                 return {
                     ...contract,
@@ -101,9 +107,10 @@ export const ContractsPage: React.FC = () => {
                     managerCount: mIds.length,
                     projectNames,
                     managerNames,
+                    rateCardName: rc?.name
                 };
             });
-    }, [contracts, projects, resources, contractProjects, contractManagers, filters]);
+    }, [contracts, projects, resources, contractProjects, contractManagers, rateCards, filters]);
 
     const exportData = useMemo(() => {
         return dataForTable.map(c => ({
@@ -113,6 +120,7 @@ export const ContractsPage: React.FC = () => {
             'WBS': c.wbs || '',
             'Capienza': formatCurrency(c.capienza),
             'Backlog': formatCurrency(c.backlog),
+            'Listino': c.rateCardName || 'Standard',
             'Progetti Collegati': c.projectNames.join(', '),
             'Manager Responsabili': c.managerNames.join(', '),
             'Data Inizio': formatDateFull(c.startDate),
@@ -176,6 +184,14 @@ export const ContractsPage: React.FC = () => {
         setEditingContract({ ...editingContract, [name]: isNumeric ? Number(value) : value });
     };
 
+    const handleSelectChange = (name: string, value: string) => {
+        if (editingContract) {
+             // If empty string, set to null
+             const val = value === '' ? null : value;
+             setEditingContract({ ...editingContract, [name]: val });
+        }
+    };
+
     const handleDelete = async () => {
         if (contractToDelete) {
             await deleteContract(contractToDelete.id!);
@@ -185,11 +201,13 @@ export const ContractsPage: React.FC = () => {
 
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+    const rateCardOptions = useMemo(() => rateCards.map(r => ({ value: r.id!, label: r.name })), [rateCards]);
 
     const columns: ColumnDef<EnrichedContract>[] = [
         { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium">{c.name}</span> },
         { header: 'CIG', sortKey: 'cig', cell: c => <span className="font-mono text-xs">{c.cig}</span> },
         { header: 'WBS', sortKey: 'wbs', cell: c => <span className="font-mono text-xs text-on-surface-variant">{c.wbs || '-'}</span> },
+        { header: 'Listino', sortKey: 'rateCardName', cell: c => <span className="text-xs">{c.rateCardName || '-'}</span> },
         { header: 'Capienza', sortKey: 'capienza', cell: c => formatCurrency(c.capienza) },
         { header: 'Backlog', sortKey: 'backlog', cell: c => <span className={c.backlog < 0 ? 'text-error font-semibold' : ''}>{formatCurrency(c.backlog)}</span> },
         { header: 'Progetti Collegati', sortKey: 'projectCount', cell: c => c.projectCount },
@@ -234,6 +252,7 @@ export const ContractsPage: React.FC = () => {
             <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-on-surface-variant">Capienza</p><p className="font-medium text-on-surface">{formatCurrency(contract.capienza)}</p></div>
                 <div><p className="text-on-surface-variant">Backlog</p><p className={`font-medium ${contract.backlog < 0 ? 'text-error' : 'text-on-surface'}`}>{formatCurrency(contract.backlog)}</p></div>
+                <div className="col-span-2"><p className="text-on-surface-variant">Listino</p><p className="font-medium text-on-surface">{contract.rateCardName || 'Standard'}</p></div>
                 <div className="col-span-2"><p className="text-on-surface-variant">Periodo</p><p className="font-medium text-on-surface">{formatDateFull(contract.startDate)} - {formatDateFull(contract.endDate)}</p></div>
             </div>
         </div>
@@ -324,6 +343,19 @@ export const ContractsPage: React.FC = () => {
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Capienza (€) *</label>
                                     <input type="number" name="capienza" value={editingContract.capienza} onChange={handleChange} required className="form-input" step="0.01" />
                                 </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Listino Vendita (Rate Card)</label>
+                                    <SearchableSelect 
+                                        name="rateCardId" 
+                                        value={editingContract.rateCardId || ''} 
+                                        onChange={handleSelectChange} 
+                                        options={rateCardOptions} 
+                                        placeholder="Seleziona listino (opzionale)" 
+                                    />
+                                    <p className="text-[10px] text-on-surface-variant mt-1">Se non selezionato, il calcolo della marginalità userà il costo standard come fallback.</p>
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>

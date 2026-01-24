@@ -261,6 +261,15 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/ConfigPage')),
     },
     {
+        path: '/rate-cards',
+        label: 'Listini (Rate Cards)',
+        icon: 'payments',
+        section: 'Configurazione',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/RateCardsPage')),
+    },
+    {
         path: '/test-staffing',
         label: 'Test Staffing',
         icon: 'science',

@@ -67,6 +67,53 @@ export interface RoleCostHistory {
 }
 
 /**
+ * @interface RateCard
+ * @description Rappresenta un listino prezzi di vendita.
+ */
+export interface RateCard {
+    /** @property {string} [id] - L'identificatore univoco. */
+    id?: string;
+    /** @property {string} name - Nome del listino (es. "Listino Standard 2024"). */
+    name: string;
+    /** @property {string} currency - Valuta (default EUR). */
+    currency: string;
+}
+
+/**
+ * @interface RateCardEntry
+ * @description Rappresenta una voce di listino (prezzo di vendita per un ruolo).
+ */
+export interface RateCardEntry {
+    /** @property {string} rateCardId - ID del listino. */
+    rateCardId: string;
+    /** @property {string} roleId - ID del ruolo. */
+    roleId: string;
+    /** @property {number} dailyRate - Tariffa giornaliera di vendita. */
+    dailyRate: number;
+}
+
+/**
+ * @interface ProjectExpense
+ * @description Rappresenta una spesa extra (non-labor) associata a un progetto.
+ */
+export interface ProjectExpense {
+    /** @property {string} [id] - L'identificatore univoco. */
+    id?: string;
+    /** @property {string} projectId - ID del progetto associato. */
+    projectId: string;
+    /** @property {string} category - Categoria spesa (es. "Software", "Viaggi", "Hardware"). */
+    category: string;
+    /** @property {string} description - Descrizione dettagliata. */
+    description: string;
+    /** @property {number} amount - Importo della spesa. */
+    amount: number;
+    /** @property {string} date - Data della spesa (YYYY-MM-DD). */
+    date: string;
+    /** @property {boolean} billable - Se la spesa è rifatturabile al cliente. */
+    billable: boolean;
+}
+
+/**
  * @interface Resource
  * @description Rappresenta una risorsa umana (un dipendente).
  */
@@ -151,6 +198,8 @@ export interface Contract {
     capienza: number;
     /** @property {number} backlog - Capienza residua calcolata. */
     backlog: number;
+    /** @property {string | null} rateCardId - ID del listino prezzi associato. */
+    rateCardId?: string | null;
 }
 
 /**
@@ -697,6 +746,9 @@ export interface EntitiesState {
     clients: Client[];
     roles: Role[];
     roleCostHistory: RoleCostHistory[];
+    rateCards: RateCard[];
+    rateCardEntries: RateCardEntry[];
+    projectExpenses: ProjectExpense[];
     resources: Resource[];
     projects: Project[];
     contracts: Contract[];
@@ -770,6 +822,16 @@ export interface EntitiesActions {
     updateRole: (role: Role) => Promise<void>;
     /** Elimina un ruolo e aggiorna lo stato. */
     deleteRole: (id: string) => Promise<void>;
+    /** CRUD per RateCards. */
+    addRateCard: (rateCard: Omit<RateCard, 'id'>) => Promise<void>;
+    updateRateCard: (rateCard: RateCard) => Promise<void>;
+    deleteRateCard: (id: string) => Promise<void>;
+    /** Aggiorna le entry di una rate card (UPSERT massivo). */
+    upsertRateCardEntries: (entries: RateCardEntry[]) => Promise<void>;
+    /** CRUD per ProjectExpenses. */
+    addProjectExpense: (expense: Omit<ProjectExpense, 'id'>) => Promise<void>;
+    updateProjectExpense: (expense: ProjectExpense) => Promise<void>;
+    deleteProjectExpense: (id: string) => Promise<void>;
     /** Gestisce la creazione di una nuova opzione di configurazione tipizzata. */
     addConfigOption: (type: string, value: string) => Promise<void>;
     /** Modifica un'opzione di configurazione esistente. */
@@ -788,6 +850,8 @@ export interface EntitiesActions {
     deleteAssignment: (id: string) => Promise<void>;
     /** Calcola il costo corrente di un ruolo in base alla data. */
     getRoleCost: (roleId: string, date: Date) => number;
+    /** Calcola la tariffa di vendita giornaliera per un ruolo in un contratto. */
+    getSellRate: (rateCardId: string | null | undefined, roleId: string) => number;
     /** CRUD per richieste risorse. */
     addResourceRequest: (req: Omit<ResourceRequest, 'id'>) => Promise<void>;
     updateResourceRequest: (req: ResourceRequest) => Promise<void>;
