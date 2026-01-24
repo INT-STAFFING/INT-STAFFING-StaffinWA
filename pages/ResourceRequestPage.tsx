@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 // FIX: Use relative import for custom zod implementation.
 import { z } from '../libs/zod';
-import { useEntitiesContext } from '../context/AppContext';
+import { useEntitiesContext, usePlanningContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -84,11 +84,23 @@ const buildResourceRequestPayload = (
     return basePayload;
 };
 
+// Component for displaying best fit score bar
+const ScoreBar: React.FC<{ score: number; colorClass: string; label: string }> = ({ score, colorClass, label }) => (
+    <div className="flex items-center gap-3 text-xs w-full">
+        <span className="w-24 text-on-surface-variant font-medium truncate" title={label}>{label}</span>
+        <div className="flex-grow h-2.5 bg-surface-variant/30 rounded-full overflow-hidden">
+            <div className={`h-full ${colorClass} transition-all duration-500 ease-out`} style={{ width: `${score}%` }}></div>
+        </div>
+        <span className="w-8 font-bold text-right">{score.toFixed(0)}</span>
+    </div>
+);
+
 export const ResourceRequestPage: React.FC = () => {
     const { 
         resourceRequests, projects, roles, resources, 
         addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading, loading
     } = useEntitiesContext();
+    const { getBestFitResources } = usePlanningContext();
     const { addToast } = useToast();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -96,7 +108,11 @@ export const ResourceRequestPage: React.FC = () => {
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
     const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
+    
+    // AI Matching State
+    const [isMatchingModalOpen, setIsMatchingModalOpen] = useState(false);
+    const [matchingResults, setMatchingResults] = useState<any[]>([]);
+    
     const emptyRequest: Omit<ResourceRequest, 'id'> = {
         projectId: '',
         roleId: '',
@@ -298,6 +314,26 @@ export const ResourceRequestPage: React.FC = () => {
         }
     };
 
+    // --- AI MATCHING HANDLERS ---
+    const openMatchingModal = async (request: EnrichedRequest) => {
+        setMatchingResults([]); // Clear previous results
+        setIsMatchingModalOpen(true);
+        try {
+            const results = await getBestFitResources({
+                startDate: request.startDate,
+                endDate: request.endDate,
+                roleId: request.roleId,
+                projectId: request.projectId
+            });
+            // Ensure results is an array to prevent crashes
+            setMatchingResults(Array.isArray(results) ? results : []);
+        } catch (e) {
+            console.error(e);
+            addToast('Errore durante la ricerca dei candidati.', 'error');
+            setIsMatchingModalOpen(false);
+        }
+    };
+
     const projectOptions = useMemo(() => projects.map(p => ({ value: p.id!, label: p.name })), [projects]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
@@ -323,8 +359,28 @@ export const ResourceRequestPage: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(request)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina">
+                    <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openMatchingModal(request); }} 
+                        className="p-2 rounded-full hover:bg-tertiary-container text-tertiary transition-colors" 
+                        title="Trova Candidati"
+                    >
+                        <span className="material-symbols-outlined">smart_toy</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openModalForEdit(request); }} 
+                        className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" 
+                        title="Modifica"
+                    >
+                        <span className="material-symbols-outlined">edit</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRequestToDelete(request); }} 
+                        className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" 
+                        title="Elimina"
+                    >
                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
@@ -344,8 +400,9 @@ export const ResourceRequestPage: React.FC = () => {
                     <p className="text-sm text-on-surface-variant font-medium">{request.roleName}</p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => openModalForEdit(request)} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container transition-colors" title="Modifica"><span className="material-symbols-outlined text-xl">edit</span></button>
-                    <button onClick={() => setRequestToDelete(request)} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container transition-colors" title="Elimina">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); openMatchingModal(request); }} className="p-2 text-tertiary hover:bg-surface-container rounded-full" title="Smart Match"><span className="material-symbols-outlined text-xl">smart_toy</span></button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); openModalForEdit(request); }} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container transition-colors" title="Modifica"><span className="material-symbols-outlined text-xl">edit</span></button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setRequestToDelete(request); }} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container transition-colors" title="Elimina">
                          {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined text-xl">delete</span>}
                     </button>
                 </div>
@@ -453,7 +510,8 @@ export const ResourceRequestPage: React.FC = () => {
                 initialSortKey="startDate"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                numActions={2}
+                numActions={3}
+                actionsWidth={160}
                 headerActions={<ExportButton data={exportData} title="Richieste Risorse" />}
             />
 
@@ -565,6 +623,62 @@ export const ResourceRequestPage: React.FC = () => {
                             </button>
                         </div>
                     </form>
+                </Modal>
+            )}
+
+            {isMatchingModalOpen && (
+                <Modal isOpen={isMatchingModalOpen} onClose={() => setIsMatchingModalOpen(false)} title="Ricerca Candidati (Smart Match)">
+                    <div className="flex flex-col max-h-[70vh]">
+                        {isActionLoading('getBestFitResources') ? (
+                            <div className="flex flex-col items-center justify-center py-16">
+                                <SpinnerIcon className="w-12 h-12 text-primary mb-4" />
+                                <p className="text-on-surface-variant font-medium animate-pulse">L'IA sta analizzando competenze, disponibilità e costi...</p>
+                            </div>
+                        ) : matchingResults.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant opacity-70">
+                                <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
+                                <p>Nessun candidato trovato con i criteri attuali.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-y-auto pr-2 space-y-4">
+                                {Array.isArray(matchingResults) && matchingResults.map((res: any, idx) => (
+                                    <div key={res.resource.id} className="bg-surface-container-low p-4 rounded-xl border border-outline-variant hover:border-tertiary transition-all group relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 p-2 opacity-10 font-black text-6xl text-on-surface pointer-events-none">{idx + 1}</div>
+                                        <div className="flex justify-between items-start mb-3 relative z-10">
+                                            <div className="flex gap-3 items-center">
+                                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                                                    {res.resource.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-on-surface">{res.resource.name}</h4>
+                                                    <p className="text-xs text-on-surface-variant font-medium">{res.resource.horizontal} • {res.resource.location}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end">
+                                                <div className="text-3xl font-black text-tertiary tracking-tighter">{res.score}%</div>
+                                                <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Match Score</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="space-y-3 mt-4 relative z-10 bg-surface/50 p-3 rounded-lg">
+                                            <ScoreBar score={res.details.availability} colorClass="bg-primary" label="Disponibilità" />
+                                            <ScoreBar score={res.details.skillMatch} colorClass="bg-tertiary" label="Competenze" />
+                                            <ScoreBar score={res.details.roleMatch} colorClass="bg-secondary" label="Ruolo" />
+                                            <ScoreBar score={res.details.costEff} colorClass="bg-yellow-500" label="Costo" />
+                                        </div>
+
+                                        <div className="mt-4 flex justify-between items-center text-xs font-medium text-on-surface-variant border-t border-outline-variant pt-3">
+                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">work_history</span> Carico Attuale: {Math.round(res.details.avgLoad)}%</span>
+                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">school</span> Skill Match: {res.details.matchedSkillsCount}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="mt-6 pt-4 border-t border-outline-variant flex justify-end">
+                            <button onClick={() => setIsMatchingModalOpen(false)} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full font-bold hover:opacity-90 transition-opacity">Chiudi</button>
+                        </div>
+                    </div>
                 </Modal>
             )}
 

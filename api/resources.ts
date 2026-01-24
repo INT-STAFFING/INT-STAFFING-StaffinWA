@@ -46,7 +46,9 @@ const logAction = async (client: any, user: any, action: string, entity: string,
 const isHolidayInternal = (date: Date, resourceLocation: string | null, companyCalendar: any[]): boolean => {
     const dateStr = date.toISOString().split('T')[0];
     return companyCalendar.some(event => {
-        if (event.date !== dateStr) return false;
+        // Handle both Date objects (from DB) and strings
+        const eventDate = event.date instanceof Date ? event.date.toISOString().split('T')[0] : event.date;
+        if (eventDate !== dateStr) return false;
         if (event.type === 'NATIONAL_HOLIDAY' || event.type === 'COMPANY_CLOSURE') return true;
         if (event.type === 'LOCAL_HOLIDAY' && event.location === resourceLocation) return true;
         return false;
@@ -70,7 +72,7 @@ export const performFullRecalculation = async (client: any) => {
     const projects = projectsRes.rows;
     const assignments = assignmentsRes.rows;
     const allocations = allocationsRes.rows;
-    const calendar = calendarRes.rows.map((e: any) => ({ ...e, date: e.date.toISOString().split('T')[0] }));
+    const calendar = calendarRes.rows.map((e: any) => ({ ...e, date: e.date instanceof Date ? e.date.toISOString().split('T')[0] : e.date }));
     const roles = rolesRes.rows;
     const history = historyRes.rows;
 
@@ -99,7 +101,10 @@ export const performFullRecalculation = async (client: any) => {
         while (cur <= endOfMonth) {
             const dStr = cur.toISOString().split('T')[0];
             const pct = allocMap.get(`${assignment.id}_${dStr}`);
-            if (pct && !isHolidayInternal(cur, res.location, calendar) && cur.getDay() !== 0 && cur.getDay() !== 6) {
+            // Use improved holiday check logic here too if needed, but context is simple
+            const isHol = isHolidayInternal(cur, res.location, calendar);
+            
+            if (pct && !isHol && cur.getDay() !== 0 && cur.getDay() !== 6) {
                 const fraction = pct / 100;
                 const cost = fraction * getRate(res.role_id, cur) * (proj.realization_percentage / 100);
                 totalCost += cost;
@@ -162,6 +167,130 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
 
     try {
+        if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
+            if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+
+            const { startDate, endDate, roleId, projectId } = req.body;
+            
+            // 1. Fetch Data
+            const [resources, assignments, allocations, calendar, resSkills, projSkills, roles, project] = await Promise.all([
+                client.query('SELECT * FROM resources WHERE resigned = FALSE'),
+                client.query('SELECT * FROM assignments'),
+                client.query('SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2', [startDate, endDate]),
+                client.query('SELECT * FROM company_calendar'),
+                client.query('SELECT rs.*, s.name as skill_name FROM resource_skills rs JOIN skills s ON rs.skill_id = s.id'),
+                client.query('SELECT ps.*, s.name as skill_name FROM project_skills ps JOIN skills s ON ps.skill_id = s.id WHERE ps.project_id = $1', [projectId]),
+                client.query('SELECT * FROM roles'),
+                client.query('SELECT * FROM projects WHERE id = $1', [projectId])
+            ]);
+
+            const targetRole = roles.rows.find((r:any) => r.id === roleId);
+            const targetSkills = projSkills.rows;
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            // 2. Algorithm
+            const scoredResources = resources.rows.map((res: any) => {
+                let score = 0;
+                const details: any = { availability: 0, skillMatch: 0, roleMatch: 0, costEff: 0 };
+                
+                // A. Availability (40%)
+                const resAssignments = assignments.rows.filter((a:any) => a.resource_id === res.id);
+                let totalAllocatedPct = 0;
+                let workingDays = 0;
+                
+                let cur = new Date(start);
+                while(cur <= end) {
+                    const dStr = cur.toISOString().split('T')[0];
+                    const isHol = isHolidayInternal(cur, res.location, calendar.rows);
+                    if (!isHol && cur.getDay() !== 0 && cur.getDay() !== 6) {
+                        workingDays++;
+                        resAssignments.forEach((a:any) => {
+                             const alloc = allocations.rows.find((al:any) => al.assignment_id === a.id && al.allocation_date.toISOString().split('T')[0] === dStr);
+                             if(alloc) totalAllocatedPct += alloc.percentage;
+                        });
+                    }
+                    cur.setDate(cur.getDate() + 1);
+                }
+
+                const avgLoad = workingDays > 0 ? totalAllocatedPct / workingDays : 0;
+                // Score: 100 if 0% load, 0 if 100% load. Linear degradation.
+                const availabilityScore = Math.max(0, Math.min(100, 100 - avgLoad));
+                score += availabilityScore * 0.4;
+                details.availability = availabilityScore;
+                details.avgLoad = avgLoad;
+
+                // B. Skills (30%)
+                if (targetSkills.length > 0) {
+                    const mySkills = resSkills.rows.filter((rs:any) => rs.resource_id === res.id);
+                    let matchedCount = 0;
+                    let weightedSkillScore = 0;
+                    
+                    targetSkills.forEach((ts:any) => {
+                        const match = mySkills.find((ms:any) => ms.skill_id === ts.skill_id);
+                        if (match) {
+                            matchedCount++;
+                            // Bonus for high level
+                            weightedSkillScore += 100 * ((match.level || 3) / 5);
+                        }
+                    });
+                    const skillScore = (weightedSkillScore / targetSkills.length);
+                    score += skillScore * 0.3;
+                    details.skillMatch = skillScore;
+                    details.matchedSkillsCount = matchedCount;
+                } else {
+                    // No specific skills required -> Neutral score
+                    score += 50 * 0.3; 
+                    details.skillMatch = 50;
+                }
+
+                // C. Role & Seniority (20%)
+                let roleScore = 0;
+                if (res.role_id === roleId) {
+                    roleScore = 100;
+                } else {
+                    const myRole = roles.rows.find((r:any) => r.id === res.role_id);
+                    if (myRole && targetRole) {
+                        if (myRole.seniority_level === targetRole.seniority_level) roleScore = 70;
+                        else roleScore = 30;
+                    }
+                }
+                score += roleScore * 0.2;
+                details.roleMatch = roleScore;
+
+                // D. Cost Efficiency (10%)
+                let costScore = 50;
+                if (targetRole) {
+                    const myRole = roles.rows.find((r:any) => r.id === res.role_id);
+                    const myCost = Number(myRole?.daily_cost || 0);
+                    const targetCost = Number(targetRole.daily_cost || 0);
+                    
+                    if (myCost <= targetCost) costScore = 100; // Cheaper or equal is good
+                    else {
+                        // Penalty for being more expensive
+                        const diffPct = (myCost - targetCost) / targetCost; // e.g. 0.2 for 20% more expensive
+                        costScore = Math.max(0, 100 - (diffPct * 200)); // Drastic drop
+                    }
+                }
+                score += costScore * 0.1;
+                details.costEff = costScore;
+
+                return {
+                    resource: toCamelAndNormalize(res),
+                    score: Math.round(score),
+                    details
+                };
+            });
+
+            // Sort by score desc
+            scoredResources.sort((a:any, b:any) => b.score - a.score);
+            
+            // Log for audit
+            await logAction(client, currentUser, 'RUN_BEST_FIT', 'resources', null, { projectId, roleId, candidatesFound: scoredResources.length }, req);
+
+            return res.status(200).json(scoredResources.slice(0, 10)); // Return top 10
+        }
+
         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
             if (sensitiveEntities.includes(entity as string)) {
@@ -211,14 +340,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
             const { entries } = req.body;
             await client.query('BEGIN');
-            // Assuming rateCardId is same for all in batch or provided individually
-            // Clean out old entries for this card? No, simple UPSERT
             for (const entry of entries) {
                 await client.query(
                     `INSERT INTO rate_card_entries (rate_card_id, role_id, daily_rate)
                      VALUES ($1, $2, $3)
                      ON CONFLICT (rate_card_id, role_id)
-                     DO UPDATE SET daily_rate = $3`,
+                     DO UPDATE SET daily_rate = EXCLUDED.daily_rate`,
                     [entry.rateCardId, entry.roleId, entry.dailyRate]
                 );
             }
@@ -323,10 +450,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (entity === 'audit_logs') {
             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
             if (method === 'GET') {
-                const { limit = 1000, username, actionType, startDate, endDate } = req.query;
+                const { limit = 1000, username, actionType, startDate, endDate, entity: filterEntity, entityId } = req.query;
                 let q = `SELECT * FROM action_logs`, p = [], c = [];
                 if (username) { c.push(`username ILIKE $${p.length + 1}`); p.push(`%${username}%`); }
                 if (actionType) { c.push(`action = $${p.length + 1}`); p.push(actionType); }
+                if (filterEntity) { c.push(`entity = $${p.length + 1}`); p.push(filterEntity); }
+                if (entityId) { c.push(`entity_id = $${p.length + 1}`); p.push(entityId); }
                 if (startDate) { c.push(`created_at >= $${p.length + 1}`); p.push(startDate); }
                 if (endDate) { c.push(`created_at <= $${p.length + 1}`); p.push(endDate); }
                 if (c.length) q += ` WHERE ${c.join(' AND ')}`;

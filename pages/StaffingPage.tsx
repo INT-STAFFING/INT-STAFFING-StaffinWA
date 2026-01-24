@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment, LeaveRequest, LeaveType } from '../types';
+import { Resource, Assignment, LeaveRequest, LeaveType, Project, Client, Role } from '../types';
 import {
   getCalendarDays,
   formatDate,
@@ -602,9 +602,9 @@ export const StaffingPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  const projectsById = useMemo(() => new Map(projects.map((p) => [p.id!, p])), [projects]);
-  const clientsById = useMemo(() => new Map(clients.map((c) => [c.id!, c])), [clients]);
-  const rolesById = useMemo(() => new Map(roles.map((r) => [r.id!, r])), [roles]);
+  const projectsById = useMemo(() => new Map<string, Project>(projects.map((p) => [p.id!, p])), [projects]);
+  const clientsById = useMemo(() => new Map<string, Client>(clients.map((c) => [c.id!, c])), [clients]);
+  const rolesById = useMemo(() => new Map<string, Role>(roles.map((r) => [r.id!, r])), [roles]);
 
   // --- Time Calculation ---
   const timeColumns = useMemo(() => {

@@ -392,6 +392,71 @@ const NavigationPillar: React.FC = () => {
     );
 };
 
+// --- TIMELINE COMPONENT FOR AUDIT ---
+const AuditTimelineItem: React.FC<{ log: AuditLogEntry; isLast: boolean }> = ({ log, isLast }) => {
+    const actionColor = useMemo(() => {
+        if (log.action.includes('CREATE') || log.action.includes('ADD')) return 'text-tertiary bg-tertiary-container/30 border-tertiary';
+        if (log.action.includes('UPDATE') || log.action.includes('EDIT')) return 'text-primary bg-primary-container/30 border-primary';
+        if (log.action.includes('DELETE') || log.action.includes('REMOVE')) return 'text-error bg-error-container/30 border-error';
+        if (log.action.includes('FAIL')) return 'text-error bg-error-container border-error';
+        return 'text-secondary bg-surface-container-high border-outline';
+    }, [log.action]);
+
+    const icon = useMemo(() => {
+        if (log.action.includes('CREATE')) return 'add_circle';
+        if (log.action.includes('UPDATE')) return 'edit';
+        if (log.action.includes('DELETE')) return 'delete';
+        if (log.action.includes('LOGIN')) return 'login';
+        if (log.action.includes('LOGOUT')) return 'logout';
+        if (log.action.includes('FAIL')) return 'error';
+        return 'info';
+    }, [log.action]);
+
+    const formattedTime = new Date(log.createdAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+    return (
+        <div className="relative pl-8 pb-8 group">
+            {/* Vertical Line */}
+            {!isLast && (
+                <div className="absolute top-3 left-[11px] bottom-0 w-0.5 bg-outline-variant/50 group-hover:bg-primary/30 transition-colors"></div>
+            )}
+            
+            {/* Icon Dot */}
+            <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-2 flex items-center justify-center ${actionColor} bg-surface z-10 shadow-sm`}>
+                <span className="material-symbols-outlined text-[14px]">{icon}</span>
+            </div>
+
+            {/* Content Card */}
+            <div className="bg-surface-container-low rounded-xl border border-outline-variant p-4 shadow-sm hover:shadow-md transition-all">
+                <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                            {log.username?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <span className="text-sm font-bold text-on-surface">{log.username || 'System'}</span>
+                        <span className="text-[10px] text-on-surface-variant font-mono bg-surface px-1.5 py-0.5 rounded border border-outline-variant">{log.ipAddress}</span>
+                    </div>
+                    <span className="text-xs font-mono text-on-surface-variant">{formattedTime}</span>
+                </div>
+                
+                <p className="text-sm font-medium text-on-surface mb-1">
+                    <span className={`font-black tracking-tighter mr-2 ${actionColor.split(' ')[0]}`}>{log.action}</span>
+                    {log.entity && <span className="opacity-80">su {log.entity}</span>}
+                </p>
+
+                {log.details && Object.keys(log.details).length > 0 && (
+                     <details className="mt-2 text-xs">
+                        <summary className="cursor-pointer text-primary hover:underline select-none font-medium">Dettagli tecnici</summary>
+                        <pre className="mt-2 p-2 bg-surface rounded border border-outline-variant overflow-x-auto font-mono text-[10px] text-on-surface-variant">
+                            {JSON.stringify(log.details, null, 2)}
+                        </pre>
+                    </details>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- PILASTRO 4: AUDIT E SICUREZZA GLOBALE ---
 const AuditPillar: React.FC = () => {
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
@@ -402,6 +467,8 @@ const AuditPillar: React.FC = () => {
     const [filters, setFilters] = useState({
         username: '',
         actionType: '',
+        entity: '',
+        entityId: '',
         startDate: '',
         endDate: ''
     });
@@ -411,9 +478,11 @@ const AuditPillar: React.FC = () => {
         try {
             const params = new URLSearchParams();
             params.append('entity', 'audit_logs');
-            params.append('limit', '100'); // Increased limit slightly
+            params.append('limit', '200'); // Increased limit for timeline
             if (filters.username) params.append('username', filters.username);
             if (filters.actionType) params.append('actionType', filters.actionType);
+            if (filters.entity) params.append('entity', filters.entity);
+            if (filters.entityId) params.append('entityId', filters.entityId);
             if (filters.startDate) params.append('startDate', filters.startDate);
             if (filters.endDate) params.append('endDate', filters.endDate);
 
@@ -425,11 +494,32 @@ const AuditPillar: React.FC = () => {
     // Initial load
     useEffect(() => {
         fetchLogs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleReset = () => {
-        setFilters({ username: '', actionType: '', startDate: '', endDate: '' });
+        setFilters({ username: '', actionType: '', entity: '', entityId: '', startDate: '', endDate: '' });
+    };
+
+    // Group logs by date
+    const groupedLogs = useMemo(() => {
+        const groups: Record<string, AuditLogEntry[]> = {};
+        logs.forEach(log => {
+            const dateKey = new Date(log.createdAt).toISOString().split('T')[0];
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(log);
+        });
+        return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+    }, [logs]);
+
+    const formatDateHeader = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) return "Oggi";
+        if (date.toDateString() === yesterday.toDateString()) return "Ieri";
+        return date.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
     };
 
     return (
@@ -454,13 +544,13 @@ const AuditPillar: React.FC = () => {
 
             <section>
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-2xl font-bold text-on-surface">Registro Attività (Audit)</h3>
+                    <h3 className="text-2xl font-bold text-on-surface">Timeline Attività</h3>
                 </div>
 
                 {/* Filters Bar */}
                 <div className="bg-surface-container-low p-4 rounded-2xl border border-outline-variant mb-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                     <div className="md:col-span-3">
-                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Utente</label>
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Utente</label>
                         <input 
                             type="text" 
                             className="form-input py-2 text-sm" 
@@ -469,32 +559,33 @@ const AuditPillar: React.FC = () => {
                             onChange={e => setFilters(prev => ({...prev, username: e.target.value}))}
                         />
                     </div>
-                    <div className="md:col-span-3">
-                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Azione</label>
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Entità</label>
                         <input 
                             type="text" 
                             className="form-input py-2 text-sm" 
-                            placeholder="es. LOGIN, UPDATE..." 
-                            value={filters.actionType}
-                            onChange={e => setFilters(prev => ({...prev, actionType: e.target.value}))}
+                            placeholder="es. projects" 
+                            value={filters.entity}
+                            onChange={e => setFilters(prev => ({...prev, entity: e.target.value}))}
+                        />
+                    </div>
+                     <div className="md:col-span-3">
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">ID Entità</label>
+                        <input 
+                            type="text" 
+                            className="form-input py-2 text-sm font-mono" 
+                            placeholder="UUID..." 
+                            value={filters.entityId}
+                            onChange={e => setFilters(prev => ({...prev, entityId: e.target.value}))}
                         />
                     </div>
                     <div className="md:col-span-2">
-                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Da</label>
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Da</label>
                         <input 
                             type="date" 
                             className="form-input py-2 text-sm" 
                             value={filters.startDate}
                             onChange={e => setFilters(prev => ({...prev, startDate: e.target.value}))}
-                        />
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">A</label>
-                        <input 
-                            type="date" 
-                            className="form-input py-2 text-sm" 
-                            value={filters.endDate}
-                            onChange={e => setFilters(prev => ({...prev, endDate: e.target.value}))}
                         />
                     </div>
                     <div className="md:col-span-2 flex gap-2">
@@ -515,48 +606,38 @@ const AuditPillar: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="overflow-hidden border border-outline-variant rounded-[2rem] bg-surface shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-xs">
-                            <thead className="bg-surface-container text-on-surface-variant font-black uppercase tracking-widest">
-                                <tr>
-                                    <th className="px-6 py-4 text-left">Data e Ora</th>
-                                    <th className="px-6 py-4 text-left">Soggetto</th>
-                                    <th className="px-6 py-4 text-left">Evento</th>
-                                    <th className="px-6 py-4 text-left">Metadati</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-outline-variant">
-                                {loading ? (
-                                    <tr><td colSpan={4} className="p-12 text-center"><SpinnerIcon className="w-8 h-8 mx-auto text-primary" /></td></tr>
-                                ) : logs.length === 0 ? (
-                                    <tr><td colSpan={4} className="p-12 text-center text-on-surface-variant font-bold italic">Nessun log recente trovato.</td></tr>
-                                ) : logs.map(log => (
-                                    <tr key={log.id} className="hover:bg-surface-container-low transition-colors">
-                                        <td className="px-6 py-3 font-mono text-on-surface-variant">{new Date(log.createdAt).toLocaleString('it-IT')}</td>
-                                        <td className="px-6 py-3">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-on-surface">{log.username}</span>
-                                                <span className="text-[10px] opacity-60 font-mono">{log.ipAddress}</span>
+                {/* TIMELINE VIEW */}
+                <div className="pl-4">
+                    {loading ? (
+                        <div className="p-12 text-center"><SpinnerIcon className="w-8 h-8 mx-auto text-primary" /></div>
+                    ) : logs.length === 0 ? (
+                        <div className="p-12 text-center text-on-surface-variant font-bold italic bg-surface-container-low rounded-2xl border border-dashed border-outline-variant">
+                            Nessuna attività trovata con i filtri correnti.
+                        </div>
+                    ) : (
+                        groupedLogs.map(([dateKey, groupLogs]) => (
+                            <div key={dateKey} className="mb-8">
+                                <h4 className="text-sm font-bold text-primary uppercase tracking-widest mb-4 sticky top-0 bg-surface/95 backdrop-blur py-2 z-10 border-b border-outline-variant">
+                                    {formatDateHeader(dateKey)}
+                                </h4>
+                                <div className="border-l-2 border-outline-variant ml-2 pl-6 pt-2">
+                                    {groupLogs.map((log, index) => (
+                                        <div key={log.id} className="relative mb-6 last:mb-0">
+                                            {/* Custom rendering logic instead of simple component to control connector line properly */}
+                                            <div className="absolute -left-[31px] top-0 w-4 h-4 rounded-full border-2 border-surface bg-surface-container-high flex items-center justify-center z-10 ring-4 ring-surface">
+                                                 <span className={`w-2 h-2 rounded-full ${
+                                                     log.action.includes('CREATE') ? 'bg-tertiary' : 
+                                                     log.action.includes('DELETE') ? 'bg-error' : 
+                                                     log.action.includes('FAIL') ? 'bg-error' : 'bg-primary'
+                                                 }`}></span>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-3">
-                                            <span className={`px-2 py-0.5 rounded font-black tracking-tighter ${
-                                                log.action.includes('FAIL') ? 'bg-error-container text-on-error-container' : 'bg-surface-container-high'
-                                            }`}>
-                                                {log.action}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-3">
-                                            <div className="max-w-[300px] truncate font-mono text-[10px] opacity-70" title={JSON.stringify(log.details)}>
-                                                {JSON.stringify(log.details)}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                            <AuditTimelineItem log={log} isLast={index === groupLogs.length - 1} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </section>
         </div>
@@ -565,13 +646,13 @@ const AuditPillar: React.FC = () => {
 
 // --- PAGINA PRINCIPALE SECURITY CENTER ---
 const SecurityCenterPage: React.FC = () => {
-    const [activePillar, setActivePillar] = useState<'id' | 'rbac' | 'nav' | 'audit'>('rbac');
+    const [activePillar, setActivePillar] = useState<'id' | 'rbac' | 'nav' | 'audit'>('audit'); // Default to Audit per request focus
 
     const pillars = [
+        { id: 'audit', label: 'Security Audit', icon: 'policy', desc: 'Timeline Attività' },
         { id: 'rbac', label: 'Access Control Matrix', icon: 'security', desc: 'Rotte e Ruoli' },
         { id: 'id', label: 'Identity & Users', icon: 'badge', desc: 'Whitelist Utenti' },
         { id: 'nav', label: 'App Architecture', icon: 'account_tree', desc: 'Menu e Landing' },
-        { id: 'audit', label: 'Security Audit', icon: 'policy', desc: 'Log di sistema' },
     ];
 
     return (
@@ -580,7 +661,7 @@ const SecurityCenterPage: React.FC = () => {
             <div className="lg:w-80 flex-shrink-0 space-y-3">
                 <div className="p-2 mb-6">
                     <h1 className="text-3xl font-black text-primary tracking-tighter italic">SECURITY<span className="text-on-surface font-normal">CENTER</span></h1>
-                    <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest mt-1">Control Panel v2.0</p>
+                    <p className="text-xs font-bold text-on-surface-variant opacity-60 uppercase tracking-widest mt-1">Control Panel v2.1</p>
                 </div>
                 
                 {pillars.map(p => (

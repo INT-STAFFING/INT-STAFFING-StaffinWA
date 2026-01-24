@@ -2,8 +2,7 @@
 /**
  * @file SkillAnalysisPage.tsx
  * @description Pagina di analisi avanzata delle competenze con 8 visualizzazioni.
- * Supporta filtri globali e controlli di zoom unificati.
- * FIX: Import paths adjusted to ../../ to access root components/contexts from src/pages.
+ * FIX: Corretta gestione lifecycle D3 e conflitti di zoom/transform.
  */
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -24,7 +23,7 @@ import { tree as d3Tree, hierarchy as d3Hierarchy, pack as d3Pack } from 'd3-hie
 import { sankey as d3Sankey, sankeyLinkHorizontal } from 'd3-sankey';
 import SearchableSelect from '../../components/SearchableSelect';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown';
-import ErrorBoundary from '../../components/ErrorBoundary'; // NEW IMPORT
+import ErrorBoundary from '../../components/ErrorBoundary';
 import 'd3-transition';
 import { Skill } from '../../types';
 
@@ -32,7 +31,6 @@ type ViewMode = 'network' | 'heatmap' | 'chord' | 'radar' | 'dendrogram' | 'pack
 type ZoomAction = { type: 'in' | 'out' | 'reset'; ts: number };
 type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'not_empty';
 
-// ... (Rest of existing imports and helper functions like truncateLabel and getThemePalette remain unchanged)
 const truncateLabel = (str: string, maxLength: number = 15) => {
     if (!str) return '';
     if (str.length <= maxLength) return str;
@@ -85,25 +83,26 @@ const SkillForceGraph: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2).scale(1).translate(-width/2, -height/2));
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2).scale(1));
         }
     }, [zoomAction, width, height]);
 
     useEffect(() => {
-        if (!svgRef.current || nodes.length === 0) return;
+        if (!svgRef.current) return;
         
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
+
+        if (nodes.length === 0) {
+            svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per il Network.");
+            return;
+        }
 
         const g = svg.append("g");
         gRef.current = g;
         
-        const t = zoomTransform(svg.node() as Element);
-        if (t.k !== 1 || t.x !== 0 || t.y !== 0) {
-             g.attr("transform", t.toString());
-        } else {
-             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2));
-        }
+        // Initial Center
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2));
         
         const fullPalette = getThemePalette(theme);
         const skillPalette = fullPalette.filter(c => c !== theme.primary);
@@ -124,15 +123,11 @@ const SkillForceGraph: React.FC<{
         links.forEach(l => {
             const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
             const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-            
             degreeMap.set(sourceId, (degreeMap.get(sourceId) || 0) + 1);
             degreeMap.set(targetId, (degreeMap.get(targetId) || 0) + 1);
         });
 
-        nodes.forEach(n => {
-            n.degree = degreeMap.get(n.id) || 0;
-        });
-
+        nodes.forEach(n => { n.degree = degreeMap.get(n.id) || 0; });
         const maxDegree = Math.max(...Array.from(degreeMap.values()), 1);
 
         const radiusScale = scaleSqrt()
@@ -164,10 +159,7 @@ const SkillForceGraph: React.FC<{
                     d.fx = d.x;
                     d.fy = d.y;
                 })
-                .on("drag", (event: any, d: any) => {
-                    d.fx = event.x;
-                    d.fy = event.y;
-                })
+                .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
                 .on("end", (event: any, d: any) => {
                     if (!event.active) simulation.alphaTarget(0);
                     d.fx = null;
@@ -192,12 +184,7 @@ const SkillForceGraph: React.FC<{
             .attr("fill", theme.onSurface)
             .style("pointer-events", "none");
 
-        node.append("title")
-            .text((d: any) => {
-                let tooltip = d.name;
-                if (d.type === 'skill') tooltip = `SKILL: ${d.name}\nAmbito: ${d.category || '-'}\nMacro: ${d.macroCategory || '-'}`;
-                return `${tooltip}\nConnessioni: ${d.degree}`;
-            });
+        node.append("title").text((d: any) => d.name);
 
         simulation.on("tick", () => {
             link
@@ -205,7 +192,6 @@ const SkillForceGraph: React.FC<{
                 .attr("y1", (d: any) => d.source.y)
                 .attr("x2", (d: any) => d.target.x)
                 .attr("y2", (d: any) => d.target.y);
-
             node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
         });
 
@@ -225,10 +211,12 @@ const SkillHeatmap: React.FC<{
     theme: any,
     zoomAction: ZoomAction,
     svgRef: React.RefObject<SVGSVGElement>
-}> = ({ data, resources, skills, width: containerWidth, height: containerHeight, theme, zoomAction, svgRef }) => {
+}> = ({ data, resources, skills, width, height, theme, zoomAction, svgRef }) => {
     
     const zoomBehavior = useRef<any>(null);
     const gRef = useRef<any>(null);
+    // Margini fissi per l'heatmap
+    const margin = { top: 150, right: 25, bottom: 30, left: 150 };
 
     useEffect(() => {
         if (!svgRef.current) return;
@@ -252,63 +240,38 @@ const SkillHeatmap: React.FC<{
         } else if (zoomAction.type === 'out') {
             svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
+            // FIX: Reset zoom to include margins translation
+            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(margin.left, margin.top));
         }
     }, [zoomAction]);
 
     useEffect(() => {
-        if (!svgRef.current || data.length === 0) return;
-        
-        const margin = { top: 150, right: 25, bottom: 30, left: 150 };
-        const cellSize = 30;
+        if (!svgRef.current) return;
         
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
 
-        const g = svg.append("g")
-            .attr("transform", `translate(${margin.left},${margin.top})`);
-        
-        gRef.current = g;
-        
-        const t = zoomTransform(svg.node() as Element);
-        if (t.k !== 1 || t.x !== 0 || t.y !== 0) {
-             g.attr("transform", t.toString());
+        if (data.length === 0) {
+            svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per l'Heatmap.");
+            return;
         }
 
-        const x = scaleBand()
-            .range([0, skills.length * cellSize])
-            .domain(skills)
-            .padding(0.05);
-
-        const y = scaleBand()
-            .range([0, resources.length * cellSize])
-            .domain(resources)
-            .padding(0.05);
-
-        const colorScale = scaleSequential()
-            .interpolator(interpolate(theme.surfaceContainerHighest, theme.primary))
-            .domain([0, (max(data, d => d.value) || 100)] as [number, number]);
-
-        // Rows (Resources)
-        g.append("g")
-            .call(axisLeft(y).tickFormat((d) => truncateLabel(d, 20)))
-            .selectAll("text")
-            .attr("fill", theme.onSurface)
-            .style("font-size", "11px");
-
-        // Columns (Skills)
-        g.append("g")
-            .call(axisTop(x).tickFormat((d) => truncateLabel(d, 20)))
-            .selectAll("text")
-            .attr("transform", "rotate(-45)")
-            .style("text-anchor", "start")
-            .attr("dx", "0.5em")
-            .attr("dy", "-0.5em")
-            .attr("fill", theme.onSurface)
-            .style("font-size", "11px");
+        const g = svg.append("g");
+        gRef.current = g;
         
-        const tooltip = select("body").append("div")
-            .attr("class", "d3-tooltip")
+        // Initialize Zoom with Margins offset
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(margin.left, margin.top));
+
+        const cellSize = 30;
+        const x = scaleBand().range([0, skills.length * cellSize]).domain(skills).padding(0.05);
+        const y = scaleBand().range([0, resources.length * cellSize]).domain(resources).padding(0.05);
+        const colorScale = scaleSequential().interpolator(interpolate(theme.surfaceContainerHighest, theme.primary)).domain([0, (max(data, d => d.value) || 100)] as [number, number]);
+
+        g.append("g").call(axisLeft(y).tickFormat((d) => truncateLabel(d, 20))).selectAll("text").attr("fill", theme.onSurface).style("font-size", "11px");
+        g.append("g").call(axisTop(x).tickFormat((d) => truncateLabel(d, 20))).selectAll("text").attr("transform", "rotate(-45)").style("text-anchor", "start").attr("dx", "0.5em").attr("dy", "-0.5em").attr("fill", theme.onSurface).style("font-size", "11px");
+        
+        const tooltip = select("body").selectAll(".d3-tooltip-heatmap").data([null]).join("div")
+            .attr("class", "d3-tooltip-heatmap")
             .style("position", "absolute")
             .style("z-index", "100")
             .style("visibility", "hidden")
@@ -336,12 +299,12 @@ const SkillHeatmap: React.FC<{
             .on("mouseout", () => tooltip.style("visibility", "hidden"));
 
         return () => { tooltip.remove(); };
-    }, [data, resources, skills, theme, svgRef, containerWidth, containerHeight]);
+    }, [data, resources, skills, theme, svgRef, width, height]);
 
-    return <svg ref={svgRef} width={containerWidth} height={containerHeight} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move"></svg>;
+    return <svg ref={svgRef} width={width} height={height} className="w-full h-full bg-surface-container-low rounded-xl border border-outline-variant cursor-move"></svg>;
 };
 
-// 3. Chord Diagram (Skill Co-occurrence)
+// 3. Chord Diagram
 const SkillChordDiagram: React.FC<{
     matrix: number[][],
     names: string[],
@@ -358,89 +321,57 @@ const SkillChordDiagram: React.FC<{
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        
         zoomBehavior.current = d3Zoom()
             .scaleExtent([0.5, 5])
-            .on("zoom", (event: any) => {
-                if(gRef.current) gRef.current.attr("transform", event.transform);
-            });
-        
+            .on("zoom", (event: any) => { if(gRef.current) gRef.current.attr("transform", event.transform); });
         svg.call(zoomBehavior.current);
     }, [width, height, svgRef]);
 
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        
-        if (zoomAction.type === 'in') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        } else if (zoomAction.type === 'out') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
-        }
+        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
     }, [zoomAction, width, height]);
 
     useEffect(() => {
-        if (!svgRef.current || matrix.length === 0 || names.length === 0) {
-            if(svgRef.current) select(svgRef.current).selectAll("g").remove();
-            return;
-        }
-
+        if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
+
+        if (matrix.length === 0 || names.length === 0) {
+             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per il Chord.");
+             return;
+        }
 
         const g = svg.append("g");
         gRef.current = g;
-
-        const t = zoomTransform(svg.node() as Element);
-        if (t.k === 1 && t.x === 0 && t.y === 0) {
-             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
-        } else {
-             g.attr("transform", t.toString());
-        }
         
-        const outerRadius = Math.min(width, height) * 0.5 - 60;
+        // Initial Center
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        
+        const outerRadius = Math.max(50, Math.min(width, height) * 0.5 - 60);
         const innerRadius = outerRadius - 20;
 
-        if (innerRadius <= 0) return; 
-
-        const chordGenerator = d3Chord()
-            .padAngle(0.05)
-            .sortSubgroups(descending);
-
-        const arcGenerator = d3Arc()
-            .innerRadius(innerRadius)
-            .outerRadius(outerRadius);
-
-        const ribbonGenerator = d3Ribbon()
-            .radius(innerRadius);
-
-        const palette = getThemePalette(theme);
-        const color = scaleOrdinal(palette);
-
+        const chordGenerator = d3Chord().padAngle(0.05).sortSubgroups(descending);
+        const arcGenerator = d3Arc().innerRadius(innerRadius).outerRadius(outerRadius);
+        const ribbonGenerator = d3Ribbon().radius(innerRadius);
+        const color = scaleOrdinal(getThemePalette(theme));
         const chords = chordGenerator(matrix);
 
-        const group = g.append("g")
-            .selectAll("g")
-            .data(chords.groups)
-            .join("g");
+        const group = g.append("g").selectAll("g").data(chords.groups).join("g");
 
         group.append("path")
             .attr("fill", (d: any) => String(color(d.index.toString())))
             .attr("stroke", (d: any) => rgb(String(color(d.index.toString()))).darker().toString())
             .attr("d", (d: any) => arcGenerator(d as any) as string)
-            .append("title")
-            .text((d: any) => `${names[d.index]}: ${d.value.toFixed(0)} co-occorrenze`);
+            .append("title").text((d: any) => `${names[d.index]}: ${d.value.toFixed(0)} co-occorrenze`);
 
         group.append("text")
             .each((d: any) => { d.angle = (d.startAngle + d.endAngle) / 2; })
             .attr("dy", ".35em")
-            .attr("transform", (d: any) => `
-                rotate(${(d.angle * 180 / Math.PI - 90)})
-                translate(${innerRadius + 26})
-                ${d.angle > Math.PI ? "rotate(180)" : ""}
-            `)
+            .attr("transform", (d: any) => `rotate(${(d.angle * 180 / Math.PI - 90)}) translate(${innerRadius + 26}) ${d.angle > Math.PI ? "rotate(180)" : ""}`)
             .attr("text-anchor", (d: any) => d.angle > Math.PI ? "end" : "start")
             .text((d: any) => truncateLabel(names[d.index], 15))
             .style("font-size", "10px")
@@ -454,8 +385,7 @@ const SkillChordDiagram: React.FC<{
             .attr("d", ribbonGenerator as any)
             .attr("fill", (d: any) => String(color(d.target.index.toString())))
             .attr("stroke", (d: any) => rgb(String(color(d.target.index.toString()))).darker().toString())
-            .append("title")
-            .text((d: any) => `${names[d.source.index]} ↔ ${names[d.target.index]}\nCo-occorrenze: ${d.source.value}`);
+            .append("title").text((d: any) => `${names[d.source.index]} ↔ ${names[d.target.index]}`);
 
     }, [matrix, names, width, height, theme, svgRef]);
 
@@ -463,19 +393,8 @@ const SkillChordDiagram: React.FC<{
 };
 
 // 4. Radar Chart
-interface RadarDataPoint {
-    axis: string;
-    value: number;
-}
-
-interface RadarDataSet {
-    name: string;
-    color: string;
-    data: RadarDataPoint[];
-}
-
 const SkillRadarChart: React.FC<{
-    datasets: RadarDataSet[],
+    datasets: {name: string, color: string, data: {axis: string, value: number}[]}[],
     width: number,
     height: number,
     theme: any,
@@ -489,152 +408,55 @@ const SkillRadarChart: React.FC<{
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        
         zoomBehavior.current = d3Zoom()
             .scaleExtent([0.5, 5])
-            .on("zoom", (event: any) => {
-                if(gRef.current) gRef.current.attr("transform", event.transform);
-            });
-        
+            .on("zoom", (event: any) => { if(gRef.current) gRef.current.attr("transform", event.transform); });
         svg.call(zoomBehavior.current);
     }, [svgRef]);
 
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        
-        if (zoomAction.type === 'in') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        } else if (zoomAction.type === 'out') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
-        }
+        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
     }, [zoomAction, width, height]);
 
     useEffect(() => {
-        if (!svgRef.current || datasets.length === 0 || datasets[0].data.length === 0) return;
-
+        if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
+
+        if (datasets.length === 0 || datasets[0].data.length === 0) {
+             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per il Radar.");
+             return;
+        }
 
         const g = svg.append("g");
         gRef.current = g;
+        
+        // Initial Center
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
 
-        const t = zoomTransform(svg.node() as Element);
-        if (t.k === 1 && t.x === 0 && t.y === 0) {
-             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
-        } else {
-             g.attr("transform", t.toString());
-        }
-
-        const cfg = {
-            w: width - 150,
-            h: height - 150,
-            levels: 5,
-            maxValue: 5, 
-            labelFactor: 1.25,
-            opacityArea: 0.25,
-        };
-
+        const cfg = { w: width - 150, h: height - 150, levels: 5, maxValue: 5, labelFactor: 1.25, opacityArea: 0.25 };
         const radius = Math.min(cfg.w / 2, cfg.h / 2);
         const axesData = datasets[0].data; 
         const angleSlice = Math.PI * 2 / axesData.length;
-
-        const rScale = scaleLinear()
-            .range([0, radius])
-            .domain([0, cfg.maxValue] as [number, number]);
+        const rScale = scaleLinear().range([0, radius]).domain([0, cfg.maxValue] as [number, number]);
 
         const axisGrid = g.append("g").attr("class", "axisWrapper");
+        axisGrid.selectAll(".levels").data(Array.from({ length: cfg.levels }, (_, i) => i + 1).reverse()).enter().append("circle").attr("class", "gridCircle").attr("r", (d) => radius / cfg.levels * d).style("fill", theme.surfaceVariant).style("stroke", theme.outlineVariant).style("fill-opacity", 0.3);
+        
+        const axis = axisGrid.selectAll(".axis").data(axesData).enter().append("g").attr("class", "axis");
+        axis.append("line").attr("x1", 0).attr("y1", 0).attr("x2", (d, i) => rScale(cfg.maxValue * 1.1) * Math.cos(angleSlice * i - Math.PI / 2)).attr("y2", (d, i) => rScale(cfg.maxValue * 1.1) * Math.sin(angleSlice * i - Math.PI / 2)).attr("class", "line").style("stroke", theme.outlineVariant).style("stroke-width", "1px");
+        axis.append("text").attr("class", "legend").style("font-size", "11px").attr("text-anchor", "middle").attr("dy", "0.35em").attr("x", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.cos(angleSlice * i - Math.PI / 2)).attr("y", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.sin(angleSlice * i - Math.PI / 2)).text((d) => truncateLabel(d.axis, 15)).style("fill", theme.onSurface).append("title").text(d => d.axis);
 
-        axisGrid.selectAll(".levels")
-            .data(Array.from({ length: cfg.levels }, (_, i) => i + 1).reverse())
-            .enter()
-            .append("circle")
-            .attr("class", "gridCircle")
-            .attr("r", (d) => radius / cfg.levels * d)
-            .style("fill", theme.surfaceVariant)
-            .style("stroke", theme.outlineVariant)
-            .style("fill-opacity", 0.3);
-
-        axisGrid.selectAll(".axisLabel")
-            .data(Array.from({ length: cfg.levels }, (_, i) => i + 1).reverse())
-            .enter().append("text")
-            .attr("class", "axisLabel")
-            .attr("x", 4)
-            .attr("y", (d) => -radius / cfg.levels * d)
-            .attr("dy", "0.4em")
-            .style("font-size", "10px")
-            .attr("fill", theme.onSurfaceVariant)
-            .text((d) => d);
-
-        const axis = axisGrid.selectAll(".axis")
-            .data(axesData)
-            .enter()
-            .append("g")
-            .attr("class", "axis");
-
-        axis.append("line")
-            .attr("x1", 0)
-            .attr("y1", 0)
-            .attr("x2", (d, i) => rScale(cfg.maxValue * 1.1) * Math.cos(angleSlice * i - Math.PI / 2))
-            .attr("y2", (d, i) => rScale(cfg.maxValue * 1.1) * Math.sin(angleSlice * i - Math.PI / 2))
-            .attr("class", "line")
-            .style("stroke", theme.outlineVariant)
-            .style("stroke-width", "1px");
-
-        axis.append("text")
-            .attr("class", "legend")
-            .style("font-size", "11px")
-            .attr("text-anchor", "middle")
-            .attr("dy", "0.35em")
-            .attr("x", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.cos(angleSlice * i - Math.PI / 2))
-            .attr("y", (d, i) => rScale(cfg.maxValue * cfg.labelFactor) * Math.sin(angleSlice * i - Math.PI / 2))
-            .text((d) => truncateLabel(d.axis, 15))
-            .style("fill", theme.onSurface)
-            .append("title")
-            .text(d => d.axis);
-
-        const radarLine = lineRadial<RadarDataPoint>()
-            .radius((d) => rScale(d.value))
-            .angle((d, i) => i * angleSlice)
-            .curve(curveLinearClosed);
+        const radarLine = lineRadial<any>().radius((d) => rScale(d.value)).angle((d, i) => i * angleSlice).curve(curveLinearClosed);
 
         datasets.forEach((dataset, idx) => {
-            g.append("path")
-                .datum(dataset.data)
-                .attr("class", "radarArea")
-                .attr("d", radarLine)
-                .style("fill", dataset.color)
-                .style("fill-opacity", cfg.opacityArea)
-                .on('mouseover', function() {
-                    select(this).transition().duration(200).style("fill-opacity", 0.7);
-                })
-                .on('mouseout', function() {
-                    select(this).transition().duration(200).style("fill-opacity", cfg.opacityArea);
-                })
-                .append("title")
-                .text(dataset.name);
-
-            g.append("path")
-                .datum(dataset.data)
-                .attr("class", "radarStroke")
-                .attr("d", radarLine)
-                .style("stroke-width", "2px")
-                .style("stroke", dataset.color)
-                .style("fill", "none");
-            
-            g.selectAll(`.radarCircle-${idx}`)
-                .data(dataset.data)
-                .enter().append("circle")
-                .attr("class", "radarCircle")
-                .attr("r", 3)
-                .attr("cx", (d, i) => rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2))
-                .attr("cy", (d, i) => rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2))
-                .style("fill", dataset.color)
-                .style("fill-opacity", 0.9)
-                .append("title")
-                .text((d) => `${dataset.name}: Livello ${d.value.toFixed(1)}`);
+            g.append("path").datum(dataset.data).attr("class", "radarArea").attr("d", radarLine).style("fill", dataset.color).style("fill-opacity", cfg.opacityArea);
+            g.append("path").datum(dataset.data).attr("class", "radarStroke").attr("d", radarLine).style("stroke-width", "2px").style("stroke", dataset.color).style("fill", "none");
+            g.selectAll(`.radarCircle-${idx}`).data(dataset.data).enter().append("circle").attr("class", "radarCircle").attr("r", 3).attr("cx", (d, i) => rScale(d.value) * Math.cos(angleSlice * i - Math.PI / 2)).attr("cy", (d, i) => rScale(d.value) * Math.sin(angleSlice * i - Math.PI / 2)).style("fill", dataset.color).style("fill-opacity", 0.9).append("title").text((d) => `${dataset.name}: Livello ${d.value.toFixed(1)}`);
         });
 
     }, [datasets, width, height, theme, svgRef]);
@@ -651,115 +473,47 @@ const SkillRadialTree: React.FC<{
     zoomAction: ZoomAction,
     svgRef: React.RefObject<SVGSVGElement>
 }> = ({ data, width, height, theme, zoomAction, svgRef }) => {
-
     const zoomBehavior = useRef<any>(null);
     const gRef = useRef<any>(null);
 
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        
-        zoomBehavior.current = d3Zoom()
-            .scaleExtent([0.1, 4])
-            .on("zoom", (event: any) => {
-                if(gRef.current) gRef.current.attr("transform", event.transform);
-            });
-        
+        zoomBehavior.current = d3Zoom().scaleExtent([0.1, 4]).on("zoom", (event: any) => { if(gRef.current) gRef.current.attr("transform", event.transform); });
         svg.call(zoomBehavior.current);
-    }, [width, height, svgRef]);
+    }, [svgRef]);
 
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        
-        if (zoomAction.type === 'in') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        } else if (zoomAction.type === 'out') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
-        }
+        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
     }, [zoomAction, width, height]);
 
     useEffect(() => {
-        if (!svgRef.current || !data) return;
-
+        if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
+
+        if (!data || !data.children || data.children.length === 0) {
+             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per l'albero.");
+             return;
+        }
 
         const g = svg.append("g");
         gRef.current = g;
-
-        const t = zoomTransform(svg.node() as Element);
-        if (t.k === 1 && t.x === 0 && t.y === 0) {
-             svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
-        } else {
-             g.attr("transform", t.toString());
-        }
-
-        const layoutRadius = 600; 
+        svg.call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
 
         const root = d3Hierarchy(data);
-        
-        const tree = d3Tree()
-            .size([2 * Math.PI, layoutRadius])
-            .separation((a, b) => (a.parent === b.parent ? 1 : 2) / (a.depth || 1));
-
+        const tree = d3Tree().size([2 * Math.PI, 600]).separation((a, b) => (a.parent === b.parent ? 1 : 2) / (a.depth || 1));
         tree(root);
 
-        g.append("g")
-            .attr("fill", "none")
-            .attr("stroke", theme.outlineVariant)
-            .attr("stroke-opacity", 0.4)
-            .attr("stroke-width", 1.5)
-            .selectAll("path")
-            .data(root.links())
-            .join("path")
-            .attr("d", d3LinkRadial()
-                .angle((d: any) => d.x)
-                .radius((d: any) => d.y) as any
-            );
+        g.append("g").attr("fill", "none").attr("stroke", theme.outlineVariant).attr("stroke-opacity", 0.4).attr("stroke-width", 1.5).selectAll("path").data(root.links()).join("path").attr("d", d3LinkRadial().angle((d: any) => d.x).radius((d: any) => d.y) as any);
 
-        const node = g.append("g")
-            .selectAll("circle")
-            .data(root.descendants())
-            .join("circle")
-            .attr("transform", (d: any) => `
-                rotate(${d.x * 180 / Math.PI - 90})
-                translate(${d.y},0)
-            `)
-            .attr("fill", (d: any) => {
-                if (d.depth === 0) return theme.inverseSurface;
-                if (d.depth === 3) return theme.tertiary;
-                if (d.depth === 4) return theme.primary;
-                return theme.secondary;
-            })
-            .attr("r", (d: any) => d.depth === 4 ? 3 : 5);
+        const node = g.append("g").selectAll("circle").data(root.descendants()).join("circle").attr("transform", (d: any) => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`).attr("fill", (d: any) => d.depth === 4 ? theme.primary : theme.secondary).attr("r", 4);
 
-        const labels = g.append("g")
-            .attr("stroke-linejoin", "round")
-            .attr("stroke-width", 3)
-            .selectAll("text")
-            .data(root.descendants())
-            .join("text")
-            .attr("transform", (d: any) => `
-                rotate(${d.x * 180 / Math.PI - 90}) 
-                translate(${d.y},0) 
-                rotate(${d.x >= Math.PI ? 180 : 0})
-            `)
-            .attr("dy", "0.31em")
-            .attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6)
-            .attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end")
-            .attr("fill", (d: any) => d.depth === 4 ? theme.primary : theme.onSurface)
-            .attr("font-size", (d: any) => d.depth === 4 ? "9px" : "11px")
-            .attr("font-weight", (d: any) => d.depth === 3 ? "bold" : "normal")
-            .text((d: any) => truncateLabel(d.data.name, 20));
-
-        labels.clone(true).lower()
-            .attr("stroke", theme.surface)
-            .attr("stroke-width", 4);
-            
-        labels.append("title").text((d: any) => d.data.name);
+        g.append("g").selectAll("text").data(root.descendants()).join("text").attr("transform", (d: any) => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0) rotate(${d.x >= Math.PI ? 180 : 0})`).attr("dy", "0.31em").attr("x", (d: any) => d.x < Math.PI === !d.children ? 6 : -6).attr("text-anchor", (d: any) => d.x < Math.PI === !d.children ? "start" : "end").attr("fill", theme.onSurface).attr("font-size", "10px").text((d: any) => truncateLabel(d.data.name, 20)).append("title").text((d: any) => d.data.name);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -782,103 +536,41 @@ const SkillCirclePacking: React.FC<{
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        
-        zoomBehavior.current = d3Zoom()
-            .scaleExtent([0.1, 8])
-            .on("zoom", (event: any) => {
-                if(gRef.current) gRef.current.attr("transform", event.transform);
-            });
-        
+        zoomBehavior.current = d3Zoom().scaleExtent([0.1, 8]).on("zoom", (event: any) => { if(gRef.current) gRef.current.attr("transform", event.transform); });
         svg.call(zoomBehavior.current);
-    }, [width, height, svgRef]);
+    }, [svgRef]);
 
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        
-        if (zoomAction.type === 'in') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        } else if (zoomAction.type === 'out') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
-        }
-    }, [zoomAction, width, height]);
+        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
+    }, [zoomAction]);
 
     useEffect(() => {
-        if (!svgRef.current || !data) return;
-
+        if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
 
-        const g = svg.append("g");
-        gRef.current = g;
-
-        const t = zoomTransform(svg.node() as Element);
-        if (t.k === 1 && t.x === 0 && t.y === 0) {
-             // Default center
-        } else {
-             g.attr("transform", t.toString());
-        }
-
-        const root = d3Hierarchy(data)
-            .sum(d => d.value)
-            .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
-            
-        if (!root.value) {
-             g.append("text")
-                .attr("x", width/2)
-                .attr("y", height/2)
-                .attr("text-anchor", "middle")
-                .attr("fill", theme.onSurfaceVariant)
-                .text("Nessun dato disponibile per il Packing (0 skills assegnate)");
+        if (!data || !data.children || data.children.length === 0) {
+             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per il Packing.");
              return;
         }
 
-        const pack = d3Pack()
-            .size([width, height])
-            .padding(3);
-
+        const g = svg.append("g");
+        gRef.current = g;
+        // Default Identity Zoom
+        
+        const root = d3Hierarchy(data).sum(d => d.value).sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
+        const pack = d3Pack().size([width, height]).padding(3);
         pack(root);
 
-        const getColor = (d: any) => {
-            if (!d.children) return theme.primaryContainer; 
-            switch(d.depth) {
-                case 0: return 'transparent'; 
-                case 1: return theme.surfaceContainerHigh; 
-                case 2: return theme.secondaryContainer; 
-                default: return theme.surface;
-            }
-        };
+        const node = g.selectAll("g").data(root.descendants()).join("g").attr("transform", (d: any) => `translate(${d.x},${d.y})`);
 
-        const node = g.selectAll("g")
-            .data(root.descendants())
-            .join("g")
-            .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-
-        node.append("circle")
-            .attr("r", (d: any) => d.r)
-            .attr("fill", (d: any) => getColor(d))
-            .attr("stroke", theme.outlineVariant)
-            .attr("stroke-width", 1)
-            .on("mouseover", function() { 
-                select(this).attr("stroke", theme.primary).attr("stroke-width", 2); 
-            })
-            .on("mouseout", function() { 
-                select(this).attr("stroke", theme.outlineVariant).attr("stroke-width", 1); 
-            });
-
-        node.append("title")
-            .text((d: any) => `${d.data.name}\nRisorse: ${d.value}`);
-
-        // Labels
-        node.filter((d: any) => !d.children && d.r > 15).append("text")
-            .attr("dy", "0.3em")
-            .style("text-anchor", "middle")
-            .text((d: any) => truncateLabel(d.data.name, Math.floor(d.r / 3))) 
-            .attr("font-size", "10px")
-            .attr("fill", theme.onPrimaryContainer)
-            .style("pointer-events", "none"); 
+        node.append("circle").attr("r", (d: any) => d.r).attr("fill", (d: any) => d.children ? theme.surface : theme.primaryContainer).attr("stroke", theme.outlineVariant).attr("stroke-width", 1);
+        node.append("title").text((d: any) => `${d.data.name}\n${d.value}`);
+        node.filter((d: any) => !d.children && d.r > 15).append("text").attr("dy", "0.3em").style("text-anchor", "middle").text((d: any) => truncateLabel(d.data.name, Math.floor(d.r / 3))).attr("font-size", "10px").attr("fill", theme.onPrimaryContainer);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -901,15 +593,9 @@ const SkillSankeyChart: React.FC<{
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        
-        zoomBehavior.current = d3Zoom()
-            .scaleExtent([0.1, 4])
-            .on("zoom", (event: any) => {
-                if(gRef.current) gRef.current.attr("transform", event.transform);
-            });
-        
+        zoomBehavior.current = d3Zoom().scaleExtent([0.1, 4]).on("zoom", (event: any) => { if(gRef.current) gRef.current.attr("transform", event.transform); });
         svg.call(zoomBehavior.current);
-    }, [width, height, svgRef]);
+    }, [svgRef]);
 
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
@@ -920,77 +606,27 @@ const SkillSankeyChart: React.FC<{
     }, [zoomAction]);
 
     useEffect(() => {
-        if (!svgRef.current || data.nodes.length === 0) return;
-
+        if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
+
+        if (data.nodes.length === 0) {
+             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per il Sankey.");
+             return;
+        }
 
         const g = svg.append("g");
         gRef.current = g;
         
-        const t = zoomTransform(svg.node() as Element);
-        g.attr("transform", t.toString());
+        const sankeyGenerator = d3Sankey().nodeWidth(15).nodePadding(10).extent([[1, 1], [width - 1, height - 6]]);
+        const { nodes, links } = sankeyGenerator({ nodes: data.nodes.map(d => ({ ...d })), links: data.links.map(d => ({ ...d })) } as any);
+        const color = scaleOrdinal(getThemePalette(theme));
 
-        const sankeyGenerator = d3Sankey()
-            .nodeWidth(15)
-            .nodePadding(10)
-            .extent([[1, 1], [width - 1, height - 6]]);
+        g.append("g").attr("fill", "none").attr("stroke-opacity", 0.5).selectAll("g").data(links).join("g").style("mix-blend-mode", "multiply").append("path").attr("d", sankeyLinkHorizontal()).attr("stroke", (d: any) => color(d.source.type || 'default') as string).attr("stroke-width", (d: any) => Math.max(1, d.width)).append("title").text((d: any) => `${d.source.name} → ${d.target.name}\n${d.value}`);
 
-        const sankeyData = {
-            nodes: data.nodes.map(d => ({ ...d })),
-            links: data.links.map(d => ({ ...d }))
-        };
+        g.append("g").selectAll("rect").data(nodes).join("rect").attr("x", (d: any) => d.x0).attr("y", (d: any) => d.y0).attr("height", (d: any) => d.y1 - d.y0).attr("width", (d: any) => d.x1 - d.x0).attr("fill", (d: any) => color(d.type) as string).attr("stroke", theme.outline).append("title").text((d: any) => d.name);
 
-        const { nodes, links } = sankeyGenerator(sankeyData as any);
-        
-        const palette = getThemePalette(theme);
-        const color = scaleOrdinal(palette);
-
-        g.append("g")
-            .attr("fill", "none")
-            .attr("stroke-opacity", 0.5)
-            .selectAll("g")
-            .data(links)
-            .join("g")
-            .style("mix-blend-mode", "multiply")
-            .append("path")
-            .attr("d", sankeyLinkHorizontal())
-            .attr("stroke", (d: any) => color(d.source.type || 'default') as string)
-            .attr("stroke-width", (d: any) => Math.max(1, d.width))
-            .append("title")
-            .text((d: any) => `${d.source.name} → ${d.target.name}\n${d.value}`);
-
-        g.append("g")
-            .selectAll("rect")
-            .data(nodes)
-            .join("rect")
-            .attr("x", (d: any) => d.x0)
-            .attr("y", (d: any) => d.y0)
-            .attr("height", (d: any) => d.y1 - d.y0)
-            .attr("width", (d: any) => d.x1 - d.x0)
-            .attr("fill", (d: any) => {
-                if (d.type === 'resource') return theme.primary;
-                if (d.type === 'skill') return theme.secondary;
-                return color(d.type) as string;
-            })
-            .attr("stroke", theme.outline)
-            .append("title")
-            .text((d: any) => `${d.name} (${d.type})`);
-
-        g.append("g")
-            .attr("font-size", "10px")
-            .attr("font-family", "sans-serif")
-            .selectAll("text")
-            .data(nodes)
-            .join("text")
-            .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-            .attr("y", (d: any) => (d.y1 + d.y0) / 2)
-            .attr("dy", "0.35em")
-            .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
-            .text((d: any) => truncateLabel(d.name, 15))
-            .attr("fill", theme.onSurface)
-            .append("title")
-            .text((d: any) => d.name);
+        g.append("g").attr("font-size", "10px").selectAll("text").data(nodes).join("text").attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6).attr("y", (d: any) => (d.y1 + d.y0) / 2).attr("dy", "0.35em").attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end").text((d: any) => truncateLabel(d.name, 15)).attr("fill", theme.onSurface);
 
     }, [data, width, height, theme, svgRef]);
 
@@ -1013,85 +649,42 @@ const SkillBubbleChart: React.FC<{
     useEffect(() => {
         if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        
-        zoomBehavior.current = d3Zoom()
-            .scaleExtent([0.1, 8])
-            .on("zoom", (event: any) => {
-                if(gRef.current) gRef.current.attr("transform", event.transform);
-            });
-        
+        zoomBehavior.current = d3Zoom().scaleExtent([0.1, 8]).on("zoom", (event: any) => { if(gRef.current) gRef.current.attr("transform", event.transform); });
         svg.call(zoomBehavior.current);
-    }, [width, height, svgRef]);
+    }, [svgRef]);
 
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        
         if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
         else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
     }, [zoomAction]);
 
     useEffect(() => {
-        if (!svgRef.current || !data) return;
-
+        if (!svgRef.current) return;
         const svg = select(svgRef.current);
-        svg.selectAll("g").remove();
+        svg.selectAll("*").remove();
+
+        if (!data || !data.children || data.children.length === 0) {
+             svg.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato per il Bubble Chart.");
+             return;
+        }
 
         const g = svg.append("g");
         gRef.current = g;
 
-        const t = zoomTransform(svg.node() as Element);
-        g.attr("transform", t.toString());
-
-        const root = d3Hierarchy(data)
-            .sum(d => d.value)
-            .sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
-            
-        if (!root.value) {
-             g.append("text").attr("x", width/2).attr("y", height/2).attr("text-anchor", "middle").attr("fill", theme.onSurfaceVariant).text("Nessun dato.");
-             return;
-        }
-
+        const root = d3Hierarchy(data).sum(d => d.value).sort((a: any, b: any) => (b.value || 0) - (a.value || 0));
         const pack = d3Pack().size([width, height]).padding(5);
         pack(root);
 
-        const colorScale = scaleSequential(interpolate(theme.primaryContainer, theme.primary))
-            .domain([0, (max(root.leaves(), (d: any) => d.value) || 10)] as [number, number]);
+        const colorScale = scaleSequential(interpolate(theme.primaryContainer, theme.primary)).domain([0, (max(root.leaves(), (d: any) => d.value) || 10)] as [number, number]);
 
-        const node = g.selectAll("g")
-            .data(root.leaves())
-            .join("g")
-            .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+        const node = g.selectAll("g").data(root.leaves()).join("g").attr("transform", (d: any) => `translate(${d.x},${d.y})`);
 
-        node.append("circle")
-            .attr("r", (d: any) => d.r)
-            .attr("fill", (d: any) => String(colorScale(d.value)))
-            .attr("stroke", theme.outline)
-            .attr("stroke-width", 1)
-            .on("mouseover", function() { select(this).attr("stroke-width", 2).attr("stroke", theme.tertiary); })
-            .on("mouseout", function() { select(this).attr("stroke-width", 1).attr("stroke", theme.outline); });
+        node.append("circle").attr("r", (d: any) => d.r).attr("fill", (d: any) => String(colorScale(d.value))).attr("stroke", theme.outline).attr("stroke-width", 1).append("title").text((d: any) => `${d.data.name}: ${d.value} risorse`);
 
-        node.append("title").text((d: any) => `${d.data.name}: ${d.value} risorse`);
-
-        const textGroup = node.append("text")
-            .style("text-anchor", "middle")
-            .attr("fill", theme.onPrimary)
-            .style("pointer-events", "none")
-            .style("text-shadow", "0px 1px 2px rgba(0,0,0,0.4)");
-
-        textGroup.append("tspan")
-            .attr("x", 0)
-            .attr("dy", "-0.2em")
-            .style("font-weight", "bold")
-            .style("font-size", (d: any) => `${Math.max(8, Math.min(d.r / 2.5, 14))}px`) 
-            .text((d: any) => truncateLabel(d.data.name, Math.floor(d.r / 3)));
-
-        textGroup.append("tspan")
-            .attr("x", 0)
-            .attr("dy", "1.2em")
-            .style("font-size", (d: any) => `${Math.max(8, Math.min(d.r / 3, 12))}px`)
-            .text((d: any) => d.value);
+        node.append("text").style("text-anchor", "middle").attr("fill", theme.onPrimary).style("pointer-events", "none").style("font-size", (d: any) => `${Math.max(8, Math.min(d.r / 3, 12))}px`).text((d: any) => truncateLabel(d.data.name, Math.floor(d.r / 3)));
 
     }, [data, width, height, theme, svgRef]);
 
@@ -1102,7 +695,6 @@ const SkillBubbleChart: React.FC<{
 // --- Main Page Component ---
 
 const SkillAnalysisPage: React.FC = () => {
-    // ... (Hooks and state filtering logic remain unchanged)
     const { 
         resources, skills, projectSkills, resourceSkills, assignments, roles, locations, 
         skillCategories, skillMacroCategories 
@@ -1116,8 +708,8 @@ const SkillAnalysisPage: React.FC = () => {
         resourceIds: [] as string[],
         roleIds: [] as string[],
         skillIds: [] as string[],
-        categoryId: '', // Changed to ID
-        macroCategoryId: '', // Changed to ID
+        categoryId: '', 
+        macroCategoryId: '', 
         displayMode: 'all' as DisplayMode,
         location: ''
     });
@@ -1129,7 +721,6 @@ const SkillAnalysisPage: React.FC = () => {
 
     const chartRef = useRef<SVGSVGElement>(null);
 
-    // ... (Options memoization logic remains unchanged)
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     const locationOptions = useMemo(() => locations.map(l => ({ value: l.value, label: l.value })), [locations]);
@@ -1138,7 +729,6 @@ const SkillAnalysisPage: React.FC = () => {
     const categoryOptions = useMemo(() => skillCategories.map(c => ({ value: c.id, label: c.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillCategories]);
     const macroCategoryOptions = useMemo(() => skillMacroCategories.map(m => ({ value: m.id, label: m.name })).sort((a, b) => a.label.localeCompare(b.label)), [skillMacroCategories]);
 
-    // Applichiamo i filtri diretti sulle competenze
     const baseFilteredSkills = useMemo(() => {
         return skills.filter(s => {
             if (filters.skillIds.length > 0 && !filters.skillIds.includes(s.id!)) return false;
@@ -1159,7 +749,6 @@ const SkillAnalysisPage: React.FC = () => {
         });
     }, [skills, filters, skillCategories]);
 
-    // Filtriamo le risorse con i filtri selezionati e con almeno una skill valida
     const filteredResources = useMemo(() => {
         const validSkillIds = new Set(baseFilteredSkills.map(s => s.id));
 
@@ -1180,7 +769,6 @@ const SkillAnalysisPage: React.FC = () => {
         });
     }, [resources, filters, resourceSkills, baseFilteredSkills, hideEmptyRows]);
 
-    // Limitare le competenze ai soli collegamenti con le risorse filtrate rende i grafici coerenti con i filtri applicati
     const activeSkillIds = useMemo(() => {
         const ids = new Set<string>();
         const validSkillIds = new Set(baseFilteredSkills.map(s => s.id));
@@ -1200,10 +788,8 @@ const SkillAnalysisPage: React.FC = () => {
         return baseFilteredSkills.filter(s => activeSkillIds.has(s.id!));
     }, [baseFilteredSkills, activeSkillIds, filters.resourceIds, hideEmptyRows, filters.displayMode]);
 
-    // ... (networkData, heatmapData, chordData, radarData, dendrogramData, packingData, sankeyData, bubbleData logic remains unchanged)
     const networkData = useMemo(() => {
         if (view !== 'network') return { nodes: [], links: [] };
-        
         const nodes: any[] = [];
         const links: any[] = [];
         const nodeIds = new Set();
@@ -1216,7 +802,6 @@ const SkillAnalysisPage: React.FC = () => {
         filteredResources.forEach(r => {
             const rSkills = resourceSkills.filter(rs => rs.resourceId === r.id);
             const hasRelevantSkill = rSkills.some(rs => nodeIds.has(`skill_${rs.skillId}`));
-            
             if (hasRelevantSkill) {
                 nodes.push({ id: `res_${r.id}`, name: r.name, type: 'resource' });
                 rSkills.forEach(rs => {
@@ -1226,13 +811,11 @@ const SkillAnalysisPage: React.FC = () => {
                 });
             }
         });
-
         return { nodes, links };
     }, [filteredResources, filteredSkills, resourceSkills, view]);
 
     const heatmapData = useMemo(() => {
         if (view !== 'heatmap') return { data: [], resources: [], skills: [] };
-        
         const data: any[] = [];
         const resList = filteredResources.map(r => r.name);
         const skillList = filteredSkills.map(s => s.name); 
@@ -1259,26 +842,21 @@ const SkillAnalysisPage: React.FC = () => {
                 }
             });
         });
-
         return { data, resources: resList, skills: skillList };
     }, [filteredResources, filteredSkills, assignments, projectSkills, resourceSkills, view]);
 
     const chordData = useMemo(() => {
         if (view !== 'chord') return { matrix: [], names: [] };
-        
         const relevantSkillIds = new Set(filteredSkills.map(s => s.id));
         const relevantSkillIndices = new Map<string, number>(filteredSkills.map((s, i) => [s.id!, i]));
-        
         const n = filteredSkills.length;
         if (n === 0 || n > 50) return { matrix: [], names: [] }; 
 
         const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-        
         filteredResources.forEach(r => {
             const rSkillIds = resourceSkills
                 .filter(rs => rs.resourceId === r.id && relevantSkillIds.has(rs.skillId))
                 .map(rs => rs.skillId);
-
             for (let i = 0; i < rSkillIds.length; i++) {
                 for (let j = i + 1; j < rSkillIds.length; j++) {
                     const idx1 = relevantSkillIndices.get(rSkillIds[i]);
@@ -1290,13 +868,11 @@ const SkillAnalysisPage: React.FC = () => {
                 }
             }
         });
-
         return { matrix, names: filteredSkills.map(s => s.name) };
     }, [filteredSkills, resourceSkills, filteredResources, view]);
 
     const radarData = useMemo(() => {
         if (view !== 'radar') return [];
-        
         const targetSkills = filteredSkills.slice(0, 8);
         if (targetSkills.length < 3) return []; 
         
@@ -1323,13 +899,11 @@ const SkillAnalysisPage: React.FC = () => {
             const currentPalette = mode === 'dark' ? theme.dark : theme.light;
             datasets.push({ name: 'Media Gruppo Filtrato', color: currentPalette.primary, data: avgDataPoints });
         }
-
         return datasets;
     }, [filteredResources, filteredSkills, resourceSkills, view, theme, mode]);
 
     const dendrogramData = useMemo(() => {
         if (view !== 'dendrogram') return null;
-        
         const root: any = { name: "Competenze", children: [] };
         const groups = new Map<string, Map<string, Map<string, any[]>>>();
 
@@ -1352,7 +926,6 @@ const SkillAnalysisPage: React.FC = () => {
                 skill.categoryIds.forEach(catId => {
                     const cat = skillCategories.find(c => c.id === catId);
                     const catName = cat?.name || 'Unknown';
-                    
                     if (!cat?.macroCategoryIds || cat.macroCategoryIds.length === 0) {
                         addToGroups('Altro', catName);
                     } else {
@@ -1378,13 +951,11 @@ const SkillAnalysisPage: React.FC = () => {
             });
             root.children.push(macroNode);
         });
-
         return root;
     }, [filteredSkills, filteredResources, resourceSkills, view, skillCategories, skillMacroCategories]);
 
     const packingData = useMemo(() => {
         if (view !== 'packing') return null;
-        
         const root: any = { name: "Competenze", children: [] };
         const groups = new Map<string, Map<string, any[]>>();
 
@@ -1393,9 +964,8 @@ const SkillAnalysisPage: React.FC = () => {
                 rs.skillId === skill.id && 
                 filteredResources.some(r => r.id === rs.resourceId)
             ).length;
-
             if (count === 0) return;
-
+            
             const addToGroups = (macroName: string, catName: string) => {
                 if (!groups.has(macroName)) groups.set(macroName, new Map());
                 if (!groups.get(macroName)?.has(catName)) groups.get(macroName)?.set(catName, []);
@@ -1408,7 +978,6 @@ const SkillAnalysisPage: React.FC = () => {
                 skill.categoryIds.forEach(catId => {
                     const cat = skillCategories.find(c => c.id === catId);
                     const catName = cat?.name || 'Unknown';
-                    
                     if (!cat?.macroCategoryIds || cat.macroCategoryIds.length === 0) {
                         addToGroups('Altro', catName);
                     } else {
@@ -1430,17 +999,14 @@ const SkillAnalysisPage: React.FC = () => {
             });
             root.children.push(macroNode);
         });
-
         return root;
     }, [filteredSkills, filteredResources, resourceSkills, view, skillCategories, skillMacroCategories]);
 
     const sankeyData = useMemo(() => {
         if (view !== 'sankey') return { nodes: [], links: [] };
-
         const nodes: any[] = [];
         const links: any[] = [];
         const nodeMap = new Map<string, number>();
-        
         let nodeIdx = 0;
         const addNode = (name: string, type: string) => {
             const id = `${type}_${name}`;
@@ -1450,9 +1016,7 @@ const SkillAnalysisPage: React.FC = () => {
             }
             return nodeMap.get(id)!;
         };
-
         const linkMap = new Map<string, number>(); 
-
         filteredSkills.forEach(skill => {
             const skillName = skill.name;
             const connectedResources = resourceSkills
@@ -1466,27 +1030,22 @@ const SkillAnalysisPage: React.FC = () => {
                 const mIdx = addNode(macroName, 'macro');
                 const cIdx = addNode(catName, 'category');
                 const sIdx = addNode(skillName, 'skill');
-
                 const keyMC = `${mIdx}-${cIdx}`;
                 linkMap.set(keyMC, (linkMap.get(keyMC) || 0) + connectedResources.length);
-
                 const keyCS = `${cIdx}-${sIdx}`;
                 linkMap.set(keyCS, (linkMap.get(keyCS) || 0) + connectedResources.length);
-
                 connectedResources.forEach(res => {
                     const rIdx = addNode(res.name, 'resource');
                     const keySR = `${sIdx}-${rIdx}`;
                     linkMap.set(keySR, (linkMap.get(keySR) || 0) + 1);
                 });
             };
-
             if (!skill.categoryIds || skill.categoryIds.length === 0) {
                 processPath('Altro', 'Generico');
             } else {
                 skill.categoryIds.forEach(catId => {
                     const cat = skillCategories.find(c => c.id === catId);
                     const catName = cat?.name || 'Unknown';
-                    
                     if (!cat?.macroCategoryIds || cat.macroCategoryIds.length === 0) {
                         processPath('Altro', catName);
                     } else {
@@ -1499,12 +1058,10 @@ const SkillAnalysisPage: React.FC = () => {
                 });
             }
         });
-
         linkMap.forEach((val, key) => {
             const [source, target] = key.split('-').map(Number);
             links.push({ source, target, value: val });
         });
-
         return { nodes, links };
     }, [filteredSkills, filteredResources, resourceSkills, view, skillCategories, skillMacroCategories]);
 
@@ -1523,7 +1080,6 @@ const SkillAnalysisPage: React.FC = () => {
         const children = Array.from(counts.entries()).map(([name, value]) => ({ name, value }));
         return { name: "Skills", children };
     }, [view, resourceSkills, filteredResources, skills, filteredSkills]);
-
 
     const currentTheme = mode === 'dark' ? theme.dark : theme.light; 
 
@@ -1572,9 +1128,7 @@ const SkillAnalysisPage: React.FC = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <h1 className="text-3xl font-bold text-on-surface">Analisi Competenze</h1>
-                
                 <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full overflow-x-auto max-w-full">
-                    {/* View buttons ... */}
                     <button onClick={() => setView('network')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'network' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Network</button>
                     <button onClick={() => setView('heatmap')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'heatmap' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Heatmap</button>
                     <button onClick={() => setView('chord')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'chord' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Chord</button>
@@ -1584,7 +1138,6 @@ const SkillAnalysisPage: React.FC = () => {
                     <button onClick={() => setView('sankey')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'sankey' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Sankey</button>
                     <button onClick={() => setView('bubble')} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap ${view === 'bubble' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant hover:text-on-surface'}`}>Bubble</button>
                 </div>
-
                 <div className="flex gap-2">
                     <button onClick={handleExportSVG} className="flex items-center px-3 py-1.5 text-sm bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90">
                         <span className="material-symbols-outlined mr-2 text-base">download</span> SVG
@@ -1595,78 +1148,50 @@ const SkillAnalysisPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Global Filters */}
             <div className="bg-surface rounded-2xl shadow p-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
                     <div className="md:col-span-2">
                         <MultiSelectDropdown name="resourceIds" selectedValues={filters.resourceIds} onChange={(_, v) => setFilters(f => ({...f, resourceIds: v}))} options={resourceOptions} placeholder="Risorse"/>
                     </div>
-                    
                     <div className="md:col-span-1">
                         <MultiSelectDropdown name="roleIds" selectedValues={filters.roleIds} onChange={(_, v) => setFilters(f => ({...f, roleIds: v}))} options={roleOptions} placeholder="Ruoli"/>
                     </div>
                     <SearchableSelect name="location" value={filters.location} onChange={(_, v) => setFilters(f => ({...f, location: v}))} options={locationOptions} placeholder="Sede"/>
-                    
                     <div className="md:col-span-2">
                         <MultiSelectDropdown name="skillIds" selectedValues={filters.skillIds} onChange={(_, v) => setFilters(f => ({...f, skillIds: v}))} options={skillOptions} placeholder="Competenze"/>
                     </div>
-                    
                     <SearchableSelect name="category" value={filters.categoryId} onChange={(_, v) => setFilters(f => ({...f, categoryId: v}))} options={categoryOptions} placeholder="Ambito"/>
                     <SearchableSelect name="macroCategory" value={filters.macroCategoryId} onChange={(_, v) => setFilters(f => ({...f, macroCategoryId: v}))} options={macroCategoryOptions} placeholder="Macro Ambito"/>
-                    
-                    <select 
-                        className="form-select text-sm"
-                        value={filters.displayMode}
-                        onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}
-                    >
+                    <select className="form-select text-sm" value={filters.displayMode} onChange={e => setFilters(prev => ({ ...prev, displayMode: e.target.value as DisplayMode }))}>
                         <option value="all">Tutti (Competenze e Cert.)</option>
                         <option value="skills_only">Solo Competenze (No Cert)</option>
                         <option value="certs_only">Solo Certificazioni</option>
                         <option value="not_empty">Solo con Competenze/Cert.</option>
                     </select>
-
                     <div className="flex items-center gap-2 bg-surface-container px-2 py-2 rounded h-full">
-                        <input 
-                            type="checkbox" 
-                            id="hideEmptyRows" 
-                            checked={hideEmptyRows} 
-                            onChange={e => setHideEmptyRows(e.target.checked)} 
-                            className="form-checkbox"
-                        />
-                        <label htmlFor="hideEmptyRows" className="text-xs text-on-surface whitespace-nowrap cursor-pointer select-none">
-                            Nascondi righe vuote
-                        </label>
+                        <input type="checkbox" id="hideEmptyRows" checked={hideEmptyRows} onChange={e => setHideEmptyRows(e.target.checked)} className="form-checkbox"/>
+                        <label htmlFor="hideEmptyRows" className="text-xs text-on-surface whitespace-nowrap cursor-pointer select-none">Nascondi righe vuote</label>
                     </div>
-
-                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">
-                        Reset
-                    </button>
+                    <button onClick={() => { setFilters({ resourceIds: [], roleIds: [], skillIds: [], categoryId: '', macroCategoryId: '', displayMode: 'all', location: '' }); setHideEmptyRows(false); }} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full text-sm font-medium">Reset</button>
                 </div>
             </div>
 
             <ErrorBoundary label="Errore nel Grafico D3">
                 <div className="relative h-[700px] w-full bg-surface-container-low rounded-xl border border-outline-variant overflow-hidden">
-                    {/* Zoom Controls Overlay */}
                     <div className="absolute top-4 right-4 flex flex-col gap-2 z-10 bg-surface/80 p-2 rounded-lg shadow backdrop-blur-sm">
-                        <button onClick={() => handleZoom('in')} className="p-2 rounded hover:bg-surface-container-high text-on-surface" title="Zoom In">
-                            <span className="material-symbols-outlined">add</span>
-                        </button>
-                        <button onClick={() => handleZoom('out')} className="p-2 rounded hover:bg-surface-container-high text-on-surface" title="Zoom Out">
-                            <span className="material-symbols-outlined">remove</span>
-                        </button>
-                        <button onClick={() => handleZoom('reset')} className="p-2 rounded hover:bg-surface-container-high text-on-surface" title="Reset Zoom">
-                            <span className="material-symbols-outlined">center_focus_strong</span>
-                        </button>
+                        <button onClick={() => handleZoom('in')} className="p-2 rounded hover:bg-surface-container-high text-on-surface" title="Zoom In"><span className="material-symbols-outlined">add</span></button>
+                        <button onClick={() => handleZoom('out')} className="p-2 rounded hover:bg-surface-container-high text-on-surface" title="Zoom Out"><span className="material-symbols-outlined">remove</span></button>
+                        <button onClick={() => handleZoom('reset')} className="p-2 rounded hover:bg-surface-container-high text-on-surface" title="Reset Zoom"><span className="material-symbols-outlined">center_focus_strong</span></button>
                     </div>
-
-                    {view === 'network' && <SkillForceGraph nodes={networkData.nodes} links={networkData.links} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'heatmap' && <SkillHeatmap data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'chord' && <SkillChordDiagram matrix={chordData.matrix} names={chordData.names} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'radar' && <SkillRadarChart datasets={radarData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'dendrogram' && <SkillRadialTree data={dendrogramData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'packing' && <SkillCirclePacking data={packingData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'sankey' && <SkillSankeyChart data={sankeyData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
-                    {view === 'bubble' && <SkillBubbleChart data={bubbleData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {/* Add key={view} to force remount on view change, clearing D3 state on the DOM element */}
+                    {view === 'network' && <SkillForceGraph key="network" nodes={networkData.nodes} links={networkData.links} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'heatmap' && <SkillHeatmap key="heatmap" data={heatmapData.data} resources={heatmapData.resources} skills={heatmapData.skills} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'chord' && <SkillChordDiagram key="chord" matrix={chordData.matrix} names={chordData.names} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'radar' && <SkillRadarChart key="radar" datasets={radarData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'dendrogram' && <SkillRadialTree key="dendrogram" data={dendrogramData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'packing' && <SkillCirclePacking key="packing" data={packingData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'sankey' && <SkillSankeyChart key="sankey" data={sankeyData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
+                    {view === 'bubble' && <SkillBubbleChart key="bubble" data={bubbleData} width={1200} height={700} theme={currentTheme} zoomAction={zoomAction} svgRef={chartRef} />}
                 </div>
             </ErrorBoundary>
         </div>

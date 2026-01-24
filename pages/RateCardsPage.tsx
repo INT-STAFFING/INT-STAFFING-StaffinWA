@@ -1,3 +1,4 @@
+
 /**
  * @file RateCardsPage.tsx
  * @description Pagina Master-Detail per la gestione dei listini di vendita (Rate Cards) e delle tariffe per ruolo.
@@ -29,8 +30,8 @@ export default function RateCardsPage() {
     const [cardToDelete, setCardToDelete] = useState<RateCard | null>(null);
 
     // Editing State for Detail (Entries)
-    // We keep a local copy of entries for the selected card to allow batch editing before save
-    const [localEntries, setLocalEntries] = useState<Record<string, number>>({});
+    // We keep a local copy of entries as STRINGS to allow proper typing behavior (decimals)
+    const [localEntries, setLocalEntries] = useState<Record<string, string>>({});
     const [hasUnsavedChanges, setHasChanges] = useState(false);
 
     // Default Selection on Load
@@ -40,19 +41,24 @@ export default function RateCardsPage() {
         }
     }, [rateCards, selectedCardId]);
 
-    // Sync Local Entries when Selection Changes
+    // Sync Local Entries when Selection Changes or Data Refreshes
     useEffect(() => {
         if (selectedCardId) {
             const relevantEntries = rateCardEntries.filter(e => e.rateCardId === selectedCardId);
-            const map: Record<string, number> = {};
-            relevantEntries.forEach(e => map[e.roleId] = Number(e.dailyRate));
+            const map: Record<string, string> = {};
+            // Initialize all roles, defaulting to 0.00 if no entry exists
+            roles.forEach(r => {
+                const entry = relevantEntries.find(e => e.roleId === r.id);
+                // Store formatted string to ensure inputs show decimals properly initially
+                map[r.id!] = entry ? Number(entry.dailyRate).toFixed(2) : '0.00';
+            });
             setLocalEntries(map);
             setHasChanges(false);
         } else {
             setLocalEntries({});
             setHasChanges(false);
         }
-    }, [selectedCardId, rateCardEntries]);
+    }, [selectedCardId, rateCardEntries, roles]);
 
 
     // --- HANDLERS FOR MASTER (RATE CARDS) ---
@@ -102,10 +108,10 @@ export default function RateCardsPage() {
     // --- HANDLERS FOR DETAIL (ENTRIES) ---
 
     const handleRateChange = (roleId: string, value: string) => {
-        const numVal = parseFloat(value);
+        // Store raw string value to support typing "12." or "0.0"
         setLocalEntries(prev => ({
             ...prev,
-            [roleId]: isNaN(numVal) ? 0 : numVal
+            [roleId]: value
         }));
         setHasChanges(true);
     };
@@ -113,10 +119,10 @@ export default function RateCardsPage() {
     const handleSaveEntries = async () => {
         if (!selectedCardId) return;
 
-        const entriesPayload: RateCardEntry[] = Object.entries(localEntries).map(([roleId, dailyRate]) => ({
+        const entriesPayload: RateCardEntry[] = Object.entries(localEntries).map(([roleId, dailyRateStr]) => ({
             rateCardId: selectedCardId,
             roleId,
-            dailyRate: Number(dailyRate)
+            dailyRate: parseFloat(dailyRateStr) || 0
         }));
 
         try {
@@ -129,11 +135,17 @@ export default function RateCardsPage() {
     };
 
     const handleApplyStandardCosts = () => {
+        if (roles.length === 0) {
+            addToast('Nessun ruolo disponibile per inizializzare.', 'warning');
+            return;
+        }
         if (!confirm('Vuoi sovrascrivere le tariffe attuali con il costo standard + 20% di markup?')) return;
-        const newEntries: Record<string, number> = {};
+        
+        const newEntries: Record<string, string> = {};
         roles.forEach(role => {
             const cost = role.standardCost || role.dailyCost || 0;
-            newEntries[role.id!] = parseFloat((cost * 1.2).toFixed(2));
+            // Store as string to be consistent with localEntries type
+            newEntries[role.id!] = (cost * 1.2).toFixed(2);
         });
         setLocalEntries(newEntries);
         setHasChanges(true);
@@ -231,7 +243,8 @@ export default function RateCardsPage() {
                                     </thead>
                                     <tbody className="divide-y divide-outline-variant">
                                         {roles.map(role => {
-                                            const sellRate = localEntries[role.id!] || 0;
+                                            const sellRateStr = localEntries[role.id!] || '0.00';
+                                            const sellRate = parseFloat(sellRateStr) || 0;
                                             const cost = role.standardCost || role.dailyCost || 0;
                                             const margin = sellRate > 0 ? ((sellRate - cost) / sellRate) * 100 : 0;
                                             
@@ -244,7 +257,7 @@ export default function RateCardsPage() {
                                                             type="number" 
                                                             min="0" 
                                                             step="0.01" 
-                                                            value={sellRate || ''} 
+                                                            value={sellRateStr} 
                                                             onChange={(e) => handleRateChange(role.id!, e.target.value)}
                                                             className="w-full text-right font-mono bg-surface-container-low border-b border-transparent focus:border-primary focus:outline-none px-2 py-1 rounded hover:bg-surface-container"
                                                             placeholder="0.00"

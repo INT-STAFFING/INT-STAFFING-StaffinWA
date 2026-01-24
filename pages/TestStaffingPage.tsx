@@ -8,7 +8,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment } from '../types';
+import { Resource, Assignment, Project, Client, Role } from '../types';
 import { getCalendarDays, formatDate, addDays } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -209,9 +209,9 @@ const TestStaffingPage: React.FC = () => {
 
   const [filters, setFilters] = useState({ resourceId: '', projectId: '', clientId: '', projectManager: '' });
 
-  const projectsById = useMemo(() => new Map(projects.map((p) => [p.id!, p])), [projects]);
-  const clientsById = useMemo(() => new Map(clients.map((c) => [c.id!, c])), [clients]);
-  const rolesById = useMemo(() => new Map(roles.map((r) => [r.id!, r])), [roles]);
+  const projectsById = useMemo(() => new Map<string, Project>(projects.map((p) => [p.id!, p])), [projects]);
+  const clientsById = useMemo(() => new Map<string, Client>(clients.map((c) => [c.id!, c])), [clients]);
+  const rolesById = useMemo(() => new Map<string, Role>(roles.map((r) => [r.id!, r])), [roles]);
 
   // --- Time Calculation ---
   const timeColumns = useMemo(() => {

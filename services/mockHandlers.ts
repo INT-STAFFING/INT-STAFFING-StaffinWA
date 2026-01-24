@@ -88,6 +88,28 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
   // Gestione Generica Risorse /api/resources
   if (path.endsWith('/api/resources')) {
     const entity = params.entity;
+
+    // FIX: Handle best_fit action specifically to return an ARRAY
+    if (params.action === 'best_fit' && method === 'POST') {
+         const { roleId } = JSON.parse(options.body as string || '{}');
+         const candidates = (db.resources || [])
+             .filter((r: any) => !r.resigned && (!roleId || r.roleId === roleId))
+             .slice(0, 5)
+             .map((r: any) => ({
+                 resource: r,
+                 score: Math.floor(Math.random() * 30) + 70, // 70-100 score
+                 details: {
+                     availability: Math.floor(Math.random() * 100),
+                     skillMatch: Math.floor(Math.random() * 100),
+                     roleMatch: r.roleId === roleId ? 100 : 50,
+                     costEff: Math.floor(Math.random() * 100),
+                     avgLoad: Math.floor(Math.random() * 80),
+                     matchedSkillsCount: Math.floor(Math.random() * 5)
+                 }
+             }))
+             .sort((a: any, b: any) => b.score - a.score);
+         return candidates;
+    }
     
     // Fallback per notifications se non è una risorsa standard
     if (entity === 'notifications') {
@@ -126,6 +148,40 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     }
   }
 
+  // FIX: Handle /api/resource-requests explicitly
+  if (path.includes('/api/resource-requests')) {
+      const list = db.resourceRequests || [];
+      const id = params.id;
+
+      if (method === 'GET') return list;
+      
+      if (method === 'POST') {
+           const body = JSON.parse(options.body as string);
+           // generate request code mock
+           const lastNum = list.length; 
+           const requestCode = `HCR${String(lastNum + 1).padStart(5, '0')}`;
+           const newItem = { id: uuidv4(), requestCode, ...body };
+           
+           if (!db.resourceRequests) db.resourceRequests = [];
+           db.resourceRequests.push(newItem);
+           saveDb(db);
+           return newItem;
+      }
+      
+      if (method === 'PUT') {
+           const body = JSON.parse(options.body as string);
+           db.resourceRequests = list.map((i: any) => i.id === id ? { ...i, ...body } : i);
+           saveDb(db);
+           return { id, ...body };
+      }
+      
+      if (method === 'DELETE') {
+           db.resourceRequests = list.filter((i: any) => i.id !== id);
+           saveDb(db);
+           return null;
+      }
+  }
+
   // Altri endpoint
   if (path.includes('/api/assignments')) {
       if (method === 'GET') return db.assignments || [];
@@ -135,6 +191,12 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
           db.assignments.push(newItem);
           saveDb(db);
           return newItem;
+      }
+      if (method === 'DELETE') {
+           const id = params.id;
+           db.assignments = db.assignments.filter((a: any) => a.id !== id);
+           saveDb(db);
+           return null;
       }
   }
 

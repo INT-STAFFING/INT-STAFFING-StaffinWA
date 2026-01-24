@@ -901,6 +901,12 @@ export interface EntitiesActions {
     updateBottomNavPaths: (paths: string[]) => Promise<void>; // Nuova azione
     /** Innesca il ricalcolo dei dati analitici sul backend e aggiorna la cache locale. */
     forceRecalculateAnalytics: () => Promise<void>;
+    
+    /** 
+     * Esegue l'algoritmo di best fit per trovare risorse adatte a una richiesta.
+     * @returns Array di candidati ordinati per punteggio.
+     */
+    getBestFitResources: (params: { startDate: string; endDate: string; roleId: string; projectId: string }) => Promise<any[]>;
 }
 
 /**
