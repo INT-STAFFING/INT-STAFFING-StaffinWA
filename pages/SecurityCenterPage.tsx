@@ -481,7 +481,7 @@ const AuditPillar: React.FC = () => {
             params.append('limit', '200'); // Increased limit for timeline
             if (filters.username) params.append('username', filters.username);
             if (filters.actionType) params.append('actionType', filters.actionType);
-            if (filters.entity) params.append('entity', filters.entity);
+            if (filters.entity) params.append('targetEntity', filters.entity); // Use targetEntity to avoid routing conflict
             if (filters.entityId) params.append('entityId', filters.entityId);
             if (filters.startDate) params.append('startDate', filters.startDate);
             if (filters.endDate) params.append('endDate', filters.endDate);
@@ -491,10 +491,10 @@ const AuditPillar: React.FC = () => {
         } catch(e) {} finally { setLoading(false); }
     }, [filters]);
 
-    // Initial load
+    // Initial load and updates when fetchLogs changes (i.e. filters change)
     useEffect(() => {
         fetchLogs();
-    }, []);
+    }, [fetchLogs]);
 
     const handleReset = () => {
         setFilters({ username: '', actionType: '', entity: '', entityId: '', startDate: '', endDate: '' });

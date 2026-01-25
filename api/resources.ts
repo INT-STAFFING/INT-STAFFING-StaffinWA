@@ -464,11 +464,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (entity === 'audit_logs') {
              if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
             if (method === 'GET') {
-                const { limit = 1000, username, actionType, startDate, endDate, entity: filterEntity, entityId } = req.query;
+                const { limit = 1000, username, actionType, startDate, endDate, targetEntity, entityId } = req.query;
                 let q = `SELECT * FROM action_logs`, p = [], c = [];
                 if (username) { c.push(`username ILIKE $${p.length + 1}`); p.push(`%${username}%`); }
                 if (actionType) { c.push(`action = $${p.length + 1}`); p.push(actionType); }
-                if (filterEntity) { c.push(`entity = $${p.length + 1}`); p.push(filterEntity); }
+                if (targetEntity) { c.push(`entity = $${p.length + 1}`); p.push(targetEntity); } // Use targetEntity to avoid conflict
                 if (entityId) { c.push(`entity_id = $${p.length + 1}`); p.push(entityId); }
                 if (startDate) { c.push(`created_at >= $${p.length + 1}`); p.push(startDate); }
                 if (endDate) { c.push(`created_at <= $${p.length + 1}`); p.push(endDate); }
