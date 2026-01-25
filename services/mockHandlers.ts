@@ -95,18 +95,25 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
          const candidates = (db.resources || [])
              .filter((r: any) => !r.resigned && (!roleId || r.roleId === roleId))
              .slice(0, 5)
-             .map((r: any) => ({
-                 resource: r,
-                 score: Math.floor(Math.random() * 30) + 70, // 70-100 score
-                 details: {
-                     availability: Math.floor(Math.random() * 100),
-                     skillMatch: Math.floor(Math.random() * 100),
-                     roleMatch: r.roleId === roleId ? 100 : 50,
-                     costEff: Math.floor(Math.random() * 100),
-                     avgLoad: Math.floor(Math.random() * 80),
-                     matchedSkillsCount: Math.floor(Math.random() * 5)
-                 }
-             }))
+             .map((r: any) => {
+                 // Calculate mock availability based on max capacity
+                 const maxCapacity = r.maxStaffingPercentage || 100;
+                 const mockLoad = Math.floor(Math.random() * maxCapacity); // Simulate some load
+                 const availabilityScore = maxCapacity > 0 ? ((maxCapacity - mockLoad) / maxCapacity) * 100 : 0;
+
+                 return {
+                     resource: r,
+                     score: Math.floor(Math.random() * 30) + 70, // 70-100 score
+                     details: {
+                         availability: Math.round(availabilityScore),
+                         skillMatch: Math.floor(Math.random() * 100),
+                         roleMatch: r.roleId === roleId ? 100 : 50,
+                         costEff: Math.floor(Math.random() * 100),
+                         avgLoad: mockLoad,
+                         matchedSkillsCount: Math.floor(Math.random() * 5)
+                     }
+                 };
+             })
              .sort((a: any, b: any) => b.score - a.score);
          return candidates;
     }

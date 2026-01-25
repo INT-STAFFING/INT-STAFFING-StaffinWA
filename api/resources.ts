@@ -172,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const { startDate, endDate, roleId, projectId } = req.body;
             
-            // 1. Fetch Data
+            // 1. Fetch Data (Resources filtered by resigned = FALSE)
             const [resources, assignments, allocations, calendar, resSkills, projSkills, roles, project] = await Promise.all([
                 client.query('SELECT * FROM resources WHERE resigned = FALSE'),
                 client.query('SELECT * FROM assignments'),
@@ -214,8 +214,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
 
                 const avgLoad = workingDays > 0 ? totalAllocatedPct / workingDays : 0;
-                // Score: 100 if 0% load, 0 if 100% load. Linear degradation.
-                const availabilityScore = Math.max(0, Math.min(100, 100 - avgLoad));
+                
+                // --- NEW LOGIC: Availability relative to MAX STAFFING ---
+                const maxCapacity = res.max_staffing_percentage || 100;
+                const remainingCapacity = Math.max(0, maxCapacity - avgLoad);
+                
+                // Calculate score as percentage of remaining capacity vs max capacity
+                // If capacity is 0 (shouldn't happen for active res, but safety), score is 0.
+                const availabilityScore = maxCapacity > 0 
+                    ? (remainingCapacity / maxCapacity) * 100 
+                    : 0;
+
                 score += availabilityScore * 0.4;
                 details.availability = availabilityScore;
                 details.avgLoad = avgLoad;
@@ -290,7 +299,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             return res.status(200).json(scoredResources.slice(0, 10)); // Return top 10
         }
-
+        
+        // ... rest of the handler (GET, PUT, etc.) remains unchanged ...
         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
             if (sensitiveEntities.includes(entity as string)) {
