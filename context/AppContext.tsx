@@ -483,8 +483,28 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const addMultipleAssignments = async (newAssignments: { resourceId: string; projectId: string }[]) => { try { const createdAssignments = await Promise.all(newAssignments.map(async (a) => { return await apiFetch<Assignment | { message: string }>('/api/assignments', { method: 'POST', body: JSON.stringify(a) }); })); const validAssignments = createdAssignments.filter((a): a is Assignment => !('message' in a)); const newAss = validAssignments.map(a => ({ id: a.id, resourceId: a.resourceId, projectId: a.projectId })); setAssignments(prev => { const existingIds = new Set(prev.map(p => p.id)); const uniqueNew = newAss.filter(a => !existingIds.has(a.id)); return [...prev, ...uniqueNew]; }); if (validAssignments.length < newAssignments.length) { addToast('Alcune assegnazioni esistevano già.', 'error'); } else { addToast('Assegnazioni create con successo.', 'success'); } } catch (error) { addToast('Errore durante la creazione delle assegnazioni.', 'error'); } };
     const deleteAssignment = async (id: string) => { setActionLoading(`deleteAssignment-${id}`, true); try { await apiFetch(`/api/assignments?id=${id}`, { method: 'DELETE' }); setAssignments(prev => prev.filter(a => a.id !== id)); setAllocations(prev => { const newAllocations = { ...prev }; delete newAllocations[id]; return newAllocations; }); } finally { setActionLoading(`deleteAssignment-${id}`, false); } };
     
-    const getRoleCost = (roleId: string, date: Date): number => { const dateStr = date.toISOString().split('T')[0]; const historicRecord = roleCostHistory.find(h => { if (h.roleId !== roleId) return false; return dateStr >= h.startDate && (!h.endDate || dateStr <= h.endDate); }); if (historicRecord) return Number(historicRecord.dailyCost); const role = roles.find(r => r.id === roleId); return role ? Number(role.dailyCost) : 0; };
-    const getSellRate = (rateCardId: string | null | undefined, roleId: string): number => { if (!rateCardId) return 0; const entry = rateCardEntries.find(e => e.rateCardId === rateCardId && e.roleId === roleId); return entry ? Number(entry.dailyRate) : 0; };
+    // Updated Logic: Check Resource Specific Cost First
+    const getRoleCost = (roleId: string, date: Date, resourceId?: string): number => { 
+        if (resourceId) {
+            const resource = resources.find(r => r.id === resourceId);
+            if (resource && resource.dailyCost && Number(resource.dailyCost) > 0) {
+                return Number(resource.dailyCost);
+            }
+        }
+        
+        const dateStr = date.toISOString().split('T')[0]; 
+        const historicRecord = roleCostHistory.find(h => { if (h.roleId !== roleId) return false; return dateStr >= h.startDate && (!h.endDate || dateStr <= h.endDate); }); 
+        if (historicRecord) return Number(historicRecord.dailyCost); 
+        const role = roles.find(r => r.id === roleId); 
+        return role ? Number(role.dailyCost) : 0; 
+    };
+
+    // Updated Logic: Check Rate Card by Resource ID
+    const getSellRate = (rateCardId: string | null | undefined, resourceId: string): number => { 
+        if (!rateCardId) return 0; 
+        const entry = rateCardEntries.find(e => e.rateCardId === rateCardId && e.resourceId === resourceId); 
+        return entry ? Number(entry.dailyRate) : 0; 
+    };
     
     const getBestFitResources = useCallback(async (params: { startDate: string; endDate: string; roleId: string; projectId: string }) => {
         setActionLoading('getBestFitResources', true);

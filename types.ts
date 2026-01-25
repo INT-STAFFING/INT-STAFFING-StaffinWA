@@ -81,13 +81,13 @@ export interface RateCard {
 
 /**
  * @interface RateCardEntry
- * @description Rappresenta una voce di listino (prezzo di vendita per un ruolo).
+ * @description Rappresenta una voce di listino (prezzo di vendita per una risorsa specifica).
  */
 export interface RateCardEntry {
     /** @property {string} rateCardId - ID del listino. */
     rateCardId: string;
-    /** @property {string} roleId - ID del ruolo. */
-    roleId: string;
+    /** @property {string} resourceId - ID della risorsa. */
+    resourceId: string;
     /** @property {number} dailyRate - Tariffa giornaliera di vendita. */
     dailyRate: number;
 }
@@ -142,6 +142,8 @@ export interface Resource {
     lastDayOfWork: string | null;
     /** @property {string | null} tutorId - L'ID della risorsa che funge da Tutor. */
     tutorId?: string | null;
+    /** @property {number} [dailyCost] - Costo giornaliero specifico della risorsa. Se null/0 usa quello del ruolo. */
+    dailyCost?: number;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
 }
@@ -844,14 +846,17 @@ export interface EntitiesActions {
     updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
     /** Rimuove un evento dal calendario. */
     deleteCalendarEvent: (id: string) => Promise<void>;
-    /** Inserisce assegnazioni multiple e ricarica lo stato correlato. */
+    /** Inserisce assegnazioni multiple e ricarica lo stato coerente. */
     addMultipleAssignments: (newAssignments: { resourceId: string; projectId: string }[]) => Promise<void>;
     /** Elimina un'assegnazione e le relative allocazioni. */
     deleteAssignment: (id: string) => Promise<void>;
-    /** Calcola il costo corrente di un ruolo in base alla data. */
-    getRoleCost: (roleId: string, date: Date) => number;
-    /** Calcola la tariffa di vendita giornaliera per un ruolo in un contratto. */
-    getSellRate: (rateCardId: string | null | undefined, roleId: string) => number;
+    /** 
+     * Calcola il costo corrente di una risorsa in base alla data.
+     * Cerca il costo specifico della risorsa, con fallback sul costo del ruolo.
+     */
+    getRoleCost: (roleId: string, date: Date, resourceId?: string) => number;
+    /** Calcola la tariffa di vendita giornaliera per una risorsa in un contratto. */
+    getSellRate: (rateCardId: string | null | undefined, resourceId: string) => number;
     /** CRUD per richieste risorse. */
     addResourceRequest: (req: Omit<ResourceRequest, 'id'>) => Promise<void>;
     updateResourceRequest: (req: ResourceRequest) => Promise<void>;
@@ -898,7 +903,7 @@ export interface EntitiesActions {
     updateSidebarFooterActions: (actions: SidebarFooterAction[]) => Promise<void>;
     updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
     updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
-    updateBottomNavPaths: (paths: string[]) => Promise<void>; // Nuova azione
+    updateBottomNavPaths: (paths: string[]) => Promise<void>; // Nuova proprietà per la navigazione mobile dinamica
     /** Innesca il ricalcolo dei dati analitici sul backend e aggiorna la cache locale. */
     forceRecalculateAnalytics: () => Promise<void>;
     

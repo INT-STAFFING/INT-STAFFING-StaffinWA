@@ -70,7 +70,8 @@ const ResourcesPage: React.FC = () => {
         hireDate: '', workSeniority: 0, notes: '', maxStaffingPercentage: 100,
         resigned: false,
         lastDayOfWork: null,
-        tutorId: null
+        tutorId: null,
+        dailyCost: 0
     };
 
     // KPI Calculations
@@ -82,6 +83,8 @@ const ResourcesPage: React.FC = () => {
         const benchCount = activeResources.filter(r => !assignedResourceIds.has(r.id!)).length;
         
         const totalCost = activeResources.reduce((sum, r) => {
+            // Priority: Resource specific cost > Role cost
+            if (r.dailyCost && r.dailyCost > 0) return sum + r.dailyCost;
             const role = roles.find(role => role.id === r.roleId);
             return sum + (role?.dailyCost || 0);
         }, 0);
@@ -151,10 +154,13 @@ const ResourcesPage: React.FC = () => {
             const seniority = !isNaN(hireDate.getTime()) ? (new Date().getTime() - hireDate.getTime()) / (1000 * 3600 * 24 * 365.25) : 0;
             const tutor = resources.find(r => r.id === resource.tutorId);
 
+            // Cost Logic: Resource Specific > Role Standard
+            const actualCost = (resource.dailyCost && resource.dailyCost > 0) ? resource.dailyCost : (role?.dailyCost || 0);
+
             return {
                 ...resource,
                 roleName: role?.name || 'N/A',
-                dailyCost: role?.dailyCost || 0,
+                dailyCost: actualCost,
                 allocation: resource.resigned ? 0 : calculateResourceAllocation(resource),
                 isAssigned: assignedResourceIds.has(resource.id!),
                 activeProjects,
@@ -169,6 +175,7 @@ const ResourcesPage: React.FC = () => {
             'Nome': r.name,
             'Email': r.email,
             'Ruolo': r.roleName,
+            'Costo Giornaliero': formatCurrency(r.dailyCost),
             'Sede': r.location,
             'Horizontal': r.horizontal,
             'Tutor': r.tutorName,
@@ -249,7 +256,8 @@ const ResourcesPage: React.FC = () => {
             resigned: editingResource.resigned,
             lastDayOfWork: editingResource.lastDayOfWork || null, // Converti stringa vuota in null
             notes: editingResource.notes,
-            tutorId: editingResource.tutorId || null
+            tutorId: editingResource.tutorId || null,
+            dailyCost: editingResource.dailyCost || 0
         };
 
         // Se stiamo modificando, aggiungiamo l'ID
@@ -319,7 +327,7 @@ const ResourcesPage: React.FC = () => {
             const { name, value, type } = target;
             const checked = target.checked;
     
-            const numericFields = ['workSeniority', 'maxStaffingPercentage'];
+            const numericFields = ['workSeniority', 'maxStaffingPercentage', 'dailyCost'];
             
             let newResourceState = { ...editingResource };
     
@@ -350,7 +358,7 @@ const ResourcesPage: React.FC = () => {
     const handleInlineFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (inlineEditingData) {
             const { name, value } = e.target;
-            const numericFields = ['workSeniority', 'maxStaffingPercentage'];
+            const numericFields = ['workSeniority', 'maxStaffingPercentage', 'dailyCost'];
             setInlineEditingData({ ...inlineEditingData, [name]: numericFields.includes(name) ? parseFloat(value) : value });
         }
     };
@@ -382,6 +390,7 @@ const ResourcesPage: React.FC = () => {
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
+        { header: 'Costo (€)', sortKey: 'dailyCost', cell: r => <span className="text-sm text-on-surface-variant">{formatCurrency(r.dailyCost)}</span> },
         { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-on-surface-variant">{r.location}</span> },
         { header: 'Tutor', sortKey: 'tutorName', cell: r => <span className="text-sm text-on-surface-variant">{r.tutorName}</span> },
         { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
@@ -404,6 +413,7 @@ const ResourcesPage: React.FC = () => {
                 <tr key={resource.id} className="h-16">
                     <td className="px-6 py-4 sticky left-0 bg-inherit"><input type="text" name="name" value={inlineEditingData!.name} onChange={handleInlineFormChange} className="w-full form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="roleId" value={inlineEditingData!.roleId} onChange={handleInlineSelectChange} options={roleOptions} placeholder="Seleziona ruolo" /></td>
+                    <td className="px-6 py-4"><input type="number" step="0.01" name="dailyCost" value={inlineEditingData!.dailyCost || 0} onChange={handleInlineFormChange} className="w-20 form-input p-1" /></td>
                     <td className="px-6 py-4"><SearchableSelect name="location" value={inlineEditingData!.location} onChange={handleInlineSelectChange} options={locationOptions} placeholder="Seleziona sede" /></td>
                     <td className="px-6 py-4 bg-inherit"><SearchableSelect name="tutorId" value={inlineEditingData!.tutorId || ''} onChange={handleInlineSelectChange} options={resourceOptions.filter(o => o.value !== resource.id)} placeholder="Seleziona tutor" /></td>
                     <td className="px-6 py-4 bg-inherit">{columns.find(c => c.header === 'Stato')?.cell(resource)}</td>
@@ -455,6 +465,7 @@ const ResourcesPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
                     <div><p className="text-on-surface-variant">Ruolo</p><p className="text-on-surface font-medium">{resource.roleName}</p></div>
+                    <div><p className="text-on-surface-variant">Costo</p><p className="text-on-surface font-medium">{formatCurrency(resource.dailyCost)}</p></div>
                     <div><p className="text-on-surface-variant">Sede</p><p className="text-on-surface font-medium">{resource.location}</p></div>
                     <div><p className="text-on-surface-variant">Tutor</p><p className="text-on-surface font-medium">{resource.tutorName}</p></div>
                     <div>
@@ -590,6 +601,11 @@ const ResourcesPage: React.FC = () => {
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
                                         <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                                     </div>
+                                </div>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
+                                    <input type="number" step="0.01" name="dailyCost" value={editingResource.dailyCost || ''} onChange={handleChange} className="form-input w-full md:w-1/2" placeholder="0.00 (Usa costo Ruolo)"/>
+                                    <p className="text-xs text-on-surface-variant mt-1">Se lasciato vuoto o a 0, verrà utilizzato il costo standard del Ruolo associato.</p>
                                 </div>
                                 <div className="mt-4">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>

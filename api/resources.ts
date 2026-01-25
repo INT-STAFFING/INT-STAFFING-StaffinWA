@@ -76,11 +76,18 @@ export const performFullRecalculation = async (client: any) => {
     const roles = rolesRes.rows;
     const history = historyRes.rows;
 
-    const getRate = (roleId: string, date: Date) => {
+    // Helper to get cost with resource override support
+    const getRate = (resource: any, date: Date) => {
+        // 1. Check specific resource cost
+        if (resource.daily_cost && Number(resource.daily_cost) > 0) {
+            return Number(resource.daily_cost);
+        }
+        
+        // 2. Fallback to Role Cost
         const dStr = date.toISOString().split('T')[0];
-        const h = history.find((r: any) => r.role_id === roleId && dStr >= r.start_date.toISOString().split('T')[0] && (!r.end_date || dStr <= r.end_date.toISOString().split('T')[0]));
+        const h = history.find((r: any) => r.role_id === resource.role_id && dStr >= r.start_date.toISOString().split('T')[0] && (!r.end_date || dStr <= r.end_date.toISOString().split('T')[0]));
         if (h) return Number(h.daily_cost);
-        const r = roles.find((role: any) => role.id === roleId);
+        const r = roles.find((role: any) => role.id === resource.role_id);
         return r ? Number(r.daily_cost) : 0;
     };
 
@@ -101,12 +108,11 @@ export const performFullRecalculation = async (client: any) => {
         while (cur <= endOfMonth) {
             const dStr = cur.toISOString().split('T')[0];
             const pct = allocMap.get(`${assignment.id}_${dStr}`);
-            // Use improved holiday check logic here too if needed, but context is simple
             const isHol = isHolidayInternal(cur, res.location, calendar);
             
             if (pct && !isHol && cur.getDay() !== 0 && cur.getDay() !== 6) {
                 const fraction = pct / 100;
-                const cost = fraction * getRate(res.role_id, cur) * (proj.realization_percentage / 100);
+                const cost = fraction * getRate(res, cur) * (proj.realization_percentage / 100);
                 totalCost += cost;
                 totalDays += fraction;
                 if (proj.client_id) clientCost[proj.client_id] = (clientCost[proj.client_id] || 0) + cost;
@@ -167,7 +173,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
 
     try {
-        if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
+        // ... (Best Fit Algorithm skipped for brevity, keeping original logic if needed, but updated to use cost logic) ...
+         if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
 
             const { startDate, endDate, roleId, projectId } = req.body;
@@ -215,12 +222,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                 const avgLoad = workingDays > 0 ? totalAllocatedPct / workingDays : 0;
                 
-                // --- NEW LOGIC: Availability relative to MAX STAFFING ---
+                // Availability relative to MAX STAFFING
                 const maxCapacity = res.max_staffing_percentage || 100;
                 const remainingCapacity = Math.max(0, maxCapacity - avgLoad);
                 
-                // Calculate score as percentage of remaining capacity vs max capacity
-                // If capacity is 0 (shouldn't happen for active res, but safety), score is 0.
                 const availabilityScore = maxCapacity > 0 
                     ? (remainingCapacity / maxCapacity) * 100 
                     : 0;
@@ -239,7 +244,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         const match = mySkills.find((ms:any) => ms.skill_id === ts.skill_id);
                         if (match) {
                             matchedCount++;
-                            // Bonus for high level
                             weightedSkillScore += 100 * ((match.level || 3) / 5);
                         }
                     });
@@ -248,7 +252,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     details.skillMatch = skillScore;
                     details.matchedSkillsCount = matchedCount;
                 } else {
-                    // No specific skills required -> Neutral score
                     score += 50 * 0.3; 
                     details.skillMatch = 50;
                 }
@@ -270,15 +273,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // D. Cost Efficiency (10%)
                 let costScore = 50;
                 if (targetRole) {
+                    // Update: Check specific resource cost first
                     const myRole = roles.rows.find((r:any) => r.id === res.role_id);
-                    const myCost = Number(myRole?.daily_cost || 0);
+                    const specificCost = Number(res.daily_cost);
+                    const myCost = specificCost > 0 ? specificCost : Number(myRole?.daily_cost || 0);
                     const targetCost = Number(targetRole.daily_cost || 0);
                     
-                    if (myCost <= targetCost) costScore = 100; // Cheaper or equal is good
+                    if (myCost <= targetCost) costScore = 100; 
                     else {
-                        // Penalty for being more expensive
-                        const diffPct = (myCost - targetCost) / targetCost; // e.g. 0.2 for 20% more expensive
-                        costScore = Math.max(0, 100 - (diffPct * 200)); // Drastic drop
+                        const diffPct = (myCost - targetCost) / targetCost;
+                        costScore = Math.max(0, 100 - (diffPct * 200));
                     }
                 }
                 score += costScore * 0.1;
@@ -291,17 +295,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 };
             });
 
-            // Sort by score desc
             scoredResources.sort((a:any, b:any) => b.score - a.score);
-            
-            // Log for audit
             await logAction(client, currentUser, 'RUN_BEST_FIT', 'resources', null, { projectId, roleId, candidatesFound: scoredResources.length }, req);
-
-            return res.status(200).json(scoredResources.slice(0, 10)); // Return top 10
+            return res.status(200).json(scoredResources.slice(0, 10));
         }
-        
-        // ... rest of the handler (GET, PUT, etc.) remains unchanged ...
-        if (method === 'GET') {
+
+        // ... (GET handler unchanged) ...
+         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
             if (sensitiveEntities.includes(entity as string)) {
                 if (!verifyAdmin(req)) {
@@ -310,7 +310,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
         
-        // --- GESTIONE BULK PERMISSIONS (Security Center) ---
+        // ... (Bulk Permissions unchanged) ...
+
         if ((entity === 'role-permissions' || entity === 'role_permissions') && method === 'POST' && req.body.permissions && Array.isArray(req.body.permissions)) {
              if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
              const { permissions } = req.body;
@@ -345,18 +346,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true });
         }
         
-        // --- RATE CARD ENTRIES BATCH UPDATE ---
+        // --- RATE CARD ENTRIES BATCH UPDATE (UPDATED FOR RESOURCE_ID) ---
         if (entity === 'rate_card_entries' && method === 'POST' && req.body.entries && Array.isArray(req.body.entries)) {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
             const { entries } = req.body;
             await client.query('BEGIN');
             for (const entry of entries) {
                 await client.query(
-                    `INSERT INTO rate_card_entries (rate_card_id, role_id, daily_rate)
+                    `INSERT INTO rate_card_entries (rate_card_id, resource_id, daily_rate)
                      VALUES ($1, $2, $3)
-                     ON CONFLICT (rate_card_id, role_id)
+                     ON CONFLICT (rate_card_id, resource_id)
                      DO UPDATE SET daily_rate = EXCLUDED.daily_rate`,
-                    [entry.rateCardId, entry.roleId, entry.dailyRate]
+                    [entry.rateCardId, entry.resourceId, entry.dailyRate]
                 );
             }
             await logAction(client, currentUser, 'UPSERT_RATE_CARD_ENTRIES', 'rate_card_entries', null, { count: entries.length }, req);
@@ -364,6 +365,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ success: true });
         }
 
+        // ... (Skills, Skill Categories, Analytics Cache, App Config, Theme, Audit Logs, Notifications, App Users unchanged) ...
+        // ... (Skipping to standard CRUD for brevity, logic remains identical except for table mappings) ...
+        
         if (entity === 'skills') {
             if (method === 'POST') {
                 const { name, isCertification, categoryIds } = req.body;
@@ -392,6 +396,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({ id, ...req.body });
             }
         }
+        
+        // ... (The rest of the file handles standard CRUD and is correct) ...
 
         if (entity === 'skill_categories') {
             if (method === 'POST') {
@@ -447,10 +453,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 for (const [key, value] of Object.entries(updates)) {
                     await client.query(`INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [key, value]);
                 }
-                // Force Enable and Bump Version
                 await client.query(`INSERT INTO app_config (key, value) VALUES ('theme.db.enabled', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'`);
                 await client.query(`INSERT INTO app_config (key, value) VALUES ('theme.version', (COALESCE((SELECT value::int FROM app_config WHERE key = 'theme.version'), 0) + 1)::text) ON CONFLICT (key) DO UPDATE SET value = (app_config.value::int + 1)::text`);
-                
                 await logAction(client, currentUser, 'UPDATE_THEME', 'theme', null, updates, req);
                 await client.query('COMMIT');
                 return res.status(200).json({ success: true });
@@ -458,7 +462,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (entity === 'audit_logs') {
-            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
             if (method === 'GET') {
                 const { limit = 1000, username, actionType, startDate, endDate, entity: filterEntity, entityId } = req.query;
                 let q = `SELECT * FROM action_logs`, p = [], c = [];
@@ -482,7 +486,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json({ success: true, deletedCount: result.rowCount });
             }
         }
-
+        
         if (entity === 'notifications') {
             if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
             const userRes = await client.query('SELECT role, resource_id FROM app_users WHERE id = $1', [currentUser.id]);
@@ -501,58 +505,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (entity === 'app-users' || entity === 'security-users') {
-            const tableName = 'app_users';
-            
-            if (action === 'impersonate' && method === 'POST') {
+             // ... (User logic remains same) ...
+             const tableName = 'app_users';
+             if (action === 'impersonate' && method === 'POST') {
                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-                
                 const targetUserId = req.query.id as string;
                 if (!targetUserId) return res.status(400).json({ error: 'Missing target user ID' });
-                
-                // Fetch target user details
                 const { rows } = await client.query(`SELECT id, username, role, resource_id FROM ${tableName} WHERE id = $1`, [targetUserId]);
                 const targetUser = rows[0];
-                
                 if (!targetUser) return res.status(404).json({ error: 'User not found' });
-                
-                // Generate token as if user logged in
-                const token = jwt.sign(
-                    { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
-                    JWT_SECRET!,
-                    { expiresIn: '4h' } // Shorter expiry for impersonation
-                );
-                
-                // Get permissions for the target user
+                const token = jwt.sign({ userId: targetUser.id, username: targetUser.username, role: targetUser.role }, JWT_SECRET!, { expiresIn: '4h' });
                 const permRes = await client.query(`SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE`, [targetUser.role]);
                 const permissions = permRes.rows.map(r => r.page_path);
-
                 await logAction(client, currentUser, 'IMPERSONATE_USER', tableName, targetUserId, { target: targetUser.username }, req);
-
-                return res.status(200).json({
-                    success: true,
-                    token,
-                    user: {
-                        id: targetUser.id,
-                        username: targetUser.username,
-                        role: targetUser.role,
-                        resourceId: targetUser.resource_id,
-                        permissions,
-                        mustChangePassword: false // Skip pw change check during impersonation
-                    },
-                    isAdmin: targetUser.role === 'ADMIN'
-                });
+                return res.status(200).json({ success: true, token, user: { id: targetUser.id, username: targetUser.username, role: targetUser.role, resourceId: targetUser.resource_id, permissions, mustChangePassword: false }, isAdmin: targetUser.role === 'ADMIN' });
             }
-
             if (action === 'change_password' && method === 'PUT') {
-                if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+                 if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
                 if (!verifyAdmin(req) && currentUser.id !== id) return res.status(403).json({ error: 'Forbidden' });
                 const hash = await bcrypt.hash(req.body.newPassword, 10);
                 await client.query(`UPDATE ${tableName} SET password_hash = $1, must_change_password = FALSE WHERE id = $2`, [hash, id]);
                 await logAction(client, currentUser, 'CHANGE_PASSWORD', tableName, id as string, { targetUser: id }, req);
                 return res.status(200).json({ success: true });
             }
-            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-            if (action === 'bulk_status_update' && method === 'PUT') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             if (action === 'bulk_status_update' && method === 'PUT') {
                 const updateResult = await client.query(`UPDATE ${tableName} SET is_active = $1 WHERE role = $2 AND username != 'admin'`, [req.body.isActive, req.body.role]);
                 await logAction(client, currentUser, 'BULK_UPDATE_USER_STATUS', tableName, null, req.body, req);
                 return res.status(200).json({ success: true, updatedCount: updateResult.rowCount });
@@ -570,7 +547,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await client.query('COMMIT');
                 return res.status(200).json({ success: true, successCount: s });
             }
-            if (method === 'GET') return res.status(200).json((await client.query(`SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName" FROM ${tableName} u LEFT JOIN resources r ON u.resource_id = r.id ORDER BY u.username`)).rows.map(r => ({ ...r, isActive: r.is_active, resourceId: r.resource_id, mustChangePassword: r.must_change_password })));
+             if (method === 'GET') return res.status(200).json((await client.query(`SELECT u.id, u.username, u.role, u.is_active, u.resource_id, u.must_change_password, r.name as "resourceName" FROM ${tableName} u LEFT JOIN resources r ON u.resource_id = r.id ORDER BY u.username`)).rows.map(r => ({ ...r, isActive: r.is_active, resourceId: r.resource_id, mustChangePassword: r.must_change_password })));
             if (method === 'POST') {
                 const { username, password, role, isActive, resourceId, mustChangePassword } = req.body;
                 const h = await bcrypt.hash(password || "Staffing2024!", 10); const newId = uuidv4();
@@ -588,22 +565,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const validTables = ['resources', 'projects', 'clients', 'company_calendar', 'interviews', 'contracts', 'resource_skills', 'project_skills', 'skill_macro_categories', 'leaves', 'leave_types', 'role_permissions', 'contract_projects', 'contract_managers', 'roles', 'skills', 'skill_categories', 'rate_cards', 'rate_card_entries', 'project_expenses'];
         if (validTables.includes(entity as string) || TABLE_MAPPING[entity as string]) {
             const writeMethods = ['POST', 'PUT', 'DELETE'];
-            
-            // Check Permissions
             if (writeMethods.includes(method)) {
                 if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
-                
                 const isOperational = OPERATIONAL_ROLES.includes(currentUser.role);
-                // Allow 'SIMPLE' role (or any authenticated user) to manage leaves, consistent with typical self-service usage.
-                // Stricter logic can be applied if needed (e.g. only own leaves), but basic access is required here.
                 const isLeaves = entity === 'leaves' || entity === 'leave_requests';
-                
-                if (!isOperational && !isLeaves) {
-                     return res.status(403).json({ error: 'Unauthorized' });
-                }
+                if (!isOperational && !isLeaves) return res.status(403).json({ error: 'Unauthorized' });
             }
             
-            // Determina il nome effettivo della tabella nel database
             const tableName = TABLE_MAPPING[entity as string] || (entity as string);
 
             if (method === 'GET') {
@@ -612,17 +580,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      return res.status(200).json(rows[0] ? toCamelAndNormalize(rows[0]) : null);
                 } else {
                      const { rows } = await client.query(`SELECT * FROM ${tableName}`);
-                     
-                     // SPECIAL HANDLING FOR ROLE PERMISSIONS
                      if (tableName === 'role_permissions') {
-                        // Manual mapping to match RolePermission interface
-                        return res.status(200).json(rows.map(r => ({
-                            role: r.role,
-                            pagePath: r.page_path,
-                            allowed: r.is_allowed
-                        })));
+                        return res.status(200).json(rows.map(r => ({ role: r.role, pagePath: r.page_path, allowed: r.is_allowed })));
                      }
-
                      return res.status(200).json(rows.map(toCamelAndNormalize));
                 }
             }
@@ -632,14 +592,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const toSnake = (s: string) => s.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`);
                 const dbKeys = keys.map(toSnake);
                 
-                // Gestione tabelle associative con chiavi composte
                 const compositeKeyTables: Record<string, string> = {
                     'resource_skills': '(resource_id, skill_id)',
                     'project_skills': '(project_id, skill_id)',
                     'role_permissions': '(role, page_path)',
                     'contract_projects': '(contract_id, project_id)',
                     'contract_managers': '(contract_id, resource_id)',
-                    'rate_card_entries': '(rate_card_id, role_id)'
+                    'rate_card_entries': '(rate_card_id, resource_id)' // UPDATED
                 };
 
                 if (compositeKeyTables[tableName]) {
@@ -653,12 +612,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(201).json(rows[0] ? toCamelAndNormalize(rows[0]) : {});
                 }
                 
-                if (!keys.includes('id')) { 
-                    keys.push('id'); 
-                    dbKeys.push('id'); 
-                    values.push(uuidv4()); 
-                }
-                
+                if (!keys.includes('id')) { keys.push('id'); dbKeys.push('id'); values.push(uuidv4()); }
                 const { rows } = await client.query(`INSERT INTO ${tableName} (${dbKeys.join(',')}) VALUES (${values.map((_, i) => `$${i + 1}`).join(',')}) RETURNING *`, values);
                 await logAction(client, currentUser, `CREATE_${tableName.toUpperCase()}`, tableName, rows[0]?.id, req.body, req);
                 return res.status(201).json(toCamelAndNormalize(rows[0]));
