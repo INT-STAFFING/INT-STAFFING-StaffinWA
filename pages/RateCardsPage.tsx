@@ -127,7 +127,7 @@ export default function RateCardsPage() {
             .map(([resourceId, dailyRateStr]) => ({
                 rateCardId: selectedCardId,
                 resourceId,
-                dailyRate: parseFloat(dailyRateStr) || 0
+                dailyRate: parseFloat(dailyRateStr as string) || 0
             }))
             .filter(e => e.dailyRate >= 0); // basic sanity check
 

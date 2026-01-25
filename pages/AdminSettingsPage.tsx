@@ -6,7 +6,7 @@ import { SpinnerIcon } from '../components/icons';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
-import { DashboardCategory } from '../types';
+import { DashboardCategory, SidebarSectionColors, SidebarItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 const DataLoadSection: React.FC = () => {
@@ -207,20 +207,33 @@ const DashboardConfigSection: React.FC = () => {
 
 const ThemeSection: React.FC = () => {
     const { theme, saveTheme, resetTheme, mode, toggleMode } = useTheme();
-    const { bottomNavPaths, updateBottomNavPaths, isActionLoading } = useEntitiesContext();
+    const { 
+        bottomNavPaths, updateBottomNavPaths, isActionLoading,
+        sidebarSections, updateSidebarSections,
+        sidebarSectionColors, updateSidebarSectionColors,
+        sidebarConfig, updateSidebarConfig 
+    } = useEntitiesContext();
     const { navigationRoutes } = useRoutesManifest();
+    
+    // Local States
     const [localTheme, setLocalTheme] = useState<Theme>(theme);
     const [localBottomPaths, setLocalBottomPaths] = useState<string[]>(bottomNavPaths || []);
+    
+    // Sidebar Structure Local State
+    const [localSidebarSections, setLocalSidebarSections] = useState<string[]>(sidebarSections || []);
+    const [localSidebarColors, setLocalSidebarColors] = useState<SidebarSectionColors>(sidebarSectionColors || {});
+    const [localSidebarConfig, setLocalSidebarConfig] = useState<SidebarItem[]>(sidebarConfig || []);
+    const [newSectionName, setNewSectionName] = useState('');
+
     const { addToast } = useToast();
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        setLocalTheme(theme);
-    }, [theme]);
-
-    useEffect(() => {
-        setLocalBottomPaths(bottomNavPaths || []);
-    }, [bottomNavPaths]);
+    // Sync Effects
+    useEffect(() => { setLocalTheme(theme); }, [theme]);
+    useEffect(() => { setLocalBottomPaths(bottomNavPaths || []); }, [bottomNavPaths]);
+    useEffect(() => { setLocalSidebarSections(sidebarSections || []); }, [sidebarSections]);
+    useEffect(() => { setLocalSidebarColors(sidebarSectionColors || {}); }, [sidebarSectionColors]);
+    useEffect(() => { setLocalSidebarConfig(sidebarConfig || []); }, [sidebarConfig]);
 
     const handleColorChange = (modeKey: 'light' | 'dark', key: string, value: string) => {
         setLocalTheme(prev => ({
@@ -248,47 +261,120 @@ const ThemeSection: React.FC = () => {
 
     const toggleBottomPath = (path: string) => {
         setLocalBottomPaths(prev => {
-            if (prev.includes(path)) {
-                return prev.filter(p => p !== path);
-            }
+            if (prev.includes(path)) return prev.filter(p => p !== path);
             return [...prev, path];
         });
     };
+    
+    // --- Sidebar Sections Handlers ---
+    const handleAddSection = () => {
+        if (!newSectionName.trim()) return;
+        if (localSidebarSections.includes(newSectionName.trim())) {
+            addToast('Questa sezione esiste già.', 'warning');
+            return;
+        }
+        setLocalSidebarSections(prev => [...prev, newSectionName.trim()]);
+        setNewSectionName('');
+    };
 
+    const handleDeleteSection = (section: string) => {
+        if (!confirm(`Sei sicuro di voler rimuovere la sezione "${section}"? Le pagine associate rimarranno ma potrebbero spostarsi.`)) return;
+        setLocalSidebarSections(prev => prev.filter(s => s !== section));
+        const newColors = { ...localSidebarColors };
+        delete newColors[section];
+        setLocalSidebarColors(newColors);
+    };
+
+    const handleSectionColorChange = (section: string, color: string) => {
+        setLocalSidebarColors(prev => ({ ...prev, [section]: color }));
+    };
+    
+    const handleResetSectionColor = (section: string) => {
+        const next = { ...localSidebarColors };
+        delete next[section];
+        setLocalSidebarColors(next);
+    };
+
+    // --- Sidebar Items Handlers ---
+    const handleItemColorChange = (path: string, color: string) => {
+        // Need to update localSidebarConfig. If the item doesn't exist there (it might be implicit), we add it.
+        // We iterate navigationRoutes which merges config + defaults.
+        const existingIdx = localSidebarConfig.findIndex(item => item.path === path);
+        if (existingIdx >= 0) {
+            const next = [...localSidebarConfig];
+            next[existingIdx] = { ...next[existingIdx], color };
+            setLocalSidebarConfig(next);
+        } else {
+            // Find base properties from manifest if not in config
+            const base = navigationRoutes.find(r => r.path === path);
+            if (base) {
+                setLocalSidebarConfig(prev => [...prev, {
+                    path: base.path,
+                    label: base.label,
+                    icon: base.icon,
+                    section: base.section || 'Altro',
+                    color
+                }]);
+            }
+        }
+    };
+
+    const handleResetItemColor = (path: string) => {
+         const existingIdx = localSidebarConfig.findIndex(item => item.path === path);
+         if (existingIdx >= 0) {
+             const next = [...localSidebarConfig];
+             delete next[existingIdx].color; // Remove color override
+             setLocalSidebarConfig(next);
+         }
+    };
+
+    // --- Save Handlers ---
     const handleSaveTheme = async () => {
         setSaving(true);
         try {
             await saveTheme(localTheme);
-            addToast('Personalizzazione tema salvata nel Database Globale.', 'success');
+            addToast('Personalizzazione tema salvata.', 'success');
         } catch (e) {
-            addToast('Errore nel salvataggio del tema.', 'error');
-        } finally {
-            setSaving(false);
-        }
+            addToast('Errore salvataggio tema.', 'error');
+        } finally { setSaving(false); }
+    };
+    
+    const handleSaveSidebarSections = async () => {
+        try {
+            // Save both sections list and colors
+            await updateSidebarSections(localSidebarSections);
+            await updateSidebarSectionColors(localSidebarColors);
+            addToast('Struttura sezioni e colori aggiornati.', 'success');
+        } catch (e) { addToast('Errore salvataggio sezioni.', 'error'); }
+    };
+
+    const handleSaveSidebarItems = async () => {
+        try {
+            await updateSidebarConfig(localSidebarConfig);
+            addToast('Colori pagine aggiornati.', 'success');
+        } catch (e) { addToast('Errore salvataggio pagine.', 'error'); }
     };
 
     const handleSaveBottomNav = async () => {
         try {
             await updateBottomNavPaths(localBottomPaths);
-            addToast('Configurazione navigazione mobile salvata su DB.', 'success');
-        } catch (e) {
-            addToast('Errore nel salvataggio della navigazione.', 'error');
-        }
+            addToast('Configurazione mobile salvata.', 'success');
+        } catch (e) { addToast('Errore salvataggio navigazione.', 'error'); }
     };
 
     const handleReset = async () => {
-        if (!confirm('Vuoi davvero ripristinare i colori originali?')) return;
+        if (!confirm('Ripristinare i colori originali?')) return;
         setSaving(true);
-        try {
-            await resetTheme();
-            addToast('Colori di sistema ripristinati da Database.', 'success');
-        } catch (e) {
-            addToast('Errore durante il ripristino.', 'error');
-        } finally {
-            setSaving(false);
-        }
+        try { await resetTheme(); addToast('Ripristino completato.', 'success'); } 
+        catch (e) { addToast('Errore ripristino.', 'error'); } 
+        finally { setSaving(false); }
     };
 
+    const sidebarSectionsChanged = 
+        JSON.stringify(localSidebarSections) !== JSON.stringify(sidebarSections || []) ||
+        JSON.stringify(localSidebarColors) !== JSON.stringify(sidebarSectionColors || {});
+
+    const sidebarItemsChanged = JSON.stringify(localSidebarConfig) !== JSON.stringify(sidebarConfig || []);
     const bottomNavChanges = JSON.stringify(localBottomPaths) !== JSON.stringify(bottomNavPaths || []);
 
     return (
@@ -341,39 +427,134 @@ const ThemeSection: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            {/* Toast Config */}
+            
+            {/* Sidebar Sections Manager */}
             <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">notifications_active</span> Configurazione Toast
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="space-y-4">
-                        <label className="block text-xs font-black text-primary uppercase tracking-widest">Posizione</label>
-                        <select value={localTheme.toastPosition} onChange={(e) => handleToastConfigChange('toastPosition', e.target.value)} className="form-select">
-                            <option value="top-center">Top Center</option>
-                            <option value="top-right">Top Right</option>
-                            <option value="bottom-center">Bottom Center</option>
-                        </select>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">view_sidebar</span> Gestione Sezioni Sidebar
+                        </h3>
+                        <p className="text-sm text-on-surface-variant">Aggiungi, rimuovi e colora le sezioni del menu laterale.</p>
                     </div>
-                    <div className="p-4 bg-tertiary-container/10 rounded-2xl border border-tertiary/20 space-y-4">
-                        <label className="block text-xs font-black text-tertiary uppercase tracking-widest">Colori Successo</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><span className="text-[10px] block mb-1">BG</span><input type="color" value={localTheme.toastSuccessBackground} onChange={(e) => handleToastConfigChange('toastSuccessBackground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                            <div><span className="text-[10px] block mb-1">Text</span><input type="color" value={localTheme.toastSuccessForeground} onChange={(e) => handleToastConfigChange('toastSuccessForeground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                        </div>
-                    </div>
-                    <div className="p-4 bg-error-container/10 rounded-2xl border border-error/20 space-y-4">
-                        <label className="block text-xs font-black text-error uppercase tracking-widest">Colori Errore</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><span className="text-[10px] block mb-1">BG</span><input type="color" value={localTheme.toastErrorBackground} onChange={(e) => handleToastConfigChange('toastErrorBackground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                            <div><span className="text-[10px] block mb-1">Text</span><input type="color" value={localTheme.toastErrorForeground} onChange={(e) => handleToastConfigChange('toastErrorForeground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                        </div>
-                    </div>
+                    {sidebarSectionsChanged && (
+                        <button onClick={handleSaveSidebarSections} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg">
+                            Salva Sezioni
+                        </button>
+                    )}
+                </div>
+                
+                {/* Add New Section */}
+                <div className="flex gap-2 mb-6">
+                    <input 
+                        type="text" 
+                        value={newSectionName} 
+                        onChange={e => setNewSectionName(e.target.value)} 
+                        placeholder="Nuova sezione (es. Extra)..." 
+                        className="form-input max-w-xs"
+                    />
+                    <button onClick={handleAddSection} disabled={!newSectionName} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-lg font-bold disabled:opacity-50">
+                        Aggiungi
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {localSidebarSections.map(section => {
+                        const currentColor = localSidebarColors[section] || '#72787d';
+                        const isSet = !!localSidebarColors[section];
+                        
+                        return (
+                            <div key={section} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant relative group">
+                                <div className="flex justify-between items-center mb-3">
+                                    <span className="text-xs font-bold uppercase tracking-wider truncate" style={{ color: currentColor }}>
+                                        {section}
+                                    </span>
+                                    <button onClick={() => handleDeleteSection(section)} className="text-on-surface-variant hover:text-error p-1 rounded hover:bg-surface-container">
+                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        type="color" 
+                                        value={currentColor.startsWith('#') ? currentColor : '#000000'}
+                                        onChange={(e) => handleSectionColorChange(section, e.target.value)}
+                                        className="h-8 w-8 rounded cursor-pointer border-0 bg-transparent p-0"
+                                    />
+                                    {isSet && (
+                                         <button onClick={() => handleResetSectionColor(section)} className="text-[10px] text-on-surface-variant hover:text-primary underline">
+                                            Reset Colore
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* Bottom Navigation Section - NEW */}
+            {/* Sidebar Pages Colors Manager */}
+            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">format_paint</span> Personalizzazione Voci Menu
+                        </h3>
+                        <p className="text-sm text-on-surface-variant">Cambia il colore delle singole pagine nella sidebar.</p>
+                    </div>
+                    {sidebarItemsChanged && (
+                        <button onClick={handleSaveSidebarItems} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg">
+                            Salva Colori Pagine
+                        </button>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {localSidebarSections.map(section => {
+                        const items = navigationRoutes.filter(r => (r.section || 'Altro') === section);
+                        if (items.length === 0) return null;
+
+                        return (
+                            <div key={section} className="bg-surface-container-low rounded-2xl border border-outline-variant overflow-hidden">
+                                <div className="px-4 py-2 bg-surface-container font-bold text-xs uppercase text-on-surface-variant tracking-wider">
+                                    {section}
+                                </div>
+                                <div className="divide-y divide-outline-variant">
+                                    {items.map(item => {
+                                        // Find config for this item to get current color
+                                        const configItem = localSidebarConfig.find(c => c.path === item.path);
+                                        const currentColor = configItem?.color || ''; // empty means default
+                                        
+                                        return (
+                                            <div key={item.path} className="p-3 flex items-center justify-between hover:bg-surface-container transition-colors">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="material-symbols-outlined text-on-surface-variant">{item.icon}</span>
+                                                    <span className="text-sm font-medium" style={{ color: currentColor || undefined }}>{item.label}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                     <input 
+                                                        type="color" 
+                                                        value={currentColor && currentColor.startsWith('#') ? currentColor : '#000000'}
+                                                        onChange={(e) => handleItemColorChange(item.path, e.target.value)}
+                                                        className="h-6 w-6 rounded cursor-pointer border-0 bg-transparent p-0 opacity-50 hover:opacity-100"
+                                                        title="Cambia colore"
+                                                    />
+                                                    {currentColor && (
+                                                        <button onClick={() => handleResetItemColor(item.path)} className="text-on-surface-variant hover:text-error" title="Rimuovi colore">
+                                                            <span className="material-symbols-outlined text-sm">format_color_reset</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Bottom Navigation Section */}
             <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
                 <div className="flex justify-between items-center mb-6">
                     <div>
@@ -441,6 +622,36 @@ const ThemeSection: React.FC = () => {
                         <div className="space-y-4">
                             <div><label className="text-xs font-bold block mb-1">Repulsione (Charge): {localTheme.visualizationSettings.network.chargeStrength}</label><input type="range" min="-1000" max="-50" step="10" value={localTheme.visualizationSettings.network.chargeStrength} onChange={(e) => handleVizChange('network', 'chargeStrength', Number(e.target.value))} className="w-full accent-primary"/></div>
                             <div><label className="text-xs font-bold block mb-1">Raggio Nodi: {localTheme.visualizationSettings.network.nodeRadius}px</label><input type="range" min="5" max="40" value={localTheme.visualizationSettings.network.nodeRadius} onChange={(e) => handleVizChange('network', 'nodeRadius', Number(e.target.value))} className="w-full accent-primary"/></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
+                <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">notifications_active</span> Configurazione Toast
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="space-y-4">
+                        <label className="block text-xs font-black text-primary uppercase tracking-widest">Posizione</label>
+                        <select value={localTheme.toastPosition} onChange={(e) => handleToastConfigChange('toastPosition', e.target.value)} className="form-select">
+                            <option value="top-center">Top Center</option>
+                            <option value="top-right">Top Right</option>
+                            <option value="bottom-center">Bottom Center</option>
+                        </select>
+                    </div>
+                    <div className="p-4 bg-tertiary-container/10 rounded-2xl border border-tertiary/20 space-y-4">
+                        <label className="block text-xs font-black text-tertiary uppercase tracking-widest">Colori Successo</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><span className="text-[10px] block mb-1">BG</span><input type="color" value={localTheme.toastSuccessBackground} onChange={(e) => handleToastConfigChange('toastSuccessBackground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
+                            <div><span className="text-[10px] block mb-1">Text</span><input type="color" value={localTheme.toastSuccessForeground} onChange={(e) => handleToastConfigChange('toastSuccessForeground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
+                        </div>
+                    </div>
+                    <div className="p-4 bg-error-container/10 rounded-2xl border border-error/20 space-y-4">
+                        <label className="block text-xs font-black text-error uppercase tracking-widest">Colori Errore</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><span className="text-[10px] block mb-1">BG</span><input type="color" value={localTheme.toastErrorBackground} onChange={(e) => handleToastConfigChange('toastErrorBackground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
+                            <div><span className="text-[10px] block mb-1">Text</span><input type="color" value={localTheme.toastErrorForeground} onChange={(e) => handleToastConfigChange('toastErrorForeground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
                         </div>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { SidebarFooterAction, SidebarItem } from '../../types';
 
@@ -57,7 +58,14 @@ const SidebarHeadless: React.FC<SidebarHeadlessProps> = ({
                 <nav className="flex-1 overflow-y-auto py-4">
                     {sections.map(section => {
                         if (!section.items.length) return null;
-                        const sectionStyle = section.color ? { color: `var(--color-${section.color})` } : undefined;
+                        
+                        // Supporto sia per variabili CSS (es. 'primary') che per codici HEX (es. '#ff0000')
+                        const colorValue = section.color 
+                            ? (section.color.startsWith('#') ? section.color : `var(--color-${section.color})`)
+                            : undefined;
+                        
+                        const sectionStyle = colorValue ? { color: colorValue } : undefined;
+
                         return (
                             <div key={section.name} className="pb-4">
                                 <p

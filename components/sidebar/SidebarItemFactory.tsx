@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { RenderableSidebarItem } from './SidebarHeadless';
@@ -12,7 +13,10 @@ const SidebarItemFactory: React.FC<SidebarItemFactoryProps> = ({ item }) => {
 
     const getColorStyle = (active: boolean) => {
         if (active) return {};
-        if (item.color) return { color: `var(--color-${item.color})` };
+        if (item.color) {
+             // Supporto sia per variabili CSS (es. 'primary') che per codici HEX (es. '#ff0000')
+            return { color: item.color.startsWith('#') ? item.color : `var(--color-${item.color})` };
+        }
         return {};
     };
 
