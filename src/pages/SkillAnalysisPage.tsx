@@ -79,11 +79,11 @@ const SkillForceGraph: React.FC<{
         const svg = select(svgRef.current);
         
         if (zoomAction.type === 'in') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+            (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
         } else if (zoomAction.type === 'out') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+            (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2).scale(1));
+            (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width/2, height/2).scale(1));
         }
     }, [zoomAction, width, height]);
 
@@ -236,12 +236,12 @@ const SkillHeatmap: React.FC<{
         const svg = select(svgRef.current);
         
         if (zoomAction.type === 'in') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+            (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
         } else if (zoomAction.type === 'out') {
-            svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+            (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
         } else if (zoomAction.type === 'reset') {
             // FIX: Reset zoom to include margins translation
-            svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(margin.left, margin.top));
+            (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(margin.left, margin.top));
         }
     }, [zoomAction]);
 
@@ -330,9 +330,9 @@ const SkillChordDiagram: React.FC<{
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        if (zoomAction.type === 'in') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
     }, [zoomAction, width, height]);
 
     useEffect(() => {
@@ -417,9 +417,9 @@ const SkillRadarChart: React.FC<{
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
+        if (zoomAction.type === 'in') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2));
     }, [zoomAction, width, height]);
 
     useEffect(() => {
@@ -486,9 +486,9 @@ const SkillRadialTree: React.FC<{
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
+        if (zoomAction.type === 'in') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity.translate(width / 2, height / 2).scale(0.8));
     }, [zoomAction, width, height]);
 
     useEffect(() => {
@@ -543,9 +543,9 @@ const SkillCirclePacking: React.FC<{
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
+        if (zoomAction.type === 'in') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
     }, [zoomAction]);
 
     useEffect(() => {
@@ -600,9 +600,9 @@ const SkillSankeyChart: React.FC<{
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        if (zoomAction.type === 'in') svg.transition().call(zoomBehavior.current.scaleBy, 1.2);
-        else if (zoomAction.type === 'out') svg.transition().call(zoomBehavior.current.scaleBy, 0.8);
-        else if (zoomAction.type === 'reset') svg.transition().call(zoomBehavior.current.transform, zoomIdentity);
+        if (zoomAction.type === 'in') (svg as any).transition().call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') (svg as any).transition().call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') (svg as any).transition().call(zoomBehavior.current.transform, zoomIdentity);
     }, [zoomAction]);
 
     useEffect(() => {
@@ -656,9 +656,9 @@ const SkillBubbleChart: React.FC<{
     useEffect(() => {
         if (!svgRef.current || !zoomBehavior.current) return;
         const svg = select(svgRef.current);
-        if (zoomAction.type === 'in') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
-        else if (zoomAction.type === 'out') svg.transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
-        else if (zoomAction.type === 'reset') svg.transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
+        if (zoomAction.type === 'in') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 1.2);
+        else if (zoomAction.type === 'out') (svg as any).transition().duration(300).call(zoomBehavior.current.scaleBy, 0.8);
+        else if (zoomAction.type === 'reset') (svg as any).transition().duration(750).call(zoomBehavior.current.transform, zoomIdentity);
     }, [zoomAction]);
 
     useEffect(() => {

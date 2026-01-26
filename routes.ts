@@ -116,6 +116,15 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/ClientsPage')),
     },
     {
+        path: '/revenue',
+        label: 'Revenue & Invoicing',
+        icon: 'monetization_on',
+        section: 'Progetti',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/RevenuePage')),
+    },
+    {
         path: '/forecasting',
         label: 'Forecasting',
         icon: 'trending_up',

@@ -1,12 +1,12 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
-interface Props {
+interface ErrorBoundaryProps {
   children?: ReactNode;
   fallback?: ReactNode;
   label?: string;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
@@ -15,16 +15,13 @@ interface State {
  * ErrorBoundary cattura errori JavaScript ovunque nel tree dei componenti figli,
  * logga quegli errori, e visualizza una UI di fallback invece del componente che è andato in crash.
  */
-class ErrorBoundary extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-    };
-  }
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+  };
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // Aggiorna lo stato in modo che il prossimo render mostri la UI di fallback.
     return { hasError: true, error };
   }

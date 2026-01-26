@@ -11,7 +11,7 @@ import {
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
     Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction,
-    RateCard, RateCardEntry, ProjectExpense
+    RateCard, RateCardEntry, ProjectExpense, BillingMilestone
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -47,14 +47,15 @@ const AppStateContext = createContext<{ loading: boolean; fetchError: string | n
 const CatalogsContext = createContext<Pick<EntitiesContextType,
     'clients' | 'roles' | 'roleCostHistory' | 'rateCards' | 'rateCardEntries' | 'resources' | 'projects' | 'contracts' |
     'contractProjects' | 'contractManagers' | 'skills' | 'skillCategories' | 'skillMacroCategories' |
-    'resourceSkills' | 'projectSkills' | 'addResource' | 'updateResource' | 'deleteResource' |
+    'resourceSkills' | 'projectSkills' | 'billingMilestones' | 'addResource' | 'updateResource' | 'deleteResource' |
     'addProject' | 'updateProject' | 'deleteProject' | 'addClient' | 'updateClient' | 'deleteClient' |
     'addRole' | 'updateRole' | 'deleteRole' | 'addSkill' | 'updateSkill' | 'deleteSkill' |
     'addResourceSkill' | 'deleteResourceSkill' | 'addProjectSkill' | 'deleteProjectSkill' |
     'addContract' | 'updateContract' | 'deleteContract' | 'recalculateContractBacklog' |
     'addRateCard' | 'updateRateCard' | 'deleteRateCard' | 'upsertRateCardEntries' |
     'addSkillCategory' | 'updateSkillCategory' | 'deleteSkillCategory' |
-    'addSkillMacro' | 'updateSkillMacro' | 'deleteSkillMacro' | 'getRoleCost' | 'getSellRate' | 'getResourceComputedSkills'
+    'addSkillMacro' | 'updateSkillMacro' | 'deleteSkillMacro' | 'addBillingMilestone' | 'updateBillingMilestone' | 'deleteBillingMilestone' | 
+    'getRoleCost' | 'getSellRate' | 'getResourceComputedSkills'
 > | undefined>(undefined);
 
 const PlanningContext = createContext<(Pick<EntitiesContextType,
@@ -99,6 +100,7 @@ const CatalogsProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         skillMacroCategories: entities.skillMacroCategories,
         resourceSkills: entities.resourceSkills,
         projectSkills: entities.projectSkills,
+        billingMilestones: entities.billingMilestones,
         addResource: entities.addResource,
         updateResource: entities.updateResource,
         deleteResource: entities.deleteResource,
@@ -132,6 +134,9 @@ const CatalogsProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         addSkillMacro: entities.addSkillMacro,
         updateSkillMacro: entities.updateSkillMacro,
         deleteSkillMacro: entities.deleteSkillMacro,
+        addBillingMilestone: entities.addBillingMilestone,
+        updateBillingMilestone: entities.updateBillingMilestone,
+        deleteBillingMilestone: entities.deleteBillingMilestone,
         getRoleCost: entities.getRoleCost,
         getSellRate: entities.getSellRate,
         getResourceComputedSkills: entities.getResourceComputedSkills
@@ -268,6 +273,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const [rateCards, setRateCards] = useState<RateCard[]>([]);
     const [rateCardEntries, setRateCardEntries] = useState<RateCardEntry[]>([]);
     const [projectExpenses, setProjectExpenses] = useState<ProjectExpense[]>([]);
+    const [billingMilestones, setBillingMilestones] = useState<BillingMilestone[]>([]);
     const [resources, setResources] = useState<Resource[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
@@ -385,6 +391,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             setContractManagers(planningData.contractManagers || []);
             setProjectSkills(planningData.projectSkills || []);
             setLeaveRequests(planningData.leaveRequests || []);
+            setBillingMilestones(planningData.billingMilestones || []);
 
         } catch (error) {
             console.error("Failed to fetch data", error);
@@ -471,6 +478,10 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const addProjectExpense = async (expense: Omit<ProjectExpense, 'id'>) => { setActionLoading('addProjectExpense', true); try { const newExpense = await apiFetch<ProjectExpense>('/api/resources?entity=project_expenses', { method: 'POST', body: JSON.stringify(expense) }); setProjectExpenses(prev => [...prev, newExpense]); } finally { setActionLoading('addProjectExpense', false); } };
     const updateProjectExpense = async (expense: ProjectExpense) => { setActionLoading(`updateProjectExpense-${expense.id}`, true); try { const updated = await apiFetch<ProjectExpense>(`/api/resources?entity=project_expenses&id=${expense.id}`, { method: 'PUT', body: JSON.stringify(expense) }); setProjectExpenses(prev => prev.map(e => e.id === expense.id ? updated : e)); } finally { setActionLoading(`updateProjectExpense-${expense.id}`, false); } };
     const deleteProjectExpense = async (id: string) => { setActionLoading(`deleteProjectExpense-${id}`, true); try { await apiFetch(`/api/resources?entity=project_expenses&id=${id}`, { method: 'DELETE' }); setProjectExpenses(prev => prev.filter(e => e.id !== id)); } finally { setActionLoading(`deleteProjectExpense-${id}`, false); } };
+    
+    const addBillingMilestone = async (milestone: Omit<BillingMilestone, 'id'>) => { setActionLoading('addBillingMilestone', true); try { const newMs = await apiFetch<BillingMilestone>('/api/resources?entity=billing_milestones', { method: 'POST', body: JSON.stringify(milestone) }); setBillingMilestones(prev => [...prev, newMs]); } finally { setActionLoading('addBillingMilestone', false); } };
+    const updateBillingMilestone = async (milestone: BillingMilestone) => { setActionLoading(`updateBillingMilestone-${milestone.id}`, true); try { const updated = await apiFetch<BillingMilestone>(`/api/resources?entity=billing_milestones&id=${milestone.id}`, { method: 'PUT', body: JSON.stringify(milestone) }); setBillingMilestones(prev => prev.map(m => m.id === milestone.id ? updated : m)); } finally { setActionLoading(`updateBillingMilestone-${milestone.id}`, false); } };
+    const deleteBillingMilestone = async (id: string) => { setActionLoading(`deleteBillingMilestone-${id}`, true); try { await apiFetch(`/api/resources?entity=billing_milestones&id=${id}`, { method: 'DELETE' }); setBillingMilestones(prev => prev.filter(m => m.id !== id)); } finally { setActionLoading(`deleteBillingMilestone-${id}`, false); } };
     
     const addConfigOption = async (type: string, value: string) => { setActionLoading(`addConfig-${type}`, true); try { const newOpt = await apiFetch<ConfigOption>(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }); const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations; setter(prev => [...prev, newOpt]); } finally { setActionLoading(`addConfig-${type}`, false); } };
     const updateConfigOption = async (type: string, option: ConfigOption) => { setActionLoading(`updateConfig-${type}-${option.id}`, true); try { await apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify({ value: option.value }) }); const setter = type === 'horizontals' ? setHorizontals : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations; setter(prev => prev.map(o => o.id === option.id ? option : o)); } finally { setActionLoading(`updateConfig-${type}-${option.id}`, false); } };
@@ -582,7 +593,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading,
+        notifications, analyticsCache, loading, isActionLoading, billingMilestones,
         fetchData, fetchNotifications, markNotificationAsRead,
         addResource, updateResource, deleteResource,
         addProject, updateProject, deleteProject,
@@ -608,13 +619,14 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         forceRecalculateAnalytics,
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro,
+        addBillingMilestone, updateBillingMilestone, deleteBillingMilestone,
         getBestFitResources
     }), [
         clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, getBestFitResources
+        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones
     ]);
 
     const allocationContextValue = useMemo(() => ({

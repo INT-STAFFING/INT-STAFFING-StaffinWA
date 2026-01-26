@@ -8,7 +8,7 @@
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest, SkillCategory, SkillMacroCategory } from '../types';
+import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest, SkillCategory, SkillMacroCategory, BillingMilestone } from '../types';
 
 // Flag globale per tracciare l'inizializzazione dello schema nel ciclo di vita della funzione serverless
 let isSchemaInitialized = false;
@@ -269,7 +269,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 contractProjectsRes,
                 contractManagersRes,
                 projectSkillsRes,
-                leaveRequestsRes
+                leaveRequestsRes,
+                billingMilestonesRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM assignments;`,
                 allocationsQueryPromise,
@@ -280,7 +281,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM contract_projects;`,
                 db.sql`SELECT * FROM contract_managers;`,
                 db.sql`SELECT * FROM project_skills;`,
-                leaveRequestsQueryPromise
+                leaveRequestsQueryPromise,
+                db.sql`SELECT * FROM billing_milestones;`
             ]);
 
             const allocations: Allocation = {};
@@ -313,7 +315,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     if (req.startDate) req.startDate = new Date(req.startDate).toISOString().split('T')[0];
                     if (req.endDate) req.endDate = new Date(req.endDate).toISOString().split('T')[0];
                     return req;
-                }) as LeaveRequest[]
+                }) as LeaveRequest[],
+                billingMilestones: billingMilestonesRes.rows.map(row => {
+                    const bm = toCamelCase(row);
+                    if(bm.date) bm.date = new Date(bm.date).toISOString().split('T')[0];
+                    return bm;
+                }) as BillingMilestone[]
             });
         }
 

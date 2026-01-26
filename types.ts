@@ -114,6 +114,31 @@ export interface ProjectExpense {
 }
 
 /**
+ * @type BillingType
+ * @description Tipo di fatturazione del progetto.
+ */
+export type BillingType = 'TIME_MATERIAL' | 'FIXED_PRICE';
+
+/**
+ * @type MilestoneStatus
+ * @description Stato della milestone di fatturazione.
+ */
+export type MilestoneStatus = 'PLANNED' | 'INVOICED' | 'PAID';
+
+/**
+ * @interface BillingMilestone
+ * @description Una milestone di fatturazione per progetti Fixed Price.
+ */
+export interface BillingMilestone {
+    id?: string;
+    projectId: string;
+    name: string;
+    date: string;
+    amount: number;
+    status: MilestoneStatus;
+}
+
+/**
  * @interface Resource
  * @description Rappresenta una risorsa umana (un dipendente).
  */
@@ -175,6 +200,8 @@ export interface Project {
     notes?: string | null;
     /** @property {string | null} [contractId] - L'ID del contratto associato (opzionale). */
     contractId?: string | null;
+    /** @property {BillingType} [billingType] - Tipo di fatturazione. */
+    billingType?: BillingType;
 }
 
 /**
@@ -751,6 +778,7 @@ export interface EntitiesState {
     rateCards: RateCard[];
     rateCardEntries: RateCardEntry[];
     projectExpenses: ProjectExpense[];
+    billingMilestones: BillingMilestone[];
     resources: Resource[];
     projects: Project[];
     contracts: Contract[];
@@ -834,6 +862,10 @@ export interface EntitiesActions {
     addProjectExpense: (expense: Omit<ProjectExpense, 'id'>) => Promise<void>;
     updateProjectExpense: (expense: ProjectExpense) => Promise<void>;
     deleteProjectExpense: (id: string) => Promise<void>;
+    /** CRUD per BillingMilestones. */
+    addBillingMilestone: (milestone: Omit<BillingMilestone, 'id'>) => Promise<void>;
+    updateBillingMilestone: (milestone: BillingMilestone) => Promise<void>;
+    deleteBillingMilestone: (id: string) => Promise<void>;
     /** Gestisce la creazione di una nuova opzione di configurazione tipizzata. */
     addConfigOption: (type: string, value: string) => Promise<void>;
     /** Modifica un'opzione di configurazione esistente. */

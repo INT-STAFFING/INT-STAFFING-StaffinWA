@@ -99,7 +99,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     // Seed Permissions
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;
     if (permsCheck.rows[0].count === '0') {
-        const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/simple-user-manual', '/resources', '/notifications', '/skills-map', '/staffing-visualization'];
+        const simplePages = ['/staffing', '/workload', '/dashboard', '/leaves', '/resource-requests', '/interviews', '/manuale-utente', '/simple-user-manual', '/resources', '/notifications', '/skills-map', '/staffing-visualization', '/revenue'];
         const managerPages = [...simplePages, '/forecasting', '/gantt', '/reports', '/skill-analysis', '/skills', '/certifications', '/projects', '/clients', '/contracts'];
 
         for (const page of simplePages) {
@@ -119,11 +119,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
     // 7. Projects & Planning
     // Add Rate Cards Tables - UPDATED for Resource Specificity
     await db.sql`CREATE TABLE IF NOT EXISTS rate_cards ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, currency VARCHAR(10) DEFAULT 'EUR' );`;
-    // Changed role_id to resource_id. Drop old table if exists with role_id or alter? For simplicity, we assume new deployment or manual migration.
-    // Ideally: ALTER TABLE rate_card_entries RENAME COLUMN role_id TO resource_id; (if types match, but roles are uuid and resources are uuid)
-    // We will CREATE IF NOT EXISTS with resource_id. 
-    // IF role_id exists, we need to handle migration manually or assume clean state.
-    // Here we define the DESIRED state.
     
     // Check if table exists
     const rateCardCheck = await db.sql`SELECT to_regclass('public.rate_card_entries') as exists;`;
@@ -133,8 +128,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
         // Migration logic: Check if column role_id exists
          const colCheck = await db.sql`SELECT column_name FROM information_schema.columns WHERE table_name='rate_card_entries' AND column_name='role_id';`;
          if (colCheck.rows.length > 0) {
-             // This is a breaking change. We drop the table to recreate it correctly for the new logic, assuming it's acceptable for this update.
-             // In a real prod env, we'd rename and map data.
              await db.sql`DROP TABLE rate_card_entries;`;
              await db.sql`CREATE TABLE rate_card_entries ( rate_card_id UUID REFERENCES rate_cards(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, daily_rate NUMERIC(10, 2) NOT NULL, PRIMARY KEY (rate_card_id, resource_id) );`;
          }
@@ -145,6 +138,10 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL;`;
     
     await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`;
+    
+    // ADD BILLING_TYPE TO PROJECTS
+    await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL';`;
+    
     await db.sql`CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS contract_projects ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, project_id) );`;
@@ -154,6 +151,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
     
     // Add Project Expenses Table
     await db.sql`CREATE TABLE IF NOT EXISTS project_expenses ( id UUID PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, category VARCHAR(255) NOT NULL, description TEXT, amount NUMERIC(12, 2) NOT NULL, date DATE NOT NULL, billable BOOLEAN DEFAULT FALSE );`;
+
+    // Add Billing Milestones Table
+    await db.sql`CREATE TABLE IF NOT EXISTS billing_milestones ( id UUID PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, date DATE NOT NULL, amount NUMERIC(12, 2) NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PLANNED' );`;
 
     // 8. Recruitment & Operations
     await db.sql`CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, request_code VARCHAR(50), project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, is_osr_open BOOLEAN DEFAULT FALSE, osr_number VARCHAR(50), notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;
