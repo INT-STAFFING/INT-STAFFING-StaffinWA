@@ -506,7 +506,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         return entry ? Number(entry.dailyRate) : 0; 
     };
     
-    const getBestFitResources = useCallback(async (params: { startDate: string; endDate: string; roleId: string; projectId: string }) => {
+    const getBestFitResources = useCallback(async (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => {
         setActionLoading('getBestFitResources', true);
         try {
             const results = await apiFetch<any[]>('/api/resources?entity=resources&action=best_fit', {

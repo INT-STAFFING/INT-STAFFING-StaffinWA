@@ -316,6 +316,11 @@ export const ResourceRequestPage: React.FC = () => {
 
     // --- AI MATCHING HANDLERS ---
     const openMatchingModal = async (request: EnrichedRequest) => {
+        if (request.status === 'CHIUSA') {
+            addToast('Impossibile cercare candidati per una richiesta chiusa.', 'warning');
+            return;
+        }
+
         setMatchingResults([]); // Clear previous results
         setIsMatchingModalOpen(true);
         try {
@@ -323,7 +328,8 @@ export const ResourceRequestPage: React.FC = () => {
                 startDate: request.startDate,
                 endDate: request.endDate,
                 roleId: request.roleId,
-                projectId: request.projectId
+                projectId: request.projectId,
+                commitmentPercentage: request.commitmentPercentage // Pass required commitment
             });
             // Ensure results is an array to prevent crashes
             setMatchingResults(Array.isArray(results) ? results : []);
@@ -354,83 +360,97 @@ export const ResourceRequestPage: React.FC = () => {
         { header: 'OSR', cell: r => r.isOsrOpen ? <span className="px-2 py-0.5 rounded text-xs font-semibold bg-primary-container text-on-primary-container" title={`OSR: ${r.osrNumber || 'N/D'}`}>OSR {r.osrNumber}</span> : '-' },
     ];
 
-    const renderRow = (request: EnrichedRequest) => (
-        <tr key={request.id} className="group hover:bg-surface-container">
-            {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(request)}</td>)}
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-end space-x-2">
-                    <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openMatchingModal(request); }} 
-                        className="p-2 rounded-full hover:bg-tertiary-container text-tertiary transition-colors" 
-                        title="Trova Candidati"
-                    >
-                        <span className="material-symbols-outlined">smart_toy</span>
-                    </button>
-                    <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); openModalForEdit(request); }} 
-                        className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" 
-                        title="Modifica"
-                    >
-                        <span className="material-symbols-outlined">edit</span>
-                    </button>
-                    <button 
-                        type="button" 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRequestToDelete(request); }} 
-                        className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" 
-                        title="Elimina"
-                    >
-                        {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
-                    </button>
-                </div>
-            </td>
-        </tr>
-    );
-    
-    const renderCard = (request: EnrichedRequest) => (
-        <div key={request.id} className="p-5 rounded-2xl shadow-md bg-surface-container-low border-l-4 border-primary flex flex-col gap-4 relative">
-            <div className="flex justify-between items-start">
-                <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{request.requestCode}</span>
-                        <span className={`px-2 py-0.5 inline-flex text-[10px] leading-5 font-bold rounded-full uppercase tracking-tighter ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
+    const renderRow = (request: EnrichedRequest) => {
+        const isClosed = request.status === 'CHIUSA';
+        return (
+            <tr key={request.id} className="group hover:bg-surface-container">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(request)}</td>)}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
+                    <div className="flex items-center justify-end space-x-2">
+                        <button 
+                            type="button" 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openMatchingModal(request); }} 
+                            className={`p-2 rounded-full transition-colors ${isClosed ? 'text-on-surface-variant/30 cursor-not-allowed' : 'hover:bg-tertiary-container text-tertiary'}`}
+                            title={isClosed ? "Richiesta Chiusa" : "Trova Candidati"}
+                            disabled={isClosed}
+                        >
+                            <span className="material-symbols-outlined">smart_toy</span>
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openModalForEdit(request); }} 
+                            className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" 
+                            title="Modifica"
+                        >
+                            <span className="material-symbols-outlined">edit</span>
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRequestToDelete(request); }} 
+                            className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" 
+                            title="Elimina"
+                        >
+                            {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
+                        </button>
                     </div>
-                    <h3 className="font-bold text-lg text-on-surface truncate pr-8" title={request.projectName}>{request.projectName}</h3>
-                    <p className="text-sm text-on-surface-variant font-medium">{request.roleName}</p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                    <button type="button" onClick={(e) => { e.stopPropagation(); openMatchingModal(request); }} className="p-2 text-tertiary hover:bg-surface-container rounded-full" title="Smart Match"><span className="material-symbols-outlined text-xl">smart_toy</span></button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); openModalForEdit(request); }} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container transition-colors" title="Modifica"><span className="material-symbols-outlined text-xl">edit</span></button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setRequestToDelete(request); }} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container transition-colors" title="Elimina">
-                         {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined text-xl">delete</span>}
-                    </button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-outline-variant">
-                <div className="flex flex-col">
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Periodo</span>
-                    <span className="text-xs font-semibold text-on-surface">{formatDateFull(request.startDate)} - {formatDateFull(request.endDate)}</span>
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Impegno</span>
-                    <span className="text-xs font-semibold text-on-surface">{request.commitmentPercentage}%</span>
-                </div>
-                <div className="col-span-2 flex flex-col">
-                    <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Richiedente</span>
-                    <span className="text-xs font-semibold text-on-surface">{request.requestorName || 'Non specificato'}</span>
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mt-auto pt-2">
-                {request.isUrgent && <span className="px-2 py-1 text-[10px] font-bold text-on-error-container bg-error-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">priority_high</span>Urgente</span>}
-                {request.isTechRequest && <span className="px-2 py-1 text-[10px] font-bold text-on-secondary-container bg-secondary-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">code</span>Tech</span>}
-                {request.isOsrOpen && <span className="px-2 py-1 text-[10px] font-bold text-on-primary-container bg-primary-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">assignment</span>OSR {request.osrNumber || 'N/D'}</span>}
-            </div>
-        </div>
-    );
+                </td>
+            </tr>
+        );
+    };
     
+    const renderCard = (request: EnrichedRequest) => {
+        const isClosed = request.status === 'CHIUSA';
+        return (
+            <div key={request.id} className="p-5 rounded-2xl shadow-md bg-surface-container-low border-l-4 border-primary flex flex-col gap-4 relative">
+                <div className="flex justify-between items-start">
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{request.requestCode}</span>
+                            <span className={`px-2 py-0.5 inline-flex text-[10px] leading-5 font-bold rounded-full uppercase tracking-tighter ${getStatusBadgeClass(request.status)}`}>{request.status}</span>
+                        </div>
+                        <h3 className="font-bold text-lg text-on-surface truncate pr-8" title={request.projectName}>{request.projectName}</h3>
+                        <p className="text-sm text-on-surface-variant font-medium">{request.roleName}</p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                        <button 
+                            type="button" 
+                            onClick={(e) => { e.stopPropagation(); openMatchingModal(request); }} 
+                            className={`p-2 rounded-full ${isClosed ? 'text-on-surface-variant/30 cursor-not-allowed' : 'text-tertiary hover:bg-surface-container'}`}
+                            title={isClosed ? "Richiesta Chiusa" : "Smart Match"}
+                            disabled={isClosed}
+                        >
+                            <span className="material-symbols-outlined text-xl">smart_toy</span>
+                        </button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); openModalForEdit(request); }} className="p-2 text-on-surface-variant hover:text-primary rounded-full hover:bg-surface-container transition-colors" title="Modifica"><span className="material-symbols-outlined text-xl">edit</span></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setRequestToDelete(request); }} className="p-2 text-on-surface-variant hover:text-error rounded-full hover:bg-surface-container transition-colors" title="Elimina">
+                             {isActionLoading(`deleteResourceRequest-${request.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined text-xl">delete</span>}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 pt-3 border-t border-outline-variant">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Periodo</span>
+                        <span className="text-xs font-semibold text-on-surface">{formatDateFull(request.startDate)} - {formatDateFull(request.endDate)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Impegno</span>
+                        <span className="text-xs font-semibold text-on-surface">{request.commitmentPercentage}%</span>
+                    </div>
+                    <div className="col-span-2 flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-wider">Richiedente</span>
+                        <span className="text-xs font-semibold text-on-surface">{request.requestorName || 'Non specificato'}</span>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-auto pt-2">
+                    {request.isUrgent && <span className="px-2 py-1 text-[10px] font-bold text-on-error-container bg-error-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">priority_high</span>Urgente</span>}
+                    {request.isTechRequest && <span className="px-2 py-1 text-[10px] font-bold text-on-secondary-container bg-secondary-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">code</span>Tech</span>}
+                    {request.isOsrOpen && <span className="px-2 py-1 text-[10px] font-bold text-on-primary-container bg-primary-container rounded-full flex items-center gap-1 uppercase"><span className="material-symbols-outlined text-[12px]">assignment</span>OSR {request.osrNumber || 'N/D'}</span>}
+                </div>
+            </div>
+        );
+    };
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">

@@ -173,14 +173,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
 
     try {
-        // ... (Best Fit Algorithm skipped for brevity, keeping original logic if needed, but updated to use cost logic) ...
+        // --- BEST FIT ALGORITHM ---
          if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
 
-            const { startDate, endDate, roleId, projectId } = req.body;
+            const { startDate, endDate, roleId, projectId, commitmentPercentage } = req.body;
             
             // 1. Fetch Data (Resources filtered by resigned = FALSE)
-            const [resources, assignments, allocations, calendar, resSkills, projSkills, roles, project] = await Promise.all([
+            // Fetch leaves overlapping the period
+            const [resources, assignments, allocations, calendar, resSkills, projSkills, roles, project, leaves] = await Promise.all([
                 client.query('SELECT * FROM resources WHERE resigned = FALSE'),
                 client.query('SELECT * FROM assignments'),
                 client.query('SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2', [startDate, endDate]),
@@ -188,13 +189,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 client.query('SELECT rs.*, s.name as skill_name FROM resource_skills rs JOIN skills s ON rs.skill_id = s.id'),
                 client.query('SELECT ps.*, s.name as skill_name FROM project_skills ps JOIN skills s ON ps.skill_id = s.id WHERE ps.project_id = $1', [projectId]),
                 client.query('SELECT * FROM roles'),
-                client.query('SELECT * FROM projects WHERE id = $1', [projectId])
+                client.query('SELECT * FROM projects WHERE id = $1', [projectId]),
+                client.query('SELECT * FROM leave_requests WHERE status = \'APPROVED\' AND start_date <= $2 AND end_date >= $1', [startDate, endDate])
             ]);
 
             const targetRole = roles.rows.find((r:any) => r.id === roleId);
             const targetSkills = projSkills.rows;
             const start = new Date(startDate);
             const end = new Date(endDate);
+            const requestedLoad = Number(commitmentPercentage) || 100;
 
             // 2. Algorithm
             const scoredResources = resources.rows.map((res: any) => {
@@ -203,19 +206,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 
                 // A. Availability (40%)
                 const resAssignments = assignments.rows.filter((a:any) => a.resource_id === res.id);
+                // Filter leaves for this resource
+                const resLeaves = leaves.rows.filter((l:any) => l.resource_id === res.id);
+
                 let totalAllocatedPct = 0;
                 let workingDays = 0;
                 
                 let cur = new Date(start);
+                // Safe loop
                 while(cur <= end) {
                     const dStr = cur.toISOString().split('T')[0];
                     const isHol = isHolidayInternal(cur, res.location, calendar.rows);
+                    
                     if (!isHol && cur.getDay() !== 0 && cur.getDay() !== 6) {
                         workingDays++;
-                        resAssignments.forEach((a:any) => {
-                             const alloc = allocations.rows.find((al:any) => al.assignment_id === a.id && al.allocation_date.toISOString().split('T')[0] === dStr);
-                             if(alloc) totalAllocatedPct += alloc.percentage;
+                        
+                        // Check Leave
+                        const activeLeave = resLeaves.find((l:any) => {
+                             const lStart = l.start_date.toISOString().split('T')[0];
+                             const lEnd = l.end_date.toISOString().split('T')[0];
+                             return dStr >= lStart && dStr <= lEnd;
                         });
+
+                        if (activeLeave) {
+                             if (activeLeave.is_half_day) totalAllocatedPct += 50;
+                             else totalAllocatedPct += 100;
+                        } else {
+                            // Check Allocations only if no full day leave
+                            resAssignments.forEach((a:any) => {
+                                const alloc = allocations.rows.find((al:any) => al.assignment_id === a.id && al.allocation_date.toISOString().split('T')[0] === dStr);
+                                if(alloc) totalAllocatedPct += alloc.percentage;
+                            });
+                        }
                     }
                     cur.setDate(cur.getDate() + 1);
                 }
@@ -226,9 +248,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const maxCapacity = res.max_staffing_percentage || 100;
                 const remainingCapacity = Math.max(0, maxCapacity - avgLoad);
                 
-                const availabilityScore = maxCapacity > 0 
-                    ? (remainingCapacity / maxCapacity) * 100 
-                    : 0;
+                // --- SCORE CALCULATION UPDATED ---
+                // Compare remaining capacity against the specific requested load
+                let availabilityScore = 0;
+                
+                if (remainingCapacity >= requestedLoad) {
+                    // Fully covers the request
+                    availabilityScore = 100;
+                } else {
+                    // Partially covers (or 0)
+                    // If requested is 100 but I have 50 left, score is 50.
+                    // If requested is 100 but I have 0 left, score is 0.
+                    availabilityScore = (remainingCapacity / requestedLoad) * 100;
+                }
 
                 score += availabilityScore * 0.4;
                 details.availability = availabilityScore;
