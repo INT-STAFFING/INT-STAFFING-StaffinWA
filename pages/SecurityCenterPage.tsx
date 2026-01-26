@@ -128,6 +128,14 @@ const RBACPillar: React.FC = () => {
     const { pageVisibility, updatePageVisibility } = useEntitiesContext();
     const { addToast } = useToast();
     
+    // Manage visibility changes locally first to match "Save" button UX
+    const [localVisibility, setLocalVisibility] = useState(pageVisibility);
+
+    // Sync local state when context updates (initial load)
+    useEffect(() => {
+        setLocalVisibility(pageVisibility);
+    }, [pageVisibility]);
+
     const ROLES: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
     const manageableRoutes = useMemo(() => 
         routesManifest.filter(r => r.requiresAuth !== false).sort((a,b) => a.label.localeCompare(b.label)),
@@ -145,18 +153,22 @@ const RBACPillar: React.FC = () => {
     };
 
     const handleToggleVisibility = (path: string) => {
-        const nextVisibility = { ...pageVisibility, [path]: !pageVisibility[path] };
-        updatePageVisibility(nextVisibility);
+        setLocalVisibility(prev => ({ ...prev, [path]: !prev[path] }));
     };
 
     const handleSave = async () => {
         try {
+            // 1. Save Permissions Matrix
             await authorizedJsonFetch('/api/resources?entity=role-permissions', {
                 method: 'POST',
                 body: JSON.stringify({ permissions: permissionsData })
             });
-            addToast('Matrice dei permessi salvata con successo', 'success');
-        } catch (e) { addToast('Errore nel salvataggio della matrice', 'error'); }
+
+            // 2. Save Page Visibility (Admin Only config)
+            await updatePageVisibility(localVisibility);
+
+            addToast('Configurazione salvata con successo', 'success');
+        } catch (e) { addToast('Errore nel salvataggio della configurazione', 'error'); }
     };
 
     return (
@@ -188,7 +200,7 @@ const RBACPillar: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-outline-variant">
                             {manageableRoutes.map(route => {
-                                const isAdminOnly = pageVisibility[route.path];
+                                const isAdminOnly = localVisibility[route.path];
 
                                 return (
                                     <tr key={route.path} className="hover:bg-surface-container-low transition-colors group">
@@ -481,7 +493,12 @@ const AuditPillar: React.FC = () => {
             params.append('limit', '200'); // Increased limit for timeline
             if (filters.username) params.append('username', filters.username);
             if (filters.actionType) params.append('actionType', filters.actionType);
-            if (filters.entity) params.append('targetEntity', filters.entity); // Use targetEntity to avoid routing conflict
+            
+            // FIX: Map frontend filter 'entity' to API expected 'targetEntity'
+            // or modify API to accept 'entity' as filter when entity='audit_logs'.
+            // Here we use 'targetEntity' to match API expectation from step 2
+            if (filters.entity) params.append('targetEntity', filters.entity); 
+            
             if (filters.entityId) params.append('entityId', filters.entityId);
             if (filters.startDate) params.append('startDate', filters.startDate);
             if (filters.endDate) params.append('endDate', filters.endDate);

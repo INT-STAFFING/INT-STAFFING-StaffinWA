@@ -326,7 +326,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 let idx = 1;
                 if (q.username) { conditions.push(`username ILIKE $${idx++}`); params.push(`%${q.username}%`); }
                 if (q.actionType) { conditions.push(`action = $${idx++}`); params.push(q.actionType); }
+                
+                // IMPORTANT FIX: Map 'targetEntity' from frontend to 'entity' column in DB
                 if (q.targetEntity) { conditions.push(`entity = $${idx++}`); params.push(q.targetEntity); }
+                else if (q.entity && q.entity !== 'audit_logs') { conditions.push(`entity = $${idx++}`); params.push(q.entity); }
+
                 if (q.entityId) { conditions.push(`entity_id = $${idx++}`); params.push(q.entityId); }
                 if (q.startDate) { conditions.push(`created_at >= $${idx++}`); params.push(q.startDate); }
                 if (q.endDate) { conditions.push(`created_at <= $${idx++}`); params.push(q.endDate); }
@@ -353,10 +357,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       VALUES ($1, $2, $3) 
                       ON CONFLICT (role, page_path) 
                       DO UPDATE SET is_allowed = $3`,
-                     [p.role, p.pagePath, p.isAllowed] // FIX: Correctly mapping isAllowed
+                     [p.role, p.pagePath, p.isAllowed]
                  );
              }
              await logAction(client, currentUser, 'UPDATE_RBAC_MATRIX', 'role_permissions', null, { count: permissions.length }, req);
+             await client.query('COMMIT');
+             return res.status(200).json({ success: true });
+        }
+
+        // --- NEW: App Config Batch Update (used for Page Visibility & Theme) ---
+        if (entity === 'app-config-batch' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { updates } = req.body; // Expects array of { key, value }
+             
+             if (!Array.isArray(updates)) return res.status(400).json({ error: 'Invalid updates format' });
+             
+             await client.query('BEGIN');
+             for (const { key, value } of updates) {
+                 await client.query(
+                     `INSERT INTO app_config (key, value) VALUES ($1, $2)
+                      ON CONFLICT (key) DO UPDATE SET value = $2`,
+                     [key, value]
+                 );
+             }
+             await logAction(client, currentUser, 'UPDATE_CONFIG_BATCH', 'app_config', null, { count: updates.length }, req);
+             await client.query('COMMIT');
+             return res.status(200).json({ success: true });
+        }
+        // --- NEW: Theme Specific Update (used by ThemeContext) ---
+        if (entity === 'theme' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { updates } = req.body; // Expects Object { key: value }
+             
+             await client.query('BEGIN');
+             for (const [key, value] of Object.entries(updates)) {
+                 await client.query(
+                     `INSERT INTO app_config (key, value) VALUES ($1, $2)
+                      ON CONFLICT (key) DO UPDATE SET value = $2`,
+                     [key, value]
+                 );
+             }
+             await logAction(client, currentUser, 'UPDATE_THEME', 'app_config', null, {}, req);
              await client.query('COMMIT');
              return res.status(200).json({ success: true });
         }
