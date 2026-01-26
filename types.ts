@@ -686,8 +686,8 @@ export interface RolePermission {
     role: UserRole;
     /** @property {string} pagePath - Il percorso della pagina (es. '/staffing'). */
     pagePath: string;
-    /** @property {boolean} allowed - Se l'accesso è consentito. */
-    allowed: boolean;
+    /** @property {boolean} isAllowed - Se l'accesso è consentito. */
+    isAllowed: boolean;
 }
 
 /**

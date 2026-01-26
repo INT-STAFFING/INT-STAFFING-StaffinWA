@@ -277,7 +277,7 @@ export const exportUsersPermissions = async (users: AppUser[], permissions: Role
     const permissionsData = permissions.map(p => ({
         'Ruolo': p.role,
         'Pagina': p.pagePath,
-        'Accesso Consentito': p.allowed ? 'SI' : 'NO'
+        'Accesso Consentito': p.isAllowed ? 'SI' : 'NO' // FIX: isAllowed
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(permissionsData), 'Permessi');
 

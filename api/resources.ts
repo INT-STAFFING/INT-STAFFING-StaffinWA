@@ -353,7 +353,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                       VALUES ($1, $2, $3) 
                       ON CONFLICT (role, page_path) 
                       DO UPDATE SET is_allowed = $3`,
-                     [p.role, p.pagePath, p.allowed]
+                     [p.role, p.pagePath, p.isAllowed] // FIX: Correctly mapping isAllowed
                  );
              }
              await logAction(client, currentUser, 'UPDATE_RBAC_MATRIX', 'role_permissions', null, { count: permissions.length }, req);

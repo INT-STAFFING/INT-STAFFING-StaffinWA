@@ -138,8 +138,8 @@ const RBACPillar: React.FC = () => {
             const list = prev || [];
             const idx = list.findIndex(x => x.role === role && x.pagePath === path);
             const newList = [...list];
-            if (idx >= 0) newList[idx] = { ...newList[idx], allowed: !newList[idx].allowed };
-            else newList.push({ role, pagePath: path, allowed: true });
+            if (idx >= 0) newList[idx] = { ...newList[idx], isAllowed: !newList[idx].isAllowed }; // FIX: isAllowed
+            else newList.push({ role, pagePath: path, isAllowed: true });
             return newList;
         });
     };
@@ -210,7 +210,7 @@ const RBACPillar: React.FC = () => {
                                             />
                                         </td>
                                         {ROLES.map(role => {
-                                            const allowed = permissionsData?.find(x => x.role === role && x.pagePath === route.path)?.allowed;
+                                            const allowed = permissionsData?.find(x => x.role === role && x.pagePath === route.path)?.isAllowed; // FIX: isAllowed
                                             return (
                                                 <td key={role} className="px-2 py-4 text-center">
                                                     <input 
