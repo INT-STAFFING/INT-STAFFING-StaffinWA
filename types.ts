@@ -911,7 +911,7 @@ export interface EntitiesActions {
      * Esegue l'algoritmo di best fit per trovare risorse adatte a una richiesta.
      * @returns Array di candidati ordinati per punteggio.
      */
-    getBestFitResources: (params: { startDate: string; endDate: string; roleId: string; projectId: string }) => Promise<any[]>;
+    getBestFitResources: (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => Promise<any[]>;
 }
 
 /**
