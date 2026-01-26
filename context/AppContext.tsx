@@ -506,6 +506,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         return entry ? Number(entry.dailyRate) : 0; 
     };
     
+    // UPDATED SIGNATURE: Added commitmentPercentage
     const getBestFitResources = useCallback(async (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => {
         setActionLoading('getBestFitResources', true);
         try {
