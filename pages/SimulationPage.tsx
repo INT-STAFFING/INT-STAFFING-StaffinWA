@@ -49,6 +49,7 @@ type Action =
     | { type: 'LOAD_SCENARIO'; payload: SimulationScenario }
     | { type: 'IMPORT_DATA'; payload: { resources: SimulationResource[], projects: SimulationProject[], assignments: Assignment[], allocations: Allocation, financials: SimulationFinancials } }
     | { type: 'UPDATE_META'; payload: { name?: string; description?: string } }
+    | { type: 'SET_SCENARIO_ID'; payload: string }
     | { type: 'ADD_GHOST_RESOURCE'; payload: SimulationResource }
     | { type: 'UPDATE_RESOURCE_COST'; payload: { resourceId: string; dailyCost: number; dailyExpenses: number; sellRate: number } }
     | { type: 'UPDATE_PROJECT_RATE_CARD'; payload: { projectId: string; rateCardId: string } }
@@ -87,6 +88,8 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
             };
         case 'UPDATE_META':
             return { ...state, ...action.payload, hasUnsavedChanges: true };
+        case 'SET_SCENARIO_ID':
+            return { ...state, id: action.payload }; // DOES NOT set unsaved changes
         case 'ADD_GHOST_RESOURCE':
             const newFin = { ...state.financials };
             // Initialize financials for ghost
@@ -357,9 +360,10 @@ const SimulationPage: React.FC = () => {
             const existingEntry = scenarios.find(s => s.id === scenarioId || s.key === scenarioKey);
             const dbId = existingEntry?.dbId;
 
-            // FIX: Always send scope='SIMULATION'
+            let result;
+
             if (dbId) {
-                await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, { 
+                result = await apiFetch<{id: string}>(`/api/resources?entity=analytics_cache&id=${dbId}`, { 
                     method: 'PUT', 
                     body: JSON.stringify({ 
                         key: scenarioKey, 
@@ -368,7 +372,7 @@ const SimulationPage: React.FC = () => {
                     }) 
                 });
             } else {
-                await apiFetch('/api/resources?entity=analytics_cache', { 
+                result = await apiFetch<{id: string}>('/api/resources?entity=analytics_cache', { 
                     method: 'POST', 
                     body: JSON.stringify({ 
                         key: scenarioKey, 
@@ -378,10 +382,13 @@ const SimulationPage: React.FC = () => {
                 });
             }
 
-            dispatch({ type: 'RESET_CHANGES' });
+            // Update local ID if new, BEFORE resetting changes
             if (!state.id) {
-                 dispatch({ type: 'UPDATE_META', payload: { ...state, id: scenarioId } } as any); 
+                 dispatch({ type: 'SET_SCENARIO_ID', payload: scenarioId }); 
             }
+            
+            // Mark as clean
+            dispatch({ type: 'RESET_CHANGES' });
             
             addToast('Scenario salvato correttamente.', 'success');
             setIsSaveModalOpen(false);

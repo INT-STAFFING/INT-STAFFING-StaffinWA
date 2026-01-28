@@ -233,9 +233,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
                 
                 const { key, data, scope } = req.body;
-                
-                // Use supplied ID or generate new if POST
-                // If PUT, `id` comes from query params `req.query.id`
                 const recordId = id || uuidv4();
                 const recordScope = scope || 'SIMULATION'; // Default scope
                 const updatedAt = new Date().toISOString();
@@ -249,11 +246,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     await logAction(client, currentUser, 'UPDATE', 'analytics_cache', id as string, { key }, req);
                     return res.status(200).json({ id, key, ...req.body });
                 } else {
-                    // If NO ID (POST), insert or update on conflict of KEY
-                    // Note: analytics_cache PK is `key` in some versions, or `id` with unique `key`. 
-                    // To be safe with generic schemas, we use UPSERT on KEY if it exists, assuming KEY is unique.
-                    
-                    await client.query(
+                    // UPSERT: Create new OR update existing key. Return THE ACTUAL ID from DB.
+                    const result = await client.query(
                         `INSERT INTO analytics_cache (id, key, data, scope, updated_at) 
                          VALUES ($1, $2, $3, $4, $5)
                          ON CONFLICT (key) DO UPDATE 
@@ -262,8 +256,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         [recordId, key, JSON.stringify(data), recordScope, updatedAt]
                     );
                     
-                    await logAction(client, currentUser, 'CREATE', 'analytics_cache', recordId, { key }, req);
-                    return res.status(201).json({ id: recordId, key, ...req.body });
+                    const actualId = result.rows[0].id; // Ensure we get the persistent ID
+                    await logAction(client, currentUser, 'CREATE', 'analytics_cache', actualId, { key }, req);
+                    return res.status(201).json({ id: actualId, key, ...req.body });
                 }
             }
         }
