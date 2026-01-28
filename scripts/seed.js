@@ -18,6 +18,18 @@ async function main() {
     
     try {
         console.log('--- Inizio Seeding Totale ---');
+        
+        // Ensure critical tables exist before truncating to avoid "relation does not exist" errors on fresh runs
+        await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
+        await client.sql`
+            CREATE TABLE IF NOT EXISTS analytics_cache (
+                id UUID PRIMARY KEY,
+                key VARCHAR(255) UNIQUE NOT NULL,
+                data JSONB,
+                scope VARCHAR(50),
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
 
         // 0. RESET DATABASE (Ordine critico per Cascade)
         console.log('0. Resetting tables...');

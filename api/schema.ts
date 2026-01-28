@@ -164,8 +164,19 @@ export async function ensureDbTablesExist(db: VercelPool) {
     // 9. Leave Management
     await db.sql`CREATE TABLE IF NOT EXISTS leave_types ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, color VARCHAR(50) NOT NULL, requires_approval BOOLEAN DEFAULT TRUE, affects_capacity BOOLEAN DEFAULT TRUE );`;
     await db.sql`CREATE TABLE IF NOT EXISTS leave_requests ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, type_id UUID REFERENCES leave_types(id) ON DELETE RESTRICT, start_date DATE NOT NULL, end_date DATE NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PENDING', manager_id UUID REFERENCES resources(id) ON DELETE SET NULL, notes TEXT, approver_ids UUID[], is_half_day BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;
+    
+    // 10. Analytics Cache & Simulations (MISSING IN PREVIOUS VERSIONS)
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS analytics_cache (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            key VARCHAR(255) UNIQUE NOT NULL,
+            data JSONB,
+            scope VARCHAR(50),
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
 
-    // 10. Theme Seed
+    // 11. Theme Seed
     const flattenPalette = (palette: object, prefix: string) => 
         Object.entries(palette).map(([key, value]) => ({ key: `theme.${prefix}.${key}`, value }));
 
