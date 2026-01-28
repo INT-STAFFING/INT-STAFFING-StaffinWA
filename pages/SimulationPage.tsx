@@ -1,3 +1,4 @@
+
 import React, { useState, useReducer, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEntitiesContext, useAllocationsContext, AllocationsContext } from '../context/AppContext';
@@ -54,6 +55,7 @@ type Action =
     | { type: 'ADD_GHOST_RESOURCE'; payload: SimulationResource }
     | { type: 'UPDATE_RESOURCE_COST'; payload: { resourceId: string; dailyCost: number; dailyExpenses: number; sellRate: number } }
     | { type: 'UPDATE_PROJECT_RATE_CARD'; payload: { projectId: string; rateCardId: string } }
+    | { type: 'BULK_UPDATE_PROJECT_RATE_CARD'; payload: string }
     | { type: 'ADD_ASSIGNMENT'; payload: Assignment }
     | { type: 'DELETE_ASSIGNMENT'; payload: string }
     | { type: 'UPDATE_ALLOCATION'; payload: { assignmentId: string; date: string; percentage: number } }
@@ -119,6 +121,12 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
             return {
                 ...state,
                 projects: state.projects.map(p => p.id === action.payload.projectId ? { ...p, simulatedRateCardId: action.payload.rateCardId } : p),
+                hasUnsavedChanges: true
+            };
+        case 'BULK_UPDATE_PROJECT_RATE_CARD':
+            return {
+                ...state,
+                projects: state.projects.map(p => ({ ...p, simulatedRateCardId: action.payload })),
                 hasUnsavedChanges: true
             };
         case 'ADD_ASSIGNMENT':
@@ -195,6 +203,7 @@ const SimulationPage: React.FC = () => {
         location: locations[0]?.value, 
         roleId: roles[0]?.id 
     });
+    const [bulkRateCardId, setBulkRateCardId] = useState('');
     
     // For Staffing Grid Interaction
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -210,6 +219,7 @@ const SimulationPage: React.FC = () => {
                     // Robust extraction
                     const data = item.data || {};
                     return { 
+                        dbId: item.id, // Capture the DB Primary Key for updates
                         key: item.key, 
                         id: data.id,
                         name: data.name || 'Scenario Senza Nome', 
@@ -318,6 +328,8 @@ const SimulationPage: React.FC = () => {
         setIsLoading(true);
         try {
             const scenarioId = state.id || uuidv4();
+            const scenarioKey = `scenario_${scenarioId}`;
+
             const scenarioData: SimulationScenario = {
                 id: scenarioId,
                 name: state.name,
@@ -332,14 +344,30 @@ const SimulationPage: React.FC = () => {
                     financials: state.financials
                 }
             };
-            
-            await apiFetch('/api/resources?entity=analytics_cache', {
-                method: 'POST',
-                body: JSON.stringify({
-                    key: `scenario_${scenarioId}`,
-                    data: scenarioData
-                })
-            });
+
+            // Check if scenario exists to decide between POST (create) and PUT (update)
+            const existingEntry = scenarios.find(s => s.key === scenarioKey);
+            const dbId = existingEntry?.dbId;
+
+            if (dbId) {
+                // Update existing
+                await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        key: scenarioKey,
+                        data: scenarioData
+                    })
+                });
+            } else {
+                // Create new
+                await apiFetch('/api/resources?entity=analytics_cache', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        key: scenarioKey,
+                        data: scenarioData
+                    })
+                });
+            }
 
             dispatch({ type: 'RESET_CHANGES' });
             // Update the ID in state so subsequent saves update the same scenario
@@ -349,8 +377,9 @@ const SimulationPage: React.FC = () => {
             }
             
             addToast('Scenario salvato correttamente.', 'success');
-            loadScenariosList(); // Refresh list
+            loadScenariosList(); // Refresh list to get new DB IDs if any
         } catch (e) {
+            console.error(e);
             addToast('Errore durante il salvataggio dello scenario.', 'error');
         } finally {
             setIsLoading(false);
@@ -412,6 +441,15 @@ const SimulationPage: React.FC = () => {
         addToast('Risorsa simulata aggiunta.', 'success');
     };
 
+    const handleBulkApplyRateCard = () => {
+        if (!bulkRateCardId) return;
+        const cardName = rateCards.find(rc => rc.id === bulkRateCardId)?.name;
+        if (confirm(`Sei sicuro di voler applicare il listino "${cardName}" a TUTTI i progetti della simulazione?`)) {
+            dispatch({ type: 'BULK_UPDATE_PROJECT_RATE_CARD', payload: bulkRateCardId });
+            addToast('Listino applicato a tutti i progetti.', 'success');
+        }
+    };
+
     // --- GRID ADAPTER ---
     const gridProps = useMemo(() => {
         const daysToRender = 30;
@@ -445,28 +483,17 @@ const SimulationPage: React.FC = () => {
         };
     }, [state.resources, state.assignments, state.projects, currentDate, clients, roles, companyCalendar]);
 
-    // Local Context Wrapper for the Grid
-    const SimulationAllocationsProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
-        const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number) => {
+    // Construct the context value with the required dependency (state.allocations)
+    // to ensure the Grid updates when allocations are imported/changed.
+    const allocationsContextValue = useMemo(() => ({
+        allocations: state.allocations,
+        updateAllocation: async (assignmentId: string, date: string, percentage: number) => {
             dispatch({ type: 'UPDATE_ALLOCATION', payload: { assignmentId, date, percentage } });
-        }, []);
-        
-        const bulkUpdateAllocations = useCallback(async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
+        },
+        bulkUpdateAllocations: async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
             dispatch({ type: 'BULK_UPDATE_ALLOCATION', payload: { assignmentId, startDate, endDate, percentage } });
-        }, []);
-
-        const value = useMemo(() => ({
-            allocations: state.allocations,
-            updateAllocation,
-            bulkUpdateAllocations
-        }), [updateAllocation, bulkUpdateAllocations]);
-
-        return (
-            <AllocationsContext.Provider value={value}> 
-                 {children}
-            </AllocationsContext.Provider> 
-        );
-    };
+        }
+    }), [state.allocations]);
     
     // --- Analysis Data Calculation ---
     const analysisData = useMemo(() => {
@@ -616,7 +643,29 @@ const SimulationPage: React.FC = () => {
 
                         {/* Project Config */}
                         <div className="bg-surface p-6 rounded-2xl shadow border border-outline-variant">
-                            <h3 className="text-lg font-bold mb-4">Configurazione Progetti e Listini</h3>
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                                <h3 className="text-lg font-bold">Configurazione Progetti e Listini</h3>
+                                <div className="flex items-center gap-2 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
+                                    <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1">Massivo:</span>
+                                    <select
+                                        className="bg-transparent text-sm border-none focus:ring-0 cursor-pointer py-1 pl-2 pr-8"
+                                        value={bulkRateCardId}
+                                        onChange={(e) => setBulkRateCardId(e.target.value)}
+                                    >
+                                        <option value="">Seleziona Listino...</option>
+                                        {rateCards.map(rc => (
+                                            <option key={rc.id} value={rc.id}>{rc.name}</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={handleBulkApplyRateCard}
+                                        disabled={!bulkRateCardId}
+                                        className="px-3 py-1 bg-primary text-on-primary text-xs font-bold rounded-md disabled:opacity-50 hover:opacity-90"
+                                    >
+                                        Applica
+                                    </button>
+                                </div>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-surface-container-low text-xs uppercase font-bold text-on-surface-variant">
@@ -662,14 +711,19 @@ const SimulationPage: React.FC = () => {
                             </div>
                         </div>
                         
-                        <SimulationAllocationsProvider>
+                        {/* 
+                           FIX: Using direct Context Provider with memoized value that includes state.allocations 
+                           instead of defining the component inside the render method. 
+                           This ensures allocations are properly propagated to the grid. 
+                        */}
+                        <AllocationsContext.Provider value={allocationsContextValue}>
                              <VirtualStaffingGrid 
                                  {...gridProps}
                                  onAddAssignment={() => { /* Mock or implement */ }}
                                  onBulkEdit={(assignment) => { /* Mock or implement - needs local state */ }}
                                  onDeleteAssignment={(assignment) => dispatch({ type: 'DELETE_ASSIGNMENT', payload: assignment.id! })}
                              />
-                        </SimulationAllocationsProvider>
+                        </AllocationsContext.Provider>
                     </div>
                 )}
 
