@@ -238,6 +238,7 @@ const SimulationPage: React.FC = () => {
     // --- Actions ---
 
     const handleImportRealData = () => {
+        // Validazione
         if (!realResources || realResources.length === 0) {
             addToast('Nessuna risorsa disponibile da importare.', 'warning');
             return;
@@ -254,7 +255,11 @@ const SimulationPage: React.FC = () => {
             });
 
             const simAssignments: Assignment[] = realAssignments ? JSON.parse(JSON.stringify(realAssignments)) : [];
-            const simAllocations: Allocation = realAllocations ? JSON.parse(JSON.stringify(realAllocations)) : {};
+            
+            // FIX: Ensure realAllocations is valid before copy, otherwise use empty object
+            const simAllocations: Allocation = realAllocations && Object.keys(realAllocations).length > 0
+                ? JSON.parse(JSON.stringify(realAllocations)) 
+                : {};
 
             const simFinancials: SimulationFinancials = {};
             
@@ -288,6 +293,23 @@ const SimulationPage: React.FC = () => {
                     financials: simFinancials
                 }
             });
+            
+            // FIND EARLIEST ALLOCATION TO JUMP CALENDAR
+            let earliestDate = new Date().toISOString();
+            let found = false;
+            Object.values(simAllocations).forEach(assignmentAlloc => {
+                Object.keys(assignmentAlloc).forEach(dateStr => {
+                    if (dateStr < earliestDate) {
+                        earliestDate = dateStr;
+                        found = true;
+                    }
+                });
+            });
+            
+            if (found) {
+                const d = new Date(earliestDate);
+                setCurrentDate(d);
+            }
             
             setActiveTab('config');
             addToast(`Importati con successo: ${simResources.length} risorse, ${simProjects.length} progetti.`, 'success');
@@ -325,10 +347,25 @@ const SimulationPage: React.FC = () => {
             const existingEntry = scenarios.find(s => s.key === scenarioKey);
             const dbId = existingEntry?.dbId;
 
+            // FIX: Add 'scope' and ensure payload matches API expectations
             if (dbId) {
-                await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, { method: 'PUT', body: JSON.stringify({ key: scenarioKey, data: scenarioData }) });
+                await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, { 
+                    method: 'PUT', 
+                    body: JSON.stringify({ 
+                        key: scenarioKey, 
+                        data: scenarioData,
+                        scope: 'SIMULATION' // Required by schema
+                    }) 
+                });
             } else {
-                await apiFetch('/api/resources?entity=analytics_cache', { method: 'POST', body: JSON.stringify({ key: scenarioKey, data: scenarioData }) });
+                await apiFetch('/api/resources?entity=analytics_cache', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ 
+                        key: scenarioKey, 
+                        data: scenarioData,
+                        scope: 'SIMULATION' // Required by schema
+                    }) 
+                });
             }
 
             dispatch({ type: 'RESET_CHANGES' });
@@ -357,6 +394,21 @@ const SimulationPage: React.FC = () => {
                 dispatch({ type: 'LOAD_SCENARIO', payload: scenarioData });
                 setIsLoadModalOpen(false);
                 setActiveTab('config');
+                // Set calendar to loaded data range
+                 let earliestDate = new Date().toISOString();
+                let found = false;
+                if (scenarioData.data.allocations) {
+                     Object.values(scenarioData.data.allocations).forEach((assignmentAlloc: any) => {
+                        Object.keys(assignmentAlloc).forEach(dateStr => {
+                            if (dateStr < earliestDate) {
+                                earliestDate = dateStr;
+                                found = true;
+                            }
+                        });
+                    });
+                }
+                if (found) setCurrentDate(new Date(earliestDate));
+
                 addToast(`Scenario "${scenarioData.name}" caricato.`, 'success');
             } else {
                 addToast('Dati dello scenario non trovati o corrotti.', 'error');
