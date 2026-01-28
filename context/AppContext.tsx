@@ -41,7 +41,7 @@ type PlanningResponse = Partial<EntitiesContextType> & { allocations?: Allocatio
 
 // --- Context Definitions ---
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
-const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
+export const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
 const AppStateContext = createContext<{ loading: boolean; fetchError: string | null } | undefined>(undefined);
 
 const CatalogsContext = createContext<Pick<EntitiesContextType,
@@ -545,8 +545,64 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const updateInterview = async (interview: Interview) => { setActionLoading(`updateInterview-${interview.id}`, true); try { const updated = await apiFetch<Interview>(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) }); setInterviews(prev => prev.map(i => i.id === interview.id ? updated : i)); } finally { setActionLoading(`updateInterview-${interview.id}`, false); } };
     const deleteInterview = async (id: string) => { setActionLoading(`deleteInterview-${id}`, true); try { await apiFetch(`/api/resources?entity=interviews&id=${id}`, { method: 'DELETE' }); setInterviews(prev => prev.filter(i => i.id !== id)); } finally { setActionLoading(`deleteInterview-${id}`, false); } };
     
-    const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => { setActionLoading('addContract', true); try { const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) }); const linkPromises = [ ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, projectId: pid }) })), ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, resourceId: mid }) })) ]; await Promise.all(linkPromises); await fetchData(); addToast('Contratto creato con successo', 'success'); } catch (e) { addToast('Errore durante la creazione del contratto', 'error'); } finally { setActionLoading('addContract', false); } };
-    const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => { setActionLoading(`updateContract-${contract.id}`, true); try { await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) }); const linkPromises = [ ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: contract.id, projectId: pid }) })), ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: contract.id, resourceId: mid }) })) ]; await Promise.all(linkPromises); await fetchData(); addToast('Contratto aggiornato con successo', 'success'); } catch (e) { addToast('Errore durante l\'aggiornamento del contratto', 'error'); } finally { setActionLoading(`updateContract-${contract.id}`, false); } };
+    const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => { 
+        setActionLoading('addContract', true); 
+        try { 
+            const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) }); 
+            const linkPromises = [ 
+                ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, projectId: pid }) })), 
+                ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, resourceId: mid }) })) 
+            ]; 
+            await Promise.all(linkPromises);
+            
+            // INHERITANCE LOGIC: If projects are linked, update their billingType if contract has one
+            if (contract.billingType && projectIds.length > 0) {
+                 await Promise.all(projectIds.map(pid => 
+                     apiFetch(`/api/resources?entity=projects&id=${pid}`, {
+                         method: 'PUT',
+                         body: JSON.stringify({ billingType: contract.billingType })
+                     })
+                 ));
+            }
+
+            await fetchData(); 
+            addToast('Contratto creato con successo', 'success'); 
+        } catch (e) { 
+            addToast('Errore durante la creazione del contratto', 'error'); 
+        } finally { 
+            setActionLoading('addContract', false); 
+        } 
+    };
+
+    const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => { 
+        setActionLoading(`updateContract-${contract.id}`, true); 
+        try { 
+            await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) }); 
+            const linkPromises = [ 
+                ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: contract.id, projectId: pid }) })), 
+                ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: contract.id, resourceId: mid }) })) 
+            ]; 
+            await Promise.all(linkPromises);
+
+            // INHERITANCE LOGIC: Update billingType for all linked projects
+            if (contract.billingType && projectIds.length > 0) {
+                 await Promise.all(projectIds.map(pid => 
+                     apiFetch(`/api/resources?entity=projects&id=${pid}`, {
+                         method: 'PUT',
+                         body: JSON.stringify({ billingType: contract.billingType })
+                     })
+                 ));
+            }
+
+            await fetchData(); 
+            addToast('Contratto aggiornato con successo', 'success'); 
+        } catch (e) { 
+            addToast('Errore durante l\'aggiornamento del contratto', 'error'); 
+        } finally { 
+            setActionLoading(`updateContract-${contract.id}`, false); 
+        } 
+    };
+
     const deleteContract = async (id: string) => { setActionLoading(`deleteContract-${id}`, true); try { await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' }); setContracts(prev => prev.filter(c => c.id !== id)); addToast('Contratto eliminato', 'success'); } finally { setActionLoading(`deleteContract-${id}`, false); } };
     const recalculateContractBacklog = async (id: string) => { setActionLoading(`recalculateBacklog-${id}`, true); try { const contract = contracts.find(c => c.id === id); if (!contract) return; const linkedProjects = contractProjects.filter(cp => cp.contractId === id).map(cp => cp.projectId); const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0); const newBacklog = Number(contract.capienza) - usedBudget; await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, []); } finally { setActionLoading(`recalculateBacklog-${id}`, false); } };
     

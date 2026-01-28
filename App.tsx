@@ -18,6 +18,7 @@ import LoadingSkeleton from './components/LoadingSkeleton';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
 import { SpinnerIcon } from './components/icons';
+import { FormFieldFeedback } from './components/forms';
 
 // Lazy load all page components
 const StaffingPage = lazy(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
@@ -31,6 +32,7 @@ const ConfigPage = lazy(() => import('./pages/ConfigPage'));
 const RateCardsPage = lazy(() => import('./pages/RateCardsPage'));
 const ImportPage = lazy(() => import('./pages/ImportPage'));
 const ForecastingPage = lazy(() => import('./pages/ForecastingPage'));
+const SimulationPage = lazy(() => import('./pages/SimulationPage'));
 const GanttPage = lazy(() => import('./pages/GanttPage'));
 const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const WorkloadPage = lazy(() => import('./pages/WorkloadPage'));
@@ -192,6 +194,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/wbs-analysis" element={<DynamicRoute path="/wbs-analysis"><WbsAllocationPage /></DynamicRoute>} />
               <Route path="/dashboard" element={<DynamicRoute path="/dashboard"><DashboardPage /></DynamicRoute>} />
               <Route path="/forecasting" element={<DynamicRoute path="/forecasting"><ForecastingPage /></DynamicRoute>} />
+              <Route path="/simulation" element={<DynamicRoute path="/simulation"><SimulationPage /></DynamicRoute>} />
               <Route path="/workload" element={<DynamicRoute path="/workload"><WorkloadPage /></DynamicRoute>} />
               <Route path="/gantt" element={<DynamicRoute path="/gantt"><GanttPage /></DynamicRoute>} />
               <Route path="/calendar" element={<DynamicRoute path="/calendar"><CalendarPage /></DynamicRoute>} />

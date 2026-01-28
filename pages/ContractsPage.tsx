@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
-import { Contract } from '../types';
+import { Contract, BillingType } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -38,7 +38,8 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
         wbs: contract.wbs || null,
         capienza: contract.capienza,
         backlog: contract.backlog,
-        rateCardId: contract.rateCardId || null
+        rateCardId: contract.rateCardId || null,
+        billingType: contract.billingType || 'TIME_MATERIAL'
     };
 
     if ('id' in contract) {
@@ -71,7 +72,8 @@ export const ContractsPage: React.FC = () => {
         wbs: '',
         capienza: 0,
         backlog: 0,
-        rateCardId: null
+        rateCardId: null,
+        billingType: 'TIME_MATERIAL'
     };
 
     // KPI Calculations
@@ -118,6 +120,7 @@ export const ContractsPage: React.FC = () => {
             'CIG': c.cig,
             'CIG Derivato': c.cigDerivato || '',
             'WBS': c.wbs || '',
+            'Tipo Fatturazione': c.billingType === 'FIXED_PRICE' ? 'Fixed Price' : 'Time & Material',
             'Capienza': formatCurrency(c.capienza),
             'Backlog': formatCurrency(c.backlog),
             'Listino': c.rateCardName || 'Standard',
@@ -147,7 +150,12 @@ export const ContractsPage: React.FC = () => {
         const projectIds = contractProjects.filter(cp => cp.contractId === contract.id).map(cp => cp.projectId);
         const managerIds = contractManagers.filter(cm => cm.contractId === contract.id).map(cm => cm.resourceId);
         
-        setEditingContract({ ...contract, startDate: toISODate(contract.startDate), endDate: toISODate(contract.endDate) });
+        setEditingContract({ 
+            ...contract, 
+            startDate: toISODate(contract.startDate), 
+            endDate: toISODate(contract.endDate),
+            billingType: contract.billingType || 'TIME_MATERIAL'
+        });
         setAssociatedProjectIds(projectIds);
         setAssociatedManagerIds(managerIds);
         setIsModalOpen(true);
@@ -177,7 +185,7 @@ export const ContractsPage: React.FC = () => {
         }
     };
     
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         if (!editingContract) return;
         const { name, value } = e.target;
         const isNumeric = ['capienza'].includes(name);
@@ -204,7 +212,14 @@ export const ContractsPage: React.FC = () => {
     const rateCardOptions = useMemo(() => rateCards.map(r => ({ value: r.id!, label: r.name })), [rateCards]);
 
     const columns: ColumnDef<EnrichedContract>[] = [
-        { header: 'Nome Contratto', sortKey: 'name', cell: c => <span className="font-medium">{c.name}</span> },
+        { header: 'Nome Contratto', sortKey: 'name', cell: c => (
+            <div>
+                <span className="font-medium block">{c.name}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${c.billingType === 'FIXED_PRICE' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-variant text-on-surface-variant'}`}>
+                    {c.billingType === 'FIXED_PRICE' ? 'Fixed Price' : 'Time & Material'}
+                </span>
+            </div>
+        ) },
         { header: 'CIG', sortKey: 'cig', cell: c => <span className="font-mono text-xs">{c.cig}</span> },
         { header: 'WBS', sortKey: 'wbs', cell: c => <span className="font-mono text-xs text-on-surface-variant">{c.wbs || '-'}</span> },
         { header: 'Listino', sortKey: 'rateCardName', cell: c => <span className="text-xs">{c.rateCardName || '-'}</span> },
@@ -248,6 +263,11 @@ export const ContractsPage: React.FC = () => {
                         {isActionLoading(`deleteContract-${contract.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                     </button>
                 </div>
+            </div>
+            <div className="mt-2">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${contract.billingType === 'FIXED_PRICE' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-variant text-on-surface-variant'}`}>
+                    {contract.billingType === 'FIXED_PRICE' ? 'Fixed Price' : 'Time & Material'}
+                </span>
             </div>
             <div className="mt-4 pt-4 border-t border-outline-variant grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-on-surface-variant">Capienza</p><p className="font-medium text-on-surface">{formatCurrency(contract.capienza)}</p></div>
@@ -344,16 +364,31 @@ export const ContractsPage: React.FC = () => {
                                     <input type="number" name="capienza" value={editingContract.capienza} onChange={handleChange} required className="form-input" step="0.01" />
                                 </div>
                                 
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Listino Vendita (Rate Card)</label>
-                                    <SearchableSelect 
-                                        name="rateCardId" 
-                                        value={editingContract.rateCardId || ''} 
-                                        onChange={handleSelectChange} 
-                                        options={rateCardOptions} 
-                                        placeholder="Seleziona listino (opzionale)" 
-                                    />
-                                    <p className="text-[10px] text-on-surface-variant mt-1">Se non selezionato, il calcolo della marginalità userà il costo standard come fallback.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Listino Vendita (Rate Card)</label>
+                                        <SearchableSelect 
+                                            name="rateCardId" 
+                                            value={editingContract.rateCardId || ''} 
+                                            onChange={handleSelectChange} 
+                                            options={rateCardOptions} 
+                                            placeholder="Seleziona listino (opzionale)" 
+                                        />
+                                        <p className="text-[10px] text-on-surface-variant mt-1">Se non selezionato, usa costo standard.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Tipo Fatturazione</label>
+                                        <select 
+                                            name="billingType" 
+                                            value={editingContract.billingType || 'TIME_MATERIAL'} 
+                                            onChange={handleChange} 
+                                            className="form-select"
+                                        >
+                                            <option value="TIME_MATERIAL">Time & Material</option>
+                                            <option value="FIXED_PRICE">Fixed Price (A Corpo)</option>
+                                        </select>
+                                        <p className="text-[10px] text-on-surface-variant mt-1">Questa impostazione sarà ereditata dai progetti associati.</p>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

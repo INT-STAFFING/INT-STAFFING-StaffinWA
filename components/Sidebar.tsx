@@ -90,7 +90,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
     const sections: SidebarSectionGroup[] = useMemo(() => {
         return groupedItems.map(([sectionName, items]) => {
-            const sectionColor = sidebarSectionColors[sectionName];
+            // Default color mapping for new sections
+            let defaultColor = undefined;
+            if (sectionName === 'Analisi') defaultColor = 'tertiary';
+            
+            const sectionColor = sidebarSectionColors[sectionName] || defaultColor;
+            
             const renderableItems: RenderableSidebarItem[] = items.map(item => ({
                 path: item.path,
                 label: item.label,

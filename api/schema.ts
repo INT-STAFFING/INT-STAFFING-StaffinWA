@@ -136,6 +136,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0 );`;
     await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS wbs VARCHAR(255);`;
     await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL;`;
+    // ADD BILLING_TYPE TO CONTRACTS
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL';`;
     
     await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`;
     

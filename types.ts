@@ -229,6 +229,8 @@ export interface Contract {
     backlog: number;
     /** @property {string | null} rateCardId - ID del listino prezzi associato. */
     rateCardId?: string | null;
+    /** @property {BillingType} [billingType] - Tipo di fatturazione predefinito per il contratto. */
+    billingType?: BillingType;
 }
 
 /**
@@ -962,4 +964,38 @@ export interface AllocationsContextType {
     allocations: Allocation;
     updateAllocation: (assignmentId: string, date: string, percentage: number) => Promise<void>;
     bulkUpdateAllocations: (assignmentId: string, startDate: string, endDate: string, percentage: number) => Promise<void>;
+}
+
+// --- SIMULATION TYPES ---
+
+export interface SimulationResource extends Resource {
+    isGhost: boolean;
+    dailyExpenses: number; // Override or default for ghosts
+}
+
+export interface SimulationFinancials {
+    [resourceId: string]: {
+        dailyCost: number;
+        dailyExpenses: number;
+        sellRate: number; // Specific override
+    };
+}
+
+export interface SimulationProject extends Project {
+    simulatedRateCardId?: string; // Rate card specific to simulation
+}
+
+export interface SimulationScenario {
+    id: string;
+    name: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+    data: {
+        resources: SimulationResource[];
+        projects: SimulationProject[];
+        assignments: Assignment[];
+        allocations: Allocation;
+        financials: SimulationFinancials;
+    };
 }
