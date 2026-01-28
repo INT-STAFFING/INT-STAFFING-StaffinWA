@@ -1,7 +1,7 @@
 
 import React, { useState, useReducer, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useEntitiesContext, useAllocationsContext, AllocationsContext } from '../context/AppContext';
+import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { apiFetch } from '../services/apiClient';
 import { 
@@ -11,14 +11,11 @@ import {
     SimulationFinancials, 
     Assignment, 
     Allocation, 
-    RateCard 
 } from '../types';
 import Modal from '../components/Modal';
 import { SpinnerIcon } from '../components/icons';
 import SearchableSelect from '../components/SearchableSelect';
-import { getCalendarDays, formatDate, isHoliday, getWorkingDaysBetween } from '../utils/dateUtils';
-import VirtualStaffingGrid from '../components/VirtualStaffingGrid';
-import { DataTable, ColumnDef } from '../components/DataTable';
+import { formatDate, getWorkingDaysBetween } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
 import { formatCurrency } from '../utils/formatters';
 
@@ -160,8 +157,11 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
              const end = new Date(endDate);
              const bulkAssignAlloc = { ...(state.allocations[assignmentId] || {}) };
              
+             // Iterate through dates and set percentage
              for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                 if (d.getDay() !== 0 && d.getDay() !== 6) {
+                 const day = d.getDay();
+                 // Simple weekend check (Mock, real calendar check should happen in UI before dispatch if needed, but this is reducer logic)
+                 if (day !== 0 && day !== 6) {
                      const dateStr = d.toISOString().split('T')[0];
                      if (percentage === 0) delete bulkAssignAlloc[dateStr];
                      else bulkAssignAlloc[dateStr] = percentage;
@@ -185,7 +185,7 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
 const SimulationPage: React.FC = () => {
     const { 
         resources: realResources, projects: realProjects, assignments: realAssignments, contracts: realContracts, 
-        rateCards, rateCardEntries, roles, horizontals, locations, companyCalendar, getRoleCost, getSellRate, clients 
+        rateCards, rateCardEntries, roles, horizontals, locations, companyCalendar, clients 
     } = useEntitiesContext();
     const { allocations: realAllocations } = useAllocationsContext();
     const { addToast } = useToast();
@@ -205,7 +205,7 @@ const SimulationPage: React.FC = () => {
     });
     const [bulkRateCardId, setBulkRateCardId] = useState('');
     
-    // For Staffing Grid Interaction
+    // For Staffing Table Interaction
     const [currentDate, setCurrentDate] = useState(new Date());
 
     // Load Scenarios List
@@ -216,10 +216,9 @@ const SimulationPage: React.FC = () => {
             const scenarioList = allCache
                 .filter(item => item.key && item.key.startsWith('scenario_'))
                 .map(item => {
-                    // Robust extraction
                     const data = item.data || {};
                     return { 
-                        dbId: item.id, // Capture the DB Primary Key for updates
+                        dbId: item.id, 
                         key: item.key, 
                         id: data.id,
                         name: data.name || 'Scenario Senza Nome', 
@@ -239,7 +238,6 @@ const SimulationPage: React.FC = () => {
     // --- Actions ---
 
     const handleImportRealData = () => {
-        // Validation: Ensure data is loaded
         if (!realResources || realResources.length === 0) {
             addToast('Nessuna risorsa disponibile da importare.', 'warning');
             return;
@@ -248,43 +246,25 @@ const SimulationPage: React.FC = () => {
         if (!confirm('Importando i dati reali sovrascriverai l\'attuale simulazione. Continuare?')) return;
 
         try {
-            // 1. Transform Resources (Safe check for undefined)
-            const simResources: SimulationResource[] = (realResources || []).map(r => ({
-                ...r,
-                isGhost: false,
-                dailyExpenses: 0
-            }));
+            const simResources: SimulationResource[] = (realResources || []).map(r => ({ ...r, isGhost: false, dailyExpenses: 0 }));
 
-            // 2. Transform Projects
             const simProjects: SimulationProject[] = (realProjects || []).map(p => {
                  const contract = (realContracts || []).find(c => c.id === p.contractId);
-                 return { 
-                     ...p, 
-                     simulatedRateCardId: contract?.rateCardId || undefined 
-                 };
+                 return { ...p, simulatedRateCardId: contract?.rateCardId || undefined };
             });
 
-            // 3. Deep Copy Assignments & Allocations (Handle potential nulls)
             const simAssignments: Assignment[] = realAssignments ? JSON.parse(JSON.stringify(realAssignments)) : [];
             const simAllocations: Allocation = realAllocations ? JSON.parse(JSON.stringify(realAllocations)) : {};
 
-            // 4. Initial Financials Calculation
             const simFinancials: SimulationFinancials = {};
             
             simResources.forEach(r => {
                 const role = roles.find(ro => ro.id === r.roleId);
-                // Robust number conversion
                 const dailyCost: number = Number(r.dailyCost) > 0 ? Number(r.dailyCost) : (Number(role?.dailyCost) || 0);
+                const dailyExpenses: number = (role?.dailyExpenses && Number(role.dailyExpenses) > 0) ? Number(role.dailyExpenses) : (dailyCost * 0.035);
                 
-                // Calculate daily expenses
-                const dailyExpenses: number = (role?.dailyExpenses && Number(role.dailyExpenses) > 0)
-                    ? Number(role.dailyExpenses) 
-                    : (dailyCost * 0.035);
-                
-                // Calculate Sell Rate
                 let sellRate = 0;
                 const resourceAssignments = simAssignments.filter(a => a.resourceId === r.id);
-                
                 for (const assignment of resourceAssignments) {
                     const project = simProjects.find(p => p.id === assignment.projectId);
                     if (project && project.simulatedRateCardId) {
@@ -295,10 +275,7 @@ const SimulationPage: React.FC = () => {
                         }
                     }
                 }
-
-                if (r.id) {
-                    simFinancials[r.id] = { dailyCost, dailyExpenses, sellRate };
-                }
+                if (r.id) simFinancials[r.id] = { dailyCost, dailyExpenses, sellRate };
             });
 
             dispatch({
@@ -345,39 +322,22 @@ const SimulationPage: React.FC = () => {
                 }
             };
 
-            // Check if scenario exists to decide between POST (create) and PUT (update)
             const existingEntry = scenarios.find(s => s.key === scenarioKey);
             const dbId = existingEntry?.dbId;
 
             if (dbId) {
-                // Update existing
-                await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        key: scenarioKey,
-                        data: scenarioData
-                    })
-                });
+                await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, { method: 'PUT', body: JSON.stringify({ key: scenarioKey, data: scenarioData }) });
             } else {
-                // Create new
-                await apiFetch('/api/resources?entity=analytics_cache', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        key: scenarioKey,
-                        data: scenarioData
-                    })
-                });
+                await apiFetch('/api/resources?entity=analytics_cache', { method: 'POST', body: JSON.stringify({ key: scenarioKey, data: scenarioData }) });
             }
 
             dispatch({ type: 'RESET_CHANGES' });
-            // Update the ID in state so subsequent saves update the same scenario
             if (!state.id) {
-                 // Hack to update ID without full reload, leveraging UPDATE_META which spreads payload
                  dispatch({ type: 'UPDATE_META', payload: { ...state, id: scenarioId } } as any); 
             }
             
             addToast('Scenario salvato correttamente.', 'success');
-            loadScenariosList(); // Refresh list to get new DB IDs if any
+            loadScenariosList(); 
         } catch (e) {
             console.error(e);
             addToast('Errore durante il salvataggio dello scenario.', 'error');
@@ -389,8 +349,6 @@ const SimulationPage: React.FC = () => {
     const handleLoadScenario = async (key: string) => {
         setIsLoading(true);
         try {
-            // Fetch ALL cache to find the key - in production better to have specific endpoint, 
-            // but here we use the generic resource endpoint
             const res = await apiFetch<any[]>(`/api/resources?entity=analytics_cache`);
             const scenarioRow = res.find(r => r.key === key);
             
@@ -398,7 +356,7 @@ const SimulationPage: React.FC = () => {
                 const scenarioData = scenarioRow.data as SimulationScenario;
                 dispatch({ type: 'LOAD_SCENARIO', payload: scenarioData });
                 setIsLoadModalOpen(false);
-                setActiveTab('config'); // Reset to config tab to show loaded data
+                setActiveTab('config');
                 addToast(`Scenario "${scenarioData.name}" caricato.`, 'success');
             } else {
                 addToast('Dati dello scenario non trovati o corrotti.', 'error');
@@ -432,7 +390,7 @@ const SimulationPage: React.FC = () => {
                 resigned: false,
                 lastDayOfWork: null,
                 isGhost: true,
-                dailyCost, // Base values
+                dailyCost, 
                 dailyExpenses
             }
         });
@@ -450,50 +408,81 @@ const SimulationPage: React.FC = () => {
         }
     };
 
-    // --- GRID ADAPTER ---
-    const gridProps = useMemo(() => {
-        const daysToRender = 30;
-        const timeColumns = getCalendarDays(currentDate, daysToRender).map((day) => {
-             const dayOfWeek = day.getDay();
-             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-             const dateIso = formatDate(day, 'iso');
-             const holiday = companyCalendar.find((e) => e.date === dateIso && e.type !== 'LOCAL_HOLIDAY');
-             return { 
-                 label: formatDate(day, 'short'), 
-                 subLabel: formatDate(day, 'day'), 
-                 startDate: day, 
-                 endDate: day, 
-                 isNonWorkingDay: isWeekend || !!holiday, 
-                 dateIso 
-             };
-        });
-
-        const projectsById = new Map(state.projects.map(p => [p.id!, p]));
-        const clientsById = new Map(clients.map(c => [c.id!, c]));
-        const rolesById = new Map(roles.map(r => [r.id!, r]));
-        
-        return {
-            resources: state.resources,
-            timeColumns,
-            assignments: state.assignments,
-            viewMode: 'day' as const,
-            projectsById,
-            clientsById,
-            rolesById
-        };
-    }, [state.resources, state.assignments, state.projects, currentDate, clients, roles, companyCalendar]);
-
-    // Construct the context value with the required dependency (state.allocations)
-    // to ensure the Grid updates when allocations are imported/changed.
-    const allocationsContextValue = useMemo(() => ({
-        allocations: state.allocations,
-        updateAllocation: async (assignmentId: string, date: string, percentage: number) => {
-            dispatch({ type: 'UPDATE_ALLOCATION', payload: { assignmentId, date, percentage } });
-        },
-        bulkUpdateAllocations: async (assignmentId: string, startDate: string, endDate: string, percentage: number) => {
-            dispatch({ type: 'BULK_UPDATE_ALLOCATION', payload: { assignmentId, startDate, endDate, percentage } });
+    // --- Helper Functions for Staffing Table ---
+    
+    // Generate 6 months columns from currentDate
+    const monthsToRender = useMemo(() => {
+        const months = [];
+        const start = new Date(currentDate);
+        start.setDate(1); // Ensure first day
+        for (let i = 0; i < 6; i++) {
+            const d = new Date(start);
+            d.setMonth(start.getMonth() + i);
+            months.push(d);
         }
-    }), [state.allocations]);
+        return months;
+    }, [currentDate]);
+
+    // Calculate days allocated for a month
+    const getMonthlyAllocationDays = useCallback((assignmentId: string, monthDate: Date, resourceLocation: string) => {
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 0);
+        
+        const assignmentAllocations = state.allocations[assignmentId];
+        if (!assignmentAllocations) return 0;
+        
+        let totalDays = 0;
+        // Optimization: Instead of looping every day, we iterate allocation keys if fewer? 
+        // Or simply loop 30 days which is fast.
+        
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dateStr = formatDate(d, 'iso');
+            if (assignmentAllocations[dateStr]) {
+                 // Check if it was a working day? 
+                 // Usually allocations are only on working days, but let's just sum what's there
+                 totalDays += (assignmentAllocations[dateStr] / 100);
+            }
+        }
+        return totalDays;
+    }, [state.allocations]);
+
+    const getWorkingDaysInMonth = useCallback((monthDate: Date, location: string) => {
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        const start = new Date(year, month, 1);
+        const end = new Date(year, month + 1, 0);
+        return getWorkingDaysBetween(start, end, companyCalendar, location);
+    }, [companyCalendar]);
+
+    const handleMonthValueChange = (assignmentId: string, monthDate: Date, newValue: string, location: string) => {
+        let days = parseFloat(newValue);
+        if (isNaN(days) || days < 0) days = 0;
+        
+        const maxDays = getWorkingDaysInMonth(monthDate, location);
+        if (maxDays === 0) return; // Avoid division by zero
+        
+        // Convert Days to Percentage (0-100)
+        let percentage = (days / maxDays) * 100;
+        if (percentage > 100) percentage = 100; // Cap at 100% per project for simplicity? Or allow overload? Standard logic caps 100 usually.
+        
+        const year = monthDate.getFullYear();
+        const month = monthDate.getMonth();
+        // Use UTC for consistent ISO strings in payload
+        const start = new Date(Date.UTC(year, month, 1));
+        const end = new Date(Date.UTC(year, month + 1, 0));
+        
+        dispatch({
+            type: 'BULK_UPDATE_ALLOCATION',
+            payload: {
+                assignmentId,
+                startDate: start.toISOString().split('T')[0],
+                endDate: end.toISOString().split('T')[0],
+                percentage: Math.round(percentage)
+            }
+        });
+    };
     
     // --- Analysis Data Calculation ---
     const analysisData = useMemo(() => {
@@ -702,28 +691,98 @@ const SimulationPage: React.FC = () => {
                 )}
 
                 {activeTab === 'staffing' && (
-                    <div className="h-full flex flex-col">
-                        <div className="flex-shrink-0 mb-4 flex justify-between items-center bg-surface p-2 rounded-xl">
+                    <div className="h-full flex flex-col bg-surface rounded-2xl shadow border border-outline-variant">
+                        {/* Period Navigation */}
+                        <div className="flex-shrink-0 p-3 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
                             <div className="flex gap-2">
-                                <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 30); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container">← Mese</button>
-                                <span className="font-bold">{currentDate.toLocaleString('it-IT', { month: 'long', year: 'numeric' })}</span>
-                                <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 30); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container">Mese →</button>
+                                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth() - 6); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container text-on-surface-variant">
+                                    <span className="material-symbols-outlined">chevron_left</span> 6 Mesi
+                                </button>
+                                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth() - 1); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container text-on-surface-variant">
+                                    <span className="material-symbols-outlined">chevron_left</span>
+                                </button>
+                                <span className="font-bold text-on-surface px-2">
+                                    {monthsToRender[0].toLocaleString('it-IT', { month: 'short', year: '2-digit' })} - {monthsToRender[monthsToRender.length-1].toLocaleString('it-IT', { month: 'short', year: '2-digit' })}
+                                </span>
+                                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth() + 1); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container text-on-surface-variant">
+                                    <span className="material-symbols-outlined">chevron_right</span>
+                                </button>
+                                <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth() + 6); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container text-on-surface-variant">
+                                     6 Mesi <span className="material-symbols-outlined">chevron_right</span>
+                                </button>
                             </div>
+                            <div className="text-xs text-on-surface-variant italic">Modifica i "Giorni Uomo" (G/U) per ricalcolare l'allocazione</div>
                         </div>
                         
-                        {/* 
-                           FIX: Using direct Context Provider with memoized value that includes state.allocations 
-                           instead of defining the component inside the render method. 
-                           This ensures allocations are properly propagated to the grid. 
-                        */}
-                        <AllocationsContext.Provider value={allocationsContextValue}>
-                             <VirtualStaffingGrid 
-                                 {...gridProps}
-                                 onAddAssignment={() => { /* Mock or implement */ }}
-                                 onBulkEdit={(assignment) => { /* Mock or implement - needs local state */ }}
-                                 onDeleteAssignment={(assignment) => dispatch({ type: 'DELETE_ASSIGNMENT', payload: assignment.id! })}
-                             />
-                        </AllocationsContext.Provider>
+                        {/* Simulation Table (Simplified Monthly View) */}
+                        <div className="flex-1 overflow-auto">
+                            <table className="w-full text-sm text-left border-collapse">
+                                <thead className="bg-surface-container sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                        <th className="p-3 border-b border-r border-outline-variant bg-surface-container z-20 sticky left-0 w-64">Risorsa / Progetto</th>
+                                        {monthsToRender.map(m => (
+                                            <th key={m.toISOString()} className="p-3 border-b border-outline-variant text-center min-w-[80px]">
+                                                {m.toLocaleString('it-IT', { month: 'short', year: '2-digit' })}
+                                                <div className="text-[10px] font-normal text-on-surface-variant">Max: {getWorkingDaysInMonth(m, '')}gg</div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-outline-variant">
+                                    {state.resources.map(res => {
+                                        const resAssignments = state.assignments.filter(a => a.resourceId === res.id);
+                                        const role = roles.find(r => r.id === res.roleId);
+                                        return (
+                                            <React.Fragment key={res.id}>
+                                                {/* Resource Header Row */}
+                                                <tr className="bg-surface-container/50">
+                                                    <td className="p-3 font-bold sticky left-0 bg-surface-container/50 border-r border-outline-variant z-10">
+                                                        <div className="flex items-center gap-2">
+                                                            {res.isGhost && <span className="material-symbols-outlined text-tertiary text-xs">smart_toy</span>}
+                                                            {res.name}
+                                                        </div>
+                                                        <div className="text-[10px] font-normal text-on-surface-variant">{role?.name}</div>
+                                                    </td>
+                                                    {monthsToRender.map(m => (
+                                                        <td key={m.toISOString()} className="p-3 text-center bg-surface-container/50 text-xs text-on-surface-variant">
+                                                            {/* Placeholder for total */}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                                {/* Assignment Rows */}
+                                                {resAssignments.map(asg => {
+                                                    const project = state.projects.find(p => p.id === asg.projectId);
+                                                    return (
+                                                        <tr key={asg.id} className="hover:bg-surface-container-low transition-colors">
+                                                            <td className="p-3 pl-8 text-sm sticky left-0 bg-surface border-r border-outline-variant z-10">
+                                                                <div className="font-medium text-primary truncate" title={project?.name}>{project?.name}</div>
+                                                                <div className="text-[10px] text-on-surface-variant truncate">{clients.find(c => c.id === project?.clientId)?.name}</div>
+                                                            </td>
+                                                            {monthsToRender.map(m => {
+                                                                const days = getMonthlyAllocationDays(asg.id!, m, res.location);
+                                                                return (
+                                                                    <td key={m.toISOString()} className="p-1 text-center border-l border-dashed border-outline-variant">
+                                                                        <input 
+                                                                            type="number"
+                                                                            min="0"
+                                                                            step="0.5"
+                                                                            className="w-full text-center bg-transparent border-b border-transparent focus:border-primary focus:outline-none text-sm font-mono hover:bg-surface-container"
+                                                                            value={days > 0 ? days.toFixed(1) : ''}
+                                                                            placeholder="-"
+                                                                            onChange={(e) => handleMonthValueChange(asg.id!, m, e.target.value, res.location)}
+                                                                        />
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
 
