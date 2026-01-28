@@ -197,6 +197,7 @@ const SimulationPage: React.FC = () => {
     
     // UI Local State
     const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false); // New State for Save Modal
     const [isGhostModalOpen, setIsGhostModalOpen] = useState(false);
     const [newGhost, setNewGhost] = useState<Partial<SimulationResource>>({ 
         horizontal: horizontals[0]?.value, 
@@ -238,7 +239,6 @@ const SimulationPage: React.FC = () => {
     // --- Actions ---
 
     const handleImportRealData = () => {
-        // Validazione
         if (!realResources || realResources.length === 0) {
             addToast('Nessuna risorsa disponibile da importare.', 'warning');
             return;
@@ -256,7 +256,7 @@ const SimulationPage: React.FC = () => {
 
             const simAssignments: Assignment[] = realAssignments ? JSON.parse(JSON.stringify(realAssignments)) : [];
             
-            // FIX: Ensure realAllocations is valid before copy, otherwise use empty object
+            // Ensure realAllocations is valid before copy, otherwise use empty object
             const simAllocations: Allocation = realAllocations && Object.keys(realAllocations).length > 0
                 ? JSON.parse(JSON.stringify(realAllocations)) 
                 : {};
@@ -319,13 +319,22 @@ const SimulationPage: React.FC = () => {
         }
     };
 
-    const handleSaveScenario = async () => {
+    // Open Modal instead of direct save
+    const openSaveModal = () => {
+        if (!state.name) {
+             dispatch({ type: 'UPDATE_META', payload: { name: 'Nuova Simulazione' } } as any);
+        }
+        setIsSaveModalOpen(true);
+    };
+
+    const performSave = async () => {
         if (!state.name) {
             addToast('Inserisci un nome per lo scenario.', 'error');
             return;
         }
         setIsLoading(true);
         try {
+            // Generate or reuse ID for the logical scenario
             const scenarioId = state.id || uuidv4();
             const scenarioKey = `scenario_${scenarioId}`;
 
@@ -344,17 +353,18 @@ const SimulationPage: React.FC = () => {
                 }
             };
 
-            const existingEntry = scenarios.find(s => s.key === scenarioKey);
+            // Look for existing DB ID using the logical ID or Key
+            const existingEntry = scenarios.find(s => s.id === scenarioId || s.key === scenarioKey);
             const dbId = existingEntry?.dbId;
 
-            // FIX: Add 'scope' and ensure payload matches API expectations
+            // FIX: Always send scope='SIMULATION'
             if (dbId) {
                 await apiFetch(`/api/resources?entity=analytics_cache&id=${dbId}`, { 
                     method: 'PUT', 
                     body: JSON.stringify({ 
                         key: scenarioKey, 
                         data: scenarioData,
-                        scope: 'SIMULATION' // Required by schema
+                        scope: 'SIMULATION' 
                     }) 
                 });
             } else {
@@ -363,7 +373,7 @@ const SimulationPage: React.FC = () => {
                     body: JSON.stringify({ 
                         key: scenarioKey, 
                         data: scenarioData,
-                        scope: 'SIMULATION' // Required by schema
+                        scope: 'SIMULATION'
                     }) 
                 });
             }
@@ -374,6 +384,7 @@ const SimulationPage: React.FC = () => {
             }
             
             addToast('Scenario salvato correttamente.', 'success');
+            setIsSaveModalOpen(false);
             loadScenariosList(); 
         } catch (e) {
             console.error(e);
@@ -486,14 +497,10 @@ const SimulationPage: React.FC = () => {
         if (!assignmentAllocations) return 0;
         
         let totalDays = 0;
-        // Optimization: Instead of looping every day, we iterate allocation keys if fewer? 
-        // Or simply loop 30 days which is fast.
         
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateStr = formatDate(d, 'iso');
             if (assignmentAllocations[dateStr]) {
-                 // Check if it was a working day? 
-                 // Usually allocations are only on working days, but let's just sum what's there
                  totalDays += (assignmentAllocations[dateStr] / 100);
             }
         }
@@ -515,13 +522,11 @@ const SimulationPage: React.FC = () => {
         const maxDays = getWorkingDaysInMonth(monthDate, location);
         if (maxDays === 0) return; // Avoid division by zero
         
-        // Convert Days to Percentage (0-100)
         let percentage = (days / maxDays) * 100;
-        if (percentage > 100) percentage = 100; // Cap at 100% per project for simplicity? Or allow overload? Standard logic caps 100 usually.
+        if (percentage > 100) percentage = 100;
         
         const year = monthDate.getFullYear();
         const month = monthDate.getMonth();
-        // Use UTC for consistent ISO strings in payload
         const start = new Date(Date.UTC(year, month, 1));
         const end = new Date(Date.UTC(year, month + 1, 0));
         
@@ -587,13 +592,14 @@ const SimulationPage: React.FC = () => {
                     <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
                         <span className="material-symbols-outlined">science</span> Simulazione
                     </h1>
-                    <input 
-                        type="text" 
-                        value={state.name} 
-                        onChange={(e) => dispatch({ type: 'UPDATE_META', payload: { name: e.target.value } })}
-                        className="bg-transparent border-b border-transparent hover:border-primary focus:border-primary focus:outline-none text-on-surface font-semibold mt-1"
-                        placeholder="Nome Scenario..."
-                    />
+                    {/* Header Input Removed - Handled in Modal now */}
+                    <div 
+                        className="text-on-surface font-semibold mt-1 cursor-pointer hover:underline" 
+                        onClick={openSaveModal}
+                        title="Clicca per modificare"
+                    >
+                        {state.name || 'Nuova Simulazione'}
+                    </div>
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -609,7 +615,7 @@ const SimulationPage: React.FC = () => {
                     <button onClick={() => setIsLoadModalOpen(true)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Carica Scenario">
                         <span className="material-symbols-outlined">folder_open</span>
                     </button>
-                    <button onClick={handleSaveScenario} disabled={isLoading || !state.hasUnsavedChanges} className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold shadow hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
+                    <button onClick={openSaveModal} disabled={isLoading || !state.hasUnsavedChanges} className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold shadow hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
                         {isLoading ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">save</span>}
                         Salva
                     </button>
@@ -901,6 +907,44 @@ const SimulationPage: React.FC = () => {
                         <div className="flex justify-end pt-4">
                             <button onClick={() => setIsGhostModalOpen(false)} className="px-4 py-2 border rounded-full mr-2">Annulla</button>
                             <button onClick={handleAddGhost} disabled={!newGhost.name || !newGhost.roleId} className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold">Aggiungi</button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Save Scenario Modal - FIXED */}
+            {isSaveModalOpen && (
+                <Modal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} title="Salva Scenario">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold mb-1">Nome Scenario</label>
+                            <input 
+                                type="text" 
+                                className="form-input" 
+                                value={state.name} 
+                                onChange={(e) => dispatch({ type: 'UPDATE_META', payload: { name: e.target.value } })}
+                                placeholder="es. Budget 2025 - Variante A"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1">Descrizione</label>
+                            <textarea 
+                                className="form-textarea" 
+                                value={state.description} 
+                                onChange={(e) => dispatch({ type: 'UPDATE_META', payload: { description: e.target.value } })}
+                                placeholder="Note aggiuntive..."
+                                rows={3}
+                            />
+                        </div>
+                        <div className="flex justify-end pt-4">
+                            <button onClick={() => setIsSaveModalOpen(false)} className="px-4 py-2 border rounded-full mr-2 hover:bg-surface-container">Annulla</button>
+                            <button 
+                                onClick={performSave} 
+                                disabled={isLoading || !state.name}
+                                className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isLoading ? <SpinnerIcon className="w-4 h-4"/> : 'Conferma e Salva'}
+                            </button>
                         </div>
                     </div>
                 </Modal>
