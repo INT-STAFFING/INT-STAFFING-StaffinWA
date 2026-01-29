@@ -1,21 +1,16 @@
 
 /**
  * @file api/data.ts
- * @description Endpoint API Dispatcher per recuperare i dati in base allo scope (metadata, planning, all).
- * Ottimizzato per evitare ricalcoli inutili dello schema DB.
+ * @description Endpoint API Dispatcher per recuperare i dati.
  */
 
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, RoleCostHistory, LeaveType, LeaveRequest, SkillCategory, SkillMacroCategory, BillingMilestone } from '../types';
+import { CalendarEvent, Allocation } from '../types';
 
-// Flag globale per tracciare l'inizializzazione dello schema nel ciclo di vita della funzione serverless
 let isSchemaInitialized = false;
 
-/**
- * Converte un oggetto con chiavi in snake_case (dal DB) in un oggetto con chiavi in camelCase (per il frontend).
- */
 const toCamelCase = (obj: any): any => {
     if (obj === null || typeof obj !== 'object') {
         return obj;
@@ -26,14 +21,22 @@ const toCamelCase = (obj: any): any => {
     const newObj: any = {};
     for (const key in obj) {
         const newKey = key.replace(/(_\w)/g, k => k[1].toUpperCase());
-        newObj[newKey] = obj[key];
+        let value = obj[key];
+
+        // FIX DATE: Normalizzazione sicura Date -> Stringa YYYY-MM-DD
+        if (value instanceof Date && 
+           (newKey.endsWith('Date') || newKey === 'date' || newKey === 'lastDayOfWork')) {
+            const y = value.getFullYear();
+            const m = String(value.getMonth() + 1).padStart(2, '0');
+            const d = String(value.getDate()).padStart(2, '0');
+            value = `${y}-${m}-${d}`;
+        }
+        
+        newObj[newKey] = value;
     }
     return newObj;
 }
 
-/**
- * Gestore della richiesta API per l'endpoint /api/data.
- */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'GET') {
         res.setHeader('Allow', ['GET']);
@@ -45,7 +48,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const end = req.query.end as string;
 
     try {
-        // Esegue il controllo delle tabelle solo una volta per istanza della serverless function
         if (!isSchemaInitialized) {
             await ensureDbTablesExist(db);
             isSchemaInitialized = true;
@@ -53,39 +55,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const data: any = {};
 
-        // --- METADATA SCOPE (Lightweight) ---
+        // --- METADATA SCOPE ---
         if (scope === 'metadata' || scope === 'all') {
              const [
-                clientsRes,
-                rolesRes,
-                roleCostHistoryRes,
-                resourcesRes,
-                horizontalsRes,
-                seniorityLevelsRes,
-                projectStatusesRes,
-                clientSectorsRes,
-                locationsRes,
-                calendarRes,
-                skillsRes,
-                resourceSkillsRes,
-                pageVisibilityRes,
-                skillThresholdsRes,
-                projectsRes,
-                leaveTypesRes,
-                managersRes,
-                sidebarConfigRes,
-                sidebarSectionsRes,
-                sidebarSectionColorsRes,
-                sidebarFooterActionsRes,
-                dashboardLayoutRes,
-                roleHomePagesRes,
-                bottomNavPathsRes,
-                analyticsRes,
-                skillCatsRes,
-                skillMacrosRes,
-                skillMapRes,
-                catMacroMapRes,
-                planningConfigRes
+                clientsRes, rolesRes, roleCostHistoryRes, resourcesRes, horizontalsRes,
+                seniorityLevelsRes, projectStatusesRes, clientSectorsRes, locationsRes,
+                calendarRes, skillsRes, resourceSkillsRes, pageVisibilityRes,
+                skillThresholdsRes, projectsRes, leaveTypesRes, managersRes,
+                sidebarConfigRes, sidebarSectionsRes, sidebarSectionColorsRes,
+                sidebarFooterActionsRes, dashboardLayoutRes, roleHomePagesRes,
+                bottomNavPathsRes, analyticsRes, skillCatsRes, skillMacrosRes,
+                skillMapRes, catMacroMapRes, planningConfigRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -119,25 +99,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'planning_range_%';`
             ]);
 
-            const companyCalendar = calendarRes.rows.map(row => {
-                const event = toCamelCase(row);
-                if (event.date) {
-                    event.date = new Date(event.date).toISOString().split('T')[0];
-                }
-                return event;
-            }) as CalendarEvent[];
+            const companyCalendar = calendarRes.rows.map(toCamelCase) as CalendarEvent[];
 
-            const pageVisibility: PageVisibility = {};
-            pageVisibilityRes.rows.forEach(row => {
-                const path = row.key.replace('page_vis.', '');
-                pageVisibility[path] = row.value === 'true';
-            });
+            // ... (Config parsing logic preserved) ...
+            const pageVisibility: any = {};
+            pageVisibilityRes.rows.forEach(row => pageVisibility[row.key.replace('page_vis.', '')] = row.value === 'true');
 
             const skillThresholds: any = {};
-            skillThresholdsRes.rows.forEach(row => {
-                const key = row.key.replace('skill_threshold.', '');
-                skillThresholds[key] = parseFloat(row.value);
-            });
+            skillThresholdsRes.rows.forEach(row => skillThresholds[row.key.replace('skill_threshold.', '')] = parseFloat(row.value));
 
             const planningSettings: any = { monthsBefore: 6, monthsAfter: 18 };
             planningConfigRes.rows.forEach(row => {
@@ -150,104 +119,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 try { return JSON.parse(res.rows[0].value); } catch { return fallback; }
             };
 
-            const sidebarConfig = parseJsonConfig(sidebarConfigRes, null);
-            const sidebarSections = parseJsonConfig(sidebarSectionsRes, null);
-            const sidebarSectionColors = parseJsonConfig(sidebarSectionColorsRes, {});
-            const sidebarFooterActions = parseJsonConfig(sidebarFooterActionsRes, null);
-            const dashboardLayout = parseJsonConfig(dashboardLayoutRes, null);
-            const roleHomePages = parseJsonConfig(roleHomePagesRes, null);
-            const bottomNavPaths = parseJsonConfig(bottomNavPathsRes, []);
+            const analyticsCache = analyticsRes.rows.length > 0 ? analyticsRes.rows[0].data : {};
 
-            let analyticsCache = {};
-            if (analyticsRes.rows.length > 0) analyticsCache = analyticsRes.rows[0].data;
-
-            const managerResourceIds = managersRes.rows.map(r => r.resource_id);
-
-            // --- SKILL HYDRATION ---
-            const categories = skillCatsRes.rows.map(toCamelCase) as SkillCategory[];
-            const macros = skillMacrosRes.rows.map(toCamelCase) as SkillMacroCategory[];
-            const catMap = new Map(categories.map(c => [c.id, c]));
-            const macroMap = new Map(macros.map(m => [m.id, m]));
-
+            // Hydrate Skills (unchanged logic)
+            const categories = skillCatsRes.rows.map(toCamelCase);
+            const macros = skillMacrosRes.rows.map(toCamelCase);
+            const catMap = new Map(categories.map((c: any) => [c.id, c]));
+            const macroMap = new Map(macros.map((m: any) => [m.id, m]));
             const catMacroMap = new Map<string, Set<string>>();
             catMacroMapRes.rows.forEach(r => {
                 if (!catMacroMap.has(r.category_id)) catMacroMap.set(r.category_id, new Set());
                 catMacroMap.get(r.category_id)?.add(r.macro_category_id);
             });
-
             const skillCatMap = new Map<string, Set<string>>();
             skillMapRes.rows.forEach(r => {
                 if (!skillCatMap.has(r.skill_id)) skillCatMap.set(r.skill_id, new Set());
                 skillCatMap.get(r.skill_id)?.add(r.category_id);
             });
-
+            
             const skills = skillsRes.rows.map(row => {
                 const skill = toCamelCase(row);
                 const catIds = Array.from(skillCatMap.get(skill.id) || []);
-                const skillCategories = catIds.map(id => catMap.get(id)).filter(Boolean) as SkillCategory[];
+                const skillCategories = catIds.map(id => catMap.get(id)).filter(Boolean);
                 const macroIds = new Set<string>();
                 catIds.forEach(catId => {
                     const mIds = catMacroMap.get(catId);
                     if (mIds) mIds.forEach(mId => macroIds.add(mId));
                 });
-                const skillMacros = Array.from(macroIds).map(id => macroMap.get(id)).filter(Boolean) as SkillMacroCategory[];
-
+                const skillMacros = Array.from(macroIds).map(id => macroMap.get(id)).filter(Boolean);
                 return {
                     ...skill,
                     categoryIds: catIds,
-                    category: skillCategories.map(c => c.name).join(', '),
-                    macroCategory: skillMacros.map(m => m.name).join(', ')
+                    category: skillCategories.map((c: any) => c.name).join(', '),
+                    macroCategory: skillMacros.map((m: any) => m.name).join(', ')
                 };
-            }) as Skill[];
-
-            const hydratedCategories = categories.map(cat => ({
+            });
+            const hydratedCategories = categories.map((cat: any) => ({
                 ...cat,
                 macroCategoryIds: Array.from(catMacroMap.get(cat.id) || [])
             }));
 
             Object.assign(data, {
-                clients: clientsRes.rows.map(toCamelCase) as Client[],
-                roles: rolesRes.rows.map(toCamelCase) as Role[],
-                roleCostHistory: roleCostHistoryRes.rows.map(row => {
-                    const h = toCamelCase(row);
-                    if (h.startDate) h.startDate = new Date(h.startDate).toISOString().split('T')[0];
-                    if (h.endDate) h.endDate = new Date(h.endDate).toISOString().split('T')[0];
-                    return h;
-                }) as RoleCostHistory[],
-                resources: resourcesRes.rows.map(toCamelCase) as Resource[],
-                projects: projectsRes.rows.map(row => {
-                    const project = toCamelCase(row);
-                    if (project.startDate) project.startDate = new Date(project.startDate).toISOString().split('T')[0];
-                    if (project.endDate) project.endDate = new Date(project.endDate).toISOString().split('T')[0];
-                    return project;
-                }) as Project[],
-                horizontals: horizontalsRes.rows as ConfigOption[],
-                seniorityLevels: seniorityLevelsRes.rows as ConfigOption[],
-                projectStatuses: projectStatusesRes.rows as ConfigOption[],
-                clientSectors: clientSectorsRes.rows as ConfigOption[],
-                locations: locationsRes.rows as ConfigOption[],
+                clients: clientsRes.rows.map(toCamelCase),
+                roles: rolesRes.rows.map(toCamelCase),
+                roleCostHistory: roleCostHistoryRes.rows.map(toCamelCase),
+                resources: resourcesRes.rows.map(toCamelCase),
+                projects: projectsRes.rows.map(toCamelCase),
+                horizontals: horizontalsRes.rows,
+                seniorityLevels: seniorityLevelsRes.rows,
+                projectStatuses: projectStatusesRes.rows,
+                clientSectors: clientSectorsRes.rows,
+                locations: locationsRes.rows,
                 companyCalendar,
                 skills,
                 skillCategories: hydratedCategories,
                 skillMacroCategories: macros,
-                resourceSkills: resourceSkillsRes.rows.map(toCamelCase) as ResourceSkill[],
+                resourceSkills: resourceSkillsRes.rows.map(toCamelCase),
                 pageVisibility,
                 skillThresholds,
                 planningSettings,
-                leaveTypes: leaveTypesRes.rows.map(toCamelCase) as LeaveType[],
-                managerResourceIds,
-                sidebarConfig,
-                sidebarSections,
-                sidebarSectionColors,
-                sidebarFooterActions,
-                dashboardLayout,
-                roleHomePages,
-                bottomNavPaths,
+                leaveTypes: leaveTypesRes.rows.map(toCamelCase),
+                managerResourceIds: managersRes.rows.map(r => r.resource_id),
+                sidebarConfig: parseJsonConfig(sidebarConfigRes, null),
+                sidebarSections: parseJsonConfig(sidebarSectionsRes, null),
+                sidebarSectionColors: parseJsonConfig(sidebarSectionColorsRes, {}),
+                sidebarFooterActions: parseJsonConfig(sidebarFooterActionsRes, null),
+                dashboardLayout: parseJsonConfig(dashboardLayoutRes, null),
+                roleHomePages: parseJsonConfig(roleHomePagesRes, null),
+                bottomNavPaths: parseJsonConfig(bottomNavPathsRes, []),
                 analyticsCache
             });
         }
 
-        // --- PLANNING SCOPE (Heavy) ---
+        // --- PLANNING SCOPE ---
         if (scope === 'planning' || scope === 'all') {
             let allocationsQueryPromise;
             let leaveRequestsQueryPromise;
@@ -288,7 +232,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const allocations: Allocation = {};
             allocationsRes.rows.forEach(row => {
                 const { assignment_id, allocation_date, percentage } = row;
-                const dateStr = new Date(allocation_date).toISOString().split('T')[0];
+                // FIX DATE: Estrazione sicura YYYY-MM-DD
+                const y = allocation_date.getFullYear();
+                const m = String(allocation_date.getMonth() + 1).padStart(2, '0');
+                const d = String(allocation_date.getDate()).padStart(2, '0');
+                const dateStr = `${y}-${m}-${d}`;
+
                 if (!allocations[assignment_id]) {
                     allocations[assignment_id] = {};
                 }
@@ -296,31 +245,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             Object.assign(data, {
-                assignments: assignmentsRes.rows.map(toCamelCase) as Assignment[],
+                assignments: assignmentsRes.rows.map(toCamelCase),
                 allocations,
-                wbsTasks: wbsTasksRes.rows.map(toCamelCase) as WbsTask[],
-                resourceRequests: resourceRequestsRes.rows.map(toCamelCase) as ResourceRequest[],
-                interviews: interviewsRes.rows.map(toCamelCase) as Interview[],
-                contracts: contractsRes.rows.map(row => {
-                    const contract = toCamelCase(row);
-                    if (contract.startDate) contract.startDate = new Date(contract.startDate).toISOString().split('T')[0];
-                    if (contract.endDate) contract.endDate = new Date(contract.endDate).toISOString().split('T')[0];
-                    return contract;
-                }) as Contract[],
+                wbsTasks: wbsTasksRes.rows.map(toCamelCase),
+                resourceRequests: resourceRequestsRes.rows.map(toCamelCase),
+                interviews: interviewsRes.rows.map(toCamelCase),
+                contracts: contractsRes.rows.map(toCamelCase),
                 contractProjects: contractProjectsRes.rows.map(toCamelCase),
                 contractManagers: contractManagersRes.rows.map(toCamelCase),
-                projectSkills: projectSkillsRes.rows.map(toCamelCase) as ProjectSkill[],
-                leaveRequests: leaveRequestsRes.rows.map(row => {
-                    const req = toCamelCase(row);
-                    if (req.startDate) req.startDate = new Date(req.startDate).toISOString().split('T')[0];
-                    if (req.endDate) req.endDate = new Date(req.endDate).toISOString().split('T')[0];
-                    return req;
-                }) as LeaveRequest[],
-                billingMilestones: billingMilestonesRes.rows.map(row => {
-                    const bm = toCamelCase(row);
-                    if(bm.date) bm.date = new Date(bm.date).toISOString().split('T')[0];
-                    return bm;
-                }) as BillingMilestone[]
+                projectSkills: projectSkillsRes.rows.map(toCamelCase),
+                leaveRequests: leaveRequestsRes.rows.map(toCamelCase),
+                billingMilestones: billingMilestonesRes.rows.map(toCamelCase)
             });
         }
 
