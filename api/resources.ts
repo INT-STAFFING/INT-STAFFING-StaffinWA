@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -54,14 +55,102 @@ const TABLE_MAPPING: Record<string, string> = {
     'rate_card_entries': 'rate_card_entries',
     'project_expenses': 'project_expenses',
     'billing_milestones': 'billing_milestones',
-    'audit_logs': 'action_logs'
+    'audit_logs': 'action_logs',
+    'analytics_cache': 'analytics_cache'
 };
 
-/**
- * Normalizza gli oggetti dal DB per il frontend.
- * FIX DATE: Estrae manualmente YYYY-MM-DD dall'oggetto Date locale restituito dal driver PG
- * per evitare conversioni in UTC che causano lo shift del giorno precedente (bug off-by-one).
- */
+// --- ZOD SCHEMAS FOR VALIDATION ---
+const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
+    'resources': z.object({
+        name: z.string(),
+        email: z.string().email().optional().nullable(),
+        roleId: z.string().optional().nullable(),
+        horizontal: z.string().optional().nullable(),
+        location: z.string().optional().nullable(),
+        hireDate: z.string().optional().nullable(),
+        workSeniority: z.number().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        maxStaffingPercentage: z.number().optional().nullable(),
+        resigned: z.boolean().optional().nullable(),
+        lastDayOfWork: z.string().optional().nullable(),
+        tutorId: z.string().optional().nullable(),
+        dailyCost: z.number().optional().nullable()
+    }),
+    'projects': z.object({
+        name: z.string(),
+        clientId: z.string().optional().nullable(),
+        startDate: z.string().optional().nullable(),
+        endDate: z.string().optional().nullable(),
+        budget: z.number().optional().nullable(),
+        realizationPercentage: z.number().optional().nullable(),
+        projectManager: z.string().optional().nullable(),
+        status: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        contractId: z.string().optional().nullable(),
+        billingType: z.string().optional().nullable()
+    }),
+    'clients': z.object({
+        name: z.string(),
+        sector: z.string().optional().nullable(),
+        contactEmail: z.string().optional().nullable()
+    }),
+    'roles': z.object({
+        name: z.string(),
+        seniorityLevel: z.string().optional().nullable(),
+        dailyCost: z.number().optional().nullable(),
+        standardCost: z.number().optional().nullable(),
+        dailyExpenses: z.number().optional().nullable()
+    }),
+    'skills': z.object({
+        name: z.string(),
+        isCertification: z.boolean().optional().nullable()
+    }),
+    'leave_types': z.object({
+        name: z.string(),
+        color: z.string().optional().nullable(),
+        requiresApproval: z.boolean().optional().nullable(),
+        affectsCapacity: z.boolean().optional().nullable()
+    }),
+    'rate_cards': z.object({
+        name: z.string(),
+        currency: z.string().optional().nullable()
+    }),
+    'project_expenses': z.object({
+        projectId: z.string(),
+        category: z.string(),
+        description: z.string().optional().nullable(),
+        amount: z.number(),
+        date: z.string(),
+        billable: z.boolean().optional().nullable()
+    }),
+    'billing_milestones': z.object({
+        projectId: z.string(),
+        name: z.string(),
+        date: z.string(),
+        amount: z.number(),
+        status: z.string().optional().nullable()
+    }),
+    'contracts': z.object({
+        name: z.string(),
+        startDate: z.string().optional().nullable(),
+        endDate: z.string().optional().nullable(),
+        cig: z.string(),
+        cigDerivato: z.string().optional().nullable(),
+        wbs: z.string().optional().nullable(),
+        capienza: z.number(),
+        backlog: z.number().optional().nullable(),
+        rateCardId: z.string().optional().nullable(),
+        billingType: z.string().optional().nullable()
+    }),
+    'app_users': z.object({
+        username: z.string(),
+        role: z.string(),
+        resourceId: z.string().optional().nullable(),
+        isActive: z.boolean().optional().nullable()
+        // password_hash handled separately or assumed existing/default if not passed here
+    })
+};
+
 const toCamelAndNormalize = (o: any) => {
     if (!o) return {};
     const n: any = {};
@@ -69,12 +158,8 @@ const toCamelAndNormalize = (o: any) => {
         const camelKey = k.replace(/(_\w)/g, m => m[1].toUpperCase());
         const value = o[k];
         
-        // Controllo se è un campo data "puro" (senza ora)
         if (value instanceof Date && 
            (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork')) {
-            // Il driver PG restituisce un Date a mezzanotte locale (es. 00:00 GMT+1).
-            // Usando .toISOString() verrebbe convertito a 23:00 del giorno prima (UTC).
-            // Usiamo i getter locali per preservare il valore "giorno" che è nel DB.
             const y = value.getFullYear();
             const m = String(value.getMonth() + 1).padStart(2, '0');
             const d = String(value.getDate()).padStart(2, '0');
@@ -86,9 +171,6 @@ const toCamelAndNormalize = (o: any) => {
     return n;
 };
 
-// ... (Rest of the file remains similar, imports updated logic implicitly) ...
-// Per brevità, riporto il resto della struttura handler senza modifiche logiche ma mantenendo la struttura.
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action } = req.query;
@@ -99,14 +181,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
+        // --- CUSTOM HANDLER: ANALYTICS RECALCULATION (Heavy Task) ---
+        if (entity === 'analytics_cache' && action === 'recalc_all' && method === 'POST') {
+             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) {
+                 return res.status(403).json({ error: 'Unauthorized' });
+             }
+             try {
+                await client.query('BEGIN');
+                const budgetRes = await client.query(`SELECT SUM(budget) as total FROM projects WHERE status = 'In corso'`);
+                const totalBudget = parseFloat(budgetRes.rows[0]?.total || '0');
+                const resRes = await client.query(`SELECT COUNT(*) as count FROM resources WHERE resigned = false`);
+                const activeResources = parseInt(resRes.rows[0]?.count || '0', 10);
+                
+                const kpiData = {
+                    totalBudget,
+                    activeResources,
+                    lastUpdated: new Date().toISOString(),
+                    note: "Calculated via Async Process"
+                };
+
+                await client.query(`
+                    INSERT INTO analytics_cache (key, data, scope) 
+                    VALUES ('dashboard_kpi_current', $1, 'DASHBOARD')
+                    ON CONFLICT (key) 
+                    DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP
+                `, [JSON.stringify(kpiData)]);
+                
+                await client.query('COMMIT');
+                return res.status(200).json({ success: true, message: 'Analytics recalculated successfully' });
+             } catch (calcError) {
+                 await client.query('ROLLBACK');
+                 return res.status(500).json({ error: 'Recalculation failed' });
+             }
+        }
+
         if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             const { startDate, endDate, roleId, projectId } = req.body;
-             // ... Placeholder best_fit logic ...
+             // Placeholder logic
              return res.status(200).json([]);
         }
 
-        // Custom Handlers (Config, RBAC, Auth, etc.) preserved...
         if (entity === 'app-config-batch' && method === 'POST') {
              if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
              const { updates } = req.body;
@@ -122,8 +236,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              return res.status(400).json({ error: 'Invalid updates format' });
         }
         
-        // ... (Other custom handlers preserved) ...
+        // --- CUSTOM HANDLER FOR ROLE PERMISSIONS (RBAC) ---
+        if (entity === 'role-permissions' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { permissions } = req.body;
+             if (Array.isArray(permissions)) {
+                 await client.query('BEGIN');
+                 // Simple full refresh strategy or upsert
+                 await client.query('DELETE FROM role_permissions'); // Clear old
+                 for (const p of permissions) {
+                     await client.query(
+                         `INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`, 
+                         [p.role, p.pagePath, p.isAllowed]
+                     );
+                 }
+                 await client.query('COMMIT');
+                 return res.status(200).json({ success: true });
+             }
+             return res.status(400).json({ error: 'Invalid permissions format' });
+        }
 
+        // --- GENERIC GET ---
         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
             if (sensitiveEntities.includes(entity as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
@@ -156,34 +289,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json(rows.map(toCamelAndNormalize));
         }
 
-        // Generic CRUD
+        // --- GENERIC POST (INSERT) ---
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             const body = req.body;
+             
+             // VALIDATION STEP
+             const schema = VALIDATION_SCHEMAS[tableName as string];
+             if (!schema) {
+                 return res.status(400).json({ error: `Entity ${entity} is not supported for generic write operations.` });
+             }
+             
+             const parseResult = schema.safeParse(req.body);
+             if (!parseResult.success) {
+                 return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
+             }
+             
+             const validatedBody = parseResult.data;
              const newId = uuidv4();
-             const columns = Object.keys(body).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
-             const values = Object.values(body);
-             const placeholders = values.map((_, i) => `$${i + 2}`);
+             
+             // Dynamic Query Construction using Validated Keys Only
+             const columns = Object.keys(validatedBody).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
+             const values = Object.values(validatedBody);
+             const placeholders = values.map((_, i) => `$${i + 2}`); // $1 is reserved for ID
+             
              const q = `INSERT INTO ${tableName} (id, ${columns.join(', ')}) VALUES ($1, ${placeholders.join(', ')})`;
              await client.query(q, [newId, ...values]);
-             await logAction(client, currentUser, 'CREATE', tableName as string, newId, body, req);
-             return res.status(201).json({ id: newId, ...body });
+             
+             await logAction(client, currentUser, 'CREATE', tableName as string, newId, validatedBody, req);
+             return res.status(201).json({ id: newId, ...validatedBody });
         }
 
+        // --- GENERIC PUT (UPDATE) ---
         if (method === 'PUT') {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-            const body = req.body;
-            const updates = Object.entries(body).map(([k, v], i) => {
+            
+            // VALIDATION STEP
+             const schema = VALIDATION_SCHEMAS[tableName as string];
+             if (!schema) {
+                 return res.status(400).json({ error: `Entity ${entity} is not supported for generic write operations.` });
+             }
+             
+             // Use partial() for updates as not all fields might be present
+             const parseResult = schema.partial().safeParse(req.body);
+             if (!parseResult.success) {
+                 return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
+             }
+
+            const validatedBody = parseResult.data;
+            const updates = Object.entries(validatedBody).map(([k, v], i) => {
                 const col = k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
                 return `${col} = $${i + 1}`;
             });
-            const values = Object.values(body);
+            const values = Object.values(validatedBody);
+            
+            if (updates.length === 0) {
+                 return res.status(400).json({ error: "No valid fields to update." });
+            }
+
             const q = `UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = $${values.length + 1}`;
             await client.query(q, [...values, id]);
-            await logAction(client, currentUser, 'UPDATE', tableName as string, id as string, body, req);
-            return res.status(200).json({ id, ...body });
+            
+            await logAction(client, currentUser, 'UPDATE', tableName as string, id as string, validatedBody, req);
+            return res.status(200).json({ id, ...validatedBody });
         }
 
+        // --- GENERIC DELETE ---
         if (method === 'DELETE') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
              await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
@@ -196,6 +366,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     } catch (error) {
         try { await client.query('ROLLBACK'); } catch(e) {}
+        console.error("API Error:", error);
         return res.status(500).json({ error: (error as Error).message });
     } finally {
         client.release();

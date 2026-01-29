@@ -136,7 +136,79 @@ const UserManualPage: React.FC = () => {
                 </ul>
             </Section>
 
-            <Section title="7. Sezione Tecnica per Sviluppatori">
+            <Section title="7. Gestione Listini (Rate Cards)">
+                <p>La pagina <strong>Listini (Rate Cards)</strong> permette di definire le tariffe di vendita giornaliere per ogni risorsa, fondamentali per il calcolo dei ricavi nei progetti <em>Time & Material</em>.</p>
+                
+                <SubSection title="Struttura Master-Detail">
+                    <p>L'interfaccia è divisa in due pannelli:</p>
+                    <ul>
+                        <li><strong>Sinistra (Listini):</strong> Elenco dei listini attivi (es. "Listino Standard 2024", "Listino Cliente X"). Qui puoi creare, rinominare o eliminare un intero listino.</li>
+                        <li><strong>Destra (Tariffe):</strong> Tabella di dettaglio che mostra tutte le risorse attive. Per ogni risorsa è possibile definire una tariffa specifica (<em>Sell Rate</em>) per il listino selezionato.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Funzionalità di Inizializzazione">
+                    <p>Per velocizzare la compilazione, il pulsante <strong>Inizializza</strong> applica una regola automatica a tutte le risorse visualizzate:</p>
+                    <FormulaBox 
+                        title="Calcolo Automatico Tariffa" 
+                        formula="Sell Rate = Costo Interno Risorsa * 1.20"
+                        description="Applica un markup standard del 20% sul costo interno della risorsa (o del suo ruolo) per generare una proposta di tariffa di vendita."
+                    />
+                    <p>È sempre possibile modificare manualmente le singole tariffe dopo l'inizializzazione prima di salvare.</p>
+                </SubSection>
+            </Section>
+
+            <Section title="8. Modulo Simulazioni (Scenario Planning)">
+                <p>La pagina <strong>Simulazioni</strong> è un ambiente "Sandbox" (isolato) dove è possibile creare scenari alternativi di staffing e budget senza intaccare i dati reali di produzione.</p>
+
+                <SubSection title="Creazione di uno Scenario">
+                    <ul>
+                        <li><strong>Importa Dati Reali:</strong> Copia l'attuale stato di risorse, progetti e allocazioni nella simulazione come punto di partenza.</li>
+                        <li><strong>Risorse Ghost:</strong> Puoi creare risorse simulate (es. "Java Dev Senior 1") per testare l'impatto di nuove assunzioni sul budget e sulla capacità produttiva.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Configurazione Scenario">
+                    <p>Nel tab <em>Configurazione</em> puoi:</p>
+                    <ul>
+                        <li>Modificare i <strong>Costi</strong> e le <strong>Tariffe</strong> delle risorse solo per questo scenario (es. simulare un aumento di listino).</li>
+                        <li>Cambiare il <strong>Listino</strong> applicato a specifici progetti.</li>
+                        <li>Definire piani di fatturazione (Milestones) o spese extra ipotetiche.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Analisi Finanziaria (P&L)">
+                    <p>Il tab <em>Analisi</em> fornisce un conto economico previsionale dello scenario, confrontando Ricavi e Costi mese per mese e calcolando il Margine operativo risultante dalle modifiche simulate.</p>
+                </SubSection>
+            </Section>
+
+            <Section title="9. Analisi Allocazioni WBS">
+                <p>La pagina <strong>Analisi Allocazioni WBS</strong> offre una vista gerarchica e finanziaria delle allocazioni, ideale per il controllo di gestione e la verifica della copertura contrattuale.</p>
+
+                <SubSection title="Struttura Gerarchica">
+                    <p>I dati sono raggruppati secondo la seguente logica ad albero:</p>
+                    <ol className="list-decimal list-inside ml-4 space-y-1">
+                        <li><strong>WBS / Contratto:</strong> Il livello più alto (es. Codice commessa o Nome Contratto).</li>
+                        <li><strong>Progetto:</strong> I progetti collegati a quel contratto.</li>
+                        <li><strong>Risorsa:</strong> Le persone che lavorano su quel progetto.</li>
+                    </ol>
+                </SubSection>
+
+                <SubSection title="Unità di Misura">
+                    <p>È possibile cambiare dinamicamente l'unità di misura dei dati visualizzati:</p>
+                    <ul>
+                        <li><strong>Giorni Uomo:</strong> Totale giornate allocate.</li>
+                        <li><strong>FTE (Full Time Equivalent):</strong> Stima delle teste equivalenti (1 FTE ≈ 20 giorni/mese).</li>
+                        <li><strong>Costo (€):</strong> Valorizzazione economica delle giornate basata sul costo interno della risorsa.</li>
+                    </ul>
+                </SubSection>
+
+                <SubSection title="Controllo Copertura (No WBS)">
+                    <p>La pagina evidenzia una sezione speciale o KPI per <strong>"No WBS"</strong> o <strong>"Attività Extra-Contrattuali"</strong>. Qui finiscono tutte le allocazioni su progetti che non sono stati collegati a nessun contratto attivo, permettendo di identificare rapidamente revenue a rischio o effort non coperto.</p>
+                </SubSection>
+            </Section>
+
+            <Section title="10. Sezione Tecnica per Sviluppatori">
                 <SubSection title="Architettura e fondamenti">
                     <ul>
                         <li><strong>SPA React + React Router:</strong> l'applicazione è una single-page application avviata da <code>App.tsx</code> con routing dichiarativo (<code>&lt;Routes&gt;</code>/<code>&lt;Route&gt;</code>) e lazy loading di tutte le pagine per ridurre il bundle iniziale.</li>

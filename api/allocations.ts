@@ -1,3 +1,4 @@
+
 /**
  * @file api/allocations.ts
  * @description Endpoint API per la gestione delle operazioni di aggiornamento massivo sull'entità Allocazioni.
@@ -5,12 +6,6 @@
 
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-// Placeholder for recalculation logic since it is not exported from resources.js in the current context.
-// In a full implementation, this should trigger the analytics cache refresh.
-const performFullRecalculation = async (client: any) => {
-    // console.log("Analytics recalculation trigger (Placeholder)");
-};
 
 /**
  * Gestore della richiesta API per l'endpoint /api/allocations.
@@ -55,10 +50,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
         }
 
-        // Trigger Recalculation (Write-Through Cache Strategy)
-        await performFullRecalculation(client);
-
+        // COMMIT immediato per rendere persistenti i dati
         await client.query('COMMIT');
+
+        // ASYNC TRIGGER: "Fire and Forget"
+        // Lancia il ricalcolo delle analitiche senza attendere la risposta (non-blocking).
+        // In ambiente Vercel Serverless questo pattern è "best-effort" ma sufficiente per cache invalidation.
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        
+        if (host) {
+            const recalcUrl = `${protocol}://${host}/api/resources?entity=analytics_cache&action=recalc_all`;
+            // Non usiamo 'await' qui intenzionalmente per non bloccare la risposta UI
+            fetch(recalcUrl, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    // Passiamo l'header di auth per mantenere il contesto di sicurezza
+                    'Authorization': req.headers.authorization || '' 
+                }
+            }).catch(err => console.error("[Allocations] Async recalc trigger failed:", err));
+        }
+
+        // Risposta immediata all'utente
         return res.status(200).json({ message: 'Allocations updated successfully' });
 
     } catch (error) {
