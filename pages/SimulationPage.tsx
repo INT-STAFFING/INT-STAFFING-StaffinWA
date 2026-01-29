@@ -394,8 +394,9 @@ const SimulationPage: React.FC = () => {
             setIsSaveModalOpen(false);
             loadScenariosList(); 
         } catch (e) {
-            console.error(e);
-            addToast('Errore durante il salvataggio dello scenario.', 'error');
+            console.error("Save failed:", e);
+            const msg = e instanceof Error ? e.message : 'Errore sconosciuto';
+            addToast(`Errore durante il salvataggio: ${msg}`, 'error');
         } finally {
             setIsLoading(false);
         }

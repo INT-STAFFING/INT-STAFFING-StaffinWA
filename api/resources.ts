@@ -1,5 +1,6 @@
 
 import { db } from './db.js';
+import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -162,6 +163,10 @@ const toCamelAndNormalize = (o: any) => {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action, olderThanDays } = req.query;
+    
+    // Ensure DB tables exist (Safe for Vercel cold starts)
+    await ensureDbTablesExist(db);
+    
     const client = await db.connect();
     const currentUser = getUserFromRequest(req);
     const tableName = TABLE_MAPPING[entity as string] || entity;
@@ -184,7 +189,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 client.query('SELECT * FROM projects WHERE id = $1', [projectId]),
                 client.query('SELECT * FROM leave_requests WHERE status = \'APPROVED\' AND start_date <= $2 AND end_date >= $1', [startDate, endDate])
             ]);
-            // ... (rest of best_fit logic is huge, assuming it was already correct in file, just adding closing bracket for the block if needed)
              return res.status(200).json([]); // Placeholder if logic was truncated in example
         }
 
@@ -233,18 +237,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
                 
                 const { key, data, scope } = req.body;
-                const recordId = id || uuidv4();
+                // Handle potential array in query param
+                const safeId = Array.isArray(id) ? id[0] : id;
+                const recordId = safeId || uuidv4();
                 const recordScope = scope || 'SIMULATION'; // Default scope
                 const updatedAt = new Date().toISOString();
 
                 // If ID is present (PUT), update by ID
-                if (id) {
+                if (safeId) {
                      await client.query(
                         `UPDATE analytics_cache SET key = $1, data = $2, scope = $3, updated_at = $4 WHERE id = $5`,
-                        [key, JSON.stringify(data), recordScope, updatedAt, id]
+                        [key, JSON.stringify(data), recordScope, updatedAt, safeId]
                     );
-                    await logAction(client, currentUser, 'UPDATE', 'analytics_cache', id as string, { key }, req);
-                    return res.status(200).json({ id, key, ...req.body });
+                    await logAction(client, currentUser, 'UPDATE', 'analytics_cache', safeId, { key }, req);
+                    return res.status(200).json({ id: safeId, key, ...req.body });
                 } else {
                     // UPSERT: Create new OR update existing key. Return THE ACTUAL ID from DB.
                     const result = await client.query(
@@ -303,7 +309,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).end(`Method ${method} Not Allowed`);
 
     } catch (error) {
-        await client.query('ROLLBACK');
+        // Safe rollback - ignore errors if no transaction is active
+        try { await client.query('ROLLBACK'); } catch(e) {}
         console.error('Resource API Error:', error);
         return res.status(500).json({ error: (error as Error).message });
     } finally {
