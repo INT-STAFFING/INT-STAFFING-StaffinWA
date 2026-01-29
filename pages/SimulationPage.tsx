@@ -1,3 +1,4 @@
+
 import React, { useState, useReducer, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
@@ -224,8 +225,200 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
     }
 };
 
+// --- STABLE SUB-COMPONENTS (Defined Outside) ---
 
-// --- COMPONENT ---
+const SimulationExpensesModal: React.FC<{ 
+    project: SimulationProject; 
+    projectExpenses: ProjectExpense[];
+    dispatch: React.Dispatch<Action>;
+    onClose: () => void; 
+}> = ({ project, projectExpenses, dispatch, onClose }) => {
+    const [newExpense, setNewExpense] = useState<Partial<ProjectExpense>>({ category: 'Altro', date: new Date().toISOString().split('T')[0], amount: 0, billable: false });
+    const { addToast } = useToast();
+    
+    const filteredExpenses = projectExpenses.filter(e => e.projectId === project.id);
+    const total = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
+
+    const handleAdd = () => {
+        if (!newExpense.amount) {
+            addToast('Inserisci un importo valido.', 'warning');
+            return;
+        }
+        dispatch({
+            type: 'ADD_EXPENSE',
+            payload: {
+                id: uuidv4(),
+                projectId: project.id!,
+                category: newExpense.category || 'Altro',
+                description: newExpense.description || '',
+                amount: Number(newExpense.amount),
+                date: newExpense.date || new Date().toISOString().split('T')[0],
+                billable: !!newExpense.billable
+            }
+        });
+        setNewExpense({ category: 'Altro', date: new Date().toISOString().split('T')[0], amount: 0, billable: false });
+        addToast('Spesa aggiunta.', 'success');
+    };
+
+    return (
+        <Modal isOpen={true} onClose={onClose} title={`Spese Simulate: ${project.name}`}>
+            <div className="space-y-4">
+                <div className="bg-surface-container-low p-3 rounded-lg flex justify-between items-center border border-outline-variant">
+                    <span className="text-sm font-bold">Totale Spese</span>
+                    <span className="text-lg font-mono text-primary">{formatCurrency(total)}</span>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-2 border border-outline-variant rounded-lg p-2 bg-surface">
+                    {filteredExpenses.length === 0 && <p className="text-center text-xs text-on-surface-variant p-4">Nessuna spesa inserita.</p>}
+                    {filteredExpenses.map(exp => (
+                        <div key={exp.id} className="flex justify-between items-center p-2 bg-surface-container-low rounded border border-outline-variant text-sm">
+                            <div>
+                                <div className="font-bold">{exp.category}</div>
+                                <div className="text-xs text-on-surface-variant">{formatDateFull(exp.date)} - {exp.description}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono">{formatCurrency(exp.amount)}</span>
+                                <button onClick={() => dispatch({ type: 'DELETE_EXPENSE', payload: exp.id! })} className="text-error hover:bg-error-container p-1 rounded">
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 items-end pt-2 border-t border-outline-variant">
+                    <div className="col-span-2">
+                        <label className="text-[10px] uppercase font-bold text-on-surface-variant">Descrizione</label>
+                        <input type="text" className="form-input text-xs p-1" value={newExpense.description || ''} onChange={e => setNewExpense({...newExpense, description: e.target.value})} />
+                    </div>
+                     <div>
+                        <label className="text-[10px] uppercase font-bold text-on-surface-variant">Data</label>
+                        <input type="date" className="form-input text-xs p-1" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-on-surface-variant">Importo</label>
+                        <input type="number" className="form-input text-xs p-1" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value)})} />
+                    </div>
+                    <button onClick={handleAdd} className="col-span-4 bg-primary text-on-primary text-xs font-bold py-2 rounded">Aggiungi Spesa</button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const SimulationBillingModal: React.FC<{ 
+    project: SimulationProject; 
+    billingMilestones: BillingMilestone[];
+    dispatch: React.Dispatch<Action>;
+    onClose: () => void; 
+}> = ({ project, billingMilestones, dispatch, onClose }) => {
+    const [newMilestone, setNewMilestone] = useState<Partial<BillingMilestone>>({ name: '', date: new Date().toISOString().split('T')[0], amount: 0, status: 'PLANNED' });
+    const { addToast } = useToast();
+    
+    const filteredMilestones = billingMilestones.filter(m => m.projectId === project.id).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const total = filteredMilestones.reduce((s, m) => s + Number(m.amount), 0);
+
+    const handleAdd = () => {
+         if (!newMilestone.name?.trim()) {
+             addToast('Inserisci un nome per la rata.', 'warning');
+             return;
+         }
+         if (!newMilestone.amount || Number(newMilestone.amount) <= 0) {
+             addToast('Inserisci un importo valido.', 'warning');
+             return;
+         }
+
+         dispatch({
+             type: 'ADD_MILESTONE',
+             payload: {
+                 id: uuidv4(),
+                 projectId: project.id!,
+                 name: newMilestone.name,
+                 date: newMilestone.date || new Date().toISOString().split('T')[0],
+                 amount: Number(newMilestone.amount),
+                 status: newMilestone.status as MilestoneStatus || 'PLANNED'
+             }
+         });
+         setNewMilestone({ name: '', date: new Date().toISOString().split('T')[0], amount: 0, status: 'PLANNED' });
+         addToast('Rata aggiunta con successo.', 'success');
+    };
+
+    const handleBillingTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        dispatch({
+            type: 'UPDATE_PROJECT_BILLING_TYPE',
+            payload: { projectId: project.id!, billingType: e.target.value as BillingType }
+        });
+    };
+
+    return (
+        <Modal isOpen={true} onClose={onClose} title={`Piano Fatturazione Simulato: ${project.name}`}>
+            <div className="space-y-4">
+                 <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant flex justify-between items-center">
+                    <div>
+                        <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Tipo Contratto</label>
+                        <select 
+                            className="bg-transparent border-none font-bold text-sm focus:ring-0 p-0 cursor-pointer text-primary"
+                            value={project.billingType || 'TIME_MATERIAL'}
+                            onChange={handleBillingTypeChange}
+                        >
+                            <option value="TIME_MATERIAL">Time & Material</option>
+                            <option value="FIXED_PRICE">Fixed Price</option>
+                        </select>
+                    </div>
+                    <div className="text-right">
+                         <div className="text-[10px] uppercase font-bold text-on-surface-variant">Totale Piano</div>
+                         <div className={`text-lg font-mono ${total > (project.budget || 0) ? 'text-error' : 'text-primary'}`}>{formatCurrency(total)}</div>
+                    </div>
+                </div>
+
+                {project.billingType === 'FIXED_PRICE' ? (
+                    <>
+                        <div className="max-h-60 overflow-y-auto space-y-2 border border-outline-variant rounded-lg p-2 bg-surface">
+                            {filteredMilestones.length === 0 && <p className="text-center text-xs text-on-surface-variant p-4">Nessuna milestone pianificata.</p>}
+                            {filteredMilestones.map(ms => (
+                                <div key={ms.id} className="flex justify-between items-center p-2 bg-surface-container-low rounded border border-outline-variant text-sm">
+                                    <div>
+                                        <div className="font-bold">{ms.name}</div>
+                                        <div className="text-xs text-on-surface-variant">{formatDateFull(ms.date)} - {ms.status}</div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono">{formatCurrency(ms.amount)}</span>
+                                        <button onClick={() => dispatch({ type: 'DELETE_MILESTONE', payload: ms.id! })} className="text-error hover:bg-error-container p-1 rounded">
+                                            <span className="material-symbols-outlined text-sm">delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-4 gap-2 items-end pt-2 border-t border-outline-variant">
+                            <div className="col-span-2">
+                                <label className="text-[10px] uppercase font-bold text-on-surface-variant">Nome Rata</label>
+                                <input type="text" className="form-input text-xs p-1" value={newMilestone.name} onChange={e => setNewMilestone({...newMilestone, name: e.target.value})} placeholder="es. Anticipo"/>
+                            </div>
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-on-surface-variant">Data</label>
+                                <input type="date" className="form-input text-xs p-1" value={newMilestone.date} onChange={e => setNewMilestone({...newMilestone, date: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] uppercase font-bold text-on-surface-variant">Importo</label>
+                                <input type="number" className="form-input text-xs p-1" value={newMilestone.amount || ''} onChange={e => setNewMilestone({...newMilestone, amount: Number(e.target.value)})} />
+                            </div>
+                            <button onClick={handleAdd} className="col-span-4 bg-primary text-on-primary text-xs font-bold py-2 rounded hover:opacity-90">Aggiungi Rata</button>
+                        </div>
+                    </>
+                ) : (
+                    <div className="p-6 text-center text-sm text-on-surface-variant border border-dashed border-outline-variant rounded-lg bg-surface-container-lowest">
+                        In modalità <strong>Time & Material</strong>, i ricavi sono calcolati automaticamente in base alle allocazioni e alle tariffe del listino.
+                    </div>
+                )}
+            </div>
+        </Modal>
+    );
+};
+
+
+// --- MAIN PAGE COMPONENT ---
 
 const SimulationPage: React.FC = () => {
     const { 
@@ -663,173 +856,6 @@ const SimulationPage: React.FC = () => {
             }));
     }, [state, rateCardEntries]);
 
-    // --- SUB-COMPONENTS FOR MODALS (Internal to SimulationPage for access to dispatch) ---
-
-    const SimulationExpensesModal: React.FC<{ project: SimulationProject; onClose: () => void }> = ({ project, onClose }) => {
-        const [newExpense, setNewExpense] = useState<Partial<ProjectExpense>>({ category: 'Altro', date: new Date().toISOString().split('T')[0], amount: 0, billable: false });
-        
-        const projectExpenses = state.projectExpenses.filter(e => e.projectId === project.id);
-        const total = projectExpenses.reduce((s, e) => s + Number(e.amount), 0);
-
-        const handleAdd = () => {
-            if (!newExpense.amount) return;
-            dispatch({
-                type: 'ADD_EXPENSE',
-                payload: {
-                    id: uuidv4(),
-                    projectId: project.id!,
-                    category: newExpense.category || 'Altro',
-                    description: newExpense.description || '',
-                    amount: Number(newExpense.amount),
-                    date: newExpense.date || new Date().toISOString().split('T')[0],
-                    billable: !!newExpense.billable
-                }
-            });
-            setNewExpense({ category: 'Altro', date: new Date().toISOString().split('T')[0], amount: 0, billable: false });
-        };
-
-        return (
-            <Modal isOpen={true} onClose={onClose} title={`Spese Simulate: ${project.name}`}>
-                <div className="space-y-4">
-                    <div className="bg-surface-container-low p-3 rounded-lg flex justify-between items-center border border-outline-variant">
-                        <span className="text-sm font-bold">Totale Spese</span>
-                        <span className="text-lg font-mono text-primary">{formatCurrency(total)}</span>
-                    </div>
-
-                    <div className="max-h-60 overflow-y-auto space-y-2 border border-outline-variant rounded-lg p-2 bg-surface">
-                        {projectExpenses.length === 0 && <p className="text-center text-xs text-on-surface-variant p-4">Nessuna spesa inserita.</p>}
-                        {projectExpenses.map(exp => (
-                            <div key={exp.id} className="flex justify-between items-center p-2 bg-surface-container-low rounded border border-outline-variant text-sm">
-                                <div>
-                                    <div className="font-bold">{exp.category}</div>
-                                    <div className="text-xs text-on-surface-variant">{formatDateFull(exp.date)} - {exp.description}</div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono">{formatCurrency(exp.amount)}</span>
-                                    <button onClick={() => dispatch({ type: 'DELETE_EXPENSE', payload: exp.id! })} className="text-error hover:bg-error-container p-1 rounded">
-                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-2 items-end pt-2 border-t border-outline-variant">
-                        <div className="col-span-2">
-                            <label className="text-[10px] uppercase font-bold text-on-surface-variant">Descrizione</label>
-                            <input type="text" className="form-input text-xs p-1" value={newExpense.description || ''} onChange={e => setNewExpense({...newExpense, description: e.target.value})} />
-                        </div>
-                         <div>
-                            <label className="text-[10px] uppercase font-bold text-on-surface-variant">Data</label>
-                            <input type="date" className="form-input text-xs p-1" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="text-[10px] uppercase font-bold text-on-surface-variant">Importo</label>
-                            <input type="number" className="form-input text-xs p-1" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value)})} />
-                        </div>
-                        <button onClick={handleAdd} className="col-span-4 bg-primary text-on-primary text-xs font-bold py-2 rounded">Aggiungi Spesa</button>
-                    </div>
-                </div>
-            </Modal>
-        );
-    };
-
-    const SimulationBillingModal: React.FC<{ project: SimulationProject; onClose: () => void }> = ({ project, onClose }) => {
-        const [newMilestone, setNewMilestone] = useState<Partial<BillingMilestone>>({ name: '', date: new Date().toISOString().split('T')[0], amount: 0, status: 'PLANNED' });
-        
-        const milestones = state.billingMilestones.filter(m => m.projectId === project.id).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const total = milestones.reduce((s, m) => s + Number(m.amount), 0);
-
-        const handleAdd = () => {
-             if (!newMilestone.amount || !newMilestone.name) return;
-             dispatch({
-                 type: 'ADD_MILESTONE',
-                 payload: {
-                     id: uuidv4(),
-                     projectId: project.id!,
-                     name: newMilestone.name,
-                     date: newMilestone.date || new Date().toISOString().split('T')[0],
-                     amount: Number(newMilestone.amount),
-                     status: newMilestone.status as MilestoneStatus || 'PLANNED'
-                 }
-             });
-             setNewMilestone({ name: '', date: new Date().toISOString().split('T')[0], amount: 0, status: 'PLANNED' });
-        };
-
-        const handleBillingTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-            dispatch({
-                type: 'UPDATE_PROJECT_BILLING_TYPE',
-                payload: { projectId: project.id!, billingType: e.target.value as BillingType }
-            });
-        };
-
-        return (
-            <Modal isOpen={true} onClose={onClose} title={`Piano Fatturazione Simulato: ${project.name}`}>
-                <div className="space-y-4">
-                     <div className="bg-surface-container-low p-3 rounded-lg border border-outline-variant flex justify-between items-center">
-                        <div>
-                            <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Tipo Contratto</label>
-                            <select 
-                                className="bg-transparent border-none font-bold text-sm focus:ring-0 p-0 cursor-pointer text-primary"
-                                value={project.billingType || 'TIME_MATERIAL'}
-                                onChange={handleBillingTypeChange}
-                            >
-                                <option value="TIME_MATERIAL">Time & Material</option>
-                                <option value="FIXED_PRICE">Fixed Price</option>
-                            </select>
-                        </div>
-                        <div className="text-right">
-                             <div className="text-[10px] uppercase font-bold text-on-surface-variant">Totale Piano</div>
-                             <div className={`text-lg font-mono ${total > (project.budget || 0) ? 'text-error' : 'text-primary'}`}>{formatCurrency(total)}</div>
-                        </div>
-                    </div>
-
-                    {project.billingType === 'FIXED_PRICE' ? (
-                        <>
-                            <div className="max-h-60 overflow-y-auto space-y-2 border border-outline-variant rounded-lg p-2 bg-surface">
-                                {milestones.length === 0 && <p className="text-center text-xs text-on-surface-variant p-4">Nessuna milestone pianificata.</p>}
-                                {milestones.map(ms => (
-                                    <div key={ms.id} className="flex justify-between items-center p-2 bg-surface-container-low rounded border border-outline-variant text-sm">
-                                        <div>
-                                            <div className="font-bold">{ms.name}</div>
-                                            <div className="text-xs text-on-surface-variant">{formatDateFull(ms.date)} - {ms.status}</div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono">{formatCurrency(ms.amount)}</span>
-                                            <button onClick={() => dispatch({ type: 'DELETE_MILESTONE', payload: ms.id! })} className="text-error hover:bg-error-container p-1 rounded">
-                                                <span className="material-symbols-outlined text-sm">delete</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="grid grid-cols-4 gap-2 items-end pt-2 border-t border-outline-variant">
-                                <div className="col-span-2">
-                                    <label className="text-[10px] uppercase font-bold text-on-surface-variant">Nome Rata</label>
-                                    <input type="text" className="form-input text-xs p-1" value={newMilestone.name} onChange={e => setNewMilestone({...newMilestone, name: e.target.value})} placeholder="es. Anticipo"/>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-bold text-on-surface-variant">Data</label>
-                                    <input type="date" className="form-input text-xs p-1" value={newMilestone.date} onChange={e => setNewMilestone({...newMilestone, date: e.target.value})} />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] uppercase font-bold text-on-surface-variant">Importo</label>
-                                    <input type="number" className="form-input text-xs p-1" value={newMilestone.amount || ''} onChange={e => setNewMilestone({...newMilestone, amount: Number(e.target.value)})} />
-                                </div>
-                                <button onClick={handleAdd} className="col-span-4 bg-primary text-on-primary text-xs font-bold py-2 rounded">Aggiungi Rata</button>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="p-6 text-center text-sm text-on-surface-variant border border-dashed border-outline-variant rounded-lg bg-surface-container-lowest">
-                            In modalità <strong>Time & Material</strong>, i ricavi sono calcolati automaticamente in base alle allocazioni e alle tariffe del listino.
-                        </div>
-                    )}
-                </div>
-            </Modal>
-        );
-    };
-
 
     // --- RENDER ---
     return (
@@ -1233,6 +1259,8 @@ const SimulationPage: React.FC = () => {
             {activeExpenseProject && (
                 <SimulationExpensesModal 
                     project={activeExpenseProject} 
+                    projectExpenses={state.projectExpenses}
+                    dispatch={dispatch}
                     onClose={() => setActiveExpenseProject(null)} 
                 />
             )}
@@ -1241,6 +1269,8 @@ const SimulationPage: React.FC = () => {
             {activeBillingProject && (
                 <SimulationBillingModal
                     project={activeBillingProject}
+                    billingMilestones={state.billingMilestones}
+                    dispatch={dispatch}
                     onClose={() => setActiveBillingProject(null)}
                 />
             )}
