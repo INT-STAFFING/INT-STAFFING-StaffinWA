@@ -506,7 +506,7 @@ const SimulationPage: React.FC = () => {
         
         let totalDays = 0;
         
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        for (let d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
             const dateStr = formatDate(d, 'iso');
             if (assignmentAllocations[dateStr]) {
                  totalDays += (assignmentAllocations[dateStr] / 100);

@@ -23,7 +23,7 @@ async function main() {
         await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
         await client.sql`
             CREATE TABLE IF NOT EXISTS analytics_cache (
-                id UUID PRIMARY KEY,
+                id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 key VARCHAR(255) UNIQUE NOT NULL,
                 data JSONB,
                 scope VARCHAR(50),

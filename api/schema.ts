@@ -165,7 +165,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS leave_types ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, color VARCHAR(50) NOT NULL, requires_approval BOOLEAN DEFAULT TRUE, affects_capacity BOOLEAN DEFAULT TRUE );`;
     await db.sql`CREATE TABLE IF NOT EXISTS leave_requests ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, type_id UUID REFERENCES leave_types(id) ON DELETE RESTRICT, start_date DATE NOT NULL, end_date DATE NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PENDING', manager_id UUID REFERENCES resources(id) ON DELETE SET NULL, notes TEXT, approver_ids UUID[], is_half_day BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;
     
-    // 10. Analytics Cache & Simulations (MISSING IN PREVIOUS VERSIONS)
+    // 10. Analytics Cache & Simulations
     await db.sql`
         CREATE TABLE IF NOT EXISTS analytics_cache (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -175,6 +175,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
+
+    // Schema Migration: Ensure 'id' column exists for legacy databases
+    try {
+        await db.sql`ALTER TABLE analytics_cache ADD COLUMN IF NOT EXISTS id UUID DEFAULT uuid_generate_v4();`;
+    } catch (e) {
+        // Ignore if column already exists or other non-critical errors during migration check
+        console.warn('Migration warning for analytics_cache:', e);
+    }
 
     // 11. Theme Seed
     const flattenPalette = (palette: object, prefix: string) => 
