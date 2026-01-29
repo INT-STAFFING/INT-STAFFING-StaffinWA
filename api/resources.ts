@@ -138,11 +138,14 @@ const TABLE_MAPPING: Record<string, string> = {
     'leaves': 'leave_requests',
     'leave_types': 'leave_types',
     'role-permissions': 'role_permissions',
+    'role_permissions': 'role_permissions',
     'security-users': 'app_users',
+    'app-users': 'app_users',
     'rate_cards': 'rate_cards',
     'rate_card_entries': 'rate_card_entries',
     'project_expenses': 'project_expenses',
-    'billing_milestones': 'billing_milestones'
+    'billing_milestones': 'billing_milestones',
+    'audit_logs': 'action_logs'
 };
 
 const toCamelAndNormalize = (o: any) => {
@@ -191,6 +194,132 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             ]);
              return res.status(200).json([]); // Placeholder if logic was truncated in example
         }
+        
+        // --- CUSTOM HANDLER: BATCH CONFIG UPDATE (Sidebar, Theme, etc.) ---
+        if (entity === 'app-config-batch' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { updates } = req.body; // Expects array of { key, value }
+             
+             if (Array.isArray(updates)) {
+                 await client.query('BEGIN');
+                 for (const item of updates) {
+                     await client.query(
+                        `INSERT INTO app_config (key, value) VALUES ($1, $2)
+                         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+                        [item.key, item.value]
+                     );
+                 }
+                 await client.query('COMMIT');
+                 await logAction(client, currentUser, 'UPDATE_BATCH', 'app_config', null, { keys: updates.map(u => u.key) }, req);
+                 return res.status(200).json({ success: true });
+             }
+             return res.status(400).json({ error: 'Invalid updates format' });
+        }
+
+        // --- CUSTOM HANDLER: ROLE PERMISSIONS (RBAC) ---
+        if (entity === 'role-permissions' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { permissions } = req.body; // Expects array of RolePermission objects
+             
+             if (Array.isArray(permissions)) {
+                 await client.query('BEGIN');
+                 // For simplicity in this context, we can upsert one by one. 
+                 // A delete-all-insert approach might be safer for matrix sync but riskier for concurrency.
+                 for (const p of permissions) {
+                     await client.query(
+                        `INSERT INTO role_permissions (role, page_path, is_allowed) 
+                         VALUES ($1, $2, $3)
+                         ON CONFLICT (role, page_path) 
+                         DO UPDATE SET is_allowed = EXCLUDED.is_allowed`,
+                        [p.role, p.pagePath, p.isAllowed]
+                     );
+                 }
+                 await client.query('COMMIT');
+                 await logAction(client, currentUser, 'UPDATE_RBAC', 'role_permissions', null, { count: permissions.length }, req);
+                 return res.status(200).json({ success: true });
+             }
+             return res.status(400).json({ error: 'Invalid permissions format' });
+        }
+
+        // --- CUSTOM HANDLER: USER IMPERSONATION ---
+        if (entity === 'app-users' && action === 'impersonate' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             
+             const targetUserId = id;
+             const { rows } = await client.query('SELECT * FROM app_users WHERE id = $1', [targetUserId]);
+             const targetUser = rows[0];
+
+             if (!targetUser) return res.status(404).json({ error: 'User not found' });
+             
+             // Generate a token for the target user without password check
+             const token = jwt.sign(
+                { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
+                JWT_SECRET!,
+                { expiresIn: '1h' } // Short duration for impersonation
+             );
+             
+             // Get permissions
+             const permRes = await client.query('SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE', [targetUser.role]);
+             const permissions = permRes.rows.map((r: any) => r.page_path);
+
+             await logAction(client, currentUser, 'IMPERSONATE', 'app_users', targetUserId as string, { targetUsername: targetUser.username }, req);
+
+             return res.status(200).json({
+                 success: true,
+                 token,
+                 user: {
+                     id: targetUser.id,
+                     username: targetUser.username,
+                     role: targetUser.role,
+                     resourceId: targetUser.resource_id,
+                     permissions,
+                     mustChangePassword: false 
+                 }
+             });
+        }
+        
+        // --- CUSTOM HANDLER: CHANGE PASSWORD ---
+        if (entity === 'app-users' && action === 'change_password' && method === 'PUT') {
+             if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+             // Users can change their own password, Admins can change anyone's
+             if (currentUser.id !== id && !verifyAdmin(req)) {
+                 return res.status(403).json({ error: 'Unauthorized' });
+             }
+             
+             const { newPassword } = req.body;
+             if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password too short' });
+             
+             const hash = await bcrypt.hash(newPassword, 10);
+             await client.query('UPDATE app_users SET password_hash = $1, must_change_password = FALSE WHERE id = $2', [hash, id]);
+             
+             await logAction(client, currentUser, 'CHANGE_PASSWORD', 'app_users', id as string, {}, req);
+             return res.status(200).json({ success: true });
+        }
+        
+        // --- CUSTOM HANDLER: BULK PASSWORD RESET ---
+        if (entity === 'app-users' && action === 'bulk_password_reset' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             const { users } = req.body; // Array of { username, password }
+             
+             if (!Array.isArray(users)) return res.status(400).json({ error: 'Invalid format' });
+             
+             let successCount = 0;
+             let failCount = 0;
+             
+             await client.query('BEGIN');
+             for (const u of users) {
+                 if (u.username && u.password) {
+                     const hash = await bcrypt.hash(u.password, 10);
+                     const res = await client.query('UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2', [hash, u.username]);
+                     if (res.rowCount > 0) successCount++;
+                     else failCount++;
+                 }
+             }
+             await client.query('COMMIT');
+             await logAction(client, currentUser, 'BULK_PASSWORD_RESET', 'app_users', null, { successCount, failCount }, req);
+             return res.status(200).json({ successCount, failCount });
+        }
+
 
         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
@@ -223,6 +352,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 queryStr += ' ORDER BY created_at DESC';
                 if (q.limit) { queryStr += ` LIMIT $${idx++}`; params.push(q.limit); }
             }
+            
+            // Database Inspector Actions (List Tables)
+            if (entity === 'db_inspector' && action === 'list_tables') {
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+                const tableRes = await client.query(`
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    ORDER BY table_name;
+                `);
+                return res.status(200).json(tableRes.rows.map((r: any) => r.table_name));
+            }
+            
+            // Database Inspector Actions (Get Table Data)
+            if (entity === 'db_inspector' && action === 'get_table_data') {
+                if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+                const targetTable = req.query.table as string;
+                // Simple validation to prevent obvious injections
+                if (!targetTable || !/^[a-z0-9_]+$/.test(targetTable)) return res.status(400).json({ error: 'Invalid table name' });
+                
+                const colRes = await client.query(`
+                    SELECT column_name, data_type 
+                    FROM information_schema.columns 
+                    WHERE table_name = $1
+                `, [targetTable]);
+                
+                const dataRes = await client.query(`SELECT * FROM ${targetTable} LIMIT 100`);
+                return res.status(200).json({ columns: colRes.rows, rows: dataRes.rows });
+            }
 
             const { rows } = await client.query(queryStr, params);
             if (id) {
@@ -235,6 +393,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (entity === 'analytics_cache') {
             if (method === 'POST' || method === 'PUT') {
                 if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
+                
+                // Special Action: Recalc All (Triggered from Admin or Data loading)
+                if (action === 'recalc_all') {
+                    const kpiData = await performFullRecalculation(client);
+                    await logAction(client, currentUser, 'RECALC_ANALYTICS', 'system', null, {}, req);
+                    return res.status(200).json({ success: true, data: kpiData });
+                }
                 
                 const { key, data, scope } = req.body;
                 // Handle potential array in query param
@@ -267,6 +432,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     return res.status(201).json({ id: actualId, key, ...req.body });
                 }
             }
+        }
+        
+        // --- DB INSPECTOR WRITE ACTIONS ---
+        if (entity === 'db_inspector') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             
+             if (action === 'update_row' && method === 'PUT') {
+                 const targetTable = req.query.table as string;
+                 const targetId = id as string;
+                 if (!targetTable || !targetId) return res.status(400).json({ error: 'Missing table or id' });
+                 
+                 const updates = req.body;
+                 const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`);
+                 const values = Object.values(updates);
+                 
+                 await client.query(`UPDATE ${targetTable} SET ${setClauses.join(', ')} WHERE id = $${values.length + 1}`, [...values, targetId]);
+                 await logAction(client, currentUser, 'DB_INSPECTOR_UPDATE', targetTable, targetId, { updates }, req);
+                 return res.status(200).json({ success: true });
+             }
+             
+             if (action === 'delete_all_rows' && method === 'DELETE') {
+                  const targetTable = req.query.table as string;
+                  if (!targetTable) return res.status(400).json({ error: 'Missing table' });
+                  
+                  // Cannot use TRUNCATE easily due to FK constraints, use DELETE
+                  await client.query(`DELETE FROM ${targetTable}`);
+                  await logAction(client, currentUser, 'DB_INSPECTOR_TRUNCATE', targetTable, null, {}, req);
+                  return res.status(200).json({ success: true });
+             }
+             
+             if (action === 'run_raw_query' && method === 'POST') {
+                 const { query } = req.body;
+                 // Very basic safety check, though this is an admin tool
+                 if (!query || !query.trim().toLowerCase().startsWith('select')) {
+                     return res.status(400).json({ error: 'Only SELECT queries are allowed via this endpoint for safety.' });
+                 }
+                 const result = await client.query(query);
+                 await logAction(client, currentUser, 'DB_INSPECTOR_QUERY', 'raw', null, { query }, req);
+                 return res.status(200).json(result);
+             }
         }
 
         // Generic CRUD Handlers (Fallback for other tables)

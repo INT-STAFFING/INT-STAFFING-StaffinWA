@@ -1,4 +1,3 @@
-
 import React, { useState, useReducer, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
@@ -161,7 +160,8 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
              const bulkAssignAlloc = { ...(state.allocations[assignmentId] || {}) };
              
              // Iterate through dates and set percentage
-             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+             // FIX DEFINITIVO: Uso .getTime() per confronto numerico sicuro
+             for (let d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
                  const day = d.getDay();
                  // Simple weekend check (Mock, real calendar check should happen in UI before dispatch if needed, but this is reducer logic)
                  if (day !== 0 && day !== 6) {
@@ -506,10 +506,13 @@ const SimulationPage: React.FC = () => {
         
         let totalDays = 0;
         
+        // FIX DEFINITIVO: Uso .getTime() per confronto numerico sicuro
         for (let d = new Date(start); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
             const dateStr = formatDate(d, 'iso');
-            if (assignmentAllocations[dateStr]) {
-                 totalDays += (assignmentAllocations[dateStr] / 100);
+            // FIX: Handle possibly undefined value correctly, and cast pct to number
+            const pct = (assignmentAllocations[dateStr] ?? 0) as number;
+            if (pct > 0) {
+                 totalDays += (pct / 100);
             }
         }
         return totalDays;
@@ -572,7 +575,7 @@ const SimulationPage: React.FC = () => {
                 const month = date.substring(0, 7); // YYYY-MM
                 if (!monthlyData[month]) monthlyData[month] = { revenue: 0, cost: 0 };
                 
-                const fraction = pct / 100;
+                const fraction = (pct as number) / 100;
                 const cost = fraction * (financials.dailyCost + financials.dailyExpenses);
                 const revenue = fraction * sellRate; 
                 
