@@ -1,5 +1,5 @@
 
-import React, { useState, useReducer, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useReducer, useEffect, useMemo, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -33,7 +33,6 @@ interface SimulationState {
     assignments: Assignment[];
     allocations: Allocation;
     financials: SimulationFinancials;
-    // New Fields
     projectExpenses: ProjectExpense[];
     billingMilestones: BillingMilestone[];
     
@@ -92,9 +91,8 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
                 assignments: action.payload.data.assignments || [],
                 allocations: action.payload.data.allocations || {},
                 financials: action.payload.data.financials || {},
-                // Safe check for legacy scenarios without these fields
-                projectExpenses: (action.payload.data as any).projectExpenses || [],
-                billingMilestones: (action.payload.data as any).billingMilestones || [],
+                projectExpenses: action.payload.data.projectExpenses || [],
+                billingMilestones: action.payload.data.billingMilestones || [],
                 hasUnsavedChanges: false
             };
         case 'IMPORT_DATA':
@@ -226,7 +224,7 @@ const simulationReducer = (state: SimulationState, action: Action): SimulationSt
 };
 
 // --- STABLE SUB-COMPONENTS (Defined Outside) ---
-
+// (Expenses and Billing Modals code remains the same as previous)
 const SimulationExpensesModal: React.FC<{ 
     project: SimulationProject; 
     projectExpenses: ProjectExpense[];
@@ -417,7 +415,6 @@ const SimulationBillingModal: React.FC<{
     );
 };
 
-
 // --- MAIN PAGE COMPONENT ---
 
 const SimulationPage: React.FC = () => {
@@ -431,10 +428,11 @@ const SimulationPage: React.FC = () => {
 
     const [state, dispatch] = useReducer(simulationReducer, initialState);
     const [scenarios, setScenarios] = useState<any[]>([]); // Metadata list
-    const [activeTab, setActiveTab] = useState<'config' | 'staffing' | 'analysis'>('config');
-    const [isLoading, setIsLoading] = useState(false);
+    // ... [Other states omitted for brevity] ...
     
     // UI Local State
+    const [activeTab, setActiveTab] = useState<'config' | 'staffing' | 'analysis'>('config');
+    const [isLoading, setIsLoading] = useState(false);
     const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isGhostModalOpen, setIsGhostModalOpen] = useState(false);
@@ -445,33 +443,27 @@ const SimulationPage: React.FC = () => {
     });
     const [bulkRateCardId, setBulkRateCardId] = useState('');
 
-    // Modals for Expenses/Billing
     const [activeExpenseProject, setActiveExpenseProject] = useState<SimulationProject | null>(null);
     const [activeBillingProject, setActiveBillingProject] = useState<SimulationProject | null>(null);
-    
-    // For Staffing Table Interaction
     const [currentDate, setCurrentDate] = useState(new Date());
 
-    // Load Scenarios List
+    // File Input Ref for Import
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const loadScenariosList = useCallback(async () => {
-        try {
-            const allCache = await apiFetch<any[]>('/api/resources?entity=analytics_cache');
-            const scenarioList = allCache
-                .filter(item => item.key && item.key.startsWith('scenario_'))
-                .map(item => {
-                    const data = item.data || {};
-                    return { 
-                        dbId: item.id, 
-                        key: item.key, 
-                        id: data.id,
-                        name: data.name || 'Scenario Senza Nome', 
-                        description: data.description || '', 
-                        updatedAt: item.updated_at || item.updatedAt || data.updatedAt || new Date().toISOString()
-                    };
-                })
-                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-            setScenarios(scenarioList);
-        } catch (e) { console.error("Failed to load scenarios list", e); }
+         try {
+             const res = await apiFetch<any[]>('/api/resources?entity=analytics_cache');
+             const list = res.filter(r => r.scope === 'SIMULATION').map(r => ({
+                 key: r.key,
+                 dbId: r.id, // Keep reference to DB ID for updates
+                 name: r.data.name,
+                 description: r.data.description,
+                 updatedAt: r.updated_at
+             }));
+             setScenarios(list);
+         } catch (e) {
+             console.error("Failed to load scenarios list", e);
+         }
     }, []);
 
     useEffect(() => {
@@ -479,6 +471,164 @@ const SimulationPage: React.FC = () => {
     }, [loadScenariosList]);
 
     // --- Actions ---
+
+    // NEW: Handle Export to Excel
+    const handleExportExcel = async () => {
+        try {
+             const XLSX = await import('xlsx');
+             const wb = XLSX.utils.book_new();
+
+             // 1. Info Sheet
+             const infoData = [{
+                 ID: state.id || uuidv4(),
+                 Name: state.name || 'Simulazione',
+                 Description: state.description,
+                 CreatedAt: new Date().toISOString()
+             }];
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(infoData), "Info");
+
+             // 2. Resources Sheet (Flattened)
+             const resourcesData = state.resources.map(r => {
+                 const fin = state.financials[r.id!] || { dailyCost: 0, dailyExpenses: 0, sellRate: 0 };
+                 return {
+                     ...r,
+                     dailyCost: fin.dailyCost,
+                     dailyExpenses: fin.dailyExpenses,
+                     sellRate: fin.sellRate
+                 };
+             });
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resourcesData), "Resources");
+
+             // 3. Projects Sheet
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.projects), "Projects");
+             
+             // 4. Assignments Sheet
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.assignments), "Assignments");
+
+             // 5. Allocations Sheet (Flattened for CSV/Excel compatibility)
+             const flatAllocations: any[] = [];
+             Object.entries(state.allocations).forEach(([assignmentId, dates]) => {
+                 Object.entries(dates).forEach(([date, percentage]) => {
+                     flatAllocations.push({ AssignmentId: assignmentId, Date: date, Percentage: percentage });
+                 });
+             });
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(flatAllocations), "Allocations");
+
+             // 6. Expenses & Milestones
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.projectExpenses), "Expenses");
+             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.billingMilestones), "Milestones");
+
+             const safeName = (state.name || 'simulation').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+             XLSX.writeFile(wb, `${safeName}.xlsx`);
+             addToast('Simulazione esportata in Excel.', 'success');
+
+        } catch (e) {
+            console.error(e);
+            addToast('Errore durante l\'esportazione Excel.', 'error');
+        }
+    };
+
+    // NEW: Handle Import from Excel
+    const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const XLSX = await import('xlsx');
+                const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Parse Sheets
+                const infoSheet = workbook.Sheets['Info'];
+                const resSheet = workbook.Sheets['Resources'];
+                const projSheet = workbook.Sheets['Projects'];
+                const assignSheet = workbook.Sheets['Assignments'];
+                const allocSheet = workbook.Sheets['Allocations'];
+                const expSheet = workbook.Sheets['Expenses'];
+                const mileSheet = workbook.Sheets['Milestones'];
+
+                if (!infoSheet || !resSheet || !projSheet) {
+                    throw new Error('Formato file non valido o fogli mancanti.');
+                }
+
+                const info = XLSX.utils.sheet_to_json(infoSheet)[0] as any;
+                const resourcesRaw = XLSX.utils.sheet_to_json(resSheet) as any[];
+                const projects = XLSX.utils.sheet_to_json(projSheet) as any[];
+                const assignments = XLSX.utils.sheet_to_json(assignSheet) as any[];
+                const allocRows = XLSX.utils.sheet_to_json(allocSheet) as any[];
+                const projectExpenses = expSheet ? XLSX.utils.sheet_to_json(expSheet) as any[] : [];
+                const billingMilestones = mileSheet ? XLSX.utils.sheet_to_json(mileSheet) as any[] : [];
+
+                // Reconstruct Complex Objects
+                const resources: SimulationResource[] = [];
+                const financials: SimulationFinancials = {};
+                
+                resourcesRaw.forEach(r => {
+                    const { dailyCost, dailyExpenses, sellRate, ...resData } = r;
+                    resources.push(resData);
+                    if (resData.id) {
+                        financials[resData.id] = { 
+                            dailyCost: Number(dailyCost) || 0,
+                            dailyExpenses: Number(dailyExpenses) || 0,
+                            sellRate: Number(sellRate) || 0
+                        };
+                    }
+                });
+
+                const allocations: Allocation = {};
+                allocRows.forEach(row => {
+                    if (!allocations[row.AssignmentId]) allocations[row.AssignmentId] = {};
+                    allocations[row.AssignmentId][row.Date] = row.Percentage;
+                });
+
+                // Dispatch Load
+                const scenarioData: SimulationScenario = {
+                    id: info.ID || uuidv4(),
+                    name: info.Name || 'Simulazione Importata',
+                    description: info.Description || '',
+                    createdAt: info.CreatedAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    data: {
+                        resources,
+                        projects,
+                        assignments,
+                        allocations,
+                        financials,
+                        projectExpenses,
+                        billingMilestones
+                    }
+                };
+
+                dispatch({ type: 'LOAD_SCENARIO', payload: scenarioData });
+                addToast('Simulazione importata da Excel.', 'success');
+                setActiveTab('config');
+                
+                // Reset date view
+                 let earliestDate = new Date().toISOString();
+                let found = false;
+                if (allocations) {
+                     Object.values(allocations).forEach((assignmentAlloc: any) => {
+                        Object.keys(assignmentAlloc).forEach(dateStr => {
+                            if (dateStr < earliestDate) {
+                                earliestDate = dateStr;
+                                found = true;
+                            }
+                        });
+                    });
+                }
+                if (found) setCurrentDate(new Date(earliestDate));
+
+            } catch (error) {
+                console.error(error);
+                addToast('Errore durante la lettura del file Excel.', 'error');
+            }
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+    };
 
     const handleImportRealData = () => {
         if (!realResources || realResources.length === 0) {
@@ -501,7 +651,6 @@ const SimulationPage: React.FC = () => {
                 ? JSON.parse(JSON.stringify(realAllocations)) 
                 : {};
             
-            // Import Expenses & Milestones
             const simExpenses: ProjectExpense[] = realExpenses ? JSON.parse(JSON.stringify(realExpenses)) : [];
             const simMilestones: BillingMilestone[] = realMilestones ? JSON.parse(JSON.stringify(realMilestones)) : [];
 
@@ -510,7 +659,14 @@ const SimulationPage: React.FC = () => {
             simResources.forEach(r => {
                 const role = roles.find(ro => ro.id === r.roleId);
                 const dailyCost: number = Number(r.dailyCost) > 0 ? Number(r.dailyCost) : (Number(role?.dailyCost) || 0);
-                const dailyExpenses: number = (role?.dailyExpenses && Number(role.dailyExpenses) > 0) ? Number(role.dailyExpenses) : (dailyCost * 0.035);
+                
+                // Calculate absolute expenses based on overhead percentage if available, otherwise fallback
+                let dailyExpenses = 0;
+                if (role?.overheadPct !== undefined) {
+                    dailyExpenses = (dailyCost * role.overheadPct) / 100;
+                } else {
+                    dailyExpenses = role?.dailyExpenses || 0; // Legacy absolute if overheadPct not set
+                }
                 
                 let sellRate = 0;
                 const resourceAssignments = simAssignments.filter(a => a.resourceId === r.id);
@@ -540,7 +696,7 @@ const SimulationPage: React.FC = () => {
                 }
             });
             
-            // FIND EARLIEST ALLOCATION TO JUMP CALENDAR
+            // ... [Date finding logic unchanged] ...
             let earliestDate = new Date().toISOString();
             let found = false;
             Object.values(simAllocations).forEach(assignmentAlloc => {
@@ -551,11 +707,7 @@ const SimulationPage: React.FC = () => {
                     }
                 });
             });
-            
-            if (found) {
-                const d = new Date(earliestDate);
-                setCurrentDate(d);
-            }
+            if (found) setCurrentDate(new Date(earliestDate));
             
             setActiveTab('config');
             addToast(`Importati: ${simResources.length} ris., ${simProjects.length} prog., ${simExpenses.length} spese.`, 'success');
@@ -565,6 +717,7 @@ const SimulationPage: React.FC = () => {
         }
     };
 
+    // ... [openSaveModal, performSave, handleLoadScenario unchanged] ...
     // Open Modal instead of direct save
     const openSaveModal = () => {
         if (!state.name) {
@@ -682,11 +835,18 @@ const SimulationPage: React.FC = () => {
         }
     };
 
+
     const handleAddGhost = () => {
         const id = `ghost-${uuidv4().substring(0, 8)}`;
         const role = roles.find(r => r.id === newGhost.roleId);
         const dailyCost = role?.dailyCost || 0;
-        const dailyExpenses = role?.dailyExpenses || (dailyCost * 0.035);
+        // Calculate overhead
+        let dailyExpenses = 0;
+        if (role?.overheadPct !== undefined) {
+             dailyExpenses = (dailyCost * role.overheadPct) / 100;
+        } else {
+             dailyExpenses = role?.dailyExpenses || 0;
+        }
 
         dispatch({
             type: 'ADD_GHOST_RESOURCE',
@@ -722,7 +882,6 @@ const SimulationPage: React.FC = () => {
     };
 
     // --- Helper Functions for Staffing Table ---
-    
     const monthsToRender = useMemo(() => {
         const months = [];
         const start = new Date(currentDate);
@@ -791,6 +950,7 @@ const SimulationPage: React.FC = () => {
     };
     
     // --- Analysis Data Calculation ---
+    // (Analysis logic remains roughly the same as we are using the 'financials' map which contains absolute dailyExpenses computed on import/add)
     const analysisData = useMemo(() => {
         const monthlyData: Record<string, { revenue: number, cost: number }> = {};
         
@@ -809,18 +969,23 @@ const SimulationPage: React.FC = () => {
                 const entry = rateCardEntries.find(e => e.rateCardId === project.simulatedRateCardId && e.resourceId === resource.id);
                 if (entry) sellRate = Number(entry.dailyRate);
             }
+
+            // Chargeability Factor Lookup
+            const role = roles.find(r => r.id === resource.roleId);
+            const chargeability = (role?.chargeablePct ?? 100) / 100;
             
             Object.entries(allocs).forEach(([date, pct]) => {
                 const month = date.substring(0, 7); // YYYY-MM
                 if (!monthlyData[month]) monthlyData[month] = { revenue: 0, cost: 0 };
                 
                 const fraction = (pct as number) / 100;
+                // Cost is 100% of daily rate regardless of chargeability
                 const cost = fraction * (financials.dailyCost + financials.dailyExpenses);
                 
-                // Revenue only if T&M
+                // Revenue only if T&M, adjusted by chargeability
                 let revenue = 0;
                 if (project.billingType === 'TIME_MATERIAL' || !project.billingType) {
-                    revenue = fraction * sellRate; 
+                    revenue = fraction * sellRate * chargeability; 
                 }
                 
                 monthlyData[month].cost += cost;
@@ -854,14 +1019,13 @@ const SimulationPage: React.FC = () => {
                 margin: val.revenue - val.cost,
                 marginPct: val.revenue > 0 ? ((val.revenue - val.cost) / val.revenue) * 100 : 0
             }));
-    }, [state, rateCardEntries]);
-
+    }, [state, rateCardEntries, roles]);
 
     // --- RENDER ---
     return (
         <div className="h-full flex flex-col space-y-4">
-            {/* HEADER */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-surface p-4 rounded-2xl shadow border border-outline-variant gap-4">
+             {/* Header Section */}
+             <div className="flex flex-col md:flex-row justify-between items-center bg-surface p-4 rounded-2xl shadow border border-outline-variant gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
                         <span className="material-symbols-outlined">science</span> Simulazione
@@ -881,6 +1045,15 @@ const SimulationPage: React.FC = () => {
                         <button onClick={() => setActiveTab('staffing')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${activeTab === 'staffing' ? 'bg-surface shadow text-primary' : 'text-on-surface-variant'}`}>Staffing</button>
                         <button onClick={() => setActiveTab('analysis')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${activeTab === 'analysis' ? 'bg-surface shadow text-primary' : 'text-on-surface-variant'}`}>Analisi</button>
                     </div>
+
+                     {/* Export/Import Buttons */}
+                     <button onClick={handleExportExcel} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Esporta Excel">
+                        <span className="material-symbols-outlined">download</span>
+                    </button>
+                    <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Importa Excel">
+                        <span className="material-symbols-outlined">upload</span>
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleImportExcel} className="hidden" accept=".xlsx, .xls" />
 
                     <button onClick={handleImportRealData} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Importa Dati Reali">
                         <span className="material-symbols-outlined">cloud_download</span>
@@ -914,7 +1087,7 @@ const SimulationPage: React.FC = () => {
                                             <th className="p-3">Risorsa</th>
                                             <th className="p-3">Ruolo</th>
                                             <th className="p-3 text-right">Costo G. (€)</th>
-                                            <th className="p-3 text-right">Spese G. (€)</th>
+                                            <th className="p-3 text-right">Overhead (€)</th>
                                             <th className="p-3 text-right">Tariffa Vendita (€)</th>
                                         </tr>
                                     </thead>
@@ -960,10 +1133,10 @@ const SimulationPage: React.FC = () => {
                                 </table>
                             </div>
                         </div>
-
                         {/* Project Config */}
                         <div className="bg-surface p-6 rounded-2xl shadow border border-outline-variant">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                             {/* ... (Same as previous content for project config) */}
+                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                                 <h3 className="text-lg font-bold">Configurazione Progetti e Listini</h3>
                                 <div className="flex items-center gap-2 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
                                     <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider ml-1">Massivo:</span>
@@ -1040,8 +1213,8 @@ const SimulationPage: React.FC = () => {
 
                 {activeTab === 'staffing' && (
                     <div className="h-full flex flex-col bg-surface rounded-2xl shadow border border-outline-variant">
-                        {/* Period Navigation */}
-                        <div className="flex-shrink-0 p-3 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+                         {/* ... (Staffing content unchanged) */}
+                          <div className="flex-shrink-0 p-3 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
                             <div className="flex gap-2">
                                 <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth() - 6); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container text-on-surface-variant">
                                     <span className="material-symbols-outlined">chevron_left</span> 6 Mesi
@@ -1062,7 +1235,6 @@ const SimulationPage: React.FC = () => {
                             <div className="text-xs text-on-surface-variant italic">Modifica i "Giorni Uomo" (G/U) per ricalcolare l'allocazione</div>
                         </div>
                         
-                        {/* Simulation Table (Simplified Monthly View) */}
                         <div className="flex-1 overflow-auto">
                             <table className="w-full text-sm text-left border-collapse">
                                 <thead className="bg-surface-container sticky top-0 z-10 shadow-sm">
@@ -1082,7 +1254,6 @@ const SimulationPage: React.FC = () => {
                                         const role = roles.find(r => r.id === res.roleId);
                                         return (
                                             <React.Fragment key={res.id}>
-                                                {/* Resource Header Row */}
                                                 <tr className="bg-surface-container/50">
                                                     <td className="p-3 font-bold sticky left-0 bg-surface-container/50 border-r border-outline-variant z-10">
                                                         <div className="flex items-center gap-2">
@@ -1092,12 +1263,9 @@ const SimulationPage: React.FC = () => {
                                                         <div className="text-[10px] font-normal text-on-surface-variant">{role?.name}</div>
                                                     </td>
                                                     {monthsToRender.map(m => (
-                                                        <td key={m.toISOString()} className="p-3 text-center bg-surface-container/50 text-xs text-on-surface-variant">
-                                                            {/* Placeholder for total */}
-                                                        </td>
+                                                        <td key={m.toISOString()} className="p-3 text-center bg-surface-container/50 text-xs text-on-surface-variant"></td>
                                                     ))}
                                                 </tr>
-                                                {/* Assignment Rows */}
                                                 {resAssignments.map(asg => {
                                                     const project = state.projects.find(p => p.id === asg.projectId);
                                                     return (
@@ -1205,6 +1373,7 @@ const SimulationPage: React.FC = () => {
             {/* Save Scenario Modal */}
             {isSaveModalOpen && (
                 <Modal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} title="Salva Scenario">
+                     {/* ... (Existing save modal content) */}
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-bold mb-1">Nome Scenario</label>
@@ -1243,6 +1412,7 @@ const SimulationPage: React.FC = () => {
             {/* Load Modal */}
             {isLoadModalOpen && (
                 <Modal isOpen={isLoadModalOpen} onClose={() => setIsLoadModalOpen(false)} title="Carica Scenario">
+                     {/* ... (Existing load modal content) */}
                     <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                         {scenarios.length === 0 ? <p className="text-center p-4">Nessuno scenario salvato.</p> : scenarios.map(s => (
                             <div key={s.key} onClick={() => handleLoadScenario(s.key)} className="p-4 border rounded-xl hover:bg-surface-container cursor-pointer">

@@ -79,7 +79,15 @@ export async function ensureDbTablesExist(db: VercelPool) {
 
     // 4. Operational Entities
     await db.sql`CREATE TABLE IF NOT EXISTS clients ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, sector VARCHAR(255), contact_email VARCHAR(255) );`;
-    await db.sql`CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2) );`;
+    
+    // Roles - Added Chargeability Columns and Overhead Pct
+    await db.sql`CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2), overhead_pct NUMERIC(5, 2) DEFAULT 0, chargeable_pct NUMERIC(5, 2) DEFAULT 100, training_pct NUMERIC(5, 2) DEFAULT 0, bd_pct NUMERIC(5, 2) DEFAULT 0 );`;
+    // Migrations for existing tables
+    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS chargeable_pct NUMERIC(5, 2) DEFAULT 100;`;
+    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS training_pct NUMERIC(5, 2) DEFAULT 0;`;
+    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS bd_pct NUMERIC(5, 2) DEFAULT 0;`;
+    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS overhead_pct NUMERIC(5, 2) DEFAULT 0;`;
+
     await db.sql`CREATE TABLE IF NOT EXISTS role_cost_history ( id UUID PRIMARY KEY, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, daily_cost NUMERIC(10, 2) NOT NULL, start_date DATE NOT NULL, end_date DATE );`;
     
     // Resource Update: Added daily_cost

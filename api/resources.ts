@@ -99,7 +99,21 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         seniorityLevel: z.string().optional().nullable(),
         dailyCost: z.number().optional().nullable(),
         standardCost: z.number().optional().nullable(),
-        dailyExpenses: z.number().optional().nullable()
+        dailyExpenses: z.number().optional().nullable(),
+        overheadPct: z.number().optional().default(0),
+        chargeablePct: z.number().optional().default(100),
+        trainingPct: z.number().optional().default(0),
+        bdPct: z.number().optional().default(0)
+    }).refine(data => {
+        // Validation: Sum of percentages must be 100
+        const c = data.chargeablePct || 0;
+        const t = data.trainingPct || 0;
+        const b = data.bdPct || 0;
+        // Allow tiny floating point errors
+        return Math.abs((c + t + b) - 100) < 0.01;
+    }, {
+        message: "La somma delle percentuali (Chargeable + Training + BD) deve essere 100%",
+        path: ["chargeablePct"] // Highlight chargeablePct field on error
     }),
     'skills': z.object({
         name: z.string(),
@@ -164,6 +178,10 @@ const toCamelAndNormalize = (o: any) => {
             const m = String(value.getMonth() + 1).padStart(2, '0');
             const d = String(value.getDate()).padStart(2, '0');
             n[camelKey] = `${y}-${m}-${d}`;
+        } else if (typeof value === 'string' && !isNaN(Number(value)) && 
+                   (camelKey.endsWith('Pct') || camelKey === 'dailyCost' || camelKey === 'standardCost' || camelKey === 'dailyExpenses' || camelKey === 'overheadPct')) {
+             // Ensure numeric fields from DB (which might be strings for NUMERIC type) are numbers
+             n[camelKey] = Number(value);
         } else {
             n[camelKey] = value;
         }
@@ -304,8 +322,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
              }
              
-             const validatedBody = parseResult.data;
+             let validatedBody = parseResult.data;
              const newId = uuidv4();
+
+             // Logic for Roles: auto-calculate dailyExpenses from overheadPct
+             if (tableName === 'roles') {
+                const dailyCost = validatedBody.dailyCost || 0;
+                const overheadPct = validatedBody.overheadPct || 0;
+                // Force calculate absolute value for DB compatibility
+                validatedBody.dailyExpenses = (dailyCost * overheadPct) / 100;
+             }
              
              // Dynamic Query Construction using Validated Keys Only
              const columns = Object.keys(validatedBody).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
@@ -330,12 +356,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              }
              
              // Use partial() for updates as not all fields might be present
+             // NOTE: for Roles with refinement, we might need full object or manual check if fields missing
              const parseResult = schema.partial().safeParse(req.body);
              if (!parseResult.success) {
                  return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
              }
 
-            const validatedBody = parseResult.data;
+            let validatedBody = parseResult.data;
+            
+            // Logic for Roles: auto-calculate dailyExpenses from overheadPct if present
+            if (tableName === 'roles') {
+                // We need dailyCost. If not in body, fetch from DB or assume updated dailyCost is present if changing calcs
+                // Ideally frontend sends both, but let's be safe.
+                // Simplified: Assume if updating cost parameters, all necessary fields are provided OR handled by frontend.
+                // Here we just enforce calculation if both are present in the partial update.
+                if (validatedBody.dailyCost !== undefined && validatedBody.overheadPct !== undefined) {
+                     validatedBody.dailyExpenses = (validatedBody.dailyCost * validatedBody.overheadPct) / 100;
+                } else if (validatedBody.overheadPct !== undefined) {
+                     // Need dailyCost from DB to calc
+                     const { rows } = await client.query('SELECT daily_cost FROM roles WHERE id = $1', [id]);
+                     const currentCost = Number(rows[0]?.daily_cost || 0);
+                     validatedBody.dailyExpenses = (currentCost * validatedBody.overheadPct) / 100;
+                } else if (validatedBody.dailyCost !== undefined) {
+                     // Need overheadPct from DB to calc
+                     const { rows } = await client.query('SELECT overhead_pct FROM roles WHERE id = $1', [id]);
+                     const currentPct = Number(rows[0]?.overhead_pct || 0);
+                     validatedBody.dailyExpenses = (validatedBody.dailyCost * currentPct) / 100;
+                }
+            }
+
             const updates = Object.entries(validatedBody).map(([k, v], i) => {
                 const col = k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
                 return `${col} = $${i + 1}`;

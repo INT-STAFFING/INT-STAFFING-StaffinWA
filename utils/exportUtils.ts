@@ -26,7 +26,17 @@ export const exportCoreEntities = async (data: EntitiesContextType) => {
     const clientsSheetData = clients.map(c => ({ 'Nome Cliente': c.name, 'Settore': c.sector, 'Email Contatto': c.contactEmail }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientsSheetData), 'Clienti');
 
-    const rolesSheetData = roles.map(r => ({ 'Nome Ruolo': r.name, 'Livello Seniority': r.seniorityLevel, 'Costo Giornaliero (€)': r.dailyCost, 'Costo Standard (€)': r.standardCost, 'Spese Giornaliere Calcolate (€)': r.dailyExpenses }));
+    const rolesSheetData = roles.map(r => ({ 
+        'Nome Ruolo': r.name, 
+        'Livello Seniority': r.seniorityLevel, 
+        'Costo Giornaliero (€)': r.dailyCost, 
+        'Costo Standard (€)': r.standardCost, 
+        'Overhead (%)': r.overheadPct || 0,
+        'Spese Giornaliere Calcolate (€)': r.dailyExpenses,
+        'Chargeable %': r.chargeablePct || 100,
+        'Training %': r.trainingPct || 0,
+        'BD %': r.bdPct || 0
+    }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rolesSheetData), 'Ruoli');
 
     const resourcesSheetData = resources.map(r => {
@@ -330,7 +340,7 @@ export const exportTemplate = async (type: ExportType) => {
     switch (type) {
         case 'core_entities':
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "sector", "contactEmail"]]), 'Clienti');
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "seniorityLevel", "dailyCost", "standardCost"]]), 'Ruoli');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "seniorityLevel", "dailyCost", "standardCost", "overheadPct", "chargeablePct", "trainingPct", "bdPct"]]), 'Ruoli');
             // Added "Competenze" column to Resources template
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "email", "roleName", "horizontal", "location", "Tutor", "Competenze", "hireDate", "workSeniority", "notes"]]), 'Risorse');
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["name", "clientName", "status", "budget", "realizationPercentage", "startDate", "endDate", "projectManager", "notes"]]), 'Progetti');

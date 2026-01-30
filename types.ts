@@ -45,8 +45,18 @@ export interface Role {
     dailyCost: number;
     /** @property {number} [standardCost] - Un costo standard personalizzato per il ruolo. */
     standardCost?: number;
-    /** @property {number} [dailyExpenses] - Le spese giornaliere accessorie, calcolate in base al costo giornaliero. */
+    /** @property {number} [overheadPct] - Percentuale di spese generali rispetto al costo giornaliero. */
+    overheadPct?: number;
+    /** @property {number} [dailyExpenses] - Le spese giornaliere accessorie (CALCOLATO: dailyCost * overheadPct / 100). */
     dailyExpenses?: number;
+    
+    // Chargeability Mix (percentages 0-100)
+    /** @property {number} [chargeablePct] - Percentuale di tempo fatturabile (default 100). */
+    chargeablePct?: number;
+    /** @property {number} [trainingPct] - Percentuale dedicata al training. */
+    trainingPct?: number;
+    /** @property {number} [bdPct] - Percentuale dedicata al Business Development. */
+    bdPct?: number;
 }
 
 /**
@@ -997,5 +1007,7 @@ export interface SimulationScenario {
         assignments: Assignment[];
         allocations: Allocation;
         financials: SimulationFinancials;
+        projectExpenses?: ProjectExpense[];
+        billingMilestones?: BillingMilestone[];
     };
 }

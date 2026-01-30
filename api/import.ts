@@ -12,7 +12,7 @@ const verifyOperational = (req: VercelRequest): boolean => {
     const token = authHeader.split(' ')[1];
     if (!token) return false;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET!) as any;
+        const decoded = jwt.verify(token, String(JWT_SECRET || '')) as any;
         return ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'].includes(decoded.role);
     } catch (e) { return false; }
 };
@@ -88,10 +88,137 @@ const formatDateForDB = (date: Date | null): string | null => {
 
 const normalize = (str: any): string => String(str || '').trim().toLowerCase();
 
-// ... (Functions importCoreEntities, importStaffing, etc. preserved but using new parseDate) ...
-// Per brevità, ometto il corpo delle funzioni di importazione che non cambiano logica se non per l'uso di parseDate/formatDateForDB.
-// Assumo che l'utente applichi la modifica a `parseDate` e mantenga il resto.
-// Riporto `importStaffing` come esempio critico per le date.
+const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
+    const { clients, roles, resources, projects, calendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = body;
+
+    // Config imports (Simple inserts, ignore duplicates)
+    if (Array.isArray(horizontals)) await executeBulkInsert(client, 'horizontals', ['id', 'value'], horizontals.map(h => [uuidv4(), h.value || h.Valore]));
+    if (Array.isArray(seniorityLevels)) await executeBulkInsert(client, 'seniority_levels', ['id', 'value'], seniorityLevels.map(s => [uuidv4(), s.value || s.Valore]));
+    if (Array.isArray(projectStatuses)) await executeBulkInsert(client, 'project_statuses', ['id', 'value'], projectStatuses.map(s => [uuidv4(), s.value || s.Valore]));
+    if (Array.isArray(clientSectors)) await executeBulkInsert(client, 'client_sectors', ['id', 'value'], clientSectors.map(s => [uuidv4(), s.value || s.Valore]));
+    if (Array.isArray(locations)) await executeBulkInsert(client, 'locations', ['id', 'value'], locations.map(l => [uuidv4(), l.value || l.Valore]));
+
+    // Clients
+    if (Array.isArray(clients)) {
+        const clientRows = clients.map(c => [uuidv4(), c['Nome Cliente'] || c.name, c['Settore'] || c.sector, c['Email Contatto'] || c.contactEmail]);
+        await executeBulkInsert(client, 'clients', ['id', 'name', 'sector', 'contact_email'], clientRows);
+    }
+
+    // Roles (Updated with Chargeability Columns)
+    if (Array.isArray(roles)) {
+        const roleRows = roles.map(r => {
+            const dailyCost = r['Costo Giornaliero (€)'] !== undefined ? Number(r['Costo Giornaliero (€)']) : (r.dailyCost !== undefined ? Number(r.dailyCost) : 0);
+            const overheadPct = r['Overhead %'] !== undefined ? Number(r['Overhead %']) : (r.overheadPct !== undefined ? Number(r.overheadPct) : 0);
+            
+            // Calc daily expenses for DB (using percentage if present, otherwise direct value)
+            let dailyExpenses = 0;
+            if (r['Overhead %'] !== undefined || r.overheadPct !== undefined) {
+                dailyExpenses = (dailyCost * overheadPct) / 100;
+            } else {
+                dailyExpenses = r['Spese Giornaliere Calcolate (€)'] !== undefined ? Number(r['Spese Giornaliere Calcolate (€)']) : (r.dailyExpenses !== undefined ? Number(r.dailyExpenses) : 0);
+            }
+
+            const chargeablePct = r['Chargeable %'] !== undefined ? Number(r['Chargeable %']) : (r.chargeablePct !== undefined ? Number(r.chargeablePct) : 100);
+            const trainingPct = r['Training %'] !== undefined ? Number(r['Training %']) : (r.trainingPct !== undefined ? Number(r.trainingPct) : 0);
+            const bdPct = r['BD %'] !== undefined ? Number(r['BD %']) : (r.bdPct !== undefined ? Number(r.bdPct) : 0);
+
+            // Simple validation sum
+            if (Math.abs((chargeablePct + trainingPct + bdPct) - 100) > 0.1) {
+                warnings.push(`Ruolo '${r['Nome Ruolo'] || r.name}': le percentuali non sommano a 100. Impostati default.`);
+            }
+
+            return [
+                uuidv4(),
+                r['Nome Ruolo'] || r.name,
+                r['Livello Seniority'] || r.seniorityLevel,
+                dailyCost,
+                r['Costo Standard (€)'] || r.standardCost,
+                dailyExpenses,
+                overheadPct,
+                chargeablePct,
+                trainingPct,
+                bdPct
+            ];
+        });
+        await executeBulkInsert(client, 'roles', ['id', 'name', 'seniority_level', 'daily_cost', 'standard_cost', 'daily_expenses', 'overhead_pct', 'chargeable_pct', 'training_pct', 'bd_pct'], roleRows, 'ON CONFLICT (name) DO UPDATE SET daily_cost = EXCLUDED.daily_cost, standard_cost = EXCLUDED.standard_cost, daily_expenses = EXCLUDED.daily_expenses, overhead_pct = EXCLUDED.overhead_pct, chargeable_pct = EXCLUDED.chargeable_pct, training_pct = EXCLUDED.training_pct, bd_pct = EXCLUDED.bd_pct');
+    }
+
+    // Resources
+    // Re-fetch roles to map names to IDs
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceRows: any[][] = [];
+    const resourcesToUpdate: any[][] = []; // For updating existing resources if needed
+
+    if (Array.isArray(resources)) {
+        for (const r of resources) {
+            const roleName = r['Ruolo'] || r.roleName;
+            const roleId = roleMap.get(normalize(roleName));
+            if (!roleId && roleName) warnings.push(`Ruolo '${roleName}' non trovato per la risorsa '${r['Nome'] || r.name}'.`);
+            
+            const hireDate = parseDate(r['Data Assunzione'] || r.hireDate);
+
+            // Simple check for existing resource by email to avoid duplicates or update them
+            const email = r['Email'] || r.email;
+            const existingRes = await client.query('SELECT id FROM resources WHERE email = $1', [email]);
+            
+            if (existingRes.rows.length === 0) {
+                 resourceRows.push([
+                    uuidv4(),
+                    r['Nome'] || r.name,
+                    email,
+                    roleId,
+                    r['Horizontal'] || r.horizontal,
+                    r['Sede'] || r.location,
+                    formatDateForDB(hireDate),
+                    r['Anzianità (anni)'] || r.workSeniority,
+                    r['Note'] || r.notes
+                ]);
+            }
+        }
+        await executeBulkInsert(client, 'resources', ['id', 'name', 'email', 'role_id', 'horizontal', 'location', 'hire_date', 'work_seniority', 'notes'], resourceRows);
+    }
+
+    // Projects
+    // Re-fetch clients to map names to IDs
+    const clientMap = new Map((await client.query('SELECT id, name FROM clients')).rows.map((c: any) => [normalize(c.name), c.id]));
+    const projectRows: any[][] = [];
+
+    if (Array.isArray(projects)) {
+        for (const p of projects) {
+            const clientName = p['Cliente'] || p.clientName;
+            const clientId = clientMap.get(normalize(clientName));
+            
+            const startDate = parseDate(p['Data Inizio'] || p.startDate);
+            const endDate = parseDate(p['Data Fine'] || p.endDate);
+
+            projectRows.push([
+                uuidv4(),
+                p['Nome Progetto'] || p.name,
+                clientId,
+                p['Stato'] || p.status,
+                p['Budget (€)'] || p.budget,
+                p['Realizzazione (%)'] || p.realizationPercentage,
+                formatDateForDB(startDate),
+                formatDateForDB(endDate),
+                p['Project Manager'] || p.projectManager,
+                p['Note'] || p.notes
+            ]);
+        }
+        await executeBulkInsert(client, 'projects', ['id', 'name', 'client_id', 'status', 'budget', 'realization_percentage', 'start_date', 'end_date', 'project_manager', 'notes'], projectRows);
+    }
+
+    // Calendar
+    if (Array.isArray(calendar)) {
+        const calendarRows = calendar.map(e => [
+            uuidv4(),
+            e['Nome Evento'] || e.name,
+            formatDateForDB(parseDate(e['Data'] || e.date)),
+            e['Tipo'] || e.type,
+            (e['Sede (se locale)'] === 'Tutte' || !e['Sede (se locale)']) ? null : (e['Sede (se locale)'] || e.location)
+        ]);
+        await executeBulkInsert(client, 'company_calendar', ['id', 'name', 'date', 'type', 'location'], calendarRows);
+    }
+};
 
 const importStaffing = async (client: any, body: any, warnings: string[]) => {
     const { staffing } = body;
@@ -134,25 +261,246 @@ const importStaffing = async (client: any, body: any, warnings: string[]) => {
     if (allocationsToUpsert.length > 0) await executeBulkInsert(client, 'allocations', ['assignment_id', 'allocation_date', 'percentage'], allocationsToUpsert, 'ON CONFLICT (assignment_id, allocation_date) DO UPDATE SET percentage = EXCLUDED.percentage');
 };
 
-const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
-    // ... (Logica identica a prima, parseDate ora è sicuro) ...
-    // Esempio breve
-    const { resources: importedResources } = body;
-    if (Array.isArray(importedResources)) {
-        // ... mappings ...
-        const resourceRows: any[][] = [];
-        for (const res of importedResources) {
-             // ... extraction ...
-             const hireDate = parseDate(res['Data Assunzione']);
-             // ...
-        }
-        // ... insert ...
+const importResourceRequests = async (client: any, body: any, warnings: string[]) => {
+    const { resource_requests } = body;
+    if (!Array.isArray(resource_requests)) return;
+    
+    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+
+    const requestRows: any[][] = [];
+    
+    // Get last Request Code number for generation
+    const codeRes = await client.query("SELECT request_code FROM resource_requests WHERE request_code LIKE 'HCR%' ORDER BY length(request_code) DESC, request_code DESC LIMIT 1");
+    let lastNum = 0;
+    if (codeRes.rows.length > 0) {
+        const match = codeRes.rows[0].request_code.match(/HCR(\d+)/);
+        if (match) lastNum = parseInt(match[1], 10);
     }
-    // ...
-    // Nota: Il resto del file originale rimane valido, l'importante è la funzione parseDate sovrascritta sopra.
+
+    for (const req of resource_requests) {
+        const projectName = req['Progetto'] || req.projectName;
+        const projectId = projectMap.get(normalize(projectName));
+        const roleName = req['Ruolo Richiesto'] || req.roleName;
+        const roleId = roleMap.get(normalize(roleName));
+        
+        if (!projectId || !roleId) { warnings.push(`Richiesta saltata: Progetto '${projectName}' o Ruolo '${roleName}' non trovati.`); continue; }
+        
+        const reqName = req['Richiedente'] || req.requestorName;
+        const requestorId = reqName ? resourceMap.get(normalize(reqName)) : null;
+
+        const startDate = parseDate(req['Data Inizio'] || req.startDate);
+        const endDate = parseDate(req['Data Fine'] || req.endDate);
+
+        lastNum++;
+        const newCode = `HCR${String(lastNum).padStart(5, '0')}`;
+
+        requestRows.push([
+            uuidv4(),
+            newCode,
+            projectId,
+            roleId,
+            requestorId,
+            formatDateForDB(startDate),
+            formatDateForDB(endDate),
+            req['Impegno %'] || req.commitmentPercentage || 100,
+            (req['Urgent'] === 'SI' || req['Urgent'] === 'Sì' || req.isUrgent === true),
+            (req['Tech'] === 'SI' || req['Tech'] === 'Sì' || req.isTechRequest === true),
+            (req['OSR Aperta'] === 'SI' || req['OSR Aperta'] === 'Sì' || req.isOsrOpen === true),
+            req['Numero OSR'] || req.osrNumber,
+            req['Note'] || req.notes,
+            req['Stato'] || req.status || 'ATTIVA'
+        ]);
+    }
+    
+    await executeBulkInsert(client, 'resource_requests', ['id', 'request_code', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_tech_request', 'is_osr_open', 'osr_number', 'notes', 'status'], requestRows);
 };
 
-// ... (export default handler remains the same) ...
+const importInterviews = async (client: any, body: any, warnings: string[]) => {
+    const { interviews } = body;
+    if (!Array.isArray(interviews)) return;
+
+    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    
+    const interviewRows: any[][] = [];
+
+    for (const int of interviews) {
+        const roleName = int['Ruolo Proposto'] || int.roleName;
+        const roleId = roleMap.get(normalize(roleName));
+        
+        // Interviewers parsing (comma separated names)
+        const interviewersString = int['Colloquiato Da'] || int.interviewersNames;
+        const interviewerIds: string[] = [];
+        if (interviewersString) {
+            interviewersString.split(',').forEach((n: string) => {
+                const id = resourceMap.get(normalize(n.trim()));
+                if (id) interviewerIds.push(id);
+            });
+        }
+        
+        const birthDate = parseDate(int['Data di Nascita'] || int.birthDate);
+        const interviewDate = parseDate(int['Data Colloquio'] || int.interviewDate);
+        const entryDate = parseDate(int['Data Ingresso'] || int.entryDate);
+
+        interviewRows.push([
+            uuidv4(),
+            int['Nome Candidato'] || int.candidateName,
+            int['Cognome Candidato'] || int.candidateSurname,
+            formatDateForDB(birthDate),
+            int['Horizontal'] || int.horizontal,
+            roleId,
+            int['Riassunto CV'] || int.cvSummary,
+            interviewerIds,
+            formatDateForDB(interviewDate),
+            int['Feedback'] || int.feedback,
+            int['Note'] || int.notes,
+            int['Stato Assunzione'] || int.hiringStatus,
+            formatDateForDB(entryDate),
+            int['Stato Processo'] || int.status || 'Aperto'
+        ]);
+    }
+
+    await executeBulkInsert(client, 'interviews', ['id', 'candidate_name', 'candidate_surname', 'birth_date', 'horizontal', 'role_id', 'cv_summary', 'interviewers_ids', 'interview_date', 'feedback', 'notes', 'hiring_status', 'entry_date', 'status'], interviewRows);
+};
+
+const importSkills = async (client: any, body: any, warnings: string[]) => {
+    const { skills, associations } = body;
+    
+    // 1. Import Skills Definitions
+    if (Array.isArray(skills)) {
+        const skillRows = skills.map(s => [
+            uuidv4(), 
+            s['Nome Competenza'] || s.name, 
+            (s['Certificazione'] === 'SI' || s['Certificazione'] === 'Sì' || s.isCertification === true)
+        ]);
+        await executeBulkInsert(client, 'skills', ['id', 'name', 'is_certification'], skillRows);
+        
+        // Import Categories & Mapping logic is complex due to many-to-many. 
+        // For simplicity of this bulk import, we create skills. 
+        // Advanced categorization linking would require pre-existing category lookup or creation logic.
+    }
+
+    // 2. Import Associations
+    if (Array.isArray(associations)) {
+        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
+        
+        const assocRows: any[][] = [];
+        
+        for (const assoc of associations) {
+            const resName = assoc['Nome Risorsa'] || assoc.resourceName;
+            const skillName = assoc['Nome Competenza'] || assoc.skillName;
+            
+            const resId = resourceMap.get(normalize(resName));
+            const skillId = skillMap.get(normalize(skillName));
+            
+            if (resId && skillId) {
+                const acqDate = parseDate(assoc['Data Conseguimento'] || assoc.acquisitionDate);
+                const expDate = parseDate(assoc['Data Scadenza'] || assoc.expirationDate);
+                
+                assocRows.push([
+                    resId, 
+                    skillId, 
+                    assoc['Livello'] || assoc.level || 1,
+                    formatDateForDB(acqDate),
+                    formatDateForDB(expDate)
+                ]);
+            }
+        }
+        await executeBulkInsert(client, 'resource_skills', ['resource_id', 'skill_id', 'level', 'acquisition_date', 'expiration_date'], assocRows, 'ON CONFLICT (resource_id, skill_id) DO UPDATE SET level = EXCLUDED.level, acquisition_date = EXCLUDED.acquisition_date, expiration_date = EXCLUDED.expiration_date');
+    }
+};
+
+const importLeaves = async (client: any, body: any, warnings: string[]) => {
+    const { leaves } = body;
+    if (!Array.isArray(leaves)) return;
+
+    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const typeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), t.id]));
+    
+    const leaveRows: any[][] = [];
+    
+    for (const leave of leaves) {
+        const resName = leave['Nome Risorsa'] || leave.resourceName;
+        const resId = resourceMap.get(normalize(resName));
+        const typeName = leave['Tipologia Assenza'] || leave.typeName;
+        const typeId = typeMap.get(normalize(typeName));
+        
+        if (!resId || !typeId) { warnings.push(`Assenza saltata: Risorsa '${resName}' o Tipo '${typeName}' non trovati.`); continue; }
+
+        const startDate = parseDate(leave['Data Inizio'] || leave.startDate);
+        const endDate = parseDate(leave['Data Fine'] || leave.endDate);
+
+        leaveRows.push([
+            uuidv4(),
+            resId,
+            typeId,
+            formatDateForDB(startDate),
+            formatDateForDB(endDate),
+            leave['Stato'] || leave.status || 'PENDING',
+            leave['Note'] || leave.notes
+        ]);
+    }
+    
+    await executeBulkInsert(client, 'leave_requests', ['id', 'resource_id', 'type_id', 'start_date', 'end_date', 'status', 'notes'], leaveRows);
+};
+
+const importUsersPermissions = async (client: any, body: any, warnings: string[]) => {
+    const { users, permissions } = body;
+    const resourceMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(r.email), r.id]));
+
+    if (Array.isArray(users)) {
+        const userRows = users.map(u => {
+            const resEmail = u['Email Risorsa'] || u.resourceEmail;
+            const resId = resourceMap.get(normalize(resEmail));
+            // Note: Password hash is NOT imported. User must reset or admin must set default.
+            // We use a placeholder hash if creating new user, but usually we just update roles/active status
+            return [
+                uuidv4(),
+                u['Username'] || u.username,
+                '$2a$10$PlaceholderHashForImportOnly........', // dummy hash
+                u['Ruolo'] || u.role,
+                resId,
+                (u['Stato Attivo'] === 'SI' || u.isActive === true)
+            ];
+        });
+        // We use ON CONFLICT to update role/resource link for existing users
+        await executeBulkInsert(client, 'app_users', ['id', 'username', 'password_hash', 'role', 'resource_id', 'is_active'], userRows, 'ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role, resource_id = EXCLUDED.resource_id, is_active = EXCLUDED.is_active');
+    }
+
+    if (Array.isArray(permissions)) {
+        // Full replace of permissions for simplicity and security consistency
+        await client.query('DELETE FROM role_permissions');
+        const permRows = permissions.map(p => [
+            p['Ruolo'] || p.role,
+            p['Pagina'] || p.pagePath,
+            (p['Accesso Consentito'] === 'SI' || p.isAllowed === true)
+        ]);
+        await executeBulkInsert(client, 'role_permissions', ['role', 'page_path', 'is_allowed'], permRows);
+    }
+};
+
+const importTutorMapping = async (client: any, body: any, warnings: string[]) => {
+    const { mapping } = body;
+    if (!Array.isArray(mapping)) return;
+
+    const resourceMap = new Map((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => [normalize(r.email || r.name), r.id]));
+    
+    for (const row of mapping) {
+        const resKey = row['Email Risorsa'] || row['Risorsa'];
+        const tutorKey = row['Email Tutor'] || row['Tutor'];
+        
+        const resId = resourceMap.get(normalize(resKey));
+        const tutorId = resourceMap.get(normalize(tutorKey));
+        
+        if (resId && tutorId) {
+            await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
+        }
+    }
+};
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') { res.setHeader('Allow', ['POST']); return res.status(405).end(`Method ${req.method} Not Allowed`); }
@@ -164,12 +512,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         await client.query('BEGIN');
-        // Re-implementing switch just to be sure we call the local functions
-        // In a real patch, we assume previous functions are updated in place.
-        // For XML output strictness, I'm providing the key helper updates.
-        // The logic relies on parseDate being correct now.
         
-        // ... Calls to import functions ...
+        switch (type) {
+            case 'core_entities':
+                await importCoreEntities(client, req.body, warnings);
+                break;
+            case 'staffing':
+                await importStaffing(client, req.body, warnings);
+                break;
+            case 'resource_requests':
+                await importResourceRequests(client, req.body, warnings);
+                break;
+            case 'interviews':
+                await importInterviews(client, req.body, warnings);
+                break;
+            case 'skills':
+                await importSkills(client, req.body, warnings);
+                break;
+            case 'leaves':
+                await importLeaves(client, req.body, warnings);
+                break;
+            case 'users_permissions':
+                // Extra check: only ADMIN can import permissions
+                try {
+                    const authHeader = req.headers['authorization'];
+                    const authHeaderStr = Array.isArray(authHeader) ? authHeader[0] : (authHeader || '');
+                    
+                    if (!authHeaderStr) throw new Error('No auth header');
+                    
+                    const token = authHeaderStr.split(' ')[1];
+                    const secret = String(JWT_SECRET || '');
+                    const decoded = jwt.verify(token || '', secret) as any;
+                    
+                    if (decoded.role !== 'ADMIN') throw new Error('Not Admin');
+                } catch(e) {
+                    throw new Error('Solo gli Admin possono importare utenti e permessi.');
+                }
+                await importUsersPermissions(client, req.body as any, warnings);
+                break;
+            case 'tutor_mapping':
+                await importTutorMapping(client, req.body, warnings);
+                break;
+            default:
+                throw new Error('Tipo di importazione non valido.');
+        }
         
         await client.query('COMMIT');
         res.status(200).json({ message: 'Importazione completata (UTC Fix Applied).', warnings });
