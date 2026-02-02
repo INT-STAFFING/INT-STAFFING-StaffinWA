@@ -147,8 +147,7 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     // Re-fetch roles to map names to IDs
     const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
     const resourceRows: any[][] = [];
-    const resourcesToUpdate: any[][] = []; // For updating existing resources if needed
-
+    
     if (Array.isArray(resources)) {
         for (const r of resources) {
             const roleName = r['Ruolo'] || r.roleName;
@@ -376,16 +375,12 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
             (s['Certificazione'] === 'SI' || s['Certificazione'] === 'Sì' || s.isCertification === true)
         ]);
         await executeBulkInsert(client, 'skills', ['id', 'name', 'is_certification'], skillRows);
-        
-        // Import Categories & Mapping logic is complex due to many-to-many. 
-        // For simplicity of this bulk import, we create skills. 
-        // Advanced categorization linking would require pre-existing category lookup or creation logic.
     }
 
     // 2. Import Associations
     if (Array.isArray(associations)) {
-        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name as string), s.id]));
+        const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+        const skillMap = new Map<string, string>((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
         
         const assocRows: any[][] = [];
         
@@ -521,7 +516,7 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     const { mapping } = body;
     if (!Array.isArray(mapping)) return;
     
-    const resourceMap = new Map((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => {
+    const resourceMap = new Map<string, string>((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => {
         return [normalize(r.name as string), r.id];
     }));
     // Add email mapping
