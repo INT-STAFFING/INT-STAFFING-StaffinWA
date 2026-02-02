@@ -52,7 +52,11 @@ const defaultThemeForSeed = {
 };
 
 export async function ensureDbTablesExist(db: VercelPool) {
-    await db.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
+    try {
+        await db.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`;
+    } catch (e) {
+        console.warn("Failed to create uuid-ossp extension (likely permissions). UUID generation might be limited to application layer.", e);
+    }
 
     // 1. Core Config
     await db.sql`
@@ -190,7 +194,6 @@ export async function ensureDbTablesExist(db: VercelPool) {
     try {
         await db.sql`ALTER TABLE analytics_cache ADD COLUMN IF NOT EXISTS id UUID DEFAULT uuid_generate_v4();`;
     } catch (e) {
-        // Ignore if column already exists or other non-critical errors during migration check
         console.warn('Migration warning for analytics_cache:', e);
     }
 
