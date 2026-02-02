@@ -210,7 +210,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
-        // --- CUSTOM HANDLER: CHANGE PASSWORD ---
+        // --- CUSTOM HANDLER: CHANGE PASSWORD (SINGLE) ---
         if (entity === 'app-users' && action === 'change_password' && method === 'PUT') {
             if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
             
@@ -235,6 +235,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await logAction(client, currentUser, 'CHANGE_PASSWORD', 'app_users', id as string, {}, req);
 
             return res.status(200).json({ success: true });
+        }
+
+        // --- CUSTOM HANDLER: BULK PASSWORD RESET ---
+        if (entity === 'app-users' && action === 'bulk_password_reset' && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+             
+             const { users } = req.body; // Array of {username, password}
+             if (!Array.isArray(users)) return res.status(400).json({ error: 'Invalid input format' });
+
+             let successCount = 0;
+             let failCount = 0;
+
+             for (const u of users) {
+                 try {
+                     if (!u.password || u.password.length < 8) {
+                         failCount++;
+                         continue;
+                     }
+                     const salt = await bcrypt.genSalt(10);
+                     const hash = await bcrypt.hash(u.password, salt);
+                     // Set must_change_password to TRUE for bulk resets as security measure
+                     const res = await client.query(
+                         `UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2`,
+                         [hash, u.username]
+                     );
+                     if (res.rowCount && res.rowCount > 0) successCount++;
+                     else failCount++;
+                 } catch (e) {
+                     failCount++;
+                 }
+             }
+
+             await logAction(client, currentUser, 'BULK_PASSWORD_RESET', 'app_users', null, { successCount, failCount }, req);
+             return res.status(200).json({ success: true, successCount, failCount });
         }
 
         // --- CUSTOM HANDLER: IMPERSONATE ---

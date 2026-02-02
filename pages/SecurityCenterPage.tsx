@@ -22,6 +22,12 @@ const IdentityPillar: React.FC = () => {
     const { impersonate } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<Partial<AppUser>>({});
+    
+    // Password Reset Modal State
+    const [isResetPwdModalOpen, setIsResetPwdModalOpen] = useState(false);
+    const [userToReset, setUserToReset] = useState<AppUser | null>(null);
+    const [newPassword, setNewPassword] = useState('');
+    const [resetLoading, setResetLoading] = useState(false);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -36,6 +42,31 @@ const IdentityPillar: React.FC = () => {
             addToast('Utente salvato con successo', 'success');
             setIsModalOpen(false);
         } catch (e) { addToast('Errore durante il salvataggio utente', 'error'); }
+    };
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!userToReset) return;
+        if (newPassword.length < 8) {
+            addToast('La password deve essere almeno di 8 caratteri.', 'error');
+            return;
+        }
+        
+        setResetLoading(true);
+        try {
+            await authorizedJsonFetch(`/api/resources?entity=app-users&action=change_password&id=${userToReset.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ newPassword })
+            });
+            addToast(`Password resettata per ${userToReset.username}`, 'success');
+            setIsResetPwdModalOpen(false);
+            setNewPassword('');
+            setUserToReset(null);
+        } catch (e) {
+            addToast(`Errore reset password: ${(e as Error).message}`, 'error');
+        } finally {
+            setResetLoading(false);
+        }
     };
 
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
@@ -73,9 +104,14 @@ const IdentityPillar: React.FC = () => {
                              <button onClick={() => impersonate(u.id)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
                                 <span className="material-symbols-outlined text-sm">visibility</span> Impersonifica
                              </button>
-                             <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant">
-                                <span className="material-symbols-outlined">edit</span>
-                             </button>
+                             <div className="flex gap-1">
+                                 <button onClick={() => { setUserToReset(u); setIsResetPwdModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant text-tertiary" title="Resetta Password">
+                                    <span className="material-symbols-outlined">key</span>
+                                 </button>
+                                 <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant">
+                                    <span className="material-symbols-outlined">edit</span>
+                                 </button>
+                             </div>
                         </div>
                     </div>
                 ))}
@@ -111,6 +147,34 @@ const IdentityPillar: React.FC = () => {
                         <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
                             <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-full font-bold text-on-surface-variant">Annulla</button>
                             <button type="submit" className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg">Salva Profilo</button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {isResetPwdModalOpen && userToReset && (
+                <Modal isOpen={isResetPwdModalOpen} onClose={() => setIsResetPwdModalOpen(false)} title={`Reset Password: ${userToReset.username}`}>
+                    <form onSubmit={handleResetPassword} className="space-y-4">
+                        <div className="p-3 bg-yellow-container/20 border border-yellow-container rounded-lg text-sm text-on-surface">
+                            Stai per modificare la password. L'utente dovrà usarla al prossimo accesso.
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1 text-on-surface-variant">Nuova Password</label>
+                            <input 
+                                type="text" 
+                                value={newPassword} 
+                                onChange={e => setNewPassword(e.target.value)} 
+                                className="form-input" 
+                                required 
+                                minLength={8}
+                                placeholder="Minimo 8 caratteri" 
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
+                            <button type="button" onClick={() => setIsResetPwdModalOpen(false)} className="px-6 py-2 rounded-full font-bold text-on-surface-variant">Annulla</button>
+                            <button type="submit" disabled={resetLoading} className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center gap-2">
+                                {resetLoading ? <SpinnerIcon className="w-4 h-4" /> : 'Conferma Reset'}
+                            </button>
                         </div>
                     </form>
                 </Modal>

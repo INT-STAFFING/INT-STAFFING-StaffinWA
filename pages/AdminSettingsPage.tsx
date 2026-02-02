@@ -87,7 +87,7 @@ const AVAILABLE_EVENTS = [
 ];
 
 const WebhooksSection: React.FC = () => {
-    const { data: webhooks, loading, updateCache } = useAuthorizedResource<WebhookIntegration[]>(
+    const { data: webhooks, loading, error, updateCache } = useAuthorizedResource<WebhookIntegration[]>(
         'webhook-integrations',
         createAuthorizedFetcher<WebhookIntegration[]>('/api/resources?entity=webhook_integrations')
     );
@@ -163,6 +163,7 @@ const WebhooksSection: React.FC = () => {
 
             <div className="grid gap-4">
                 {loading ? <div className="text-center py-4"><SpinnerIcon className="w-8 h-8 text-primary mx-auto"/></div> : 
+                 error ? <div className="p-4 bg-error-container text-on-error-container rounded-xl text-center">Errore nel caricamento delle integrazioni. Verifica che la tabella 'webhook_integrations' esista nel database.</div> :
                  webhooks?.length === 0 ? <p className="text-center text-on-surface-variant py-4">Nessuna integrazione configurata.</p> :
                  webhooks?.map(hook => (
                     <div key={hook.id} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant flex justify-between items-center">
@@ -822,19 +823,19 @@ const AdminSettingsPage: React.FC = () => {
         { id: 'general', label: 'Dati & Performance', icon: 'speed' },
         { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
         { id: 'ui', label: 'Look & Feel', icon: 'palette' },
-        { id: 'webhooks', label: 'Notifiche', icon: 'webhook' }, // New Tab
+        { id: 'webhooks', label: 'Notifiche', icon: 'notifications' },
     ];
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto py-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-4xl font-black text-on-surface tracking-tighter">Impostazioni <span className="text-primary">Admin</span></h1>
-                <div className="flex bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant">
+                <div className="flex flex-wrap bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all ${
+                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all whitespace-nowrap ${
                                 activeTab === tab.id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                             }`}
                         >

@@ -385,17 +385,17 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
     // 2. Import Associations
     if (Array.isArray(associations)) {
         const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
+        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name as string), s.id]));
         
         const assocRows: any[][] = [];
         
         for (const assoc of associations) {
-            const resName = assoc['Nome Risorsa'] || assoc.resourceName;
-            const skillName = assoc['Nome Competenza'] || assoc.skillName;
+            const resName = String(assoc['Nome Risorsa'] || assoc.resourceName || '');
+            const skillName = String(assoc['Nome Competenza'] || assoc.skillName || '');
             
             // Fix types
-            const resId = resourceMap.get(normalize(String(resName || '')));
-            const skillId = skillMap.get(normalize(String(skillName || '')));
+            const resId = resourceMap.get(normalize(resName));
+            const skillId = skillMap.get(normalize(skillName));
             
             if (resId && skillId) {
                 const acqDate = parseDate(assoc['Data Conseguimento'] || assoc.acquisitionDate);
@@ -522,7 +522,7 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     if (!Array.isArray(mapping)) return;
     
     const resourceMap = new Map((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => {
-        return [normalize(r.name), r.id];
+        return [normalize(r.name as string), r.id];
     }));
     // Add email mapping
     (await client.query('SELECT id, email FROM resources')).rows.forEach((r: any) => {
@@ -530,15 +530,15 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     });
 
     for (const row of mapping) {
-        const resName = row['Risorsa'] || row.resourceName;
-        const resEmail = row['Email Risorsa'] || row.resourceEmail;
+        const resName = String(row['Risorsa'] || row.resourceName || '');
+        const resEmail = String(row['Email Risorsa'] || row.resourceEmail || '');
         
-        const resId = resourceMap.get(normalize(String(resEmail || ''))) || resourceMap.get(normalize(String(resName || '')));
+        const resId = resourceMap.get(normalize(resEmail)) || resourceMap.get(normalize(resName));
         
-        const tutorName = row['Tutor'] || row.tutorName;
-        const tutorEmail = row['Email Tutor'] || row.tutorEmail;
+        const tutorName = String(row['Tutor'] || row.tutorName || '');
+        const tutorEmail = String(row['Email Tutor'] || row.tutorEmail || '');
         
-        const tutorId = resourceMap.get(normalize(String(tutorEmail || ''))) || resourceMap.get(normalize(String(tutorName || '')));
+        const tutorId = resourceMap.get(normalize(tutorEmail)) || resourceMap.get(normalize(tutorName));
         
         if (resId && tutorId) {
              await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
