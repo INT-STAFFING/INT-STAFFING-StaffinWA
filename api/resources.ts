@@ -62,9 +62,9 @@ const TABLE_MAPPING: Record<string, string> = {
 };
 
 // --- ZOD SCHEMAS FOR VALIDATION ---
-// NOTE: Custom Zod implementation in libs/zod.ts does NOT support .email(), .url(), .default().
-// Use simple string() and optional(), handle validation regex and defaults in code.
-const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
+// Custom Zod implementation in libs/zod.ts exports 'z' as a value, not a namespace for types like ZodObject.
+// We use 'any' for the record value type to avoid TS errors with the custom lib.
+const VALIDATION_SCHEMAS: Record<string, any> = {
     'resources': z.object({
         name: z.string(),
         email: z.string().optional().nullable(),
@@ -108,7 +108,7 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         chargeablePct: z.number().optional(),
         trainingPct: z.number().optional(),
         bdPct: z.number().optional()
-    }).refine(data => {
+    }).refine((data: any) => {
         // Validation: Sum of percentages must be 100 IF they are provided
         const c = data.chargeablePct ?? 100;
         const t = data.trainingPct ?? 0;
@@ -168,12 +168,12 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
     }),
     'webhook_integrations': z.object({
         eventType: z.string(),
-        targetUrl: z.string(), // Removed .url()
-        templateJson: z.string().refine((val) => {
+        targetUrl: z.string(),
+        templateJson: z.string().refine((val: string) => {
             try { JSON.parse(val); return true; } catch { return false; }
-        }, "Il template deve essere un JSON valido"),
+        }, { message: "Il template deve essere un JSON valido", path: [] }),
         description: z.string().optional(),
-        isActive: z.boolean().optional() // Removed .default(true)
+        isActive: z.boolean().optional()
     })
 };
 
