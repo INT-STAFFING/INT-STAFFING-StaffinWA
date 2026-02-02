@@ -147,12 +147,13 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     // Re-fetch roles to map names to IDs
     const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
     const resourceRows: any[][] = [];
-    
+    const resourcesToUpdate: any[][] = []; // For updating existing resources if needed
+
     if (Array.isArray(resources)) {
         for (const r of resources) {
             const roleName = r['Ruolo'] || r.roleName;
             const roleId = roleMap.get(normalize(roleName));
-            if (!roleId && roleName) warnings.push(`Ruolo '${roleName}' non trovato per la risorsa '${r['Nome'] || r.name}'.`);
+            if (!roleId && roleName) warnings.push(`Ruolo '${roleName}' non trovati per la risorsa '${r['Nome'] || r.name}'.`);
             
             const hireDate = parseDate(r['Data Assunzione'] || r.hireDate);
 
@@ -375,20 +376,23 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
             (s['Certificazione'] === 'SI' || s['Certificazione'] === 'Sì' || s.isCertification === true)
         ]);
         await executeBulkInsert(client, 'skills', ['id', 'name', 'is_certification'], skillRows);
+        
+        // Import Categories & Mapping logic is complex due to many-to-many. 
+        // For simplicity of this bulk import, we create skills. 
+        // Advanced categorization linking would require pre-existing category lookup or creation logic.
     }
 
     // 2. Import Associations
     if (Array.isArray(associations)) {
-        const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-        const skillMap = new Map<string, string>((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
+        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
         
         const assocRows: any[][] = [];
         
         for (const assoc of associations) {
-            const resName = String(assoc['Nome Risorsa'] || assoc.resourceName || '');
-            const skillName = String(assoc['Nome Competenza'] || assoc.skillName || '');
+            const resName = assoc['Nome Risorsa'] || assoc.resourceName;
+            const skillName = assoc['Nome Competenza'] || assoc.skillName;
             
-            // Fix types
             const resId = resourceMap.get(normalize(resName));
             const skillId = skillMap.get(normalize(skillName));
             
@@ -421,144 +425,98 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     for (const leave of leaves) {
         const resName = leave['Nome Risorsa'] || leave.resourceName;
         const resId = resourceMap.get(normalize(resName));
-        
         const typeName = leave['Tipologia Assenza'] || leave.typeName;
         const typeId = typeMap.get(normalize(typeName));
+        
+        if (!resId || !typeId) { warnings.push(`Assenza saltata: Risorsa '${resName}' o Tipo '${typeName}' non trovati.`); continue; }
 
-        if (resId && typeId) {
-             const startDate = parseDate(leave['Data Inizio'] || leave.startDate);
-             const endDate = parseDate(leave['Data Fine'] || leave.endDate);
-             
-             // Approvers parsing (comma separated names)
-             const approversString = leave['Approvatori'] || leave.approverNames;
-             const approverIds: string[] = [];
-             if (approversString && typeof approversString === 'string') {
-                 approversString.split(',').forEach((n: string) => {
-                     const id = resourceMap.get(normalize(n.trim()));
-                     if (id) approverIds.push(id);
-                 });
-             }
-             
-             leaveRows.push([
-                 uuidv4(),
-                 resId,
-                 typeId,
-                 formatDateForDB(startDate),
-                 formatDateForDB(endDate),
-                 leave['Stato'] || leave.status || 'PENDING',
-                 leave['Note'] || leave.notes,
-                 approverIds,
-                 (leave['Mezza Giornata'] === 'SI' || leave.isHalfDay === true)
-             ]);
-        } else {
-             warnings.push(`Assenza saltata: Risorsa '${resName}' o Tipo '${typeName}' non trovati.`);
-        }
-    }
+        const startDate = parseDate(leave['Data Inizio'] || leave.startDate);
+        const endDate = parseDate(leave['Data Fine'] || leave.endDate);
 
-    if (leaveRows.length > 0) {
-        await executeBulkInsert(client, 'leave_requests', ['id', 'resource_id', 'type_id', 'start_date', 'end_date', 'status', 'notes', 'approver_ids', 'is_half_day'], leaveRows);
+        leaveRows.push([
+            uuidv4(),
+            resId,
+            typeId,
+            formatDateForDB(startDate),
+            formatDateForDB(endDate),
+            leave['Stato'] || leave.status || 'PENDING',
+            leave['Note'] || leave.notes
+        ]);
     }
+    
+    await executeBulkInsert(client, 'leave_requests', ['id', 'resource_id', 'type_id', 'start_date', 'end_date', 'status', 'notes'], leaveRows);
 };
 
 const importUsersPermissions = async (client: any, body: any, warnings: string[]) => {
-     const { users, permissions } = body;
-     
-     // Users
-     if (Array.isArray(users)) {
-         const resourceMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(r.email), r.id]));
-         const userRows: any[][] = [];
-         
-         for (const u of users) {
-             const email = u['Email Risorsa'] || u.resourceEmail;
-             const resourceId = email ? resourceMap.get(normalize(email)) : null;
-             
-             const username = u['Username'] || u.username;
-             const role = u['Ruolo'] || u.role;
-             const isActive = (u['Stato Attivo'] === 'SI' || u['Stato Attivo'] === 'Sì' || u.isActive === true);
-             const dummyHash = '$2a$10$abcdef...'; 
-             
-             userRows.push([
-                 uuidv4(),
-                 username,
-                 dummyHash,
-                 role,
-                 resourceId,
-                 isActive
-             ]);
-         }
-         
-         if (userRows.length > 0) {
-             await executeBulkInsert(
-                 client, 
-                 'app_users', 
-                 ['id', 'username', 'password_hash', 'role', 'resource_id', 'is_active'], 
-                 userRows, 
-                 'ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role, resource_id = EXCLUDED.resource_id, is_active = EXCLUDED.is_active'
-             );
-         }
-     }
+    const { users, permissions } = body;
+    const resourceMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(r.email), r.id]));
 
-     // Permissions
-     if (Array.isArray(permissions)) {
-         await client.query('DELETE FROM role_permissions'); 
-         
-         const permRows = permissions.map(p => [
-             p['Ruolo'] || p.role,
-             p['Pagina'] || p.pagePath,
-             (p['Accesso Consentito'] === 'SI' || p['Accesso Consentito'] === 'Sì' || p.isAllowed === true)
-         ]);
-         
-         await executeBulkInsert(client, 'role_permissions', ['role', 'page_path', 'is_allowed'], permRows);
-     }
-}
+    if (Array.isArray(users)) {
+        const userRows = users.map(u => {
+            const resEmail = u['Email Risorsa'] || u.resourceEmail;
+            const resId = resourceMap.get(normalize(resEmail));
+            // Note: Password hash is NOT imported. User must reset or admin must set default.
+            // We use a placeholder hash if creating new user, but usually we just update roles/active status
+            return [
+                uuidv4(),
+                u['Username'] || u.username,
+                '$2a$10$PlaceholderHashForImportOnly........', // dummy hash
+                u['Ruolo'] || u.role,
+                resId,
+                (u['Stato Attivo'] === 'SI' || u.isActive === true)
+            ];
+        });
+        // We use ON CONFLICT to update role/resource link for existing users
+        await executeBulkInsert(client, 'app_users', ['id', 'username', 'password_hash', 'role', 'resource_id', 'is_active'], userRows, 'ON CONFLICT (username) DO UPDATE SET role = EXCLUDED.role, resource_id = EXCLUDED.resource_id, is_active = EXCLUDED.is_active');
+    }
+
+    if (Array.isArray(permissions)) {
+        // Full replace of permissions for simplicity and security consistency
+        await client.query('DELETE FROM role_permissions');
+        const permRows = permissions.map(p => [
+            p['Ruolo'] || p.role,
+            p['Pagina'] || p.pagePath,
+            (p['Accesso Consentito'] === 'SI' || p.isAllowed === true)
+        ]);
+        await executeBulkInsert(client, 'role_permissions', ['role', 'page_path', 'is_allowed'], permRows);
+    }
+};
 
 const importTutorMapping = async (client: any, body: any, warnings: string[]) => {
     const { mapping } = body;
     if (!Array.isArray(mapping)) return;
-    
-    const resourceMap = new Map<string, string>((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => {
-        return [normalize(r.name), r.id];
-    }));
-    // Add email mapping
-    (await client.query('SELECT id, email FROM resources')).rows.forEach((r: any) => {
-        if(r.email) resourceMap.set(normalize(r.email), r.id);
-    });
 
+    const resourceMap = new Map((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => [normalize(r.email || r.name), r.id]));
+    
     for (const row of mapping) {
-        const resName = String(row['Risorsa'] || row.resourceName || '');
-        const resEmail = String(row['Email Risorsa'] || row.resourceEmail || '');
+        const resKey = row['Email Risorsa'] || row['Risorsa'];
+        const tutorKey = row['Email Tutor'] || row['Tutor'];
         
-        const resId = resourceMap.get(normalize(resEmail)) || resourceMap.get(normalize(resName));
-        
-        const tutorName = String(row['Tutor'] || row.tutorName || '');
-        const tutorEmail = String(row['Email Tutor'] || row.tutorEmail || '');
-        
-        const tutorId = resourceMap.get(normalize(tutorEmail)) || resourceMap.get(normalize(tutorName));
+        const resId = resourceMap.get(normalize(resKey));
+        const tutorId = resourceMap.get(normalize(tutorKey));
         
         if (resId && tutorId) {
-             await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
+            await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
         }
     }
-}
+};
+
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    if (req.method !== 'POST') {
-        res.setHeader('Allow', ['POST']);
-        return res.status(405).end(`Method ${req.method} Not Allowed`);
-    }
+    if (req.method !== 'POST') { res.setHeader('Allow', ['POST']); return res.status(405).end(`Method ${req.method} Not Allowed`); }
+    if (!verifyOperational(req)) return res.status(403).json({ error: 'Access denied' });
 
-    if (!verifyOperational(req)) {
-        return res.status(403).json({ error: 'Unauthorized: Operational role required.' });
-    }
+    // FIX: Safely extract type as string
+    const typeQuery = req.query.type;
+    const importType = Array.isArray(typeQuery) ? typeQuery[0] : (typeQuery as string);
 
-    const { type } = req.query;
     const client = await db.connect();
     const warnings: string[] = [];
 
     try {
         await client.query('BEGIN');
         
-        switch (type) {
+        switch (importType) {
             case 'core_entities':
                 await importCoreEntities(client, req.body, warnings);
                 break;
@@ -578,22 +536,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await importLeaves(client, req.body, warnings);
                 break;
             case 'users_permissions':
-                await importUsersPermissions(client, req.body, warnings);
+                // Extra check: only ADMIN can import permissions
+                try {
+                    const authHeader = req.headers['authorization'];
+                    const authHeaderStr = Array.isArray(authHeader) ? authHeader[0] : (authHeader || '');
+                    
+                    if (!authHeaderStr) throw new Error('No auth header');
+                    
+                    const token = authHeaderStr.split(' ')[1];
+                    const secret = String(JWT_SECRET || '');
+                    const decoded = jwt.verify(token || '', secret) as any;
+                    
+                    if (decoded.role !== 'ADMIN') throw new Error('Not Admin');
+                } catch(e) {
+                    throw new Error('Solo gli Admin possono importare utenti e permessi.');
+                }
+                await importUsersPermissions(client, req.body as any, warnings);
                 break;
             case 'tutor_mapping':
-                await importTutorMapping(client, req.body, warnings);
+                // FIX: Explicitly cast req.body to any to satisfy the import function
+                await importTutorMapping(client, req.body as any, warnings);
                 break;
             default:
-                throw new Error('Invalid import type');
+                throw new Error('Tipo di importazione non valido.');
         }
-
+        
         await client.query('COMMIT');
-        return res.status(200).json({ message: 'Importazione completata con successo.', warnings });
-
+        res.status(200).json({ message: 'Importazione completata (UTC Fix Applied).', warnings });
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Import failed:', error);
-        return res.status(500).json({ error: (error as Error).message });
+        res.status(500).json({ error: (error as Error).message });
     } finally {
         client.release();
     }

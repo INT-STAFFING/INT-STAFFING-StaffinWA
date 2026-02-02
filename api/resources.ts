@@ -6,7 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { notify, generateTeamsMentions } from '../services/notificationService';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -57,16 +56,14 @@ const TABLE_MAPPING: Record<string, string> = {
     'project_expenses': 'project_expenses',
     'billing_milestones': 'billing_milestones',
     'audit_logs': 'action_logs',
-    'analytics_cache': 'analytics_cache',
-    'webhook_integrations': 'webhook_integrations'
+    'analytics_cache': 'analytics_cache'
 };
 
 // --- ZOD SCHEMAS FOR VALIDATION ---
-// Simplified schemas to ensure compatibility across Zod versions and custom implementations.
-const VALIDATION_SCHEMAS: Record<string, any> = {
+const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
     'resources': z.object({
         name: z.string(),
-        email: z.string().optional().nullable(),
+        email: z.string().email().optional().nullable(),
         roleId: z.string().optional().nullable(),
         horizontal: z.string().optional().nullable(),
         location: z.string().optional().nullable(),
@@ -103,10 +100,20 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         dailyCost: z.number().optional().nullable(),
         standardCost: z.number().optional().nullable(),
         dailyExpenses: z.number().optional().nullable(),
-        overheadPct: z.number().optional(),
-        chargeablePct: z.number().optional(),
-        trainingPct: z.number().optional(),
-        bdPct: z.number().optional()
+        overheadPct: z.number().optional().default(0),
+        chargeablePct: z.number().optional().default(100),
+        trainingPct: z.number().optional().default(0),
+        bdPct: z.number().optional().default(0)
+    }).refine(data => {
+        // Validation: Sum of percentages must be 100
+        const c = data.chargeablePct || 0;
+        const t = data.trainingPct || 0;
+        const b = data.bdPct || 0;
+        // Allow tiny floating point errors
+        return Math.abs((c + t + b) - 100) < 0.01;
+    }, {
+        message: "La somma delle percentuali (Chargeable + Training + BD) deve essere 100%",
+        path: ["chargeablePct"] // Highlight chargeablePct field on error
     }),
     'skills': z.object({
         name: z.string(),
@@ -154,13 +161,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         role: z.string(),
         resourceId: z.string().optional().nullable(),
         isActive: z.boolean().optional().nullable()
-    }),
-    'webhook_integrations': z.object({
-        eventType: z.string(),
-        targetUrl: z.string(),
-        templateJson: z.string(),
-        description: z.string().optional(),
-        isActive: z.boolean().optional()
+        // password_hash handled separately or assumed existing/default if not passed here
     })
 };
 
@@ -179,6 +180,7 @@ const toCamelAndNormalize = (o: any) => {
             n[camelKey] = `${y}-${m}-${d}`;
         } else if (typeof value === 'string' && !isNaN(Number(value)) && 
                    (camelKey.endsWith('Pct') || camelKey === 'dailyCost' || camelKey === 'standardCost' || camelKey === 'dailyExpenses' || camelKey === 'overheadPct')) {
+             // Ensure numeric fields from DB (which might be strings for NUMERIC type) are numbers
              n[camelKey] = Number(value);
         } else {
             n[camelKey] = value;
@@ -197,70 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
-        // --- CUSTOM HANDLERS ---
-        if (entity === 'app-users' && action === 'change_password' && method === 'PUT') {
-            if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
-            if (currentUser.role !== 'ADMIN' && currentUser.id !== id) {
-                 return res.status(403).json({ error: 'Forbidden' });
-            }
-            const { newPassword } = req.body;
-            if (!newPassword || newPassword.length < 8) {
-                return res.status(400).json({ error: 'Password must be at least 8 characters' });
-            }
-            const salt = await bcrypt.genSalt(10);
-            const hash = await bcrypt.hash(newPassword, salt);
-            await client.query(`UPDATE app_users SET password_hash = $1, must_change_password = FALSE WHERE id = $2`, [hash, id]);
-            await logAction(client, currentUser, 'CHANGE_PASSWORD', 'app_users', id as string, {}, req);
-            return res.status(200).json({ success: true });
-        }
-
-        if (entity === 'app-users' && action === 'bulk_password_reset' && method === 'POST') {
-             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-             const { users } = req.body;
-             if (!Array.isArray(users)) return res.status(400).json({ error: 'Invalid input format' });
-
-             let successCount = 0;
-             let failCount = 0;
-             for (const u of users) {
-                 try {
-                     if (!u.password || u.password.length < 8) { failCount++; continue; }
-                     const salt = await bcrypt.genSalt(10);
-                     const hash = await bcrypt.hash(u.password, salt);
-                     const res = await client.query(`UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2`, [hash, u.username]);
-                     if (res.rowCount && res.rowCount > 0) successCount++; else failCount++;
-                 } catch (e) { failCount++; }
-             }
-             await logAction(client, currentUser, 'BULK_PASSWORD_RESET', 'app_users', null, { successCount, failCount }, req);
-             return res.status(200).json({ success: true, successCount, failCount });
-        }
-
-        if (entity === 'app-users' && action === 'impersonate' && method === 'POST') {
-             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-             const targetRes = await client.query('SELECT * FROM app_users WHERE id = $1', [id]);
-             const targetUser = targetRes.rows[0];
-             if (!targetUser) return res.status(404).json({ error: 'User not found' });
-             const token = jwt.sign(
-                { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
-                JWT_SECRET!,
-                { expiresIn: '1h' }
-            );
-            const permRes = await client.query('SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE', [targetUser.role]);
-            const permissions = permRes.rows.map(r => r.page_path);
-            await logAction(client, currentUser, 'IMPERSONATE', 'app_users', id as string, { target: targetUser.username }, req);
-            return res.status(200).json({
-                success: true,
-                token,
-                user: {
-                    id: targetUser.id,
-                    username: targetUser.username,
-                    role: targetUser.role,
-                    resourceId: targetUser.resource_id,
-                    permissions,
-                    mustChangePassword: false
-                }
-            });
-        }
-
+        // --- CUSTOM HANDLER: ANALYTICS RECALCULATION (Heavy Task) ---
         if (entity === 'analytics_cache' && action === 'recalc_all' && method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) {
                  return res.status(403).json({ error: 'Unauthorized' });
@@ -271,8 +210,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const totalBudget = parseFloat(budgetRes.rows[0]?.total || '0');
                 const resRes = await client.query(`SELECT COUNT(*) as count FROM resources WHERE resigned = false`);
                 const activeResources = parseInt(resRes.rows[0]?.count || '0', 10);
-                const kpiData = { totalBudget, activeResources, lastUpdated: new Date().toISOString(), note: "Calculated via Async Process" };
-                await client.query(`INSERT INTO analytics_cache (key, data, scope) VALUES ('dashboard_kpi_current', $1, 'DASHBOARD') ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP`, [JSON.stringify(kpiData)]);
+                
+                const kpiData = {
+                    totalBudget,
+                    activeResources,
+                    lastUpdated: new Date().toISOString(),
+                    note: "Calculated via Async Process"
+                };
+
+                await client.query(`
+                    INSERT INTO analytics_cache (key, data, scope) 
+                    VALUES ('dashboard_kpi_current', $1, 'DASHBOARD')
+                    ON CONFLICT (key) 
+                    DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP
+                `, [JSON.stringify(kpiData)]);
+                
                 await client.query('COMMIT');
                 return res.status(200).json({ success: true, message: 'Analytics recalculated successfully' });
              } catch (calcError) {
@@ -283,6 +235,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+             // Placeholder logic
              return res.status(200).json([]);
         }
 
@@ -301,14 +254,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              return res.status(400).json({ error: 'Invalid updates format' });
         }
         
+        // --- CUSTOM HANDLER FOR ROLE PERMISSIONS (RBAC) ---
         if (entity === 'role-permissions' && method === 'POST') {
              if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
              const { permissions } = req.body;
              if (Array.isArray(permissions)) {
                  await client.query('BEGIN');
-                 await client.query('DELETE FROM role_permissions');
+                 // Simple full refresh strategy or upsert
+                 await client.query('DELETE FROM role_permissions'); // Clear old
                  for (const p of permissions) {
-                     await client.query(`INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`, [p.role, p.pagePath, p.isAllowed]);
+                     await client.query(
+                         `INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`, 
+                         [p.role, p.pagePath, p.isAllowed]
+                     );
                  }
                  await client.query('COMMIT');
                  return res.status(200).json({ success: true });
@@ -318,7 +276,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- GENERIC GET ---
         if (method === 'GET') {
-            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users', 'webhook_integrations'];
+            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
             if (sensitiveEntities.includes(entity as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
 
             let queryStr = `SELECT * FROM ${tableName}`;
@@ -329,6 +287,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 params.push(id);
             }
             
+            // Audit Log Filtering
             if (entity === 'audit_logs') {
                 const conditions = [];
                 const q = req.query;
@@ -352,6 +311,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
              
+             // VALIDATION STEP
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) {
                  return res.status(400).json({ error: `Entity ${entity} is not supported for generic write operations.` });
@@ -365,66 +325,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              let validatedBody = parseResult.data;
              const newId = uuidv4();
 
-             // Apply Defaults Manually
+             // Logic for Roles: auto-calculate dailyExpenses from overheadPct
              if (tableName === 'roles') {
-                validatedBody.overheadPct = validatedBody.overheadPct ?? 0;
-                validatedBody.chargeablePct = validatedBody.chargeablePct ?? 100;
-                validatedBody.trainingPct = validatedBody.trainingPct ?? 0;
-                validatedBody.bdPct = validatedBody.bdPct ?? 0;
-                
                 const dailyCost = validatedBody.dailyCost || 0;
-                validatedBody.dailyExpenses = (dailyCost * validatedBody.overheadPct) / 100;
-             }
-
-             if (tableName === 'webhook_integrations') {
-                 validatedBody.isActive = validatedBody.isActive ?? true;
+                const overheadPct = validatedBody.overheadPct || 0;
+                // Force calculate absolute value for DB compatibility
+                validatedBody.dailyExpenses = (dailyCost * overheadPct) / 100;
              }
              
+             // Dynamic Query Construction using Validated Keys Only
              const columns = Object.keys(validatedBody).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
              const values = Object.values(validatedBody);
-             const placeholders = values.map((_, i) => `$${i + 2}`);
+             const placeholders = values.map((_, i) => `$${i + 2}`); // $1 is reserved for ID
              
              const q = `INSERT INTO ${tableName} (id, ${columns.join(', ')}) VALUES ($1, ${placeholders.join(', ')})`;
              await client.query(q, [newId, ...values]);
              
              await logAction(client, currentUser, 'CREATE', tableName as string, newId, validatedBody, req);
-
-             if (tableName === 'leave_requests') {
-                 const resRes = await client.query('SELECT name FROM resources WHERE id = $1', [validatedBody.resourceId]);
-                 const resourceName = resRes.rows[0]?.name || 'Utente Sconosciuto';
-                 let approverUsers = [];
-                 if (validatedBody.approverIds && validatedBody.approverIds.length > 0) {
-                     const approversRes = await client.query('SELECT name, email FROM resources WHERE id = ANY($1)', [validatedBody.approverIds]);
-                     approverUsers = approversRes.rows;
-                 }
-                 const mentionsData = generateTeamsMentions(approverUsers);
-                 await notify(client, 'LEAVE_REQ_CREATED', { requestorName: resourceName, startDate: validatedBody.startDate, endDate: validatedBody.endDate, notes: validatedBody.notes || "Nessuna nota.", ...mentionsData });
-             }
-
-             if (tableName === 'projects') {
-                 let clientName = 'N/D';
-                 if (validatedBody.clientId) {
-                     const clientRes = await client.query('SELECT name FROM clients WHERE id = $1', [validatedBody.clientId]);
-                     clientName = clientRes.rows[0]?.name || 'N/D';
-                 }
-                 await notify(client, 'PROJECT_CREATED', { projectName: validatedBody.name, clientName: clientName, startDate: validatedBody.startDate || 'N/D', projectManager: validatedBody.projectManager || 'N/D', budget: validatedBody.budget || 0 });
-             }
-
-             if (tableName === 'interviews') {
-                 let interviewers = [];
-                 if (validatedBody.interviewersIds && validatedBody.interviewersIds.length > 0) {
-                     const intRes = await client.query('SELECT name, email FROM resources WHERE id = ANY($1)', [validatedBody.interviewersIds]);
-                     interviewers = intRes.rows;
-                 }
-                 const mentionsData = generateTeamsMentions(interviewers);
-                 let roleName = 'N/D';
-                 if (validatedBody.roleId) {
-                     const roleRes = await client.query('SELECT name FROM roles WHERE id = $1', [validatedBody.roleId]);
-                     roleName = roleRes.rows[0]?.name || 'N/D';
-                 }
-                 await notify(client, 'INTERVIEW_SCHEDULED', { candidateName: validatedBody.candidateName, candidateSurname: validatedBody.candidateSurname, interviewDate: validatedBody.interviewDate, roleName: roleName, ...mentionsData });
-             }
-
              return res.status(201).json({ id: newId, ...validatedBody });
         }
 
@@ -432,29 +349,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (method === 'PUT') {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
             
+            // VALIDATION STEP
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) {
                  return res.status(400).json({ error: `Entity ${entity} is not supported for generic write operations.` });
              }
              
-             // Removed .partial() call. The frontend sends full objects anyway.
-             // Using safeParse on the body is acceptable because we want to validate the shape of what IS sent.
-             // If fields are missing but not mandatory in Zod, it passes.
-             const parseResult = schema.safeParse(req.body);
+             // Use partial() for updates as not all fields might be present
+             // NOTE: for Roles with refinement, we might need full object or manual check if fields missing
+             const parseResult = schema.partial().safeParse(req.body);
              if (!parseResult.success) {
                  return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
              }
 
             let validatedBody = parseResult.data;
             
+            // Logic for Roles: auto-calculate dailyExpenses from overheadPct if present
             if (tableName === 'roles') {
+                // We need dailyCost. If not in body, fetch from DB or assume updated dailyCost is present if changing calcs
+                // Ideally frontend sends both, but let's be safe.
+                // Simplified: Assume if updating cost parameters, all necessary fields are provided OR handled by frontend.
+                // Here we just enforce calculation if both are present in the partial update.
                 if (validatedBody.dailyCost !== undefined && validatedBody.overheadPct !== undefined) {
                      validatedBody.dailyExpenses = (validatedBody.dailyCost * validatedBody.overheadPct) / 100;
                 } else if (validatedBody.overheadPct !== undefined) {
+                     // Need dailyCost from DB to calc
                      const { rows } = await client.query('SELECT daily_cost FROM roles WHERE id = $1', [id]);
                      const currentCost = Number(rows[0]?.daily_cost || 0);
                      validatedBody.dailyExpenses = (currentCost * validatedBody.overheadPct) / 100;
                 } else if (validatedBody.dailyCost !== undefined) {
+                     // Need overheadPct from DB to calc
                      const { rows } = await client.query('SELECT overhead_pct FROM roles WHERE id = $1', [id]);
                      const currentPct = Number(rows[0]?.overhead_pct || 0);
                      validatedBody.dailyExpenses = (validatedBody.dailyCost * currentPct) / 100;
@@ -475,20 +399,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await client.query(q, [...values, id]);
             
             await logAction(client, currentUser, 'UPDATE', tableName as string, id as string, validatedBody, req);
-
-            if (tableName === 'leave_requests' && validatedBody.status) {
-                const reqRes = await client.query('SELECT resource_id, notes, start_date, end_date FROM leave_requests WHERE id = $1', [id]);
-                if (reqRes.rows.length > 0) {
-                    const request = reqRes.rows[0];
-                    const resInfo = await client.query('SELECT name, email FROM resources WHERE id = $1', [request.resource_id]);
-                    const requestor = resInfo.rows[0];
-                    if (requestor) {
-                        const mentionsData = generateTeamsMentions([requestor]);
-                        await notify(client, 'LEAVE_REQ_STATUS_CHANGE', { status: validatedBody.status, requestorName: requestor.name, notes: request.notes, startDate: request.start_date, endDate: request.end_date, ...mentionsData });
-                    }
-                }
-            }
-
             return res.status(200).json({ id, ...validatedBody });
         }
 

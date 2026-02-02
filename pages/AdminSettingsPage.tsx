@@ -1,18 +1,14 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme, Theme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
-import { DashboardCategory, SidebarSectionColors, SidebarItem, WebhookIntegration } from '../types';
+import { DashboardCategory, SidebarSectionColors, SidebarItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { useAuthorizedResource, createAuthorizedFetcher } from '../hooks/useAuthorizedResource';
-import { authorizedJsonFetch } from '../utils/api';
-import Modal from '../components/Modal';
 
-// --- DATA LOAD & PERF SECTION ---
 const DataLoadSection: React.FC = () => {
     const { planningSettings, updatePlanningSettings, isActionLoading } = useEntitiesContext();
     const [localSettings, setLocalSettings] = useState(planningSettings);
@@ -73,156 +69,6 @@ const DataLoadSection: React.FC = () => {
                     <p className="mt-3 text-[10px] text-on-surface-variant leading-relaxed">Definisce quanto lontano nel futuro si estende la griglia di staffing e il forecasting.</p>
                 </div>
             </div>
-        </div>
-    );
-};
-
-// --- WEBHOOK CONFIG SECTION ---
-const AVAILABLE_EVENTS = [
-    { value: 'LEAVE_REQ_CREATED', label: 'Nuova Richiesta Ferie' },
-    { value: 'LEAVE_REQ_STATUS_CHANGE', label: 'Cambio Stato Ferie (Approvata/Rifiutata)' },
-    { value: 'PROJECT_CREATED', label: 'Nuovo Progetto Creato' },
-    { value: 'RESOURCE_ASSIGNED', label: 'Risorsa Assegnata a Progetto' },
-    { value: 'INTERVIEW_SCHEDULED', label: 'Colloquio Programmato' },
-];
-
-const WebhooksSection: React.FC = () => {
-    const { data: webhooks, loading, error, updateCache } = useAuthorizedResource<WebhookIntegration[]>(
-        'webhook-integrations',
-        createAuthorizedFetcher<WebhookIntegration[]>('/api/resources?entity=webhook_integrations')
-    );
-    const { addToast } = useToast();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingWebhook, setEditingWebhook] = useState<Partial<WebhookIntegration>>({});
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        // Validazione base
-        if(!editingWebhook.targetUrl?.startsWith('http')) {
-             addToast('URL non valido', 'error'); return;
-        }
-        
-        const isNew = !editingWebhook.id;
-        try {
-            const url = `/api/resources?entity=webhook_integrations${isNew ? '' : `&id=${editingWebhook.id}`}`;
-            const saved = await authorizedJsonFetch<WebhookIntegration>(url, {
-                method: isNew ? 'POST' : 'PUT',
-                body: JSON.stringify(editingWebhook)
-            });
-            updateCache(prev => isNew ? [...(prev || []), saved as any] : (prev || []).map(w => w.id === saved.id ? saved as any : w));
-            addToast('Webhook salvato con successo', 'success');
-            setIsModalOpen(false);
-        } catch (e) {
-            console.error(e);
-            addToast('Errore durante il salvataggio', 'error');
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!confirm('Sei sicuro di eliminare questa integrazione?')) return;
-        try {
-            await authorizedJsonFetch(`/api/resources?entity=webhook_integrations&id=${id}`, { method: 'DELETE' });
-            updateCache(prev => (prev || []).filter(w => w.id !== id));
-            addToast('Integrazione eliminata', 'success');
-        } catch(e) { addToast('Errore eliminazione', 'error'); }
-    };
-    
-    // Default template for new hook
-    const defaultTemplate = `
-{
-  "type": "message",
-  "attachments": [
-    {
-      "contentType": "application/vnd.microsoft.card.adaptive",
-      "content": {
-        "type": "AdaptiveCard",
-        "body": [
-           { "type": "TextBlock", "text": "Titolo", "weight": "Bolder" },
-           { "type": "TextBlock", "text": "Dettaglio" }
-        ],
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.4"
-      }
-    }
-  ]
-}`.trim();
-
-    const getEventLabel = (type: string) => AVAILABLE_EVENTS.find(e => e.value === type)?.label || type;
-
-    return (
-        <div className="space-y-6 bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-xl font-bold text-on-surface">Notifiche & Webhooks</h2>
-                    <p className="text-sm text-on-surface-variant">Configura integrazioni in uscita verso MS Teams o altri sistemi.</p>
-                </div>
-                <button onClick={() => { setEditingWebhook({ eventType: 'LEAVE_REQ_CREATED', isActive: true, templateJson: defaultTemplate }); setIsModalOpen(true); }} className="px-4 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-sm">
-                    Aggiungi Webhook
-                </button>
-            </div>
-
-            <div className="grid gap-4">
-                {loading ? <div className="text-center py-4"><SpinnerIcon className="w-8 h-8 text-primary mx-auto"/></div> : 
-                 error ? <div className="p-4 bg-error-container text-on-error-container rounded-xl text-center">Errore nel caricamento delle integrazioni. Verifica che la tabella 'webhook_integrations' esista nel database.</div> :
-                 webhooks?.length === 0 ? <p className="text-center text-on-surface-variant py-4">Nessuna integrazione configurata.</p> :
-                 webhooks?.map(hook => (
-                    <div key={hook.id} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant flex justify-between items-center">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="font-bold text-on-surface">{hook.description || hook.eventType}</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${hook.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-surface-container-high text-on-surface-variant'}`}>
-                                    {hook.isActive ? 'ON' : 'OFF'}
-                                </span>
-                            </div>
-                            <p className="text-xs font-mono text-primary mt-1 truncate max-w-md">{hook.targetUrl}</p>
-                            <p className="text-[10px] text-on-surface-variant uppercase tracking-widest mt-2">Evento: {getEventLabel(hook.eventType)}</p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => { setEditingWebhook(hook); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant"><span className="material-symbols-outlined">edit</span></button>
-                            <button onClick={() => handleDelete(hook.id!)} className="p-2 rounded-full hover:bg-surface-container text-error"><span className="material-symbols-outlined">delete</span></button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {isModalOpen && (
-                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Configurazione Webhook">
-                    <form onSubmit={handleSave} className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Descrizione</label>
-                            <input className="form-input" value={editingWebhook.description || ''} onChange={e => setEditingWebhook({...editingWebhook, description: e.target.value})} placeholder="es. Canale HR - Ferie" />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Tipo Evento</label>
-                            <select className="form-select" value={editingWebhook.eventType} onChange={e => setEditingWebhook({...editingWebhook, eventType: e.target.value})}>
-                                {AVAILABLE_EVENTS.map(ev => (
-                                    <option key={ev.value} value={ev.value}>{ev.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Target URL</label>
-                            <input className="form-input" value={editingWebhook.targetUrl || ''} onChange={e => setEditingWebhook({...editingWebhook, targetUrl: e.target.value})} placeholder="https://..." required />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold uppercase text-on-surface-variant mb-1">Template JSON (Adaptive Card)</label>
-                            <textarea className="form-textarea font-mono text-xs" rows={8} value={editingWebhook.templateJson || ''} onChange={e => setEditingWebhook({...editingWebhook, templateJson: e.target.value})} />
-                            <p className="text-[10px] text-on-surface-variant mt-1">
-                                Variabili: <code>{`{{mentionsText}}`}</code>, <code>{`{{mentionsEntities}}`}</code> (Teams).<br/>
-                                Dipendenti da evento: <code>{`{{requestorName}}`}</code>, <code>{`{{projectName}}`}</code>, <code>{`{{roleName}}`}</code>, <code>{`{{status}}`}</code>, etc.
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                             <input type="checkbox" className="form-checkbox" checked={editingWebhook.isActive} onChange={e => setEditingWebhook({...editingWebhook, isActive: e.target.checked})} />
-                             <label className="text-sm font-medium">Integrazione Attiva</label>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-4">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded-full">Annulla</button>
-                            <button type="submit" className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold">Salva</button>
-                        </div>
-                    </form>
-                </Modal>
-            )}
         </div>
     );
 };
@@ -823,19 +669,18 @@ const AdminSettingsPage: React.FC = () => {
         { id: 'general', label: 'Dati & Performance', icon: 'speed' },
         { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
         { id: 'ui', label: 'Look & Feel', icon: 'palette' },
-        { id: 'webhooks', label: 'Notifiche', icon: 'notifications' },
     ];
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto py-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-4xl font-black text-on-surface tracking-tighter">Impostazioni <span className="text-primary">Admin</span></h1>
-                <div className="flex flex-wrap bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant">
+                <div className="flex bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all whitespace-nowrap ${
+                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all ${
                                 activeTab === tab.id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                             }`}
                         >
@@ -850,7 +695,6 @@ const AdminSettingsPage: React.FC = () => {
                 {activeTab === 'general' && <DataLoadSection />}
                 {activeTab === 'dashboard' && <DashboardConfigSection />}
                 {activeTab === 'ui' && <ThemeSection />}
-                {activeTab === 'webhooks' && <WebhooksSection />}
             </div>
 
             <div className="bg-primary/5 p-6 rounded-[2.5rem] border border-primary/10 flex items-center gap-4">

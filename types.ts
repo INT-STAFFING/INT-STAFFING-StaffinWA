@@ -655,25 +655,6 @@ export interface LeaveRequest {
 }
 
 /**
- * @interface WebhookIntegration
- * @description Configurazione per una notifica webhook esterna (es. Teams, Slack).
- */
-export interface WebhookIntegration {
-    /** @property {string} [id] - L'identificatore univoco. */
-    id?: string;
-    /** @property {string} eventType - Il tipo di evento che triggera il webhook. */
-    eventType: string;
-    /** @property {string} targetUrl - L'URL del webhook di destinazione. */
-    targetUrl: string;
-    /** @property {string} templateJson - Il template JSON (es. Adaptive Card) da inviare. */
-    templateJson: string;
-    /** @property {string} [description] - Descrizione opzionale dell'integrazione. */
-    description?: string;
-    /** @property {boolean} isActive - Se l'integrazione è attiva. */
-    isActive: boolean;
-}
-
-/**
  * @interface PageVisibility
  * @description Mappa la visibilità delle pagine. Key = percorso (es. /staffing), Value = true se solo admin.
  */

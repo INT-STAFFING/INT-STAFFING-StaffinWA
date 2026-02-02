@@ -41,7 +41,7 @@ async function main() {
                 company_calendar, projects, contracts, leave_requests, leave_types, 
                 app_users, role_permissions, role_cost_history, resources, roles, 
                 clients, locations, client_sectors, project_statuses, seniority_levels, 
-                horizontals, app_config, action_logs, webhook_integrations
+                horizontals, app_config, action_logs
             RESTART IDENTITY CASCADE;
         `;
 
@@ -162,32 +162,6 @@ async function main() {
 
         await client.query(`INSERT INTO notifications (id, recipient_resource_id, title, message, is_read) VALUES 
             ('${uuidv4()}', '${res_mario}', 'Benvenuto', 'Il tuo account è stato attivato correttamente.', false)`);
-
-        // Seeding Sample Webhook Template for Leaves
-        const leaveTemplate = JSON.stringify({
-            "type": "message",
-            "attachments": [
-                {
-                    "contentType": "application/vnd.microsoft.card.adaptive",
-                    "content": {
-                        "type": "AdaptiveCard",
-                        "body": [
-                            { "type": "TextBlock", "text": "Richiesta Ferie: **{{requestorName}}**", "weight": "Bolder", "size": "Medium" },
-                            { "type": "TextBlock", "text": "Periodo: {{startDate}} - {{endDate}}", "wrap": true },
-                            { "type": "TextBlock", "text": "{{mentionsText}}", "wrap": true }
-                        ],
-                        "msteams": { 
-                            "entities": "{{mentionsEntities}}" 
-                        },
-                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                        "version": "1.4"
-                    }
-                }
-            ]
-        });
-        
-        await client.query(`INSERT INTO webhook_integrations (id, event_type, target_url, template_json, description, is_active) VALUES 
-            ('${uuidv4()}', 'LEAVE_REQ_CREATED', 'https://placeholder-url.webhook.office.com/...', $1, 'Notifica creazione richiesta ferie', false)`, [leaveTemplate]);
 
         console.log('--- Seed Completato con Successo! ---');
         console.log('Account Creati:');

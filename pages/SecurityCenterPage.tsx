@@ -20,14 +20,17 @@ const IdentityPillar: React.FC = () => {
     const { resources } = useEntitiesContext();
     const { addToast } = useToast();
     const { impersonate } = useAuth();
+    
+    // User Edit Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<Partial<AppUser>>({});
-    
+
     // Password Reset Modal State
-    const [isResetPwdModalOpen, setIsResetPwdModalOpen] = useState(false);
-    const [userToReset, setUserToReset] = useState<AppUser | null>(null);
+    const [isPwdModalOpen, setIsPwdModalOpen] = useState(false);
+    const [userForPwd, setUserForPwd] = useState<AppUser | null>(null);
     const [newPassword, setNewPassword] = useState('');
-    const [resetLoading, setResetLoading] = useState(false);
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [pwdLoading, setPwdLoading] = useState(false);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,28 +47,34 @@ const IdentityPillar: React.FC = () => {
         } catch (e) { addToast('Errore durante il salvataggio utente', 'error'); }
     };
 
-    const handleResetPassword = async (e: React.FormEvent) => {
+    const handlePasswordReset = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!userToReset) return;
+        if (!userForPwd) return;
+
         if (newPassword.length < 8) {
-            addToast('La password deve essere almeno di 8 caratteri.', 'error');
+            addToast('La password deve essere di almeno 8 caratteri.', 'warning');
             return;
         }
-        
-        setResetLoading(true);
+        if (newPassword !== confirmPassword) {
+            addToast('Le password non coincidono.', 'warning');
+            return;
+        }
+
+        setPwdLoading(true);
         try {
-            await authorizedJsonFetch(`/api/resources?entity=app-users&action=change_password&id=${userToReset.id}`, {
+            await authorizedJsonFetch(`/api/resources?entity=app-users&action=change_password&id=${userForPwd.id}`, {
                 method: 'PUT',
-                body: JSON.stringify({ newPassword })
+                body: JSON.stringify({ newPassword }),
             });
-            addToast(`Password resettata per ${userToReset.username}`, 'success');
-            setIsResetPwdModalOpen(false);
+            addToast(`Password per ${userForPwd.username} resettata con successo.`, 'success');
+            setIsPwdModalOpen(false);
             setNewPassword('');
-            setUserToReset(null);
+            setConfirmPassword('');
+            setUserForPwd(null);
         } catch (e) {
-            addToast(`Errore reset password: ${(e as Error).message}`, 'error');
+            addToast(`Errore durante il reset della password: ${(e as Error).message}`, 'error');
         } finally {
-            setResetLoading(false);
+            setPwdLoading(false);
         }
     };
 
@@ -104,19 +113,24 @@ const IdentityPillar: React.FC = () => {
                              <button onClick={() => impersonate(u.id)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
                                 <span className="material-symbols-outlined text-sm">visibility</span> Impersonifica
                              </button>
-                             <div className="flex gap-1">
-                                 <button onClick={() => { setUserToReset(u); setIsResetPwdModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant text-tertiary" title="Resetta Password">
-                                    <span className="material-symbols-outlined">key</span>
-                                 </button>
-                                 <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant">
+                             <div className="flex gap-2">
+                                <button 
+                                    onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }} 
+                                    className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary"
+                                    title="Reset Password"
+                                >
+                                    <span className="material-symbols-outlined">lock_reset</span>
+                                </button>
+                                <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Modifica Profilo">
                                     <span className="material-symbols-outlined">edit</span>
-                                 </button>
+                                </button>
                              </div>
                         </div>
                     </div>
                 ))}
             </div>
 
+            {/* Edit User Modal */}
             {isModalOpen && (
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Profilo Utente">
                     <form onSubmit={handleSave} className="space-y-5">
@@ -152,28 +166,47 @@ const IdentityPillar: React.FC = () => {
                 </Modal>
             )}
 
-            {isResetPwdModalOpen && userToReset && (
-                <Modal isOpen={isResetPwdModalOpen} onClose={() => setIsResetPwdModalOpen(false)} title={`Reset Password: ${userToReset.username}`}>
-                    <form onSubmit={handleResetPassword} className="space-y-4">
-                        <div className="p-3 bg-yellow-container/20 border border-yellow-container rounded-lg text-sm text-on-surface">
-                            Stai per modificare la password. L'utente dovrà usarla al prossimo accesso.
+            {/* Password Reset Modal */}
+            {isPwdModalOpen && userForPwd && (
+                <Modal isOpen={isPwdModalOpen} onClose={() => setIsPwdModalOpen(false)} title={`Reset Password: ${userForPwd.username}`}>
+                    <form onSubmit={handlePasswordReset} className="space-y-5">
+                        <div className="p-3 bg-yellow-container/20 border border-yellow-container rounded-xl text-sm text-on-surface-variant mb-4">
+                            Stai per reimpostare manualmente la password per questo utente. Assicurati di comunicare la nuova password in modo sicuro.
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold mb-1 text-on-surface-variant">Nuova Password</label>
-                            <input 
-                                type="text" 
-                                value={newPassword} 
-                                onChange={e => setNewPassword(e.target.value)} 
-                                className="form-input" 
-                                required 
-                                minLength={8}
-                                placeholder="Minimo 8 caratteri" 
-                            />
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1 text-on-surface-variant">Nuova Password</label>
+                                <input 
+                                    type="password" 
+                                    value={newPassword} 
+                                    onChange={e => setNewPassword(e.target.value)} 
+                                    className="form-input" 
+                                    required 
+                                    placeholder="Minimo 8 caratteri" 
+                                    autoComplete="new-password"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1 text-on-surface-variant">Conferma Password</label>
+                                <input 
+                                    type="password" 
+                                    value={confirmPassword} 
+                                    onChange={e => setConfirmPassword(e.target.value)} 
+                                    className="form-input" 
+                                    required 
+                                    placeholder="Ripeti password" 
+                                    autoComplete="new-password"
+                                />
+                            </div>
                         </div>
                         <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
-                            <button type="button" onClick={() => setIsResetPwdModalOpen(false)} className="px-6 py-2 rounded-full font-bold text-on-surface-variant">Annulla</button>
-                            <button type="submit" disabled={resetLoading} className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center gap-2">
-                                {resetLoading ? <SpinnerIcon className="w-4 h-4" /> : 'Conferma Reset'}
+                            <button type="button" onClick={() => setIsPwdModalOpen(false)} className="px-6 py-2 rounded-full font-bold text-on-surface-variant hover:bg-surface-container">Annulla</button>
+                            <button 
+                                type="submit" 
+                                disabled={pwdLoading}
+                                className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {pwdLoading ? <SpinnerIcon className="w-4 h-4" /> : 'Reimposta Password'}
                             </button>
                         </div>
                     </form>
