@@ -103,6 +103,8 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS role_permissions ( role VARCHAR(50) NOT NULL, page_path VARCHAR(255) NOT NULL, is_allowed BOOLEAN DEFAULT FALSE, PRIMARY KEY (role, page_path) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS action_logs ( id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), user_id UUID REFERENCES app_users(id) ON DELETE SET NULL, username VARCHAR(255), action VARCHAR(100) NOT NULL, entity VARCHAR(100), entity_id VARCHAR(255), details JSONB, ip_address VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );`;
     await db.sql`CREATE TABLE IF NOT EXISTS notifications ( id UUID PRIMARY KEY, recipient_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, link VARCHAR(255), is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );`;
+    // New Webhook Integrations Table
+    await db.sql`CREATE TABLE IF NOT EXISTS webhook_integrations ( id UUID PRIMARY KEY, event_type VARCHAR(50) NOT NULL, target_url TEXT NOT NULL, template_json TEXT NOT NULL, description VARCHAR(255), is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );`;
 
     // Seed Permissions
     const permsCheck = await db.sql`SELECT COUNT(*) FROM role_permissions;`;

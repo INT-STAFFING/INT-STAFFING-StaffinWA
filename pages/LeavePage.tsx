@@ -43,6 +43,7 @@ const LeavePage: React.FC = () => {
 
     // View State
     const [view, setView] = useState<'table' | 'card' | 'calendar'>('table');
+    // Inizializza il calendario alla data odierna
     const [calendarDate, setCalendarDate] = useState(new Date());
     
     // Modal State
@@ -57,24 +58,20 @@ const LeavePage: React.FC = () => {
 
     // --- Data Preparation ---
 
-    // Base set of requests visible to the user (Security Layer)
+    // Logica di visibilità basata sui ruoli
     const accessibleRequests = useMemo(() => {
-        return leaveRequests.filter(req => {
-            if (isAdmin) return true;
-            // User can see own requests
-            if (req.resourceId === user?.resourceId) return true;
-            
-            // Approvers can see requests assigned to them
-            if (req.approverIds?.includes(user?.resourceId || '')) return true;
-            
-            // Public Calendar Logic: 
-            // Managers/Directors can see APPROVED requests of everyone (Team Calendar).
-            // SIMPLE users can ONLY see their own requests (already filtered above).
-            if (user?.role !== 'SIMPLE' && req.status === 'APPROVED') return true;
-            
-            return false;
-        });
-    }, [leaveRequests, isAdmin, user]);
+        if (!user) return [];
+
+        const privilegedRoles = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
+        
+        // Se l'utente ha un ruolo privilegiato, vede tutto
+        if (privilegedRoles.includes(user.role)) {
+            return leaveRequests;
+        }
+
+        // Altrimenti (Utente Semplice), vede solo le proprie richieste
+        return leaveRequests.filter(req => req.resourceId === user.resourceId);
+    }, [leaveRequests, user]);
 
     // Calculate KPIs based on accessible requests
     const kpis = useMemo(() => {
