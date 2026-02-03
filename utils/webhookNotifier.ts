@@ -9,17 +9,13 @@ import { VercelPoolClient } from '@vercel/postgres';
 
 interface NotificationPayload {
     title: string;
+    subtitle?: string;
     facts: { name: string; value: string }[];
+    /** Dettagli aggiuntivi da mostrare solo espandendo la card */
+    detailedFacts?: { name: string; value: string }[];
     actions?: { type: 'OpenUrl'; title: string; url: string }[];
     color?: 'Good' | 'Warning' | 'Attention' | 'Accent';
 }
-
-const COLOR_MAP = {
-    Good: '2E7D32', // Green
-    Warning: 'F9A825', // Yellow/Orange
-    Attention: 'C62828', // Red
-    Accent: '006493' // Primary Blue
-};
 
 /**
  * Invia una notifica a tutti i webhook attivi per un dato evento.
@@ -39,7 +35,46 @@ export async function notify(
 
         if (rows.length === 0) return;
 
-        // 2. Costruisci Adaptive Card
+        // 2. Costruzione Azioni (Bottoni)
+        const actions: any[] = [];
+
+        // A. Link Esterni (es. "Vai al Progetto")
+        if (payload.actions) {
+            payload.actions.forEach(a => {
+                actions.push({
+                    "type": "Action.OpenUrl",
+                    "title": a.title,
+                    "url": a.url
+                });
+            });
+        }
+
+        // B. Dettagli Espandibili (ShowCard)
+        if (payload.detailedFacts && payload.detailedFacts.length > 0) {
+            actions.push({
+                "type": "Action.ShowCard",
+                "title": "🔍 Vedi Dettagli",
+                "card": {
+                    "type": "AdaptiveCard",
+                    "body": [
+                        {
+                            "type": "TextBlock",
+                            "text": "Dettagli Aggiuntivi",
+                            "weight": "Bolder",
+                            "size": "Medium",
+                            "isSubtle": true,
+                            "separator": true
+                        },
+                        {
+                            "type": "FactSet",
+                            "facts": payload.detailedFacts.map(f => ({ title: f.name, value: f.value }))
+                        }
+                    ]
+                }
+            });
+        }
+
+        // 3. Costruisci Adaptive Card
         const card = {
             type: "message",
             attachments: [
@@ -53,34 +88,43 @@ export async function notify(
                         "body": [
                             {
                                 "type": "Container",
+                                "style": "emphasis", // Sfondo colorato leggero per l'header
+                                "bleed": true,
                                 "items": [
                                     {
                                         "type": "TextBlock",
                                         "text": payload.title,
                                         "weight": "Bolder",
                                         "size": "Medium",
-                                        "color": payload.color === 'Attention' ? 'Attention' : 'Default'
+                                        "color": payload.color || 'Default' // Usa colori semantici Teams (Good, Attention, etc.)
                                     },
+                                    payload.subtitle ? {
+                                        "type": "TextBlock",
+                                        "text": payload.subtitle,
+                                        "isSubtle": true,
+                                        "wrap": true,
+                                        "size": "Small",
+                                        "spacing": "None"
+                                    } : null
+                                ].filter(Boolean)
+                            },
+                            {
+                                "type": "Container",
+                                "items": [
                                     {
                                         "type": "FactSet",
                                         "facts": payload.facts.map(f => ({ title: f.name, value: f.value }))
                                     }
-                                ],
-                                "style": "emphasis",
-                                "bleed": true
+                                ]
                             }
                         ],
-                        "actions": payload.actions?.map(a => ({
-                            "type": "Action.OpenUrl",
-                            "title": a.title,
-                            "url": a.url
-                        }))
+                        "actions": actions.length > 0 ? actions : undefined
                     }
                 }
             ]
         };
 
-        // 3. Invia a tutti gli endpoint (Promise.allSettled per non fallire se uno è down)
+        // 4. Invia a tutti gli endpoint (Promise.allSettled per non fallire se uno è down)
         const requests = rows.map(row => 
             fetch(row.webhook_url, {
                 method: 'POST',
@@ -90,12 +134,9 @@ export async function notify(
         );
 
         // Attendiamo ma senza bloccare troppo a lungo (best effort)
-        // In Vercel serverless functions, è meglio attendere o usare waitUntil se disponibile.
-        // Qui usiamo await semplice perché la latenza verso MS Teams è bassa.
         await Promise.allSettled(requests);
 
     } catch (error) {
         console.error("Error in webhookNotifier:", error);
-        // Non rilanciamo l'errore per non interrompere il flusso principale dell'applicazione
     }
 }

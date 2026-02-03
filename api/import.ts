@@ -449,14 +449,15 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     const res = await client.query('SELECT id, email FROM resources');
     res.rows.forEach((r: any) => {
         // Fix: Ensure we normalize a string value, handling null/undefined
-        resourceMap.set(normalize(String(r.email || '')), String(r.id));
+        // Cast to any to handle potential unknown type
+        resourceMap.set(normalize(String((r.email as any) || '')), String(r.id));
     });
 
     if (Array.isArray(users)) {
         const userRows = users.map(u => {
             const resEmail = u['Email Risorsa'] || u.resourceEmail;
             // Fix: Explicitly cast unknown input to string before normalizing
-            const emailStr = typeof resEmail === 'string' ? resEmail : String(resEmail || '');
+            const emailStr = typeof resEmail === 'string' ? resEmail : String((resEmail as any) || '');
             const resId = resourceMap.get(normalize(emailStr));
             
             return [
@@ -494,7 +495,7 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     const res = await client.query('SELECT id, name, email FROM resources');
     res.rows.forEach((r: any) => {
         // Fix: Explicitly cast ID to string to avoid 'unknown' type issues if strict types are enabled
-        const key = String(r.email || r.name || '');
+        const key = String((r.email as any) || (r.name as any) || '');
         resourceMap.set(normalize(key), String(r.id));
     });
     
@@ -503,8 +504,8 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
         const tutorKey = row['Email Tutor'] || row['Tutor'];
         
         // FIX: Cast to string to satisfy type checker if inferred as unknown, and handle undefined
-        const resKeyStr = typeof resKey === 'string' ? resKey : String(resKey || '');
-        const tutorKeyStr = typeof tutorKey === 'string' ? tutorKey : String(tutorKey || '');
+        const resKeyStr = typeof resKey === 'string' ? resKey : String((resKey as any) || '');
+        const tutorKeyStr = typeof tutorKey === 'string' ? tutorKey : String((tutorKey as any) || '');
         
         const resId = resourceMap.get(normalize(resKeyStr));
         const tutorId = resourceMap.get(normalize(tutorKeyStr));
