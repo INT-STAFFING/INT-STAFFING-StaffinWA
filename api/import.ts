@@ -445,15 +445,20 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
 
 const importUsersPermissions = async (client: any, body: any, warnings: string[]) => {
     const { users, permissions } = body;
-    // Fix: Explicitly cast r.email to string to satisfy normalize function which expects unknown but in practice TS flags if not string when type definition mismatches
-    const resourceMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(String(r.email || '')), r.id]));
+    const resourceMap = new Map<string, string>();
+    const res = await client.query('SELECT id, email FROM resources');
+    res.rows.forEach((r: any) => {
+        // Fix: Ensure we normalize a string value, handling null/undefined
+        resourceMap.set(normalize(String(r.email || '')), String(r.id));
+    });
 
     if (Array.isArray(users)) {
         const userRows = users.map(u => {
             const resEmail = u['Email Risorsa'] || u.resourceEmail;
-            const resId = resourceMap.get(normalize(String(resEmail || '')));
-            // Note: Password hash is NOT imported. User must reset or admin must set default.
-            // We use a placeholder hash if creating new user, but usually we just update roles/active status
+            // Fix: Explicitly cast unknown input to string before normalizing
+            const emailStr = typeof resEmail === 'string' ? resEmail : String(resEmail || '');
+            const resId = resourceMap.get(normalize(emailStr));
+            
             return [
                 uuidv4(),
                 u['Username'] || u.username,

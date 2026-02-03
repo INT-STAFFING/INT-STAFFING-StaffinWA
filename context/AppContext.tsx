@@ -349,16 +349,11 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             setManagerResourceIds(metaData.managerResourceIds || []);
             setAnalyticsCache(metaData.analyticsCache || {});
             
-            const rateCardsRes = await apiFetch<RateCard[]>('/api/resources?entity=rate_cards');
-            setRateCards(rateCardsRes || []);
-            const rateCardEntriesRes = await apiFetch<RateCardEntry[]>('/api/resources?entity=rate_card_entries');
-            setRateCardEntries(rateCardEntriesRes || []);
-            
-            const projectExpensesRes = await apiFetch<ProjectExpense[]>('/api/resources?entity=project_expenses');
-            setProjectExpenses(projectExpensesRes || []);
-
-            const notifConfigsRes = await apiFetch<NotificationConfig[]>('/api/resources?entity=notification_configs');
-            setNotificationConfigs(notifConfigsRes || []);
+            // Consolidated fetches from metadata scope
+            setRateCards(metaData.rateCards || []);
+            setRateCardEntries(metaData.rateCardEntries || []);
+            setProjectExpenses(metaData.projectExpenses || []);
+            setNotificationConfigs(metaData.notificationConfigs || []);
             
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             

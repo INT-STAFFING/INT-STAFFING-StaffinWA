@@ -65,7 +65,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarConfigRes, sidebarSectionsRes, sidebarSectionColorsRes,
                 sidebarFooterActionsRes, dashboardLayoutRes, roleHomePagesRes,
                 bottomNavPathsRes, analyticsRes, skillCatsRes, skillMacrosRes,
-                skillMapRes, catMacroMapRes, planningConfigRes
+                skillMapRes, catMacroMapRes, planningConfigRes,
+                // New consolidated fetches
+                rateCardsRes, rateCardEntriesRes, projectExpensesRes, notificationConfigsRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -96,7 +98,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM skill_macro_categories;`,
                 db.sql`SELECT * FROM skill_skill_category_map;`,
                 db.sql`SELECT * FROM skill_category_macro_map;`,
-                db.sql`SELECT key, value FROM app_config WHERE key LIKE 'planning_range_%';`
+                db.sql`SELECT key, value FROM app_config WHERE key LIKE 'planning_range_%';`,
+                // New consolidated fetches
+                db.sql`SELECT * FROM rate_cards;`,
+                db.sql`SELECT * FROM rate_card_entries;`,
+                db.sql`SELECT * FROM project_expenses;`,
+                db.sql`SELECT * FROM notification_configs;`
             ]);
 
             const companyCalendar = calendarRes.rows.map(toCamelCase) as CalendarEvent[];
@@ -187,7 +194,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 dashboardLayout: parseJsonConfig(dashboardLayoutRes, null),
                 roleHomePages: parseJsonConfig(roleHomePagesRes, null),
                 bottomNavPaths: parseJsonConfig(bottomNavPathsRes, []),
-                analyticsCache
+                analyticsCache,
+                // Mapped consolidated data
+                rateCards: rateCardsRes.rows.map(toCamelCase),
+                rateCardEntries: rateCardEntriesRes.rows.map(toCamelCase),
+                projectExpenses: projectExpensesRes.rows.map(toCamelCase),
+                notificationConfigs: notificationConfigsRes.rows.map(toCamelCase),
             });
         }
 
