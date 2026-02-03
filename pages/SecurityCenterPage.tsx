@@ -10,6 +10,7 @@ import { AppUser, RolePermission, UserRole, AuditLogEntry } from '../types';
 import { authorizedJsonFetch } from '../utils/api';
 import { routesManifest } from '../routes';
 import { useAuthorizedResource, createAuthorizedFetcher } from '../hooks/useAuthorizedResource';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 // --- PILASTRO 1: GESTIONE IDENTITÀ ---
 const IdentityPillar: React.FC = () => {
@@ -31,6 +32,9 @@ const IdentityPillar: React.FC = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [pwdLoading, setPwdLoading] = useState(false);
+
+    // Search Filter
+    const [searchTerm, setSearchTerm] = useState('');
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -78,57 +82,133 @@ const IdentityPillar: React.FC = () => {
         }
     };
 
+    const filteredUsers = useMemo(() => {
+        if (!users) return [];
+        if (!searchTerm) return users;
+        return users.filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [users, searchTerm]);
+
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
+
+    const columns: ColumnDef<AppUser>[] = [
+        { 
+            header: 'Utente', 
+            sortKey: 'username', 
+            cell: u => (
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                        {u.username.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="font-bold text-on-surface">{u.username}</span>
+                </div>
+            ) 
+        },
+        { 
+            header: 'Ruolo', 
+            sortKey: 'role', 
+            cell: u => <span className="text-xs font-bold text-primary uppercase tracking-widest">{u.role}</span> 
+        },
+        { 
+            header: 'Stato', 
+            sortKey: 'isActive', 
+            cell: u => (
+                <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-tighter ${u.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
+                    {u.isActive ? 'ATTIVO' : 'DISABILITATO'}
+                </span>
+            ) 
+        },
+    ];
+
+    const renderRow = (u: AppUser) => (
+        <tr key={u.id} className="group hover:bg-surface-container-low transition-colors">
+            {columns.map((col, i) => (
+                <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">
+                    {col.cell(u)}
+                </td>
+            ))}
+            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
+                <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => impersonate(u.id)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Impersonifica">
+                        <span className="material-symbols-outlined text-xl">visibility</span>
+                    </button>
+                    <button 
+                        onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }} 
+                        className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary transition-colors"
+                        title="Reset Password"
+                    >
+                        <span className="material-symbols-outlined text-xl">lock_reset</span>
+                    </button>
+                    <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica Profilo">
+                        <span className="material-symbols-outlined text-xl">edit</span>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    );
+
+    const renderMobileCard = (u: AppUser) => (
+        <div key={u.id} className="bg-surface-container-low p-5 rounded-3xl border border-outline-variant shadow-sm hover:shadow-md transition-all group mb-4">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+                        {u.username.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <p className="font-bold text-on-surface text-lg">{u.username}</p>
+                        <p className="text-xs text-primary font-bold uppercase tracking-widest">{u.role}</p>
+                    </div>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-tighter ${u.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
+                    {u.isActive ? 'ATTIVO' : 'DISABILITATO'}
+                </span>
+            </div>
+            <div className="pt-4 border-t border-outline-variant flex justify-between items-center">
+                    <button onClick={() => impersonate(u.id)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">visibility</span> Impersonifica
+                    </button>
+                    <div className="flex gap-2">
+                    <button 
+                        onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }} 
+                        className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary"
+                        title="Reset Password"
+                    >
+                        <span className="material-symbols-outlined">lock_reset</span>
+                    </button>
+                    <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Modifica Profilo">
+                        <span className="material-symbols-outlined">edit</span>
+                    </button>
+                    </div>
+            </div>
+        </div>
+    );
+
+    const filtersNode = (
+        <div className="w-full md:w-64">
+            <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Cerca utente..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+            />
+        </div>
+    );
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="text-2xl font-bold text-on-surface">Gestione Identità</h3>
-                    <p className="text-sm text-on-surface-variant">Anagrafica accessi e whitelist utenti.</p>
-                </div>
-                <button onClick={() => { setEditingUser({ role: 'SIMPLE', isActive: true }); setIsModalOpen(true); }} className="px-5 py-2 bg-primary text-on-primary rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
-                    <span className="material-symbols-outlined">person_add</span> Nuovo Utente
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {loading ? <div className="col-span-full flex justify-center py-12"><SpinnerIcon className="w-10 h-10 text-primary" /></div> : users?.map(u => (
-                    <div key={u.id} className="bg-surface-container-low p-5 rounded-3xl border border-outline-variant shadow-sm hover:shadow-md transition-all group">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
-                                    {u.username.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <p className="font-bold text-on-surface text-lg">{u.username}</p>
-                                    <p className="text-xs text-primary font-bold uppercase tracking-widest">{u.role}</p>
-                                </div>
-                            </div>
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-tighter ${u.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
-                                {u.isActive ? 'ATTIVO' : 'DISABILITATO'}
-                            </span>
-                        </div>
-                        <div className="pt-4 border-t border-outline-variant flex justify-between items-center">
-                             <button onClick={() => impersonate(u.id)} className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-                                <span className="material-symbols-outlined text-sm">visibility</span> Impersonifica
-                             </button>
-                             <div className="flex gap-2">
-                                <button 
-                                    onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }} 
-                                    className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary"
-                                    title="Reset Password"
-                                >
-                                    <span className="material-symbols-outlined">lock_reset</span>
-                                </button>
-                                <button onClick={() => { setEditingUser(u); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant" title="Modifica Profilo">
-                                    <span className="material-symbols-outlined">edit</span>
-                                </button>
-                             </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <DataTable<AppUser>
+                title="Gestione Identità"
+                addNewButtonLabel="Nuovo Utente"
+                onAddNew={() => { setEditingUser({ role: 'SIMPLE', isActive: true }); setIsModalOpen(true); }}
+                data={filteredUsers}
+                columns={columns}
+                filtersNode={filtersNode}
+                renderRow={renderRow}
+                renderMobileCard={renderMobileCard}
+                isLoading={loading}
+                initialSortKey="username"
+                numActions={3}
+            />
 
             {/* Edit User Modal */}
             {isModalOpen && (

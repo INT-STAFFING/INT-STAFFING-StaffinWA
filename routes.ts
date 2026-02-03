@@ -335,6 +335,16 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/SecurityCenterPage')),
     },
     {
+        path: '/notification-settings',
+        label: 'Webhooks',
+        icon: 'hub',
+        section: 'Amministrazione',
+        showInSidebar: true,
+        // requiredRole removed to allow RBAC matrix to control access for Managers if enabled
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/NotificationSettingsPage')),
+    },
+    {
         path: '/db-inspector',
         label: 'Database Inspector',
         icon: 'database',

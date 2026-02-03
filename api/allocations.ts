@@ -6,6 +6,7 @@
 
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { notify } from '../utils/webhookNotifier.js';
 
 /**
  * Gestore della richiesta API per l'endpoint /api/allocations.
@@ -29,8 +30,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Avvia una transazione per garantire che tutti gli aggiornamenti vengano eseguiti atomicamente.
         await client.query('BEGIN');
         
+        const modifiedAssignments = new Set<string>();
+
         for (const update of updates) {
             const { assignmentId, date, percentage } = update;
+            modifiedAssignments.add(assignmentId);
             
             // Se la percentuale è 0, l'allocazione viene eliminata.
             if (percentage === 0) {
@@ -52,6 +56,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // COMMIT immediato per rendere persistenti i dati
         await client.query('COMMIT');
+        
+        // --- NOTIFICATION TRIGGER ---
+        // Group by assignment to minimize notifications
+        for (const assignmentId of modifiedAssignments) {
+            const detailsRes = await client.query(`
+                SELECT r.name as res_name, p.name as proj_name 
+                FROM assignments a
+                JOIN resources r ON a.resource_id = r.id
+                JOIN projects p ON a.project_id = p.id
+                WHERE a.id = $1
+            `, [assignmentId]);
+            
+            if (detailsRes.rows.length > 0) {
+                const { res_name, proj_name } = detailsRes.rows[0];
+                const count = updates.filter((u: any) => u.assignmentId === assignmentId).length;
+                await notify(client, 'ALLOCATION_CHANGED', {
+                    title: 'Allocazione Modificata',
+                    color: 'Good',
+                    facts: [
+                        { name: 'Risorsa', value: res_name },
+                        { name: 'Progetto', value: proj_name },
+                        { name: 'Giorni Modificati', value: count.toString() }
+                    ]
+                });
+            }
+        }
+        // -----------------------------
 
         // ASYNC TRIGGER: "Fire and Forget"
         // Lancia il ricalcolo delle analitiche senza attendere la risposta (non-blocking).

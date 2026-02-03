@@ -8,6 +8,7 @@ import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { notify } from '../utils/webhookNotifier.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -37,9 +38,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { rows } = await client.sql`SELECT * FROM app_users WHERE username = ${username}`;
         const user = rows[0];
 
+        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+
         if (!user) {
-            const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
             await client.sql`INSERT INTO action_logs (username, action, details, ip_address) VALUES (${username}, 'LOGIN_FAILED', '{"reason": "User not found"}', ${ip})`;
+            // --- NOTIFY ---
+            await notify(client, 'LOGIN_FAILED', {
+                title: 'Login Fallito (Utente Sconosciuto)',
+                color: 'Warning',
+                facts: [{ name: 'Username', value: username }, { name: 'IP', value: ip }]
+            });
+            // --------------
             return res.status(401).json({ success: false, error: "Credenziali non valide." });
         }
 
@@ -49,8 +58,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const isValid = await bcrypt.compare(password, user.password_hash);
         if (!isValid) {
-            const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
             await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN_FAILED', '{"reason": "Invalid password"}', ${ip})`;
+            // --- NOTIFY ---
+            await notify(client, 'LOGIN_FAILED', {
+                title: 'Login Fallito (Password Errata)',
+                color: 'Attention',
+                facts: [{ name: 'Username', value: username }, { name: 'IP', value: ip }]
+            });
+            // --------------
             return res.status(401).json({ success: false, error: "Credenziali non valide." });
         }
 
@@ -63,7 +78,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const permRes = await client.sql`SELECT page_path FROM role_permissions WHERE role = ${user.role} AND is_allowed = TRUE`;
         const permissions = permRes.rows.map(r => r.page_path);
 
-        const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
         await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN', '{}', ${ip})`;
 
         return res.status(200).json({

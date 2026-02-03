@@ -11,7 +11,7 @@ import {
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
     Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction,
-    RateCard, RateCardEntry, ProjectExpense, BillingMilestone
+    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -69,10 +69,12 @@ const PlanningContext = createContext<(Pick<EntitiesContextType,
 const ConfigContext = createContext<Pick<EntitiesContextType,
     'horizontals' | 'seniorityLevels' | 'projectStatuses' | 'clientSectors' | 'locations' | 'leaveTypes' |
     'pageVisibility' | 'skillThresholds' | 'sidebarConfig' | 'sidebarSections' | 'sidebarSectionColors' | 'sidebarFooterActions' |
-    'dashboardLayout' | 'roleHomePages' | 'bottomNavPaths' | 'addConfigOption' | 'updateConfigOption' | 'deleteConfigOption' |
+    'dashboardLayout' | 'roleHomePages' | 'bottomNavPaths' | 'notificationConfigs' |
+    'addConfigOption' | 'updateConfigOption' | 'deleteConfigOption' |
     'addLeaveType' | 'updateLeaveType' | 'deleteLeaveType' | 'updatePageVisibility' | 'updateSkillThresholds' |
     'updateSidebarConfig' | 'updateSidebarSections' | 'updateSidebarSectionColors' | 'updateSidebarFooterActions' |
-    'updateDashboardLayout' | 'updateRoleHomePages' | 'updateBottomNavPaths'
+    'updateDashboardLayout' | 'updateRoleHomePages' | 'updateBottomNavPaths' |
+    'addNotificationConfig' | 'updateNotificationConfig' | 'deleteNotificationConfig'
 > | undefined>(undefined);
 
 const NotificationsContext = createContext<Pick<EntitiesContextType,
@@ -199,6 +201,7 @@ const ConfigProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         dashboardLayout: entities.dashboardLayout,
         roleHomePages: entities.roleHomePages,
         bottomNavPaths: entities.bottomNavPaths,
+        notificationConfigs: entities.notificationConfigs,
         addConfigOption: entities.addConfigOption,
         updateConfigOption: entities.updateConfigOption,
         deleteConfigOption: entities.deleteConfigOption,
@@ -213,7 +216,10 @@ const ConfigProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         updateSidebarFooterActions: entities.updateSidebarFooterActions,
         updateDashboardLayout: entities.updateDashboardLayout,
         updateRoleHomePages: entities.updateRoleHomePages,
-        updateBottomNavPaths: entities.updateBottomNavPaths
+        updateBottomNavPaths: entities.updateBottomNavPaths,
+        addNotificationConfig: entities.addNotificationConfig,
+        updateNotificationConfig: entities.updateNotificationConfig,
+        deleteNotificationConfig: entities.deleteNotificationConfig
     }), [entities]);
 
     return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
@@ -248,7 +254,6 @@ export interface AppProvidersProps {
 }
 
 export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWindow, configKeys }) => {
-    // FIX: Destructure primitives to avoid re-creating object on every render
     const planningMonthsBefore = planningWindow?.monthsBefore ?? 6;
     const planningMonthsAfter = planningWindow?.monthsAfter ?? 18;
 
@@ -309,10 +314,10 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const [roleHomePages, setRoleHomePages] = useState<Record<string, string>>(DEFAULT_ROLE_HOME_PAGES);
     const [bottomNavPaths, setBottomNavPaths] = useState<string[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [notificationConfigs, setNotificationConfigs] = useState<NotificationConfig[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
     const [fetchError, setFetchError] = useState<string | null>(null);
 
-    // FIX: Memoize helpers to prevent context instability
     const setActionLoading = useCallback((action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
     }, []);
@@ -323,7 +328,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         setLoading(true);
         setFetchError(null);
         try {
-            // 1. Metadata
             const metaData = await apiFetch<MetadataResponse>('/api/data?scope=metadata');
             setClients(metaData.clients || []);
             setRoles(metaData.roles || []);
@@ -352,6 +356,9 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             
             const projectExpensesRes = await apiFetch<ProjectExpense[]>('/api/resources?entity=project_expenses');
             setProjectExpenses(projectExpensesRes || []);
+
+            const notifConfigsRes = await apiFetch<NotificationConfig[]>('/api/resources?entity=notification_configs');
+            setNotificationConfigs(notifConfigsRes || []);
             
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             
@@ -436,7 +443,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         return () => clearInterval(interval);
     }, [fetchData, fetchNotifications]);
 
-    // Actions implementation
     const forceRecalculateAnalytics = async () => {
         setActionLoading('recalculateAnalytics', true);
         try {
@@ -453,7 +459,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         }
     };
     
-    // CRUD Functions (no change in logic, just ensuring they use stable setActionLoading)
     const addResource = async (resource: Omit<Resource, 'id'>) => { setActionLoading('addResource', true); try { const newResource = await apiFetch<Resource>('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) }); setResources(prev => [...prev, newResource]); return newResource; } finally { setActionLoading('addResource', false); } };
     const updateResource = async (resource: Resource) => { setActionLoading(`updateResource-${resource.id}`, true); try { const updated = await apiFetch<Resource>(`/api/resources?entity=resources&id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }); setResources(prev => prev.map(r => r.id === resource.id ? updated : r)); } finally { setActionLoading(`updateResource-${resource.id}`, false); } };
     const deleteResource = async (id: string) => { setActionLoading(`deleteResource-${id}`, true); try { await apiFetch(`/api/resources?entity=resources&id=${id}`, { method: 'DELETE' }); setResources(prev => prev.filter(r => r.id !== id)); } finally { setActionLoading(`deleteResource-${id}`, false); } };
@@ -494,7 +499,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const addMultipleAssignments = async (newAssignments: { resourceId: string; projectId: string }[]) => { try { const createdAssignments = await Promise.all(newAssignments.map(async (a) => { return await apiFetch<Assignment | { message: string }>('/api/assignments', { method: 'POST', body: JSON.stringify(a) }); })); const validAssignments = createdAssignments.filter((a): a is Assignment => !('message' in a)); const newAss = validAssignments.map(a => ({ id: a.id, resourceId: a.resourceId, projectId: a.projectId })); setAssignments(prev => { const existingIds = new Set(prev.map(p => p.id)); const uniqueNew = newAss.filter(a => !existingIds.has(a.id)); return [...prev, ...uniqueNew]; }); if (validAssignments.length < newAssignments.length) { addToast('Alcune assegnazioni esistevano già.', 'error'); } else { addToast('Assegnazioni create con successo.', 'success'); } } catch (error) { addToast('Errore durante la creazione delle assegnazioni.', 'error'); } };
     const deleteAssignment = async (id: string) => { setActionLoading(`deleteAssignment-${id}`, true); try { await apiFetch(`/api/assignments?id=${id}`, { method: 'DELETE' }); setAssignments(prev => prev.filter(a => a.id !== id)); setAllocations(prev => { const newAllocations = { ...prev }; delete newAllocations[id]; return newAllocations; }); } finally { setActionLoading(`deleteAssignment-${id}`, false); } };
     
-    // Updated Logic: Check Resource Specific Cost First
     const getRoleCost = (roleId: string, date: Date, resourceId?: string): number => { 
         if (resourceId) {
             const resource = resources.find(r => r.id === resourceId);
@@ -510,14 +514,12 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         return role ? Number(role.dailyCost) : 0; 
     };
 
-    // Updated Logic: Check Rate Card by Resource ID
     const getSellRate = (rateCardId: string | null | undefined, resourceId: string): number => { 
         if (!rateCardId) return 0; 
         const entry = rateCardEntries.find(e => e.rateCardId === rateCardId && e.resourceId === resourceId); 
         return entry ? Number(entry.dailyRate) : 0; 
     };
     
-    // UPDATED SIGNATURE: Added commitmentPercentage
     const getBestFitResources = useCallback(async (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => {
         setActionLoading('getBestFitResources', true);
         try {
@@ -555,7 +557,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             ]; 
             await Promise.all(linkPromises);
             
-            // INHERITANCE LOGIC: If projects are linked, update their billingType if contract has one
             if (contract.billingType && projectIds.length > 0) {
                  await Promise.all(projectIds.map(pid => 
                      apiFetch(`/api/resources?entity=projects&id=${pid}`, {
@@ -584,7 +585,6 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
             ]; 
             await Promise.all(linkPromises);
 
-            // INHERITANCE LOGIC: Update billingType for all linked projects
             if (contract.billingType && projectIds.length > 0) {
                  await Promise.all(projectIds.map(pid => 
                      apiFetch(`/api/resources?entity=projects&id=${pid}`, {
@@ -644,12 +644,55 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     const updateRoleHomePages = async (config: Record<string, string>) => { setActionLoading('updateRoleHomePages', true); try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.roleHomePagesKey, value: JSON.stringify(config) }] }) }); setRoleHomePages(config); } finally { setActionLoading('updateRoleHomePages', false); } };
     const updateBottomNavPaths = async (paths: string[]) => { setActionLoading('updateBottomNavPaths', true); try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.bottomNavPathsKey, value: JSON.stringify(paths) }] }) }); setBottomNavPaths(paths); } finally { setActionLoading('updateBottomNavPaths', false); } };
 
+    const addNotificationConfig = async (config: Omit<NotificationConfig, 'id'>) => {
+        setActionLoading('addNotificationConfig', true);
+        try {
+            const newConfig = await apiFetch<NotificationConfig>('/api/resources?entity=notification_configs', { 
+                method: 'POST', body: JSON.stringify(config) 
+            });
+            setNotificationConfigs(prev => [...prev, newConfig]);
+            addToast('Regola notifica creata', 'success');
+        } catch (e) {
+            addToast('Errore creazione regola notifica', 'error');
+        } finally {
+            setActionLoading('addNotificationConfig', false);
+        }
+    };
+
+    const updateNotificationConfig = async (config: NotificationConfig) => {
+        setActionLoading(`updateNotificationConfig-${config.id}`, true);
+        try {
+            const updated = await apiFetch<NotificationConfig>(`/api/resources?entity=notification_configs&id=${config.id}`, { 
+                method: 'PUT', body: JSON.stringify(config) 
+            });
+            setNotificationConfigs(prev => prev.map(c => c.id === config.id ? updated : c));
+            addToast('Regola notifica aggiornata', 'success');
+        } catch (e) {
+            addToast('Errore aggiornamento regola notifica', 'error');
+        } finally {
+            setActionLoading(`updateNotificationConfig-${config.id}`, false);
+        }
+    };
+
+    const deleteNotificationConfig = async (id: string) => {
+        setActionLoading(`deleteNotificationConfig-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=notification_configs&id=${id}`, { method: 'DELETE' });
+            setNotificationConfigs(prev => prev.filter(c => c.id !== id));
+            addToast('Regola notifica eliminata', 'success');
+        } catch (e) {
+            addToast('Errore eliminazione regola', 'error');
+        } finally {
+            setActionLoading(`deleteNotificationConfig-${id}`, false);
+        }
+    };
+
     const providerValue = useMemo(() => ({
         clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, billingMilestones,
+        notifications, analyticsCache, loading, isActionLoading, billingMilestones, notificationConfigs,
         fetchData, fetchNotifications, markNotificationAsRead,
         addResource, updateResource, deleteResource,
         addProject, updateProject, deleteProject,
@@ -676,13 +719,14 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
         addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro,
         addBillingMilestone, updateBillingMilestone, deleteBillingMilestone,
-        getBestFitResources
+        getBestFitResources,
+        addNotificationConfig, updateNotificationConfig, deleteNotificationConfig
     }), [
         clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones
+        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones, notificationConfigs
     ]);
 
     const allocationContextValue = useMemo(() => ({
@@ -713,48 +757,45 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children, planningWi
     );
 };
 
-export const AppProvider = AppProviders;
-
-// --- Hooks ---
-
-export const useAppState = () => {
-    const context = useContext(AppStateContext);
-    if (!context) throw new Error('useAppState must be used within AppProviders');
-    return context;
-};
-
+// Export Hooks
 export const useEntitiesContext = () => {
     const context = useContext(EntitiesContext);
-    if (!context) throw new Error('useEntitiesContext must be used within AppProviders');
+    if (!context) throw new Error("useEntitiesContext must be used within AppProviders");
     return context;
 };
 
 export const useAllocationsContext = () => {
     const context = useContext(AllocationsContext);
-    if (!context) throw new Error('useAllocationsContext must be used within AppProviders');
+    if (!context) throw new Error("useAllocationsContext must be used within AppProviders");
     return context;
 };
 
-export const usePlanningContext = () => {
-    const context = useContext(PlanningContext);
-    if (!context) throw new Error('usePlanningContext must be used within AppProviders');
+export const useAppState = () => {
+    const context = useContext(AppStateContext);
+    if (!context) throw new Error("useAppState must be used within AppProviders");
     return context;
 };
 
 export const useCatalogsContext = () => {
     const context = useContext(CatalogsContext);
-    if (!context) throw new Error('useCatalogsContext must be used within AppProviders');
+    if (!context) throw new Error("useCatalogsContext must be used within AppProviders");
+    return context;
+};
+
+export const usePlanningContext = () => {
+    const context = useContext(PlanningContext);
+    if (!context) throw new Error("usePlanningContext must be used within AppProviders");
     return context;
 };
 
 export const useConfigContext = () => {
     const context = useContext(ConfigContext);
-    if (!context) throw new Error('useConfigContext must be used within AppProviders');
+    if (!context) throw new Error("useConfigContext must be used within AppProviders");
     return context;
 };
 
 export const useNotificationsContext = () => {
     const context = useContext(NotificationsContext);
-    if (!context) throw new Error('useNotificationsContext must be used within AppProviders');
+    if (!context) throw new Error("useNotificationsContext must be used within AppProviders");
     return context;
 };

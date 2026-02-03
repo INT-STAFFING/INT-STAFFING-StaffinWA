@@ -80,8 +80,7 @@ interface ThemeContextType {
   toggleMode: () => void;
 }
 
-// --- Default Theme ---
-
+// --- Default Theme (Fallback Hardcoded) ---
 export const defaultTheme: Theme = {
     light: {
         primary: '#006493',
@@ -169,55 +168,43 @@ export const defaultTheme: Theme = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = 'staffing-app-db-theme';
-const THEME_VERSION_KEY = 'staffing-app-db-theme-version';
 const hexRegex = /^#([0-9A-Fa-f]{3}){1,2}$/;
 
+// Helper to overlay DB values ON TOP of default theme
 const parseDbTheme = (dbConfig: { key: string; value: string }[]): Theme => {
-    const lightPalette: Partial<M3Palette> = {};
-    const darkPalette: Partial<M3Palette> = {};
-    const viz: any = { sankey: { ...defaultTheme.visualizationSettings.sankey }, network: { ...defaultTheme.visualizationSettings.network } };
-    let toastPos = defaultTheme.toastPosition;
-    let toastSuccessBg = defaultTheme.toastSuccessBackground;
-    let toastSuccessFg = defaultTheme.toastSuccessForeground;
-    let toastErrorBg = defaultTheme.toastErrorBackground;
-    let toastErrorFg = defaultTheme.toastErrorForeground;
+    // Start with a clean copy of default
+    const merged = JSON.parse(JSON.stringify(defaultTheme));
 
     for (const { key, value } of dbConfig) {
+        if (!value) continue;
+
         if (key.startsWith('theme.light.')) {
             const paletteKey = key.substring(12) as keyof M3Palette;
-            if (hexRegex.test(value)) lightPalette[paletteKey] = value;
+            if (hexRegex.test(value)) merged.light[paletteKey] = value;
         } else if (key.startsWith('theme.dark.')) {
             const paletteKey = key.substring(11) as keyof M3Palette;
-            if (hexRegex.test(value)) darkPalette[paletteKey] = value;
+            if (hexRegex.test(value)) merged.dark[paletteKey] = value;
         } else if (key === 'theme.toastPosition') {
-            toastPos = value as any;
+            merged.toastPosition = value as any;
         } else if (key === 'theme.toastSuccessBackground') {
-            toastSuccessBg = value;
+            merged.toastSuccessBackground = value;
         } else if (key === 'theme.toastSuccessForeground') {
-            toastSuccessFg = value;
+            merged.toastSuccessForeground = value;
         } else if (key === 'theme.toastErrorBackground') {
-            toastErrorBg = value;
+            merged.toastErrorBackground = value;
         } else if (key === 'theme.toastErrorForeground') {
-            toastErrorFg = value;
+            merged.toastErrorForeground = value;
         } else if (key.startsWith('theme.viz.')) {
             const parts = key.split('.');
             const chart = parts[2] as 'sankey' | 'network';
             const prop = parts[3];
-            viz[chart][prop] = Number(value);
+            if (merged.visualizationSettings[chart]) {
+                merged.visualizationSettings[chart][prop] = Number(value);
+            }
         }
     }
     
-    return {
-        ...defaultTheme,
-        light: { ...defaultTheme.light, ...lightPalette },
-        dark: { ...defaultTheme.dark, ...darkPalette },
-        toastPosition: toastPos,
-        toastSuccessBackground: toastSuccessBg,
-        toastSuccessForeground: toastSuccessFg,
-        toastErrorBackground: toastErrorBg,
-        toastErrorForeground: toastErrorFg,
-        visualizationSettings: viz
-    };
+    return merged;
 };
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -263,57 +250,74 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         `;
     }, [createCssProperties]);
 
+    // Initial Injection from state (Default or Cached)
     useEffect(() => {
         injectStyles(theme);
     }, [theme, injectStyles]);
 
     const loadAndApplyTheme = useCallback(async () => {
+        // 1. Try to load from LocalStorage FIRST for immediate render (Stale-While-Revalidate)
+        try {
+            const cachedThemeJSON = localStorage.getItem(THEME_STORAGE_KEY);
+            if (cachedThemeJSON) {
+                const cachedTheme = JSON.parse(cachedThemeJSON);
+                _setTheme(cachedTheme);
+                injectStyles(cachedTheme);
+            }
+        } catch (e) {
+            console.warn("Failed to load theme from cache", e);
+        }
+
+        // 2. Fetch from DB
         try {
             const token = localStorage.getItem('authToken');
+            // If no token (not logged in), we might want to stick to default or cache.
+            // But let's try fetching if it's a public endpoint or if we have a token.
+            // Assuming authorized access is required for full config reading.
             if (!token) return;
 
             const response = await fetch('/api/resources?entity=theme', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            if (!response.ok) return;
+            if (!response.ok) {
+                console.warn(`Theme fetch failed with status: ${response.status}`);
+                return;
+            }
 
             const dbConfig: { key: string; value: string }[] = await response.json();
             const enabledEntry = dbConfig.find(c => c.key === 'theme.db.enabled');
-            const enabled = enabledEntry ? enabledEntry.value === 'true' : true;
+            const enabled = enabledEntry ? enabledEntry.value === 'true' : true; // Default to true if not set
             setIsDbThemeEnabled(enabled);
 
             if (!enabled) {
+                // Explicitly disabled in DB -> Force Default
                 _setTheme(defaultTheme);
                 injectStyles(defaultTheme);
+                localStorage.removeItem(THEME_STORAGE_KEY); // Clear cache if disabled
                 return;
             }
 
-            const dbVersion = dbConfig.find(c => c.key === 'theme.version')?.value;
-            const localVersion = localStorage.getItem(THEME_VERSION_KEY);
-            const localThemeJSON = localStorage.getItem(THEME_STORAGE_KEY);
-
-            if (dbVersion && dbVersion === localVersion && localThemeJSON) {
-                const parsed = JSON.parse(localThemeJSON);
-                _setTheme(parsed);
-                injectStyles(parsed);
-                return;
-            }
-            
+            // 3. Merge DB Config over Defaults
             const newTheme = parseDbTheme(dbConfig);
+            
+            // 4. Update State and Cache
             _setTheme(newTheme);
             injectStyles(newTheme);
             localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(newTheme));
-            if (dbVersion) localStorage.setItem(THEME_VERSION_KEY, dbVersion);
+
         } catch (error) {
             console.error("Failed to load theme from DB:", error);
+            // In case of error, we stay with whatever we loaded in step 1 (Cache) or initial state (Default)
         }
     }, [injectStyles]);
 
+    // Load on mount
     useEffect(() => {
         loadAndApplyTheme();
     }, [loadAndApplyTheme]);
     
+    // Handle Dark/Light mode toggle
     useEffect(() => {
         const root = window.document.documentElement;
         if (mode === 'dark') root.classList.add('dark');
@@ -347,7 +351,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ updates }),
             });
-            await loadAndApplyTheme();
+            await loadAndApplyTheme(); // Reload to confirm DB persistence
         } catch (error) {
             console.error("Failed to save theme to DB", error);
             throw error;

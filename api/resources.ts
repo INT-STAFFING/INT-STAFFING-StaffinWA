@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { notify } from '../utils/webhookNotifier.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -56,7 +57,8 @@ const TABLE_MAPPING: Record<string, string> = {
     'project_expenses': 'project_expenses',
     'billing_milestones': 'billing_milestones',
     'audit_logs': 'action_logs',
-    'analytics_cache': 'analytics_cache'
+    'analytics_cache': 'analytics_cache',
+    'notification_configs': 'notification_configs'
 };
 
 // --- ZOD SCHEMAS FOR VALIDATION ---
@@ -162,6 +164,12 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         resourceId: z.string().optional().nullable(),
         isActive: z.boolean().optional().nullable()
         // password_hash handled separately or assumed existing/default if not passed here
+    }),
+    'notification_configs': z.object({
+        eventType: z.string(),
+        webhookUrl: z.string().trim().min(1, 'Webhook URL required'),
+        description: z.string().optional().nullable(),
+        isActive: z.boolean().optional().default(true)
     })
 };
 
@@ -189,6 +197,137 @@ const toCamelAndNormalize = (o: any) => {
     return n;
 };
 
+// --- NOTIFICATION DISPATCHER HELPER ---
+const triggerNotification = async (client: any, method: string, tableName: string, id: string | null, data: any, oldData: any = null) => {
+    try {
+        // --- CREATIONS ---
+        if (method === 'POST') {
+            if (tableName === 'resources') {
+                await notify(client, 'RESOURCE_CREATED', {
+                    title: 'Nuova Risorsa Inserita',
+                    color: 'Good',
+                    facts: [{ name: 'Nome', value: data.name }, { name: 'Ruolo', value: data.roleId || 'N/A' }] // We assume roleId is passed, not resolved name
+                });
+            } else if (tableName === 'projects') {
+                 await notify(client, 'PROJECT_CREATED', {
+                    title: 'Nuovo Progetto Creato',
+                    color: 'Good',
+                    facts: [{ name: 'Progetto', value: data.name }, { name: 'Budget', value: `${data.budget} €` }]
+                });
+            } else if (tableName === 'contracts') {
+                await notify(client, 'CONTRACT_CREATED', {
+                    title: 'Nuovo Contratto',
+                    color: 'Good',
+                    facts: [{ name: 'Contratto', value: data.name }, { name: 'Capienza', value: `${data.capienza} €` }]
+                });
+            } else if (tableName === 'resource_skills') {
+                // Fetch Names
+                const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId])).rows[0]?.name;
+                const skillName = (await client.query('SELECT name FROM skills WHERE id = $1', [data.skillId])).rows[0]?.name;
+                await notify(client, 'SKILL_ADDED', {
+                    title: 'Nuova Competenza',
+                    color: 'Accent',
+                    facts: [{ name: 'Risorsa', value: resName }, { name: 'Skill', value: skillName }]
+                });
+            } else if (tableName === 'app_users') {
+                 await notify(client, 'USER_CREATED', {
+                    title: 'Nuovo Utente Sistema',
+                    color: 'Warning',
+                    facts: [{ name: 'Username', value: data.username }, { name: 'Ruolo', value: data.role }]
+                });
+            } else if (tableName === 'leave_requests') {
+                 const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId])).rows[0]?.name;
+                 await notify(client, 'LEAVE_REQUEST_CREATED', {
+                    title: 'Nuova Richiesta Assenza',
+                    color: 'Accent',
+                    facts: [{ name: 'Risorsa', value: resName }, { name: 'Periodo', value: `${data.startDate} - ${data.endDate}` }]
+                });
+            } else if (tableName === 'interviews') {
+                 await notify(client, 'INTERVIEW_SCHEDULED', {
+                    title: 'Nuovo Colloquio',
+                    color: 'Accent',
+                    facts: [{ name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` }, { name: 'Data', value: data.interviewDate }]
+                });
+            }
+        } 
+        
+        // --- UPDATES ---
+        else if (method === 'PUT' && oldData) {
+            if (tableName === 'resources') {
+                if (!oldData.resigned && data.resigned) {
+                    await notify(client, 'RESOURCE_RESIGNED', {
+                        title: 'Dimissioni Risorsa',
+                        color: 'Attention',
+                        facts: [{ name: 'Risorsa', value: oldData.name }]
+                    });
+                } else {
+                    // Generic update - maybe too noisy, skip for now or enable if specific fields change
+                    await notify(client, 'RESOURCE_UPDATED', {
+                        title: 'Anagrafica Aggiornata',
+                        color: 'Good',
+                        facts: [{ name: 'Risorsa', value: oldData.name }]
+                    });
+                }
+            } else if (tableName === 'projects') {
+                if (oldData.status !== data.status) {
+                    await notify(client, 'PROJECT_STATUS_CHANGED', {
+                        title: 'Cambio Stato Progetto',
+                        color: 'Accent',
+                        facts: [{ name: 'Progetto', value: oldData.name }, { name: 'Nuovo Stato', value: data.status }]
+                    });
+                }
+                if (data.budget !== undefined && Number(oldData.budget) !== Number(data.budget)) {
+                     await notify(client, 'BUDGET_UPDATED', {
+                        title: 'Revisione Budget',
+                        color: 'Warning',
+                        facts: [{ name: 'Progetto', value: oldData.name }, { name: 'Nuovo Budget', value: `${data.budget} €` }]
+                    });
+                }
+            } else if (tableName === 'leave_requests') {
+                 if (oldData.status !== data.status) {
+                     const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [oldData.resource_id])).rows[0]?.name;
+                     const event = data.status === 'APPROVED' ? 'LEAVE_APPROVED' : (data.status === 'REJECTED' ? 'LEAVE_REJECTED' : null);
+                     if (event) {
+                         await notify(client, event, {
+                            title: event === 'LEAVE_APPROVED' ? 'Assenza Approvata' : 'Assenza Rifiutata',
+                            color: event === 'LEAVE_APPROVED' ? 'Good' : 'Attention',
+                            facts: [{ name: 'Risorsa', value: resName }, { name: 'Stato', value: data.status }]
+                        });
+                     }
+                 }
+            } else if (tableName === 'interviews') {
+                 if (data.feedback && data.feedback !== oldData.feedback) {
+                      await notify(client, 'INTERVIEW_FEEDBACK', {
+                        title: 'Feedback Colloquio',
+                        color: data.feedback === 'Positivo' ? 'Good' : 'Warning',
+                        facts: [{ name: 'Candidato', value: `${oldData.candidate_name} ${oldData.candidate_surname}` }, { name: 'Feedback', value: data.feedback }]
+                    });
+                 }
+                 if (data.hiringStatus === 'SI' && oldData.hiring_status !== 'SI') {
+                      await notify(client, 'CANDIDATE_HIRED', {
+                        title: 'Candidato Assunto',
+                        color: 'Good',
+                        facts: [{ name: 'Candidato', value: `${oldData.candidate_name} ${oldData.candidate_surname}` }]
+                    });
+                 }
+            }
+        }
+        
+        // Custom Action: Password Reset
+        else if (method === 'CUSTOM_PWD' && tableName === 'app_users') {
+            await notify(client, 'PASSWORD_RESET', {
+                title: 'Reset Password',
+                color: 'Warning',
+                facts: [{ name: 'Utente', value: data.username }]
+            });
+        }
+        
+    } catch (err) {
+        console.error("Notification Dispatch Error:", err);
+    }
+}
+
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action } = req.query;
@@ -199,6 +338,91 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
+        // --- CUSTOM ACTIONS ---
+        
+        // Password Change / Reset
+        if (entity === 'app-users' && action === 'change_password' && id && method === 'PUT') {
+             if (!currentUser || (!verifyAdmin(req) && currentUser.id !== id)) return res.status(403).json({ error: 'Unauthorized' });
+             
+             const { newPassword } = req.body;
+             if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password too short' });
+             
+             const hash = await bcrypt.hash(newPassword, 10);
+             await client.query('UPDATE app_users SET password_hash = $1, must_change_password = $2 WHERE id = $3', [hash, false, id]);
+             
+             const userRes = await client.query('SELECT username FROM app_users WHERE id = $1', [id]);
+             await triggerNotification(client, 'CUSTOM_PWD', 'app_users', id as string, { username: userRes.rows[0]?.username });
+             
+             await logAction(client, currentUser, 'CHANGE_PASSWORD', 'app_users', id as string, {}, req);
+             return res.status(200).json({ success: true });
+        }
+        
+        // Impersonate
+        if (entity === 'app-users' && action === 'impersonate' && id && method === 'POST') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+             
+             const { rows } = await client.query('SELECT * FROM app_users WHERE id = $1', [id]);
+             const targetUser = rows[0];
+             if (!targetUser) return res.status(404).json({ error: 'User not found' });
+             
+             const token = jwt.sign(
+                { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
+                JWT_SECRET!,
+                { expiresIn: '1h' }
+            );
+            
+            // Get permissions for the target role
+            const permRes = await client.query(`SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE`, [targetUser.role]);
+            const permissions = permRes.rows.map(r => r.page_path);
+
+            await logAction(client, currentUser, 'IMPERSONATE', 'app_users', id as string, { target: targetUser.username }, req);
+
+             return res.status(200).json({
+                success: true,
+                token,
+                user: {
+                    id: targetUser.id,
+                    username: targetUser.username,
+                    role: targetUser.role,
+                    resourceId: targetUser.resource_id,
+                    permissions,
+                    mustChangePassword: false 
+                }
+            });
+        }
+        
+        // Bulk Password Reset
+         if (entity === 'app-users' && action === 'bulk_password_reset' && method === 'POST') {
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+            
+            const { users } = req.body; // array of { username, password }
+            if (!Array.isArray(users)) return res.status(400).json({ error: 'Invalid data' });
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const u of users) {
+                try {
+                    const hash = await bcrypt.hash(u.password, 10);
+                    const res = await client.query(
+                        'UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2', 
+                        [hash, u.username]
+                    );
+                    if ((res.rowCount ?? 0) > 0) {
+                        successCount++;
+                         // Optional: Notify individual resets? Too noisy for bulk.
+                    } else {
+                        failCount++;
+                    }
+                } catch (e) {
+                    failCount++;
+                }
+            }
+            
+            await logAction(client, currentUser, 'BULK_PWD_RESET', 'app_users', null, { successCount, failCount }, req);
+            return res.status(200).json({ successCount, failCount });
+         }
+
         // --- CUSTOM HANDLER: ANALYTICS RECALCULATION (Heavy Task) ---
         if (entity === 'analytics_cache' && action === 'recalc_all' && method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) {
@@ -293,8 +517,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const q = req.query;
                 let idx = 1;
                 if (q.username) { conditions.push(`username ILIKE $${idx++}`); params.push(`%${q.username}%`); }
+                if (q.actionType) { conditions.push(`action = $${idx++}`); params.push(q.actionType); }
+                if (q.targetEntity) { conditions.push(`entity = $${idx++}`); params.push(q.targetEntity); } // Mapped filter to DB column
+                if (q.entityId) { conditions.push(`entity_id = $${idx++}`); params.push(q.entityId); }
                 if (q.startDate) { conditions.push(`created_at >= $${idx++}`); params.push(q.startDate); }
                 if (q.endDate) { conditions.push(`created_at <= $${idx++}`); params.push(q.endDate); }
+                
                 if (conditions.length > 0) queryStr += ' WHERE ' + conditions.join(' AND ');
                 queryStr += ' ORDER BY created_at DESC';
                 if (q.limit) { queryStr += ` LIMIT $${idx++}`; params.push(q.limit); }
@@ -342,6 +570,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              await client.query(q, [newId, ...values]);
              
              await logAction(client, currentUser, 'CREATE', tableName as string, newId, validatedBody, req);
+             
+             // --- NOTIFICATION TRIGGER ---
+             await triggerNotification(client, 'POST', tableName as string, newId, validatedBody);
+             // -----------------------------
+
              return res.status(201).json({ id: newId, ...validatedBody });
         }
 
@@ -366,22 +599,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             // Logic for Roles: auto-calculate dailyExpenses from overheadPct if present
             if (tableName === 'roles') {
-                // We need dailyCost. If not in body, fetch from DB or assume updated dailyCost is present if changing calcs
-                // Ideally frontend sends both, but let's be safe.
-                // Simplified: Assume if updating cost parameters, all necessary fields are provided OR handled by frontend.
-                // Here we just enforce calculation if both are present in the partial update.
                 if (validatedBody.dailyCost !== undefined && validatedBody.overheadPct !== undefined) {
-                     validatedBody.dailyExpenses = (validatedBody.dailyCost * validatedBody.overheadPct) / 100;
+                     validatedBody.dailyExpenses = (Number(validatedBody.dailyCost || 0) * Number(validatedBody.overheadPct || 0)) / 100;
                 } else if (validatedBody.overheadPct !== undefined) {
-                     // Need dailyCost from DB to calc
                      const { rows } = await client.query('SELECT daily_cost FROM roles WHERE id = $1', [id]);
                      const currentCost = Number(rows[0]?.daily_cost || 0);
-                     validatedBody.dailyExpenses = (currentCost * validatedBody.overheadPct) / 100;
+                     validatedBody.dailyExpenses = (currentCost * Number(validatedBody.overheadPct || 0)) / 100;
                 } else if (validatedBody.dailyCost !== undefined) {
-                     // Need overheadPct from DB to calc
                      const { rows } = await client.query('SELECT overhead_pct FROM roles WHERE id = $1', [id]);
                      const currentPct = Number(rows[0]?.overhead_pct || 0);
-                     validatedBody.dailyExpenses = (validatedBody.dailyCost * currentPct) / 100;
+                     validatedBody.dailyExpenses = (Number(validatedBody.dailyCost || 0) * currentPct) / 100;
                 }
             }
 
@@ -395,16 +622,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  return res.status(400).json({ error: "No valid fields to update." });
             }
 
+            // --- FETCH OLD DATA FOR NOTIFICATIONS ---
+            const oldDataRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
+            const oldData = oldDataRes.rows[0];
+            // ----------------------------------------
+
             const q = `UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = $${values.length + 1}`;
             await client.query(q, [...values, id]);
             
             await logAction(client, currentUser, 'UPDATE', tableName as string, id as string, validatedBody, req);
+            
+            // --- NOTIFICATION TRIGGER ---
+            await triggerNotification(client, 'PUT', tableName as string, id as string, validatedBody, oldData ? toCamelAndNormalize(oldData) : null);
+            // -----------------------------
+
             return res.status(200).json({ id, ...validatedBody });
         }
 
         // --- GENERIC DELETE ---
         if (method === 'DELETE') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+             // Specific Admin Check for sensitive entities moved to GET or explicit blocks
+             if (['notification_configs'].includes(tableName as string) && !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+             
              await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
              await logAction(client, currentUser, 'DELETE', tableName as string, id as string, {}, req);
              return res.status(204).end();

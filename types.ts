@@ -754,6 +754,19 @@ export interface Notification {
 }
 
 /**
+ * @interface NotificationConfig
+ * @description Configurazione per i webhook di notifica MS Teams.
+ */
+export interface NotificationConfig {
+    id?: string;
+    eventType: string;
+    webhookUrl: string;
+    description?: string;
+    isActive: boolean;
+    createdAt?: string;
+}
+
+/**
  * @interface AuditLogEntry
  * @description Rappresenta un evento di log del sistema.
  */
@@ -825,6 +838,7 @@ export interface EntitiesState {
     roleHomePages: Record<string, string>;
     bottomNavPaths: string[]; // Nuova proprietà per la navigazione mobile dinamica
     notifications: Notification[];
+    notificationConfigs: NotificationConfig[]; // Configurazioni Webhook
     analyticsCache: Record<string, unknown>;
     loading: boolean;
 }
@@ -948,6 +962,10 @@ export interface EntitiesActions {
     updateDashboardLayout: (layout: DashboardCategory[]) => Promise<void>;
     updateRoleHomePages: (config: Record<string, string>) => Promise<void>;
     updateBottomNavPaths: (paths: string[]) => Promise<void>; // Nuova proprietà per la navigazione mobile dinamica
+    /** CRUD Notification Configs */
+    addNotificationConfig: (config: Omit<NotificationConfig, 'id'>) => Promise<void>;
+    updateNotificationConfig: (config: NotificationConfig) => Promise<void>;
+    deleteNotificationConfig: (id: string) => Promise<void>;
     /** Innesca il ricalcolo dei dati analitici sul backend e aggiorna la cache locale. */
     forceRecalculateAnalytics: () => Promise<void>;
     

@@ -1,10 +1,11 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Material 3 Tonal Palette Definition */
 :root {
-  /* Light Theme */
+  /* Light Theme - Aligned with ThemeContext.tsx defaultTheme */
   --color-primary: #006493;
   --color-on-primary: #ffffff;
   --color-primary-container: #cae6ff;
@@ -15,7 +16,7 @@
   --color-on-secondary-container: #0c1d29;
   --color-tertiary: #64597b;
   --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #cdeda3;
+  --color-tertiary-container: #eaddff; /* Corrected to match TS default */
   --color-on-tertiary-container: #1f1635;
   --color-error: #ba1a1a;
   --color-on-error: #ffffff;
@@ -58,7 +59,7 @@
   --color-tertiary: #cec0e8;
   --color-on-tertiary: #352b4b;
   --color-tertiary-container: #4c4263;
-  --color-on-tertiary-container: #cdeda3;
+  --color-on-tertiary-container: #eaddff;
   --color-error: #ffb4ab;
   --color-on-error: #690005;
   --color-error-container: #93000a;

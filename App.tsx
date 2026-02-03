@@ -52,6 +52,7 @@ const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
 const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
 const LeavePage = lazy(() => import('./pages/LeavePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage'));
 const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').then(module => ({ default: module.ResourceRequestPage })));
 const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
 const WbsAllocationPage = lazy(() => import('./pages/WbsAllocationPage').then(module => ({ default: module.WbsAllocationPage })));
@@ -217,6 +218,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               
               <Route path="/admin-settings" element={<DynamicRoute path="/admin-settings"><AdminSettingsPage /></DynamicRoute>} />
               <Route path="/security-center" element={<DynamicRoute path="/security-center"><SecurityCenterPage /></DynamicRoute>} />
+              <Route path="/notification-settings" element={<DynamicRoute path="/notification-settings"><NotificationSettingsPage /></DynamicRoute>} />
               <Route path="/db-inspector" element={<DynamicRoute path="/db-inspector"><DbInspectorPage /></DynamicRoute>} />
               
               <Route path="*" element={<HomeRedirect />} />

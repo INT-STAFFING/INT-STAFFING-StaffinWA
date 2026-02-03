@@ -86,7 +86,7 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
-const normalize = (str: any): string => String(str || '').trim().toLowerCase();
+const normalize = (str: unknown): string => String(str || '').trim().toLowerCase();
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
     const { clients, roles, resources, projects, calendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = body;
@@ -449,12 +449,13 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
 
 const importUsersPermissions = async (client: any, body: any, warnings: string[]) => {
     const { users, permissions } = body;
-    const resourceMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(r.email), r.id]));
+    // Fix: Explicitly cast r.email to string to satisfy normalize function which expects unknown but in practice TS flags if not string when type definition mismatches
+    const resourceMap = new Map((await client.query('SELECT id, email FROM resources')).rows.map((r: any) => [normalize(String(r.email || '')), r.id]));
 
     if (Array.isArray(users)) {
         const userRows = users.map(u => {
             const resEmail = u['Email Risorsa'] || u.resourceEmail;
-            const resId = resourceMap.get(normalize(resEmail));
+            const resId = resourceMap.get(normalize(String(resEmail || '')));
             // Note: Password hash is NOT imported. User must reset or admin must set default.
             // We use a placeholder hash if creating new user, but usually we just update roles/active status
             return [
@@ -483,17 +484,25 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
 };
 
 const importTutorMapping = async (client: any, body: any, warnings: string[]) => {
-    const { mapping } = body;
+    // Explicitly cast to any to handle potential unknown structure if passed from generic handler
+    const { mapping } = body as any;
     if (!Array.isArray(mapping)) return;
 
-    const resourceMap = new Map((await client.query('SELECT id, name, email FROM resources')).rows.map((r: any) => [normalize(r.email || r.name), r.id]));
+    // Use specific types for key and value to satisfy Map constructor
+    const resourceMap = new Map<string, string>();
+    const res = await client.query('SELECT id, name, email FROM resources');
+    res.rows.forEach((r: any) => {
+        // Fix: Explicitly cast ID to string to avoid 'unknown' type issues if strict types are enabled
+        resourceMap.set(normalize(String(r.email || r.name || '')), String(r.id));
+    });
     
     for (const row of mapping) {
         const resKey = row['Email Risorsa'] || row['Risorsa'];
         const tutorKey = row['Email Tutor'] || row['Tutor'];
         
-        const resId = resourceMap.get(normalize(resKey));
-        const tutorId = resourceMap.get(normalize(tutorKey));
+        // FIX: Cast to string to satisfy type checker if inferred as unknown, and handle undefined
+        const resId = resourceMap.get(normalize(String(resKey || '')));
+        const tutorId = resourceMap.get(normalize(String(tutorKey || '')));
         
         if (resId && tutorId) {
             await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
@@ -506,9 +515,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') { res.setHeader('Allow', ['POST']); return res.status(405).end(`Method ${req.method} Not Allowed`); }
     if (!verifyOperational(req)) return res.status(403).json({ error: 'Access denied' });
 
-    // FIX: Safely extract type as string
+    // FIX: Safely extract type as string and handle unknown
     const typeQuery = req.query.type;
-    const importType = Array.isArray(typeQuery) ? typeQuery[0] : (typeQuery as string);
+    const importType = Array.isArray(typeQuery) ? typeQuery[0] : String(typeQuery || '');
 
     const client = await db.connect();
     const warnings: string[] = [];
