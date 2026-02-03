@@ -5,7 +5,8 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
-import ErrorBoundary from '../components/ErrorBoundary'; // NEW IMPORT
+import ErrorBoundary from '../components/ErrorBoundary';
+import { apiFetch } from '../services/apiClient';
 
 interface Column {
     column_name: string;
@@ -49,15 +50,15 @@ const DbInspectorPage: React.FC = () => {
     const [bulkPassLoading, setBulkPassLoading] = useState(false);
 
     const { addToast } = useToast();
-    const { logout } = useAuth(); // Import Logout to force session clear on 401
+    const { logout } = useAuth(); 
 
+    // Used only for manual fetch (Export SQL) where apiFetch is not suitable (Blob response)
     const getAuthToken = () => localStorage.getItem('authToken');
 
     const handleApiError = (error: Error, responseStatus?: number) => {
         console.error(error);
         if (responseStatus === 401 || responseStatus === 403) {
             addToast('Sessione scaduta o permessi insufficienti. Effettua nuovamente il login.', 'error');
-            // Optional: logout(); // Force logout logic if strictly needed, or let user handle it
         } else {
             addToast(error.message, 'error');
         }
@@ -67,22 +68,13 @@ const DbInspectorPage: React.FC = () => {
         const fetchTables = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch('/api/resources?entity=db_inspector&action=list_tables', {
-                    headers: { 'Authorization': `Bearer ${getAuthToken()}` }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch table list (${response.status})`);
-                }
-                
-                const data = await response.json();
+                const data = await apiFetch<string[]>('/api/resources?entity=db_inspector&action=list_tables');
                 setTables(data);
                 if (data.length > 0) {
                     setSelectedTable(data[0]);
                 }
             } catch (error) {
-                // If checking tables fails immediately, it's likely an auth issue
-                handleApiError(error as Error, (error as any).status || 500);
+                handleApiError(error as Error, (error as any).status);
             } finally {
                 setIsLoading(false);
             }
@@ -100,21 +92,10 @@ const DbInspectorPage: React.FC = () => {
             setTableData(null);
             setEditingRowId(null);
             try {
-                const response = await fetch(`/api/resources?entity=db_inspector&action=get_table_data&table=${selectedTable}`, {
-                    headers: { 'Authorization': `Bearer ${getAuthToken()}` }
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        throw new Error("Accesso negato. Verifica i permessi.");
-                    }
-                    throw new Error(`Failed to fetch data for table ${selectedTable}`);
-                }
-                
-                const data = await response.json();
+                const data = await apiFetch<TableData>(`/api/resources?entity=db_inspector&action=get_table_data&table=${selectedTable}`);
                 setTableData(data);
             } catch (error) {
-                handleApiError(error as Error);
+                handleApiError(error as Error, (error as any).status);
             } finally {
                 setIsLoading(false);
             }
@@ -122,7 +103,6 @@ const DbInspectorPage: React.FC = () => {
         fetchTableData();
     }, [selectedTable, mode]);
     
-    // ... (All existing helper functions like handleEdit, handleCancel, handleSave, handleDeleteAll, handleExport, handleRunQuery, handleBulkPasswordUpdate, handleInputChange, renderInputField, renderCellContent remain unchanged)
     const handleEdit = (row: any) => {
         setEditingRowId(row.id);
         setEditingRowData({ ...row });
@@ -140,18 +120,11 @@ const DbInspectorPage: React.FC = () => {
             const updates = { ...editingRowData };
             delete updates.id;
 
-            const response = await fetch(`/api/resources?entity=db_inspector&action=update_row&table=${selectedTable}&id=${editingRowId}`, {
+            await apiFetch(`/api/resources?entity=db_inspector&action=update_row&table=${selectedTable}&id=${editingRowId}`, {
                 method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getAuthToken()}`
-                },
                 body: JSON.stringify(updates),
             });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to save changes');
-            }
+
             addToast('Riga aggiornata con successo.', 'success');
             setTableData(prev => {
                 if (!prev) return null;
@@ -172,17 +145,12 @@ const DbInspectorPage: React.FC = () => {
         if (!selectedTable) return;
         setIsSaving(true);
         try {
-            const response = await fetch(`/api/resources?entity=db_inspector&action=delete_all_rows&table=${selectedTable}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+            await apiFetch(`/api/resources?entity=db_inspector&action=delete_all_rows&table=${selectedTable}`, {
+                method: 'DELETE'
             });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to delete all rows');
-            }
             addToast(`Tutte le righe dalla tabella '${selectedTable}' sono state eliminate.`, 'success');
-            setTableData(prev => prev ? { ...prev, rows: [] } : null); // Clear the data locally
-            handleCancel(); // Close any inline editing
+            setTableData(prev => prev ? { ...prev, rows: [] } : null); 
+            handleCancel(); 
         } catch (error) {
             handleApiError(error as Error);
         } finally {
@@ -196,13 +164,13 @@ const DbInspectorPage: React.FC = () => {
         else setIsExportingMysql(true);
     
         try {
-            // Point directly to the export-sql endpoint
+            // NOTE: apiFetch is for JSON. Using raw fetch for BLOB response.
             const response = await fetch(`/api/export-sql?dialect=${dialect}`, {
                 headers: { 'Authorization': `Bearer ${getAuthToken()}` }
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
+                const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.error || `Failed to export ${dialect} SQL`);
             }
             const sql = await response.text();
@@ -231,23 +199,10 @@ const DbInspectorPage: React.FC = () => {
         setQueryError(null);
 
         try {
-            const response = await fetch('/api/resources?entity=db_inspector&action=run_raw_query', {
+            const data = await apiFetch<QueryResult>('/api/resources?entity=db_inspector&action=run_raw_query', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getAuthToken()}` 
-                },
                 body: JSON.stringify({ query: sqlQuery })
             });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                if (response.status === 403) {
-                    throw new Error("Non autorizzato. Solo gli Admin possono eseguire query RAW.");
-                }
-                throw new Error(data.error || 'Errore esecuzione query');
-            }
             setQueryResult(data);
         } catch (e) {
             setQueryError((e as Error).message);
@@ -274,18 +229,11 @@ const DbInspectorPage: React.FC = () => {
 
         setBulkPassLoading(true);
         try {
-            const response = await fetch('/api/resources?entity=app-users&action=bulk_password_reset', {
+            const data = await apiFetch<{successCount: number, failCount: number}>('/api/resources?entity=app-users&action=bulk_password_reset', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getAuthToken()}` 
-                },
                 body: JSON.stringify({ users })
             });
 
-            if (!response.ok) throw new Error('Errore durante l\'aggiornamento massivo.');
-            
-            const data = await response.json();
             addToast(`Operazione completata: ${data.successCount} successi, ${data.failCount} errori.`, 'success');
             setBulkPasswordsInput('');
         } catch (e) {
@@ -582,7 +530,6 @@ const DbInspectorPage: React.FC = () => {
             )}
 
             {mode === 'bulk_password' && (
-                // ... (Existing bulk password UI unchanged)
                 <div className="animate-fade-in space-y-4">
                     <div className="bg-surface rounded-2xl shadow p-6">
                         <h2 className="text-xl font-bold text-on-surface mb-4">Importazione Bulk Password</h2>

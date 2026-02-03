@@ -423,6 +423,82 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(200).json({ successCount, failCount });
          }
 
+        // --- DB INSPECTOR (ADMIN ONLY) ---
+        if (entity === 'db_inspector') {
+             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+
+             if (method === 'GET' && action === 'list_tables') {
+                 const result = await client.query(`
+                     SELECT table_name 
+                     FROM information_schema.tables 
+                     WHERE table_schema = 'public' 
+                     ORDER BY table_name
+                 `);
+                 return res.status(200).json(result.rows.map((r: any) => r.table_name));
+             }
+
+             if (method === 'GET' && action === 'get_table_data') {
+                 const table = req.query.table as string;
+                 if (!table) return res.status(400).json({ error: 'Table name required' });
+                 
+                 // Get columns to know data types
+                 const colsRes = await client.query(`
+                    SELECT column_name, data_type 
+                    FROM information_schema.columns 
+                    WHERE table_name = $1 
+                    ORDER BY ordinal_position
+                 `, [table]);
+                 
+                 const rowsRes = await client.query(`SELECT * FROM "${table}" LIMIT 100`);
+                 
+                 return res.status(200).json({
+                     columns: colsRes.rows,
+                     rows: rowsRes.rows
+                 });
+             }
+
+             if (method === 'PUT' && action === 'update_row') {
+                 const table = req.query.table as string;
+                 const rowId = req.query.id as string;
+                 const updates = req.body;
+                 
+                 if (!table || !rowId) return res.status(400).json({ error: 'Table and ID required' });
+                 
+                 const keys = Object.keys(updates);
+                 const values = Object.values(updates);
+                 if (keys.length === 0) return res.status(200).json({ message: 'No updates' });
+
+                 const setClause = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
+                 
+                 await client.query(
+                     `UPDATE "${table}" SET ${setClause} WHERE id = $${keys.length + 1}`,
+                     [...values, rowId]
+                 );
+                 return res.status(200).json({ success: true });
+             }
+
+             if (method === 'DELETE' && action === 'delete_all_rows') {
+                 const table = req.query.table as string;
+                 if (!table) return res.status(400).json({ error: 'Table required' });
+                 await client.query(`TRUNCATE TABLE "${table}" CASCADE`);
+                 return res.status(200).json({ success: true });
+             }
+
+             if (method === 'POST' && action === 'run_raw_query') {
+                 const { query } = req.body;
+                 if (!query) return res.status(400).json({ error: 'Query required' });
+                 const result = await client.query(query);
+                 return res.status(200).json({
+                     rows: result.rows,
+                     fields: result.fields,
+                     rowCount: result.rowCount,
+                     command: result.command
+                 });
+             }
+             
+             return res.status(400).json({ error: 'Invalid action for db_inspector' });
+        }
+
         // --- CUSTOM HANDLER: ANALYTICS RECALCULATION (Heavy Task) ---
         if (entity === 'analytics_cache' && action === 'recalc_all' && method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) {
@@ -500,7 +576,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // --- GENERIC GET ---
         if (method === 'GET') {
-            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users'];
+            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users', 'notification_configs'];
             if (sensitiveEntities.includes(entity as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
 
             let queryStr = `SELECT * FROM ${tableName}`;
@@ -539,6 +615,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
              
+             // Extra security for admin tables
+             if (['notification_configs'].includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+
              // VALIDATION STEP
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) {
@@ -550,7 +629,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
              }
              
-             let validatedBody = parseResult.data;
+             let validatedBody = parseResult.data as any;
              const newId = uuidv4();
 
              // Logic for Roles: auto-calculate dailyExpenses from overheadPct
@@ -582,6 +661,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (method === 'PUT') {
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
             
+            if (['notification_configs'].includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+
             // VALIDATION STEP
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) {
@@ -595,7 +676,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
              }
 
-            let validatedBody = parseResult.data;
+            let validatedBody = parseResult.data as any;
             
             // Logic for Roles: auto-calculate dailyExpenses from overheadPct if present
             if (tableName === 'roles') {
@@ -642,9 +723,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // --- GENERIC DELETE ---
         if (method === 'DELETE') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             // Specific Admin Check for sensitive entities moved to GET or explicit blocks
-             if (['notification_configs'].includes(tableName as string) && !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             
+             if (['notification_configs'].includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
              await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
              await logAction(client, currentUser, 'DELETE', tableName as string, id as string, {}, req);
              return res.status(204).end();

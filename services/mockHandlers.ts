@@ -89,6 +89,45 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
   if (path.endsWith('/api/resources')) {
     const entity = params.entity;
 
+    // --- MOCK DB INSPECTOR ---
+    if (entity === 'db_inspector') {
+        if (params.action === 'list_tables') {
+            // Return keys of db object that are arrays (mimicking tables)
+            return Object.keys(db).filter(k => Array.isArray(db[k]));
+        }
+        if (params.action === 'get_table_data') {
+            const table = params.table;
+            const rows = db[table] || [];
+            // Infer columns from first row if exists
+            const columns = rows.length > 0 
+                ? Object.keys(rows[0]).map(k => ({ column_name: k, data_type: typeof rows[0][k] })) 
+                : [];
+            return { columns, rows };
+        }
+        if (params.action === 'update_row') {
+            const table = params.table;
+            const id = params.id;
+            const updates = JSON.parse(options.body as string || '{}');
+            if (db[table]) {
+                db[table] = db[table].map((r: any) => r.id === id ? { ...r, ...updates } : r);
+                saveDb(db);
+            }
+            return { success: true };
+        }
+        if (params.action === 'delete_all_rows') {
+            const table = params.table;
+            if (db[table]) {
+                db[table] = [];
+                saveDb(db);
+            }
+            return { success: true };
+        }
+        if (params.action === 'run_raw_query') {
+            // Mock raw query isn't supported in localStorage mode
+            return { rows: [], fields: [], rowCount: 0, command: 'MOCK_QUERY_NOT_SUPPORTED' };
+        }
+    }
+
     // FIX: Handle best_fit action specifically to return an ARRAY
     if (params.action === 'best_fit' && method === 'POST') {
          const { roleId } = JSON.parse(options.body as string || '{}');

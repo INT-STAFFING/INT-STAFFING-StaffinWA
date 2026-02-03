@@ -86,7 +86,7 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
-const normalize = (str: unknown): string => String(str || '').trim().toLowerCase();
+const normalize = (str: any): string => String(str || '').trim().toLowerCase();
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
     const { clients, roles, resources, projects, calendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = body;
@@ -314,7 +314,7 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
         ]);
     }
     
-    await executeBulkInsert(client, 'resource_requests', ['id', 'request_code', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_tech_request', 'is_osr_open', 'osr_number', 'notes', 'status'], requestRows);
+    await executeBulkInsert(client, 'resource_requests', ['id', 'request_code', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_tech_request', 'is_osr_open', 'os_rnumber', 'notes', 'status'], requestRows);
 };
 
 const importInterviews = async (client: any, body: any, warnings: string[]) => {
@@ -376,10 +376,6 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
             (s['Certificazione'] === 'SI' || s['Certificazione'] === 'Sì' || s.isCertification === true)
         ]);
         await executeBulkInsert(client, 'skills', ['id', 'name', 'is_certification'], skillRows);
-        
-        // Import Categories & Mapping logic is complex due to many-to-many. 
-        // For simplicity of this bulk import, we create skills. 
-        // Advanced categorization linking would require pre-existing category lookup or creation logic.
     }
 
     // 2. Import Associations
@@ -493,7 +489,8 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     const res = await client.query('SELECT id, name, email FROM resources');
     res.rows.forEach((r: any) => {
         // Fix: Explicitly cast ID to string to avoid 'unknown' type issues if strict types are enabled
-        resourceMap.set(normalize(String(r.email || r.name || '')), String(r.id));
+        const key = String(r.email || r.name || '');
+        resourceMap.set(normalize(key), String(r.id));
     });
     
     for (const row of mapping) {
@@ -501,8 +498,11 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
         const tutorKey = row['Email Tutor'] || row['Tutor'];
         
         // FIX: Cast to string to satisfy type checker if inferred as unknown, and handle undefined
-        const resId = resourceMap.get(normalize(String(resKey || '')));
-        const tutorId = resourceMap.get(normalize(String(tutorKey || '')));
+        const resKeyStr = typeof resKey === 'string' ? resKey : String(resKey || '');
+        const tutorKeyStr = typeof tutorKey === 'string' ? tutorKey : String(tutorKey || '');
+        
+        const resId = resourceMap.get(normalize(resKeyStr));
+        const tutorId = resourceMap.get(normalize(tutorKeyStr));
         
         if (resId && tutorId) {
             await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
