@@ -86,7 +86,8 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
-const normalize = (str: any): string => String(str || '').trim().toLowerCase();
+// FIX: Updated signature to accept unknown for better type safety
+const normalize = (str: unknown): string => String(str || '').trim().toLowerCase();
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
     const { clients, roles, resources, projects, calendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = body;
@@ -147,8 +148,7 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
     // Re-fetch roles to map names to IDs
     const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
     const resourceRows: any[][] = [];
-    const resourcesToUpdate: any[][] = []; // For updating existing resources if needed
-
+    
     if (Array.isArray(resources)) {
         for (const r of resources) {
             const roleName = r['Ruolo'] || r.roleName;
@@ -533,22 +533,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         switch (importType) {
             case 'core_entities':
-                await importCoreEntities(client, req.body, warnings);
+                await importCoreEntities(client, req.body as any, warnings);
                 break;
             case 'staffing':
-                await importStaffing(client, req.body, warnings);
+                await importStaffing(client, req.body as any, warnings);
                 break;
             case 'resource_requests':
-                await importResourceRequests(client, req.body, warnings);
+                await importResourceRequests(client, req.body as any, warnings);
                 break;
             case 'interviews':
-                await importInterviews(client, req.body, warnings);
+                await importInterviews(client, req.body as any, warnings);
                 break;
             case 'skills':
-                await importSkills(client, req.body, warnings);
+                await importSkills(client, req.body as any, warnings);
                 break;
             case 'leaves':
-                await importLeaves(client, req.body, warnings);
+                await importLeaves(client, req.body as any, warnings);
                 break;
             case 'users_permissions':
                 // Extra check: only ADMIN can import permissions
@@ -558,9 +558,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     
                     if (!authHeaderStr) throw new Error('No auth header');
                     
-                    const token = authHeaderStr.split(' ')[1];
+                    const tokenParts = authHeaderStr.split(' ');
+                    const token = tokenParts.length > 1 ? tokenParts[1] : '';
                     const secret = String(JWT_SECRET || '');
-                    const decoded = jwt.verify(token || '', secret) as any;
+                    const decoded = jwt.verify(token, secret) as any;
                     
                     if (decoded.role !== 'ADMIN') throw new Error('Not Admin');
                 } catch(e) {

@@ -50,14 +50,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 `, [newId, requestCode, projectId, roleId, requestorId || null, startDate, endDate, commitmentPercentage, isUrgent || false, isLongTerm || false, isTechRequest || false, isOsrOpen || false, osrNumber || null, notes || '', status]);
                 
                 // --- NOTIFICATION ---
+                // Fetch extended details including requestor name
                 const details = await client.query(`
-                    SELECT p.name as proj_name, r.name as role_name 
-                    FROM projects p, roles r 
-                    WHERE p.id = $1 AND r.id = $2
-                `, [projectId, roleId]);
+                    SELECT p.name as proj_name, r.name as role_name, res.name as req_name
+                    FROM projects p
+                    JOIN roles r ON r.id = $2
+                    LEFT JOIN resources res ON res.id = $3
+                    WHERE p.id = $1
+                `, [projectId, roleId, requestorId || null]);
                 
                 if (details.rows.length > 0) {
-                     const { proj_name, role_name } = details.rows[0];
+                     const { proj_name, role_name, req_name } = details.rows[0];
+                     
+                     // Formatta le date per la notifica
+                     const startStr = new Date(startDate).toLocaleDateString('it-IT');
+                     const endStr = new Date(endDate).toLocaleDateString('it-IT');
+
                      await notify(client, 'RESOURCE_REQUEST_CREATED', {
                          title: 'Nuova Richiesta Risorsa',
                          color: isUrgent ? 'Attention' : 'Accent',
@@ -66,6 +74,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                              { name: 'Progetto', value: proj_name },
                              { name: 'Ruolo', value: role_name },
                              { name: 'Priorità', value: isUrgent ? 'URGENTE' : 'Normale' }
+                         ],
+                         detailedFacts: [
+                            { name: 'Richiedente', value: req_name || 'N/A' },
+                            { name: 'Periodo', value: `${startStr} - ${endStr}` },
+                            { name: 'Impegno', value: `${commitmentPercentage}%` },
+                            { name: 'Tech Request', value: isTechRequest ? 'Sì' : 'No' },
+                            { name: 'OSR', value: isOsrOpen ? (osrNumber || 'Sì') : 'No' },
+                            { name: 'Note', value: notes || '-' }
                          ]
                      });
                 }
@@ -106,6 +122,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                              { name: 'Codice', value: requestCode },
                              { name: 'Nuovo Stato', value: status },
                              { name: 'Stato Precedente', value: oldStatus }
+                         ],
+                         detailedFacts: [
+                             { name: 'Note Aggiornate', value: notes || '-' }
                          ]
                      });
                 }

@@ -62,8 +62,7 @@ export async function notify(
                             "text": "Dettagli Aggiuntivi",
                             "weight": "Bolder",
                             "size": "Medium",
-                            "isSubtle": true,
-                            "separator": true
+                            "isSubtle": true
                         },
                         {
                             "type": "FactSet",
@@ -75,6 +74,7 @@ export async function notify(
         }
 
         // 3. Costruisci Adaptive Card
+        // NOTA: Versione 1.2 è più compatibile con i Webhook di Teams rispetto alla 1.4 o 1.5
         const card = {
             type: "message",
             attachments: [
@@ -83,7 +83,7 @@ export async function notify(
                     contentUrl: null,
                     content: {
                         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                        "version": "1.4",
+                        "version": "1.2", 
                         "type": "AdaptiveCard",
                         "body": [
                             {

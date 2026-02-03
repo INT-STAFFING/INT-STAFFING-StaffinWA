@@ -206,7 +206,11 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                 await notify(client, 'RESOURCE_CREATED', {
                     title: 'Nuova Risorsa Inserita',
                     color: 'Good',
-                    facts: [{ name: 'Nome', value: data.name }, { name: 'Ruolo', value: data.roleId || 'N/A' }] // We assume roleId is passed, not resolved name
+                    facts: [{ name: 'Nome', value: data.name }, { name: 'Ruolo', value: data.roleId || 'N/A' }],
+                    detailedFacts: [
+                        { name: 'Sede', value: data.location || '-' },
+                        { name: 'Horizontal', value: data.horizontal || '-' }
+                    ]
                 });
             } else if (tableName === 'projects') {
                  await notify(client, 'PROJECT_CREATED', {
@@ -240,13 +244,20 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                  await notify(client, 'LEAVE_REQUEST_CREATED', {
                     title: 'Nuova Richiesta Assenza',
                     color: 'Accent',
-                    facts: [{ name: 'Risorsa', value: resName }, { name: 'Periodo', value: `${data.startDate} - ${data.endDate}` }]
+                    facts: [{ name: 'Risorsa', value: resName }, { name: 'Periodo', value: `${data.startDate} - ${data.endDate}` }],
+                    detailedFacts: [
+                        { name: 'Note', value: data.notes || '-' },
+                        { name: 'Mezza Giornata', value: data.isHalfDay ? 'Sì' : 'No' }
+                    ]
                 });
             } else if (tableName === 'interviews') {
                  await notify(client, 'INTERVIEW_SCHEDULED', {
                     title: 'Nuovo Colloquio',
                     color: 'Accent',
-                    facts: [{ name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` }, { name: 'Data', value: data.interviewDate }]
+                    facts: [{ name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` }, { name: 'Data', value: data.interviewDate }],
+                    detailedFacts: [
+                        { name: 'Summary', value: data.cvSummary || '-' }
+                    ]
                 });
             }
         } 
@@ -261,7 +272,7 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                         facts: [{ name: 'Risorsa', value: oldData.name }]
                     });
                 } else {
-                    // Generic update - maybe too noisy, skip for now or enable if specific fields change
+                    // Generic update
                     await notify(client, 'RESOURCE_UPDATED', {
                         title: 'Anagrafica Aggiornata',
                         color: 'Good',
@@ -291,7 +302,10 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                          await notify(client, event, {
                             title: event === 'LEAVE_APPROVED' ? 'Assenza Approvata' : 'Assenza Rifiutata',
                             color: event === 'LEAVE_APPROVED' ? 'Good' : 'Attention',
-                            facts: [{ name: 'Risorsa', value: resName }, { name: 'Stato', value: data.status }]
+                            facts: [{ name: 'Risorsa', value: resName }, { name: 'Stato', value: data.status }],
+                            detailedFacts: [
+                                { name: 'Periodo', value: `${oldData.start_date} -> ${oldData.end_date}` }
+                            ]
                         });
                      }
                  }

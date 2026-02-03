@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { apiFetch } from '../services/apiClient';
+import { useEntitiesContext } from '../context/AppContext';
 
 interface Column {
     column_name: string;
@@ -28,6 +29,7 @@ interface QueryResult {
 type ViewMode = 'inspector' | 'query' | 'bulk_password';
 
 const DbInspectorPage: React.FC = () => {
+    const { fetchData } = useEntitiesContext();
     const [mode, setMode] = useState<ViewMode>('inspector');
     const [tables, setTables] = useState<string[]>([]);
     const [selectedTable, setSelectedTable] = useState<string>('');
@@ -256,6 +258,13 @@ const DbInspectorPage: React.FC = () => {
         setEditingRowData({ ...editingRowData, [colName]: value });
     };
 
+    // --- REFRESH HANDLER ---
+    const handleGlobalRefresh = async () => {
+        addToast('Ricaricamento dati globali in corso...', 'info');
+        await fetchData();
+        addToast('Dati aggiornati con successo.', 'success');
+    };
+
     const renderInputField = (col: Column, value: any) => {
         const colName = col.column_name;
         const colType = col.data_type;
@@ -322,7 +331,18 @@ const DbInspectorPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-on-surface">Database Inspector</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold text-on-surface">Database Inspector</h1>
+                
+                <button
+                    onClick={handleGlobalRefresh}
+                    className="flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full font-bold hover:opacity-90 shadow-sm transition-all"
+                    title="Forza il ricaricamento di tutti i dati applicativi dal database"
+                >
+                    <span className="material-symbols-outlined">sync</span>
+                    Ricarica Dati App
+                </button>
+            </div>
             
             <div className="flex border-b border-outline-variant">
                 <button 
