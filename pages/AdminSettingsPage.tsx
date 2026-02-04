@@ -285,6 +285,15 @@ const ThemeSection: React.FC = () => {
         setLocalSidebarColors(newColors);
     };
 
+    const handleMoveSection = (index: number, direction: -1 | 1) => {
+        if ((direction === -1 && index === 0) || (direction === 1 && index === localSidebarSections.length - 1)) return;
+        const newSections = [...localSidebarSections];
+        const temp = newSections[index];
+        newSections[index] = newSections[index + direction];
+        newSections[index + direction] = temp;
+        setLocalSidebarSections(newSections);
+    };
+
     const handleSectionColorChange = (section: string, color: string) => {
         setLocalSidebarColors(prev => ({ ...prev, [section]: color }));
     };
@@ -435,7 +444,7 @@ const ThemeSection: React.FC = () => {
                         <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
                             <span className="material-symbols-outlined text-primary">view_sidebar</span> Gestione Sezioni Sidebar
                         </h3>
-                        <p className="text-sm text-on-surface-variant">Aggiungi, rimuovi e colora le sezioni del menu laterale.</p>
+                        <p className="text-sm text-on-surface-variant">Aggiungi, rimuovi, riordina e colora le sezioni del menu laterale.</p>
                     </div>
                     {sidebarSectionsChanged && (
                         <button onClick={handleSaveSidebarSections} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg">
@@ -459,17 +468,38 @@ const ThemeSection: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {localSidebarSections.map(section => {
+                    {localSidebarSections.map((section, idx) => {
                         const currentColor = localSidebarColors[section] || '#72787d';
                         const isSet = !!localSidebarColors[section];
                         
                         return (
                             <div key={section} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant relative group">
-                                <div className="flex justify-between items-center mb-3">
-                                    <span className="text-xs font-bold uppercase tracking-wider truncate" style={{ color: currentColor }}>
-                                        {section}
-                                    </span>
-                                    <button onClick={() => handleDeleteSection(section)} className="text-on-surface-variant hover:text-error p-1 rounded hover:bg-surface-container">
+                                <div className="flex justify-between items-start mb-3 gap-2">
+                                     <div className="flex items-center gap-2">
+                                        {/* Reorder Controls */}
+                                        <div className="flex flex-col gap-1">
+                                            <button
+                                                onClick={() => handleMoveSection(idx, -1)}
+                                                disabled={idx === 0}
+                                                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-20 text-on-surface-variant"
+                                                title="Sposta su"
+                                            >
+                                                <span className="material-symbols-outlined text-xs">keyboard_arrow_up</span>
+                                            </button>
+                                            <button
+                                                onClick={() => handleMoveSection(idx, 1)}
+                                                disabled={idx === localSidebarSections.length - 1}
+                                                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-20 text-on-surface-variant"
+                                                title="Sposta giù"
+                                            >
+                                                <span className="material-symbols-outlined text-xs">keyboard_arrow_down</span>
+                                            </button>
+                                        </div>
+                                        <span className="text-xs font-bold uppercase tracking-wider truncate break-all" style={{ color: currentColor }}>
+                                            {section}
+                                        </span>
+                                    </div>
+                                    <button onClick={() => handleDeleteSection(section)} className="text-on-surface-variant hover:text-error p-1 rounded hover:bg-surface-container flex-shrink-0">
                                         <span className="material-symbols-outlined text-sm">delete</span>
                                     </button>
                                 </div>

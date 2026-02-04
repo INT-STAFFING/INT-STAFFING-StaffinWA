@@ -86,8 +86,12 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
-// FIX: Updated signature to accept any to prevent type errors with unknown inputs
 const normalize = (str: any): string => String(str || '').trim().toLowerCase();
+
+const safeString = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    return String(val);
+};
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
     const { clients, roles, resources, projects, calendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = body;
@@ -449,22 +453,20 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     const res = await client.query('SELECT id, email FROM resources');
     res.rows.forEach((r: any) => {
         // Fix: Ensure we normalize a string value, handling null/undefined
-        // Cast to any to handle potential unknown type
-        resourceMap.set(normalize(String((r.email as any) || '')), String(r.id));
+        resourceMap.set(normalize(safeString(r.email)), safeString(r.id));
     });
 
     if (Array.isArray(users)) {
         const userRows = users.map((u: any) => {
             const resEmail = u['Email Risorsa'] || u.resourceEmail;
-            // Fix: Explicitly cast unknown input to string before normalizing
-            const emailStr = String((resEmail as any) || '');
+            const emailStr = safeString(resEmail);
             const resId = resourceMap.get(normalize(emailStr));
             
             return [
                 uuidv4(),
-                String(u['Username'] || u.username || ''), // Ensure string
+                safeString(u['Username'] || u.username),
                 '$2a$10$PlaceholderHashForImportOnly........', // dummy hash
-                String(u['Ruolo'] || u.role || 'SIMPLE'), // Ensure string
+                safeString(u['Ruolo'] || u.role || 'SIMPLE'),
                 resId,
                 (u['Stato Attivo'] === 'SI' || u.isActive === true)
             ];
@@ -495,8 +497,8 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     const res = await client.query('SELECT id, name, email FROM resources');
     res.rows.forEach((r: any) => {
         // Fix: Explicitly cast ID to string to avoid 'unknown' type issues if strict types are enabled
-        const key = String((r.email as any) || (r.name as any) || '');
-        resourceMap.set(normalize(key), String(r.id));
+        const key = safeString(r.email || r.name);
+        resourceMap.set(normalize(key), safeString(r.id));
     });
     
     for (const row of mapping) {
@@ -506,8 +508,8 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
         const tutorKey = rowData['Email Tutor'] || rowData['Tutor'];
         
         // Use updated normalize which accepts any. Explicit String cast to fix potential unknown type error.
-        const resId = resourceMap.get(normalize(String(resKey || '')));
-        const tutorId = resourceMap.get(normalize(String(tutorKey || '')));
+        const resId = resourceMap.get(normalize(safeString(resKey)));
+        const tutorId = resourceMap.get(normalize(safeString(tutorKey)));
         
         if (resId && tutorId) {
             await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
@@ -520,9 +522,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') { res.setHeader('Allow', ['POST']); return res.status(405).end(`Method ${req.method} Not Allowed`); }
     if (!verifyOperational(req)) return res.status(403).json({ error: 'Access denied' });
 
-    // FIX: Safely extract type as string and handle unknown
     const typeQuery = req.query.type;
-    const importType = Array.isArray(typeQuery) ? typeQuery[0] : String(typeQuery || '');
+    // Safe extraction of type string
+    let importType = '';
+    if (Array.isArray(typeQuery)) {
+        importType = typeQuery[0];
+    } else if (typeof typeQuery === 'string') {
+        importType = typeQuery;
+    }
 
     const client = await db.connect();
     const warnings: string[] = [];
@@ -569,7 +576,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await importUsersPermissions(client, req.body as any, warnings);
                 break;
             case 'tutor_mapping':
-                // FIX: Explicitly cast req.body to any to satisfy the import function
                 await importTutorMapping(client, req.body as any, warnings);
                 break;
             default:
@@ -577,7 +583,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         
         await client.query('COMMIT');
-        res.status(200).json({ message: 'Importazione completata (UTC Fix Applied).', warnings });
+        res.status(200).json({ message: 'Importazione completata.', warnings });
     } catch (error) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: (error as Error).message });
