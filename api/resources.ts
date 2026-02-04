@@ -252,6 +252,8 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                 });
             } else if (tableName === 'leave_requests') {
                  const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId])).rows[0]?.name;
+                 
+                 // 1. Webhook Notification
                  await notify(client, 'LEAVE_REQUEST_CREATED', {
                     title: 'Nuova Richiesta Assenza',
                     color: 'Accent',
@@ -261,6 +263,24 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                         { name: 'Mezza Giornata', value: data.isHalfDay ? 'Sì' : 'No' }
                     ]
                 });
+
+                // 2. Internal Notifications (To Approvers)
+                if (Array.isArray(data.approverIds) && data.approverIds.length > 0) {
+                    for (const approverId of data.approverIds) {
+                         await client.query(
+                             `INSERT INTO notifications (id, recipient_resource_id, title, message, link, is_read) 
+                              VALUES ($1, $2, $3, $4, $5, false)`,
+                             [
+                                 uuidv4(), 
+                                 approverId, 
+                                 'Richiesta Assenza', 
+                                 `${resName} ha richiesto ferie/permesso dal ${data.startDate} al ${data.endDate}.`,
+                                 '/leaves'
+                             ]
+                         );
+                    }
+                }
+
             } else if (tableName === 'interviews') {
                  await notify(client, 'INTERVIEW_SCHEDULED', {
                     title: 'Nuovo Colloquio',
@@ -309,7 +329,9 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                  if (oldData.status !== data.status) {
                      const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [oldData.resource_id])).rows[0]?.name;
                      const event = data.status === 'APPROVED' ? 'LEAVE_APPROVED' : (data.status === 'REJECTED' ? 'LEAVE_REJECTED' : null);
+                     
                      if (event) {
+                         // 1. Webhook
                          await notify(client, event, {
                             title: event === 'LEAVE_APPROVED' ? 'Assenza Approvata' : 'Assenza Rifiutata',
                             color: event === 'LEAVE_APPROVED' ? 'Good' : 'Attention',
@@ -318,6 +340,18 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                                 { name: 'Periodo', value: `${oldData.start_date} -> ${oldData.end_date}` }
                             ]
                         });
+                        
+                        // 2. Internal Notification (To Requestor)
+                        if (oldData.resource_id) {
+                            const msgTitle = event === 'LEAVE_APPROVED' ? 'Richiesta Approvata' : 'Richiesta Rifiutata';
+                            const msgBody = `La tua richiesta di assenza per il periodo ${oldData.start_date} è stata ${data.status === 'APPROVED' ? 'approvata' : 'rifiutata'}.`;
+                            
+                            await client.query(
+                                `INSERT INTO notifications (id, recipient_resource_id, title, message, link, is_read) 
+                                 VALUES ($1, $2, $3, $4, $5, false)`,
+                                [uuidv4(), oldData.resource_id, msgTitle, msgBody, '/leaves']
+                            );
+                        }
                      }
                  }
             } else if (tableName === 'interviews') {
@@ -447,6 +481,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await logAction(client, currentUser, 'BULK_PWD_RESET', 'app_users', null, { successCount, failCount }, req);
             return res.status(200).json({ successCount, failCount });
          }
+         
+        // Notification Mark Read
+        if (entity === 'notifications' && action === 'mark_read' && method === 'PUT') {
+            if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
+            
+            if (id) {
+                // Mark single
+                await client.query(
+                    'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $2)',
+                    [id, currentUser.id]
+                );
+            } else {
+                // Mark all for user
+                await client.query(
+                    'UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $1)',
+                    [currentUser.id]
+                );
+            }
+            return res.status(200).json({ success: true });
+        }
 
         // --- DB INSPECTOR (ADMIN ONLY) ---
         if (entity === 'db_inspector') {
@@ -603,6 +657,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (method === 'GET') {
             const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users', 'notification_configs'];
             if (sensitiveEntities.includes(entity as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+
+            // If querying notifications, filter by current user resource_id (unless admin)
+            if (entity === 'notifications') {
+                if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
+                const { rows } = await client.query(
+                    `SELECT * FROM notifications WHERE recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $1) ORDER BY created_at DESC`, 
+                    [currentUser.id]
+                );
+                return res.status(200).json(rows.map(toCamelAndNormalize));
+            }
 
             let queryStr = `SELECT * FROM ${tableName}`;
             const params = [];

@@ -86,8 +86,8 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
-// FIX: Updated signature to accept unknown for better type safety
-const normalize = (str: unknown): string => String(str || '').trim().toLowerCase();
+// FIX: Updated signature to accept any to prevent type errors with unknown
+const normalize = (str: any): string => String(str || '').trim().toLowerCase();
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
     const { clients, roles, resources, projects, calendar, horizontals, seniorityLevels, projectStatuses, clientSectors, locations } = body;
@@ -457,7 +457,7 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
         const userRows = users.map((u: any) => {
             const resEmail = u['Email Risorsa'] || u.resourceEmail;
             // Fix: Explicitly cast unknown input to string before normalizing
-            const emailStr = typeof resEmail === 'string' ? resEmail : String((resEmail as any) || '');
+            const emailStr = String((resEmail as any) || '');
             const resId = resourceMap.get(normalize(emailStr));
             
             return [
@@ -503,9 +503,9 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
         const resKey = row['Email Risorsa'] || row['Risorsa'];
         const tutorKey = row['Email Tutor'] || row['Tutor'];
         
-        // FIX: Cast to string to satisfy type checker if inferred as unknown, and handle undefined
-        const resKeyStr = typeof resKey === 'string' ? resKey : String((resKey as any) || '');
-        const tutorKeyStr = typeof tutorKey === 'string' ? tutorKey : String((tutorKey as any) || '');
+        // FIX: Explicit string conversion to avoid unknown type error
+        const resKeyStr = String(resKey || '');
+        const tutorKeyStr = String(tutorKey || '');
         
         const resId = resourceMap.get(normalize(resKeyStr));
         const tutorId = resourceMap.get(normalize(tutorKeyStr));
