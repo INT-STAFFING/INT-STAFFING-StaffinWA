@@ -21,6 +21,7 @@ import { SpinnerIcon } from './components/icons';
 import { FormFieldFeedback } from './components/forms';
 
 // Lazy load all page components
+const GlobalSearchPage = lazy(() => import('./pages/GlobalSearchPage'));
 const StaffingPage = lazy(() => import('./pages/StaffingPage').then(module => ({ default: module.StaffingPage })));
 const ResourcesPage = lazy(() => import('./pages/ResourcesPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
@@ -184,6 +185,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
           <Suspense fallback={<LoadingSkeleton />}>
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
+              <Route path="/global-search" element={<DynamicRoute path="/global-search"><GlobalSearchPage /></DynamicRoute>} />
               <Route path="/staffing" element={<DynamicRoute path="/staffing"><StaffingPage /></DynamicRoute>} />
               <Route path="/resources" element={<DynamicRoute path="/resources"><ResourcesPage /></DynamicRoute>} />
               <Route path="/skills" element={<DynamicRoute path="/skills"><SkillsPage /></DynamicRoute>} />

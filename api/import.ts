@@ -79,14 +79,14 @@ const parseDate = (dateValue: any): Date | null => {
         }
     }
     return null;
-}
+};
 
 const formatDateForDB = (date: Date | null): string | null => {
     if (!date || isNaN(date.getTime())) return null;
     return date.toISOString().split('T')[0];
 };
 
-// FIX: Updated signature to accept any to prevent type errors with unknown
+// FIX: Updated signature to accept any to prevent type errors with unknown inputs
 const normalize = (str: any): string => String(str || '').trim().toLowerCase();
 
 const importCoreEntities = async (client: any, body: any, warnings: string[]) => {
@@ -462,9 +462,9 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
             
             return [
                 uuidv4(),
-                u['Username'] || u.username,
+                String(u['Username'] || u.username || ''), // Ensure string
                 '$2a$10$PlaceholderHashForImportOnly........', // dummy hash
-                u['Ruolo'] || u.role,
+                String(u['Ruolo'] || u.role || 'SIMPLE'), // Ensure string
                 resId,
                 (u['Stato Attivo'] === 'SI' || u.isActive === true)
             ];
@@ -500,15 +500,14 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     });
     
     for (const row of mapping) {
-        const resKey = row['Email Risorsa'] || row['Risorsa'];
-        const tutorKey = row['Email Tutor'] || row['Tutor'];
+        // Fix: Force cast to any to allow loose typing
+        const rowData = row as any;
+        const resKey = rowData['Email Risorsa'] || rowData['Risorsa'];
+        const tutorKey = rowData['Email Tutor'] || rowData['Tutor'];
         
-        // FIX: Explicit string conversion to avoid unknown type error
-        const resKeyStr = String(resKey || '');
-        const tutorKeyStr = String(tutorKey || '');
-        
-        const resId = resourceMap.get(normalize(resKeyStr));
-        const tutorId = resourceMap.get(normalize(tutorKeyStr));
+        // Use updated normalize which accepts any
+        const resId = resourceMap.get(normalize(resKey));
+        const tutorId = resourceMap.get(normalize(tutorKey));
         
         if (resId && tutorId) {
             await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);

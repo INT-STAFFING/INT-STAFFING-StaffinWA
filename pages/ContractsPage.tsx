@@ -1,10 +1,5 @@
 
-/**
- * @file ContractsPage.tsx
- * @description Pagina per la gestione dei contratti (CRUD e visualizzazione).
- */
-
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Contract, BillingType } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
@@ -16,6 +11,7 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
+import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -62,6 +58,7 @@ export const ContractsPage: React.FC = () => {
     const [associatedManagerIds, setAssociatedManagerIds] = useState<string[]>([]);
     const [contractToDelete, setContractToDelete] = useState<EnrichedContract | null>(null);
     const [filters, setFilters] = useState({ name: '', cig: '', wbs: '' });
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const emptyContract: Omit<Contract, 'id'> = {
         name: '',
@@ -75,6 +72,22 @@ export const ContractsPage: React.FC = () => {
         rateCardId: null,
         billingType: 'TIME_MATERIAL'
     };
+
+    // Deep Linking
+    useEffect(() => {
+        const editId = searchParams.get('editId');
+        if (editId && !isModalOpen && contracts.length > 0) {
+            const target = contracts.find(c => c.id === editId);
+            if (target) {
+                // Must reconstruct enriched object for edit modal
+                const enrichedTarget = dataForTable.find(c => c.id === editId);
+                if (enrichedTarget) {
+                    openModalForEdit(enrichedTarget);
+                    setSearchParams({});
+                }
+            }
+        }
+    }, [searchParams, setSearchParams, contracts, isModalOpen]);
 
     // KPI Calculations
     const kpis = useMemo(() => {

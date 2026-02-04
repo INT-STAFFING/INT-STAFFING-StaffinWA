@@ -1,10 +1,5 @@
 
-/**
- * @file ClientsPage.tsx
- * @description Pagina per la gestione dei clienti (CRUD e visualizzazione).
- */
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
@@ -12,6 +7,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
+import { useSearchParams } from 'react-router-dom';
 
 /**
  * Componente per la pagina di gestione dei Clienti.
@@ -28,7 +24,21 @@ const ClientsPage: React.FC = () => {
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Client | null>(null);
 
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const emptyClient: Omit<Client, 'id'> = { name: '', sector: clientSectors[0]?.value || '', contactEmail: '' };
+
+    // Deep Linking
+    useEffect(() => {
+        const editId = searchParams.get('editId');
+        if (editId && !isModalOpen && clients.length > 0) {
+            const target = clients.find(c => c.id === editId);
+            if (target) {
+                openModalForEdit(target);
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, setSearchParams, clients, isModalOpen]);
 
     // KPI Calculations
     const kpis = useMemo(() => {

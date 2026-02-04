@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 // FIX: Use relative import for custom zod implementation.
 import { z } from '../libs/zod';
 import { useEntitiesContext, usePlanningContext } from '../context/AppContext';
@@ -13,6 +13,7 @@ import { formatDateFull } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
 import { FormFieldFeedback } from '../components/forms';
 import ExportButton from '../components/ExportButton';
+import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedRequest = ResourceRequest & {
@@ -108,6 +109,7 @@ export const ResourceRequestPage: React.FC = () => {
     const [requestToDelete, setRequestToDelete] = useState<EnrichedRequest | null>(null);
     const [filters, setFilters] = useState({ projectId: '', roleId: '', status: '', requestorId: '' });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [searchParams, setSearchParams] = useSearchParams();
     
     // AI Matching State
     const [isMatchingModalOpen, setIsMatchingModalOpen] = useState(false);
@@ -128,6 +130,18 @@ export const ResourceRequestPage: React.FC = () => {
         notes: '',
         status: 'ATTIVA',
     };
+
+    // Deep Linking
+    useEffect(() => {
+        const editId = searchParams.get('editId');
+        if (editId && !isModalOpen && resourceRequests.length > 0) {
+            const target = resourceRequests.find(r => r.id === editId);
+            if (target) {
+                openModalForEdit(target);
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, setSearchParams, resourceRequests, isModalOpen]);
 
     const dataForTable = useMemo<EnrichedRequest[]>(() => {
         return resourceRequests
@@ -582,138 +596,4 @@ export const ResourceRequestPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Impegno (%) *</label>
-                                    <div className="flex items-center gap-4">
-                                        <input type="range" name="commitmentPercentage" value={editingRequest.commitmentPercentage} onChange={handleChange} className="flex-grow accent-primary" min="0" max="100" step="5" />
-                                        <span className="text-sm font-bold text-primary w-12 text-right">{editingRequest.commitmentPercentage}%</span>
-                                    </div>
-                                    {formErrors.commitmentPercentage && <FormFieldFeedback error={formErrors.commitmentPercentage} />}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sezione Dettagli e Stato */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">info</span> Dettagli & Stato
-                            </h4>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato *</label>
-                                    <select name="status" value={editingRequest.status} onChange={handleChange} required className="form-select">
-                                        {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </select>
-                                    {formErrors.status && <FormFieldFeedback error={formErrors.status} />}
-                                </div>
-                                
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
-                                        <input type="checkbox" id="isUrgent" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox" />
-                                        <label htmlFor="isUrgent" className="text-sm text-on-surface font-medium">Urgente</label>
-                                    </div>
-                                    <div className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
-                                        <input type="checkbox" id="isTechRequest" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox" />
-                                        <label htmlFor="isTechRequest" className="text-sm text-on-surface font-medium">Richiesta TECH</label>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
-                                    <input type="checkbox" id="isOsrOpen" name="isOsrOpen" checked={editingRequest.isOsrOpen} onChange={handleChange} className="form-checkbox" />
-                                    <label htmlFor="isOsrOpen" className="text-sm text-on-surface font-medium">OSR Aperta</label>
-                                </div>
-
-                                {editingRequest.isOsrOpen && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Numero OSR *</label>
-                                        <input type="text" name="osrNumber" value={editingRequest.osrNumber || ''} onChange={handleChange} className="form-input" placeholder="es. OSR-12345" />
-                                        {formErrors.osrNumber && <FormFieldFeedback error={formErrors.osrNumber} />}
-                                    </div>
-                                )}
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
-                                    <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3} placeholder="Eventuali annotazioni..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant mt-4">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
-                                {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
-                            </button>
-                        </div>
-                    </form>
-                </Modal>
-            )}
-
-            {isMatchingModalOpen && (
-                <Modal isOpen={isMatchingModalOpen} onClose={() => setIsMatchingModalOpen(false)} title="Ricerca Candidati (Smart Match)">
-                    <div className="flex flex-col max-h-[70vh]">
-                        {isActionLoading('getBestFitResources') ? (
-                            <div className="flex flex-col items-center justify-center py-16">
-                                <SpinnerIcon className="w-12 h-12 text-primary mb-4" />
-                                <p className="text-on-surface-variant font-medium animate-pulse">L'IA sta analizzando competenze, disponibilità e costi...</p>
-                            </div>
-                        ) : matchingResults.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant opacity-70">
-                                <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
-                                <p>Nessun candidato trovato con i criteri attuali.</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-y-auto pr-2 space-y-4">
-                                {Array.isArray(matchingResults) && matchingResults.map((res: any, idx) => (
-                                    <div key={res.resource.id} className="bg-surface-container-low p-4 rounded-xl border border-outline-variant hover:border-tertiary transition-all group relative overflow-hidden">
-                                        <div className="absolute top-0 right-0 p-2 opacity-10 font-black text-6xl text-on-surface pointer-events-none">{idx + 1}</div>
-                                        <div className="flex justify-between items-start mb-3 relative z-10">
-                                            <div className="flex gap-3 items-center">
-                                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-                                                    {res.resource.name.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-bold text-lg text-on-surface">{res.resource.name}</h4>
-                                                    <p className="text-xs text-on-surface-variant font-medium">{res.resource.horizontal} • {res.resource.location}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end">
-                                                <div className="text-3xl font-black text-tertiary tracking-tighter">{res.score}%</div>
-                                                <span className="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Match Score</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="space-y-3 mt-4 relative z-10 bg-surface/50 p-3 rounded-lg">
-                                            <ScoreBar score={res.details.availability} colorClass="bg-primary" label="Disponibilità" />
-                                            <ScoreBar score={res.details.skillMatch} colorClass="bg-tertiary" label="Competenze" />
-                                            <ScoreBar score={res.details.roleMatch} colorClass="bg-secondary" label="Ruolo" />
-                                            <ScoreBar score={res.details.costEff} colorClass="bg-yellow-500" label="Costo" />
-                                        </div>
-
-                                        <div className="mt-4 flex justify-between items-center text-xs font-medium text-on-surface-variant border-t border-outline-variant pt-3">
-                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">work_history</span> Carico Attuale: {Math.round(res.details.avgLoad)}%</span>
-                                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">school</span> Skill Match: {res.details.matchedSkillsCount}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <div className="mt-6 pt-4 border-t border-outline-variant flex justify-end">
-                            <button onClick={() => setIsMatchingModalOpen(false)} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full font-bold hover:opacity-90 transition-opacity">Chiudi</button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            {requestToDelete && (
-                <ConfirmationModal
-                    isOpen={!!requestToDelete}
-                    onClose={() => setRequestToDelete(null)}
-                    onConfirm={handleDelete}
-                    title="Elimina Richiesta"
-                    message={`Sei sicuro di voler eliminare la richiesta ${requestToDelete.requestCode}?`}
-                    isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
-                />
-            )}
-        </div>
-    );
-};
-
-export default ResourceRequestPage;
+                                    <div className="flex

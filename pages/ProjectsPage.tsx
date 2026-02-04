@@ -424,6 +424,7 @@ export const ProjectsPage: React.FC = () => {
         const projectId = searchParams.get('projectId');
         const clientId = searchParams.get('clientId');
         const filter = searchParams.get('filter');
+        const editId = searchParams.get('editId');
 
         if (projectId) {
             setFilters(prev => ({ ...prev, name: projects.find(p => p.id === projectId)?.name || '', clientId: '', status: '' }));
@@ -437,7 +438,16 @@ export const ProjectsPage: React.FC = () => {
             setShowOnlyUnstaffed(true);
             setSearchParams({});
         }
-    }, [searchParams, projects, setSearchParams]);
+
+        // Handle Deep Linking for Edit
+        if (editId && !isModalOpen && projects.length > 0) {
+            const target = projects.find(p => p.id === editId);
+            if (target) {
+                openModalForEdit(target);
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, projects, setSearchParams, isModalOpen]);
 
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Project | null>(null);

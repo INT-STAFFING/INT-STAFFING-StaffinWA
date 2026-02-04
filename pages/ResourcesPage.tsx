@@ -52,13 +52,26 @@ const ResourcesPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
+    // Deep Linking Logic
     useEffect(() => {
-        if (searchParams.get('filter') === 'unassigned') {
+        const filter = searchParams.get('filter');
+        const editId = searchParams.get('editId');
+
+        if (filter === 'unassigned') {
             setShowOnlyUnassigned(true);
-            // Remove the query param after applying the filter
             setSearchParams({});
         }
-    }, [searchParams, setSearchParams]);
+
+        if (editId && !isModalOpen && resources.length > 0) {
+            const target = resources.find(r => r.id === editId);
+            if (target) {
+                // Ensure we open modal only if it's found
+                openModalForEdit(target);
+                // Clear param to prevent reopen on refresh
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, setSearchParams, resources, isModalOpen]);
 
     
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);

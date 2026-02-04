@@ -4,7 +4,7 @@
  * @description Pagina dedicata alla gestione delle Certificazioni (Skills con isCertification=true).
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
@@ -15,6 +15,7 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 import { ExportButton } from '@/components/shared/ExportButton';
+import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
 type EnrichedCertification = Skill & {
@@ -73,12 +74,25 @@ const CertificationsPage: React.FC = () => {
 
     // Filter State
     const [filters, setFilters] = useState({ name: '', categoryId: '', macroCategoryId: '' });
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const emptySkill: Omit<Skill, 'id'> = {
         name: '',
         categoryIds: [],
         isCertification: true 
     };
+
+    // Deep Linking
+    useEffect(() => {
+        const editId = searchParams.get('editId');
+        if (editId && !isModalOpen && skills.length > 0) {
+            const target = skills.find(s => s.id === editId);
+            if (target) {
+                handleOpenModal(target);
+                setSearchParams({});
+            }
+        }
+    }, [searchParams, setSearchParams, skills, isModalOpen]);
 
     // --- Data Processing ---
 

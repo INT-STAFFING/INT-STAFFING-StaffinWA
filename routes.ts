@@ -41,6 +41,16 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/DashboardPage')),
     },
     {
+        path: '/global-search',
+        label: 'Cerca',
+        icon: 'search',
+        section: 'Principale',
+        showInSidebar: true,
+        showInBottomNav: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/GlobalSearchPage').then(module => ({ default: module.default }))),
+    },
+    {
         path: '/notifications',
         label: 'Notifiche',
         icon: 'notifications',
