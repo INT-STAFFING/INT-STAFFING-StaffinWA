@@ -596,4 +596,133 @@ export const ResourceRequestPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Impegno (%) *</label>
-                                    <div className="flex
+                                    <div className="flex items-center gap-4">
+                                        <input
+                                            type="range"
+                                            name="commitmentPercentage"
+                                            min="0"
+                                            max="100"
+                                            step="10"
+                                            value={editingRequest.commitmentPercentage}
+                                            onChange={handleChange}
+                                            className="w-full accent-primary"
+                                        />
+                                        <span className="font-bold text-primary w-12 text-right">{editingRequest.commitmentPercentage}%</span>
+                                    </div>
+                                    {formErrors.commitmentPercentage && <FormFieldFeedback error={formErrors.commitmentPercentage} />}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Sezione Dettagli e Stato */}
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                             {/* Flags */}
+                             <div className="flex flex-wrap gap-4 mb-4">
+                                 <label className="flex items-center gap-2 cursor-pointer">
+                                     <input type="checkbox" name="isUrgent" checked={editingRequest.isUrgent} onChange={handleChange} className="form-checkbox" />
+                                     <span className="text-sm font-medium">Urgente</span>
+                                 </label>
+                                 <label className="flex items-center gap-2 cursor-pointer">
+                                     <input type="checkbox" name="isTechRequest" checked={editingRequest.isTechRequest} onChange={handleChange} className="form-checkbox" />
+                                     <span className="text-sm font-medium">Tech Request</span>
+                                 </label>
+                                 <label className="flex items-center gap-2 cursor-pointer">
+                                     <input type="checkbox" name="isOsrOpen" checked={editingRequest.isOsrOpen} onChange={handleChange} className="form-checkbox" />
+                                     <span className="text-sm font-medium">OSR Aperta</span>
+                                 </label>
+                             </div>
+
+                             {editingRequest.isOsrOpen && (
+                                 <div className="mb-4 animate-fade-in">
+                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Numero OSR *</label>
+                                     <input type="text" name="osrNumber" value={editingRequest.osrNumber || ''} onChange={handleChange} className="form-input" placeholder="Es. OSR-2024-001" />
+                                     {formErrors.osrNumber && <FormFieldFeedback error={formErrors.osrNumber} />}
+                                 </div>
+                             )}
+
+                             <div className="mb-4">
+                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
+                                 <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3} placeholder="Dettagli aggiuntivi..." />
+                             </div>
+
+                             <div>
+                                 <label className="block text-sm font-medium text-on-surface-variant mb-1">Stato Richiesta</label>
+                                 <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
+                                     <option value="ATTIVA">Attiva</option>
+                                     <option value="STANDBY">Standby</option>
+                                     <option value="CHIUSA">Chiusa</option>
+                                 </select>
+                                 {formErrors.status && <FormFieldFeedback error={formErrors.status} />}
+                             </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant mt-4">
+                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold transition-colors">Annulla</button>
+                             <button type="submit" disabled={isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)} className="flex justify-center items-center px-6 py-2 bg-primary text-on-primary rounded-full disabled:opacity-50 font-semibold hover:opacity-90 shadow-sm transition-all">
+                                {(isActionLoading('addResourceRequest') || isActionLoading(`updateResourceRequest-${'id' in editingRequest ? editingRequest.id : ''}`)) ? <SpinnerIcon className="w-5 h-5"/> : 'Salva'}
+                            </button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {isMatchingModalOpen && (
+                <Modal isOpen={isMatchingModalOpen} onClose={() => setIsMatchingModalOpen(false)} title="Ricerca Candidati (AI Match)">
+                    <div className="space-y-4">
+                         <p className="text-sm text-on-surface-variant">I candidati sono ordinati in base alla disponibilità, competenze e costo.</p>
+                         
+                         {matchingResults.length === 0 ? (
+                             <div className="text-center py-8 text-on-surface-variant italic">
+                                 {isActionLoading('getBestFitResources') ? (
+                                     <div className="flex flex-col items-center gap-2">
+                                         <SpinnerIcon className="w-8 h-8 text-primary"/>
+                                         <span>Analisi in corso...</span>
+                                     </div>
+                                 ) : (
+                                     "Nessun candidato trovato con i criteri attuali."
+                                 )}
+                             </div>
+                         ) : (
+                             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                 {matchingResults.map((match: any) => (
+                                     <div key={match.resource.id} className="p-3 bg-surface-container-low border border-outline-variant rounded-xl">
+                                         <div className="flex justify-between items-center mb-2">
+                                             <div className="font-bold text-on-surface">{match.resource.name}</div>
+                                             <div className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-full">Score: {match.score.toFixed(0)}</div>
+                                         </div>
+                                         <div className="space-y-1">
+                                             <ScoreBar label="Disponibilità" score={match.details.availability} colorClass="bg-tertiary" />
+                                             <ScoreBar label="Competenze" score={match.details.skillMatch} colorClass="bg-primary" />
+                                             <ScoreBar label="Ruolo" score={match.details.roleMatch} colorClass="bg-secondary" />
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
+                         )}
+                         <div className="flex justify-end pt-4 border-t border-outline-variant">
+                             <button onClick={() => setIsMatchingModalOpen(false)} className="px-4 py-2 bg-surface text-primary font-bold rounded-full hover:bg-surface-container-high border border-outline">Chiudi</button>
+                         </div>
+                    </div>
+                </Modal>
+            )}
+
+            {requestToDelete && (
+                <ConfirmationModal
+                    isOpen={!!requestToDelete}
+                    onClose={() => setRequestToDelete(null)}
+                    onConfirm={handleDelete}
+                    title="Elimina Richiesta"
+                    message={
+                        <>
+                            Sei sicuro di voler eliminare la richiesta <strong>{requestToDelete.requestCode}</strong>?<br/>
+                            <span className="text-error text-sm">Questa azione è irreversibile.</span>
+                        </>
+                    }
+                    isConfirming={isActionLoading(`deleteResourceRequest-${requestToDelete.id}`)}
+                />
+            )}
+        </div>
+    );
+};
+
+export default ResourceRequestPage;

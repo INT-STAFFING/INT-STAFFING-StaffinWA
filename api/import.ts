@@ -505,9 +505,9 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
         const resKey = rowData['Email Risorsa'] || rowData['Risorsa'];
         const tutorKey = rowData['Email Tutor'] || rowData['Tutor'];
         
-        // Use updated normalize which accepts any
-        const resId = resourceMap.get(normalize(resKey));
-        const tutorId = resourceMap.get(normalize(tutorKey));
+        // Use updated normalize which accepts any. Explicit String cast to fix potential unknown type error.
+        const resId = resourceMap.get(normalize(String(resKey || '')));
+        const tutorId = resourceMap.get(normalize(String(tutorKey || '')));
         
         if (resId && tutorId) {
             await client.query('UPDATE resources SET tutor_id = $1 WHERE id = $2', [tutorId, resId]);
