@@ -207,13 +207,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (scope === 'planning' || scope === 'all') {
             let allocationsQueryPromise;
             let leaveRequestsQueryPromise;
+            
+            // For Allocations, we respect the planning window to keep performance
             if (start && end) {
                 allocationsQueryPromise = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
-                leaveRequestsQueryPromise = db.query(`SELECT * FROM leave_requests WHERE end_date >= $1 AND start_date <= $2`, [start, end]);
             } else {
                 allocationsQueryPromise = db.sql`SELECT * FROM allocations;`;
-                leaveRequestsQueryPromise = db.sql`SELECT * FROM leave_requests;`;
             }
+            
+            // For Leave Requests, we fetch ALL to ensure the management table is complete
+            // Leaves are generally low volume compared to daily allocations
+            leaveRequestsQueryPromise = db.sql`SELECT * FROM leave_requests ORDER BY start_date DESC;`;
 
             const [
                 assignmentsRes,

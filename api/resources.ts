@@ -127,6 +127,17 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         requiresApproval: z.boolean().optional().nullable(),
         affectsCapacity: z.boolean().optional().nullable()
     }),
+    'leave_requests': z.object({
+        resourceId: z.string(),
+        typeId: z.string(),
+        startDate: z.string(),
+        endDate: z.string(),
+        status: z.string().optional().default('PENDING'),
+        managerId: z.string().optional().nullable(),
+        approverIds: z.array(z.string()).optional().nullable(),
+        notes: z.string().optional().nullable(),
+        isHalfDay: z.boolean().optional().nullable()
+    }),
     'rate_cards': z.object({
         name: z.string(),
         currency: z.string().optional().nullable()

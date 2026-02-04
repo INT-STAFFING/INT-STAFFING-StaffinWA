@@ -454,7 +454,7 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     });
 
     if (Array.isArray(users)) {
-        const userRows = users.map(u => {
+        const userRows = users.map((u: any) => {
             const resEmail = u['Email Risorsa'] || u.resourceEmail;
             // Fix: Explicitly cast unknown input to string before normalizing
             const emailStr = typeof resEmail === 'string' ? resEmail : String((resEmail as any) || '');
@@ -476,7 +476,7 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     if (Array.isArray(permissions)) {
         // Full replace of permissions for simplicity and security consistency
         await client.query('DELETE FROM role_permissions');
-        const permRows = permissions.map(p => [
+        const permRows = permissions.map((p: any) => [
             p['Ruolo'] || p.role,
             p['Pagina'] || p.pagePath,
             (p['Accesso Consentito'] === 'SI' || p.isAllowed === true)
