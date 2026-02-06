@@ -7,7 +7,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { LeaveRequest, Project, Assignment } from '../types';
-import { getWorkingDaysBetween, isHoliday, getLeaveDurationInWorkingDays } from '../utils/dateUtils';
+import { getWorkingDaysBetween, getLeaveDurationInWorkingDays, parseISODate, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 
 /**
@@ -51,12 +51,14 @@ const ForecastingPage: React.FC = () => {
         setFilters({ horizontal: '', clientId: '', projectId: ''});
     };
 
-    // OPTIMIZATION: Pre-calculate holiday lookup map for O(1) access instead of Array.find O(N)
+    // OPTIMIZATION: Pre-calculate holiday lookup map for O(1) access
     // Key: "YYYY-MM-DD:LOCATION" or "YYYY-MM-DD:ALL"
     const holidayMap = useMemo(() => {
         const map = new Set<string>();
         companyCalendar.forEach(event => {
-            const dateStr = new Date(event.date).toISOString().split('T')[0];
+            // FIX: Handle event.date as any to avoid TS error 'property does not exist on type never'
+            // because strict types define date as string, making the else branch unreachable in TS eyes.
+            const dateStr = typeof event.date === 'string' ? event.date : (event.date as any).toISOString().split('T')[0];
             if (event.type === 'LOCAL_HOLIDAY' && event.location) {
                 map.add(`${dateStr}:${event.location}`);
             } else {
@@ -66,35 +68,42 @@ const ForecastingPage: React.FC = () => {
         return map;
     }, [companyCalendar]);
 
-    // Optimized isHoliday for inner loops
+    // Optimized isHoliday for inner loops using String lookup
     const checkIsHolidayOptimized = (date: Date, location: string | null) => {
-        const dateStr = date.toISOString().split('T')[0];
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${d}`;
+        
         if (holidayMap.has(`${dateStr}:ALL`)) return true;
         if (location && holidayMap.has(`${dateStr}:${location}`)) return true;
         return false;
     };
 
-    // Optimized getWorkingDays using the map and UTC methods
+    // Optimized getWorkingDays using UTC methods
     const getWorkingDaysOptimized = (startDate: Date, endDate: Date, location: string | null): number => {
         let count = 0;
-        const currentDate = new Date(startDate.getTime());
-        // Use numeric comparison for safety and performance
-        while (currentDate.getTime() <= endDate.getTime()) {
+        const currentDate = new Date(startDate.getTime()); // Clone
+        
+        // Safety break
+        let iterations = 0;
+        
+        while (currentDate.getTime() <= endDate.getTime() && iterations < 370) { // Max 1 year check
             const dayOfWeek = currentDate.getUTCDay(); // 0 = Sunday, 6 = Saturday
             if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(currentDate, location)) {
                 count++;
             }
             // Advance by exactly one day in UTC
             currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+            iterations++;
         }
         return count;
     };
 
     // 1. Pre-calcolo della media storica per ogni assegnazione
-    // OPTIMIZATION: Memoized to run only when assignments/allocations change
     const historicalAverages = useMemo(() => {
         const averages: Record<string, number> = {}; // assignmentId -> avgPercentage (0-100)
-        const today = new Date();
+        const todayStr = new Date().toISOString().split('T')[0];
 
         assignments.forEach(assignment => {
             const assignmentAllocations = allocations[assignment.id!];
@@ -107,13 +116,12 @@ const ForecastingPage: React.FC = () => {
             let countDays = 0;
 
             // Analizziamo tutto lo storico fino ad oggi
-            Object.entries(assignmentAllocations).forEach(([dateStr, percentage]) => {
-                const date = new Date(dateStr);
-                if (date <= today) {
+            for (const [dateStr, percentage] of Object.entries(assignmentAllocations)) {
+                if (dateStr <= todayStr) {
                     totalPercentage += (percentage as number);
                     countDays++;
                 }
-            });
+            }
 
             // Se abbiamo dati storici, calcoliamo la media
             if (countDays > 0) {
@@ -131,7 +139,7 @@ const ForecastingPage: React.FC = () => {
         const results = [];
         const today = new Date();
         today.setUTCHours(0,0,0,0);
-
+        
         // Pre-filter resources and assignments to reduce inner loop iterations
         let filteredResources = resources.filter(r => !r.resigned);
         if (filters.horizontal) {
@@ -175,21 +183,27 @@ const ForecastingPage: React.FC = () => {
             }
         });
 
-
         for (let i = 0; i < forecastHorizon; i++) {
-            // Construct Month Boundaries using UTC
+            // Construct Month Boundaries using UTC to ensure month alignment
             const date = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + i, 1));
-            // Format month name (ensure timezone consistency)
             const monthName = date.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' });
             
-            const firstDayOfMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-            const lastDayOfMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
+            // ISO Month String for fast filtering (YYYY-MM)
+            const y = date.getUTCFullYear();
+            const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const targetMonthIso = `${y}-${m}`;
+
+            const firstDayOfMonth = new Date(Date.UTC(y, date.getUTCMonth(), 1));
+            const lastDayOfMonth = new Date(Date.UTC(y, date.getUTCMonth() + 1, 0));
 
             // 1. Calcolo Capacità (Available Person Days)
             let availablePersonDays = 0;
             filteredResources.forEach(resource => {
-                const effectiveStartDate = new Date(resource.hireDate) > firstDayOfMonth ? new Date(resource.hireDate) : firstDayOfMonth;
-                const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDayOfMonth ? new Date(resource.lastDayOfWork) : lastDayOfMonth;
+                const hireDate = parseISODate(resource.hireDate);
+                const effectiveStartDate = hireDate > firstDayOfMonth ? hireDate : firstDayOfMonth;
+                
+                const resourceLastDay = resource.lastDayOfWork ? parseISODate(resource.lastDayOfWork) : null;
+                const effectiveEndDate = resourceLastDay && resourceLastDay < lastDayOfMonth ? resourceLastDay : lastDayOfMonth;
 
                 if (effectiveStartDate > effectiveEndDate) return;
                 
@@ -221,17 +235,19 @@ const ForecastingPage: React.FC = () => {
                     const project = projectMap.get(assignment.projectId);
                     if (!project) return;
 
-                    // Date limite del progetto
-                    const projStart = project.startDate ? new Date(project.startDate) : null;
-                    const projEnd = project.endDate ? new Date(project.endDate) : null;
+                    // Date limite del progetto (Parse safely)
+                    const projStart = project.startDate ? parseISODate(project.startDate) : null;
+                    const projEnd = project.endDate ? parseISODate(project.endDate) : null;
 
+                    // If project ends before this month, skip
                     if (projEnd && projEnd < firstDayOfMonth) return;
+                    // If project starts after this month, skip
                     if (projStart && projStart > lastDayOfMonth) return;
 
                     const activeStart = projStart && projStart > firstDayOfMonth ? projStart : firstDayOfMonth;
                     const activeEnd = projEnd && projEnd < lastDayOfMonth ? projEnd : lastDayOfMonth;
 
-                    const resourceEnd = resource.lastDayOfWork ? new Date(resource.lastDayOfWork) : null;
+                    const resourceEnd = resource.lastDayOfWork ? parseISODate(resource.lastDayOfWork) : null;
                     const effectiveEnd = resourceEnd && resourceEnd < activeEnd ? resourceEnd : activeEnd;
                     
                     if (activeStart > effectiveEnd) return;
@@ -239,16 +255,20 @@ const ForecastingPage: React.FC = () => {
                     const assignmentAllocations = allocations[assignment.id!];
                     let hasHardBookingInMonth = false;
 
-                    // Controlliamo se esistono allocazioni "hard" (inserite manualmente) nel DB per questo mese
+                    // FIX: Direct string comparison for allocations instead of Date objects
                     if (assignmentAllocations) {
                         for (const dateStr in assignmentAllocations) {
-                            const allocDate = new Date(dateStr);
-                            if (allocDate >= firstDayOfMonth && allocDate <= lastDayOfMonth) {
-                                // Check holiday optimized using UTC Day
-                                const dayOfWeek = allocDate.getUTCDay();
-                                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !checkIsHolidayOptimized(allocDate, resource.location)) {
-                                    allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
-                                    hasHardBookingInMonth = true;
+                            if (dateStr.startsWith(targetMonthIso)) {
+                                const allocDate = parseISODate(dateStr);
+                                
+                                // Check if it is a working day (allocations on weekends shouldn't count towards working days usage usually, but we check holiday map)
+                                if (!checkIsHolidayOptimized(allocDate, resource.location)) {
+                                     // Also check strict UTC day for weekends (0=Sun, 6=Sat)
+                                    const day = allocDate.getUTCDay();
+                                    if (day !== 0 && day !== 6) {
+                                        allocatedPersonDays += (assignmentAllocations[dateStr] / 100);
+                                        hasHardBookingInMonth = true;
+                                    }
                                 }
                             }
                         }
@@ -262,7 +282,6 @@ const ForecastingPage: React.FC = () => {
                         
                         if (avgPercent > 0) {
                             const potentialWorkingDays = getWorkingDaysOptimized(activeStart, effectiveEnd, resource.location);
-                            // Approximation: Reduce by % of capacity lost.
                             const projectedLoad = potentialWorkingDays * (avgPercent / 100);
                             allocatedPersonDays += projectedLoad;
                             projectedPersonDays += projectedLoad;

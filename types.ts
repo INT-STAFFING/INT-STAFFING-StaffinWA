@@ -222,6 +222,18 @@ export interface Interview {
     entryDate: string | null;
     status: InterviewStatus;
     version?: number;
+    
+    // Hard Skills Ratings (1-5)
+    ratingTechnicalMastery?: number | null;
+    ratingProblemSolving?: number | null;
+    ratingMethodQuality?: number | null;
+    
+    // Soft Skills Ratings (1-5)
+    ratingDomainKnowledge?: number | null;
+    ratingAutonomy?: number | null;
+    ratingCommunication?: number | null;
+    ratingProactivity?: number | null;
+    ratingTeamFit?: number | null;
 }
 
 export interface SkillMacroCategory {

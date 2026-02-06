@@ -18,6 +18,7 @@ type EnrichedInterview = Interview & {
   roleName: string | null;
   interviewersNames: string[];
   age: number | null;
+  averageRating: number | null;
 };
 
 // --- Helper Functions ---
@@ -50,7 +51,17 @@ const buildInterviewPayload = (interview: Interview | Omit<Interview, 'id'>): In
     notes: interview.notes || null,
     hiringStatus: interview.hiringStatus || null,
     entryDate: interview.entryDate || null,
-    status: interview.status
+    status: interview.status,
+    
+    // Ratings
+    ratingTechnicalMastery: interview.ratingTechnicalMastery || null,
+    ratingProblemSolving: interview.ratingProblemSolving || null,
+    ratingMethodQuality: interview.ratingMethodQuality || null,
+    ratingDomainKnowledge: interview.ratingDomainKnowledge || null,
+    ratingAutonomy: interview.ratingAutonomy || null,
+    ratingCommunication: interview.ratingCommunication || null,
+    ratingProactivity: interview.ratingProactivity || null,
+    ratingTeamFit: interview.ratingTeamFit || null,
   };
 
   // Preserve version for optimistic locking
@@ -80,20 +91,81 @@ const getStatusBadgeClass = (status: InterviewStatus) => {
   }
 };
 
-const getHiringStatusBadgeClass = (status: InterviewHiringStatus | null) => {
-  switch (status) {
-    case 'SI':
-      return 'bg-tertiary-container text-on-tertiary-container';
-    case 'NO':
-      return 'bg-error-container text-on-error-container';
-    case 'No Rifiutato':
-      return 'bg-yellow-container text-on-yellow-container';
-    case 'In Fase di Offerta':
-      return 'bg-secondary-container text-on-secondary-container';
-    default:
-      return 'bg-surface-variant text-on-surface-variant';
-  }
+const calculateAverageRating = (i: Interview): number | null => {
+    const ratings = [
+        i.ratingTechnicalMastery,
+        i.ratingProblemSolving,
+        i.ratingMethodQuality,
+        i.ratingDomainKnowledge,
+        i.ratingAutonomy,
+        i.ratingCommunication,
+        i.ratingProactivity,
+        i.ratingTeamFit
+    ].map(r => Number(r)).filter(r => !isNaN(r) && r > 0);
+
+    if (ratings.length === 0) return null;
+    const sum = ratings.reduce((a, b) => a + b, 0);
+    return sum / ratings.length;
 };
+
+// --- Star Rating Component ---
+interface StarRatingInputProps {
+    value: number | null | undefined;
+    onChange: (val: number) => void;
+    label: string;
+}
+
+const StarRatingInput: React.FC<StarRatingInputProps> = ({ value, onChange, label }) => {
+    const currentVal = value || 0;
+    return (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-outline-variant/30 last:border-0">
+            <span className="text-sm font-medium text-on-surface mb-1 sm:mb-0">{label}</span>
+            <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                        key={star}
+                        type="button"
+                        onClick={() => onChange(star)}
+                        className="focus:outline-none p-1 transition-transform hover:scale-110"
+                    >
+                         <span 
+                            className={`material-symbols-outlined text-2xl ${star <= currentVal ? 'text-yellow-500' : 'text-outline-variant'}`}
+                            style={{ fontVariationSettings: star <= currentVal ? "'FILL' 1" : "'FILL' 0" }}
+                         >
+                            star
+                         </span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const StarDisplay: React.FC<{ rating: number | null }> = ({ rating }) => {
+    if (rating === null || rating === undefined) return <span className="text-xs text-on-surface-variant">-</span>;
+    
+    // Arrotonda al mezzo punto più vicino
+    const rounded = Math.round(rating * 2) / 2; 
+    const fullStars = Math.floor(rounded);
+    const hasHalfStar = rounded % 1 !== 0;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return (
+        <div className="flex items-center text-yellow-500" title={`Media: ${rating.toFixed(1)}`}>
+            {[...Array(fullStars)].map((_, i) => (
+                <span key={`f-${i}`} className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+            ))}
+            {hasHalfStar && (
+                <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star_half</span>
+            )}
+            {[...Array(emptyStars > 0 ? emptyStars : 0)].map((_, i) => (
+                <span key={`e-${i}`} className="material-symbols-outlined text-sm text-outline-variant">star</span>
+            ))}
+        </div>
+    );
+};
+
+// --- Main Page Component ---
 
 const InterviewsPage: React.FC = () => {
   const {
@@ -107,7 +179,6 @@ const InterviewsPage: React.FC = () => {
     updateInterview,
     deleteInterview,
     isActionLoading,
-    locations,
     loading
   } = useEntitiesContext();
   const { addToast } = useToast();
@@ -117,8 +188,8 @@ const InterviewsPage: React.FC = () => {
   const [interviewToDelete, setInterviewToDelete] = useState<EnrichedInterview | null>(null);
   const [filters, setFilters] = useState({ name: '', roleId: '', feedback: '', status: '', hiringStatus: '' });
   
-  // Inline editing state 
-  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
+  // Modal Tab State
+  const [activeModalTab, setActiveModalTab] = useState<'details' | 'ratings'>('details');
 
   const emptyInterview: Omit<Interview, 'id'> = {
     resourceRequestId: null,
@@ -134,7 +205,16 @@ const InterviewsPage: React.FC = () => {
     notes: null,
     hiringStatus: null,
     entryDate: null,
-    status: 'Aperto'
+    status: 'Aperto',
+    // Ratings defaults
+    ratingTechnicalMastery: 0,
+    ratingProblemSolving: 0,
+    ratingMethodQuality: 0,
+    ratingDomainKnowledge: 0,
+    ratingAutonomy: 0,
+    ratingCommunication: 0,
+    ratingProactivity: 0,
+    ratingTeamFit: 0
   };
 
   const enrichedData = useMemo<EnrichedInterview[]>(() => {
@@ -149,7 +229,8 @@ const InterviewsPage: React.FC = () => {
         resourceRequestLabel: request ? `${request.requestCode} - ${project?.name} - ${requestRole?.name}` : null,
         roleName: role?.name || null,
         interviewersNames: interviewers.map((r) => r.name),
-        age: calculateAge(i.birthDate)
+        age: calculateAge(i.birthDate),
+        averageRating: calculateAverageRating(i)
       };
     });
   }, [interviews, resources, roles, resourceRequests, projects]);
@@ -180,6 +261,7 @@ const InterviewsPage: React.FC = () => {
       'Stato Hiring': i.hiringStatus || '',
       'Data Ingresso': formatDateFull(i.entryDate),
       'Stato': i.status,
+      'Media Valutazione': i.averageRating ? i.averageRating.toFixed(1) : '',
       'Note': i.notes || '',
       'CV Summary': i.cvSummary || ''
     }));
@@ -190,7 +272,6 @@ const InterviewsPage: React.FC = () => {
     const activeCandidates = dataToSummarize.filter((i) => i.status === 'Aperto').length;
     const standByCandidates = dataToSummarize.filter((i) => i.status === 'StandBy').length;
     const positiveFeedback = dataToSummarize.filter((i) => i.feedback === 'Positivo').length;
-    const positiveOnHoldFeedback = dataToSummarize.filter((i) => i.feedback === 'Positivo On Hold').length;
     const upcomingHires = dataToSummarize
       .filter((i) => i.hiringStatus === 'SI' && i.entryDate && new Date(i.entryDate) >= new Date())
       .sort((a, b) => new Date(a.entryDate!).getTime() - new Date(b.entryDate!).getTime());
@@ -200,7 +281,7 @@ const InterviewsPage: React.FC = () => {
       .filter((i) => i.entryDate && new Date(i.entryDate) > today)
       .sort((a, b) => new Date(a.entryDate!).getTime() - new Date(b.entryDate!).getTime());
 
-    return { activeCandidates, standByCandidates, positiveFeedback, positiveOnHoldFeedback, upcomingHires, upcomingEntries };
+    return { activeCandidates, standByCandidates, positiveFeedback, upcomingHires, upcomingEntries };
   }, [enrichedData]);
 
   // Options for selects
@@ -244,6 +325,7 @@ const InterviewsPage: React.FC = () => {
 
   const openModalForNew = () => {
     setEditingInterview(emptyInterview);
+    setActiveModalTab('details');
     setIsModalOpen(true);
   };
 
@@ -255,6 +337,7 @@ const InterviewsPage: React.FC = () => {
       entryDate: interview.entryDate ? toISODate(interview.entryDate) : null
     };
     setEditingInterview(formattedInterview);
+    setActiveModalTab('details');
     setIsModalOpen(true);
   };
 
@@ -286,6 +369,9 @@ const InterviewsPage: React.FC = () => {
   const handleMultiSelectChange = (name: string, values: string[]) => {
     if (editingInterview) setEditingInterview({ ...editingInterview, [name]: values });
   };
+  const handleRatingChange = (name: string, value: number) => {
+      if (editingInterview) setEditingInterview({ ...editingInterview, [name]: value });
+  }
 
   const handleDelete = async () => {
     if (interviewToDelete) {
@@ -311,18 +397,17 @@ const InterviewsPage: React.FC = () => {
         )
     },
     { header: 'Ruolo Proposto', sortKey: 'roleName', cell: i => <span className="text-sm text-on-surface-variant">{i.roleName || 'N/A'}</span> },
-    { header: 'Richiesta', sortKey: 'resourceRequestLabel', cell: i => <span className="text-xs text-on-surface-variant">{i.resourceRequestLabel || 'Nessuna'}</span> },
     { header: 'Colloquiato Da', cell: i => <span className="text-xs text-on-surface-variant">{i.interviewersNames.join(', ')}</span> },
+    { 
+        header: 'Valutazione', 
+        sortKey: 'averageRating', 
+        cell: i => <StarDisplay rating={i.averageRating} />
+    },
     { header: 'Data', sortKey: 'interviewDate', cell: i => <span className="text-sm text-on-surface-variant">{formatDateFull(i.interviewDate)}</span> },
     { 
         header: 'Feedback', 
         sortKey: 'feedback', 
         cell: i => i.feedback ? <span className={`px-2 py-0.5 rounded text-xs font-semibold ${i.feedback === 'Positivo' ? 'bg-tertiary-container text-on-tertiary-container' : i.feedback === 'Negativo' ? 'bg-error-container text-on-error-container' : 'bg-yellow-container text-on-yellow-container'}`}>{i.feedback}</span> : '-'
-    },
-    { 
-        header: 'Stato Hiring', 
-        sortKey: 'hiringStatus', 
-        cell: i => <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getHiringStatusBadgeClass(i.hiringStatus)}`}>{i.hiringStatus || '-'}</span> 
     },
     { 
         header: 'Stato', 
@@ -356,8 +441,12 @@ const InterviewsPage: React.FC = () => {
             </div>
             <span className={`px-2 py-0.5 rounded text-xs font-bold ${getStatusBadgeClass(i.status)}`}>{i.status}</span>
         </div>
-        <div className="text-sm text-on-surface-variant">
+        <div className="text-sm text-on-surface-variant space-y-1">
             <p>Data: {formatDateFull(i.interviewDate)}</p>
+            <div className="flex items-center gap-2">
+                <span>Rating:</span>
+                <StarDisplay rating={i.averageRating} />
+            </div>
             <p>Feedback: {i.feedback || '-'}</p>
             {i.hiringStatus && <p className="mt-1 font-semibold">Hiring: {i.hiringStatus}</p>}
         </div>
@@ -434,93 +523,144 @@ const InterviewsPage: React.FC = () => {
         {/* Edit Modal */}
         {editingInterview && (
             <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingInterview ? 'Modifica Colloquio' : 'Nuovo Colloquio'}>
-                <form onSubmit={handleSubmit} className="flex flex-col">
-                    <div className="px-1 space-y-6">
+                <form onSubmit={handleSubmit} className="flex flex-col h-[75vh]">
+                    
+                    {/* Tabs Header */}
+                    <div className="flex border-b border-outline-variant mb-4">
+                        <button
+                            type="button"
+                            onClick={() => setActiveModalTab('details')}
+                            className={`flex-1 py-3 text-sm font-medium text-center transition-colors ${activeModalTab === 'details' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}`}
+                        >
+                            Dettagli Candidato
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveModalTab('ratings')}
+                            className={`flex-1 py-3 text-sm font-medium text-center transition-colors ${activeModalTab === 'ratings' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'}`}
+                        >
+                            Valutazione Skills
+                        </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto px-1 space-y-6">
                         
-                        {/* Dati Candidato */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">person</span> Dati Candidato
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium mb-1">Nome *</label><input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input"/></div>
-                                <div><label className="block text-sm font-medium mb-1">Cognome *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
-                                <div><label className="block text-sm font-medium mb-1">Data Nascita</label><input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input"/></div>
-                            </div>
-                        </div>
+                        {activeModalTab === 'details' && (
+                            <>
+                                {/* Dati Candidato */}
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">person</span> Dati Candidato
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div><label className="block text-sm font-medium mb-1">Nome *</label><input type="text" name="candidateName" value={editingInterview.candidateName} onChange={handleChange} required className="form-input"/></div>
+                                        <div><label className="block text-sm font-medium mb-1">Cognome *</label><input type="text" name="candidateSurname" value={editingInterview.candidateSurname} onChange={handleChange} required className="form-input"/></div>
+                                        <div><label className="block text-sm font-medium mb-1">Data Nascita</label><input type="date" name="birthDate" value={editingInterview.birthDate || ''} onChange={handleChange} className="form-input"/></div>
+                                    </div>
+                                </div>
 
-                        {/* Posizione e Contesto */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">work</span> Posizione & Contesto
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Richiesta Collegata (Opzionale)</label>
-                                    <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Seleziona richiesta..." />
+                                {/* Posizione e Contesto */}
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">work</span> Posizione & Contesto
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Richiesta Collegata (Opzionale)</label>
+                                            <SearchableSelect name="resourceRequestId" value={editingInterview.resourceRequestId || ''} onChange={handleSelectChange} options={requestOptions} placeholder="Seleziona richiesta..." />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Ruolo Proposto</label>
+                                            <SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Horizontal</label>
+                                            <SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal..." />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">CV Summary</label>
+                                        <textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Breve riepilogo competenze..."></textarea>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Ruolo Proposto</label>
-                                    <SearchableSelect name="roleId" value={editingInterview.roleId || ''} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona ruolo..." />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Horizontal</label>
-                                    <SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona horizontal..." />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">CV Summary</label>
-                                <textarea name="cvSummary" value={editingInterview.cvSummary || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Breve riepilogo competenze..."></textarea>
-                            </div>
-                        </div>
 
-                        {/* Dettagli Colloquio */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">event</span> Dettagli Colloquio
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div><label className="block text-sm font-medium mb-1">Data Colloquio</label><input type="date" name="interviewDate" value={editingInterview.interviewDate || ''} onChange={handleChange} className="form-input"/></div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Intervistatori</label>
-                                    <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona intervistatori..." />
+                                {/* Dettagli Colloquio */}
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">event</span> Dettagli Colloquio
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div><label className="block text-sm font-medium mb-1">Data Colloquio</label><input type="date" name="interviewDate" value={editingInterview.interviewDate || ''} onChange={handleChange} className="form-input"/></div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Intervistatori</label>
+                                            <MultiSelectDropdown name="interviewersIds" selectedValues={editingInterview.interviewersIds || []} onChange={handleMultiSelectChange} options={resourceOptions} placeholder="Seleziona intervistatori..." />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Esito e Stato */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">assignment_turned_in</span> Esito
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Feedback</label>
-                                    <select name="feedback" value={editingInterview.feedback || ''} onChange={handleChange} className="form-select">
-                                        <option value="">-</option>
-                                        {feedbackOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
+                                {/* Esito e Stato */}
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">assignment_turned_in</span> Esito
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Feedback</label>
+                                            <select name="feedback" value={editingInterview.feedback || ''} onChange={handleChange} className="form-select">
+                                                <option value="">-</option>
+                                                {feedbackOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Stato Processo</label>
+                                            <select name="status" value={editingInterview.status} onChange={handleChange} className="form-select" required>
+                                                {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Stato Hiring</label>
+                                            <select name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleChange} className="form-select">
+                                                <option value="">-</option>
+                                                {hiringStatusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        </div>
+                                        <div><label className="block text-sm font-medium mb-1">Data Ingresso Prevista</label><input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={handleChange} className="form-input"/></div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Note</label>
+                                        <textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note aggiuntive..."></textarea>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Stato Processo</label>
-                                    <select name="status" value={editingInterview.status} onChange={handleChange} className="form-select" required>
-                                        {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
+                            </>
+                        )}
+
+                        {activeModalTab === 'ratings' && (
+                            <div className="space-y-6">
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-tertiary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">code</span> Hard Skills
+                                    </h4>
+                                    <div className="space-y-1">
+                                        <StarRatingInput label="Padronanza Tecnica" value={editingInterview.ratingTechnicalMastery} onChange={(v) => handleRatingChange('ratingTechnicalMastery', v)} />
+                                        <StarRatingInput label="Problem Solving Tecnico" value={editingInterview.ratingProblemSolving} onChange={(v) => handleRatingChange('ratingProblemSolving', v)} />
+                                        <StarRatingInput label="Qualità del Metodo" value={editingInterview.ratingMethodQuality} onChange={(v) => handleRatingChange('ratingMethodQuality', v)} />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Stato Hiring</label>
-                                    <select name="hiringStatus" value={editingInterview.hiringStatus || ''} onChange={handleChange} className="form-select">
-                                        <option value="">-</option>
-                                        {hiringStatusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
+
+                                <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                    <h4 className="text-sm font-bold text-secondary mb-3 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">psychology</span> Soft Skills
+                                    </h4>
+                                    <div className="space-y-1">
+                                        <StarRatingInput label="Comprensione del Dominio" value={editingInterview.ratingDomainKnowledge} onChange={(v) => handleRatingChange('ratingDomainKnowledge', v)} />
+                                        <StarRatingInput label="Autonomia" value={editingInterview.ratingAutonomy} onChange={(v) => handleRatingChange('ratingAutonomy', v)} />
+                                        <StarRatingInput label="Comunicazione" value={editingInterview.ratingCommunication} onChange={(v) => handleRatingChange('ratingCommunication', v)} />
+                                        <StarRatingInput label="Proattività e Attitudine" value={editingInterview.ratingProactivity} onChange={(v) => handleRatingChange('ratingProactivity', v)} />
+                                        <StarRatingInput label="Team Fit" value={editingInterview.ratingTeamFit} onChange={(v) => handleRatingChange('ratingTeamFit', v)} />
+                                    </div>
                                 </div>
-                                <div><label className="block text-sm font-medium mb-1">Data Ingresso Prevista</label><input type="date" name="entryDate" value={editingInterview.entryDate || ''} onChange={handleChange} className="form-input"/></div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Note</label>
-                                <textarea name="notes" value={editingInterview.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note aggiuntive..."></textarea>
-                            </div>
-                        </div>
+                        )}
 
                     </div>
                     

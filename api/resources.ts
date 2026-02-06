@@ -51,7 +51,8 @@ const TABLE_MAPPING: Record<string, string> = {
     'resource_skills': 'resource_skills',
     'project_skills': 'project_skills',
     'contract_projects': 'contract_projects',
-    'contract_managers': 'contract_managers'
+    'contract_managers': 'contract_managers',
+    'notifications': 'notifications'
 };
 
 const VALIDATION_SCHEMAS: Record<string, any> = {
@@ -181,6 +182,30 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         webhookUrl: z.string(),
         description: z.string().optional().nullable(),
         isActive: z.boolean().optional()
+    }),
+    'interviews': z.object({
+        resourceRequestId: z.string().optional().nullable(),
+        candidateName: z.string(),
+        candidateSurname: z.string(),
+        birthDate: z.string().optional().nullable(),
+        horizontal: z.string().optional().nullable(),
+        roleId: z.string().optional().nullable(),
+        cvSummary: z.string().optional().nullable(),
+        interviewersIds: z.array(z.string()).optional().nullable(),
+        interviewDate: z.string().optional().nullable(),
+        feedback: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        hiringStatus: z.string().optional().nullable(),
+        entryDate: z.string().optional().nullable(),
+        status: z.string(),
+        ratingTechnicalMastery: z.number().optional().nullable(),
+        ratingProblemSolving: z.number().optional().nullable(),
+        ratingMethodQuality: z.number().optional().nullable(),
+        ratingDomainKnowledge: z.number().optional().nullable(),
+        ratingAutonomy: z.number().optional().nullable(),
+        ratingCommunication: z.number().optional().nullable(),
+        ratingProactivity: z.number().optional().nullable(),
+        ratingTeamFit: z.number().optional().nullable()
     })
 };
 
@@ -218,6 +243,77 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     facts: [{ name: 'Progetto', value: data.name }, { name: 'Budget', value: `${data.budget} €` }]
                 });
             }
+        } else if (method === 'PUT' && tableName === 'interviews') {
+            // Check if feedback was added/updated
+            if (data.feedback && data.feedback !== oldData?.feedback) {
+                
+                // Calculate Average Rating
+                const ratingKeys = [
+                    'ratingTechnicalMastery', 'ratingProblemSolving', 'ratingMethodQuality',
+                    'ratingDomainKnowledge', 'ratingAutonomy', 'ratingCommunication',
+                    'ratingProactivity', 'ratingTeamFit'
+                ];
+                
+                let sum = 0;
+                let count = 0;
+                const detailedFacts: { name: string, value: string }[] = [];
+
+                ratingKeys.forEach(key => {
+                    if (data[key] && Number(data[key]) > 0) {
+                        sum += Number(data[key]);
+                        count++;
+                        // Beautify key for display
+                        const readableKey = key.replace('rating', '').replace(/([A-Z])/g, ' $1').trim();
+                        detailedFacts.push({ name: readableKey, value: `${Number(data[key])}/5` });
+                    }
+                });
+
+                const average = count > 0 ? sum / count : 0;
+                const stars = "⭐".repeat(Math.round(average)) + "☆".repeat(5 - Math.round(average));
+                
+                // Determine Chart Color based on average
+                const chartColor = average >= 4 ? '#4caf50' : average >= 3 ? '#ff9800' : '#f44336';
+                
+                // Construct QuickChart URL for Radial Gauge
+                const chartConfig = {
+                    type: 'radialGauge',
+                    data: {
+                        datasets: [{
+                            data: [average],
+                            backgroundColor: chartColor
+                        }]
+                    },
+                    options: {
+                        domain: [0, 5],
+                        trackColor: '#e0e0e0',
+                        centerPercentage: 80,
+                        centerArea: {
+                            text: average.toFixed(1),
+                            fontColor: chartColor,
+                            fontSize: 50,
+                            fontFamily: 'Arial',
+                            fontWeight: 'bold'
+                        }
+                    }
+                };
+                
+                const encodedConfig = encodeURIComponent(JSON.stringify(chartConfig));
+                const imageUrl = `https://quickchart.io/chart?c=${encodedConfig}&w=300&h=300`;
+
+                await notify(client, 'INTERVIEW_FEEDBACK', {
+                    title: `Feedback Inserito: ${data.candidateName} ${data.candidateSurname}`,
+                    color: average >= 3.5 ? 'Good' : average >= 2.5 ? 'Warning' : 'Attention',
+                    imageUrl: imageUrl,
+                    imageCaption: `Valutazione Media: ${average.toFixed(1)} su 5`,
+                    facts: [
+                        { name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` },
+                        { name: 'Esito', value: data.feedback },
+                        { name: 'Media Voto', value: `${stars} (${average.toFixed(1)})` },
+                        { name: 'Stato', value: data.status || 'N/A' }
+                    ],
+                    detailedFacts: detailedFacts
+                });
+            }
         }
     } catch (err) { console.error("Notification trigger failed", err); }
 };
@@ -231,6 +327,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
+        // --- SPECIAL NOTIFICATION HANDLING ---
+        if (entity === 'notifications') {
+            if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+            
+            // Get Resource ID for the current user
+            const { rows: userRows } = await client.query('SELECT resource_id FROM app_users WHERE id = $1', [currentUser.id]);
+            const userResourceId = userRows[0]?.resource_id;
+
+            if (!userResourceId && currentUser.role !== 'ADMIN') {
+                return res.status(403).json({ error: 'User not linked to a resource.' });
+            }
+
+            if (method === 'GET') {
+                // If admin, allows seeing all? Usually notifications are personal. 
+                // Let's restrict to personal unless explicitly querying for audit (which handles its own query).
+                // Or if it's the general notification fetch loop.
+                const query = `SELECT * FROM notifications WHERE recipient_resource_id = $1 ORDER BY created_at DESC`;
+                const { rows } = await client.query(query, [userResourceId]);
+                return res.status(200).json(rows.map(toCamelAndNormalize));
+            }
+
+            if (method === 'PUT' && action === 'mark_read') {
+                if (id) {
+                    // Mark single as read
+                    await client.query(`UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_resource_id = $2`, [id, userResourceId]);
+                    return res.status(200).json({ success: true });
+                } else {
+                    // Mark ALL as read for this user
+                    await client.query(`UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = $1`, [userResourceId]);
+                    return res.status(200).json({ success: true });
+                }
+            }
+            // Standard handlers below might intervene if we don't return here, but for 'notifications' we usually only GET or PUT(mark_read).
+            // Creating notifications is internal.
+        }
+        // -------------------------------------
+
         if (method === 'GET') {
             const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs'];
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
@@ -306,7 +439,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(409).json({ error: "Conflict: Data has been modified by another user. Please refresh and try again." });
             }
 
-            await triggerNotification(client, 'PUT', tableName as string, id as string, validatedBody, oldDataRes.rows[0]);
+            await triggerNotification(client, 'PUT', tableName as string, id as string, validatedBody, toCamelAndNormalize(oldDataRes.rows[0]));
             return res.status(200).json({ id, version: Number(version) + 1, ...validatedBody });
         }
 
