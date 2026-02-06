@@ -207,6 +207,10 @@ const SkillsPage: React.FC = () => {
 
             if ('id' in editingSkill && editingSkill.id) {
                 payload.id = editingSkill.id;
+                // FIX: Add version
+                if ('version' in editingSkill) {
+                    payload.version = (editingSkill as any).version;
+                }
                 await updateSkill(payload as Skill);
                 addToast('Competenza aggiornata.', 'success');
             } else {

@@ -4,7 +4,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+// Fix: Explicitly cast JWT_SECRET to string | undefined to avoid unknown type issues in strict mode
+const JWT_SECRET = process.env.JWT_SECRET as string | undefined;
 
 const verifyOperational = (req: VercelRequest): boolean => {
     const authHeader = req.headers.authorization;
@@ -12,7 +13,9 @@ const verifyOperational = (req: VercelRequest): boolean => {
     const token = authHeader.split(' ')[1];
     if (!token) return false;
     try {
-        const decoded = jwt.verify(token, String(JWT_SECRET || '')) as any;
+        // Fix: Ensure secret is passed as string to jwt.verify
+        const secret = (JWT_SECRET || '') as string;
+        const decoded = jwt.verify(token, secret) as any;
         return ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'].includes(decoded.role);
     } catch (e) { return false; }
 };
@@ -227,8 +230,9 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 const importStaffing = async (client: any, body: any, warnings: string[]) => {
     const { staffing } = body;
     if (!Array.isArray(staffing) || staffing.length === 0) return;
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
+    // Fix: Explicitly type Maps to avoid unknown type issues
+    const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const projectMap = new Map<string, string>((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
     const assignmentMap = new Map<string, string>();
     (await client.query('SELECT id, resource_id, project_id FROM assignments')).rows.forEach((a: any) => assignmentMap.set(`${a.resource_id}-${a.project_id}`, a.id));
     
@@ -269,9 +273,10 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
     const { resource_requests } = body;
     if (!Array.isArray(resource_requests)) return;
     
-    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    // Fix: Explicitly type Maps to avoid unknown type issues
+    const projectMap = new Map<string, string>((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
+    const roleMap = new Map<string, string>((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
 
     const requestRows: any[][] = [];
     
@@ -318,15 +323,16 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
         ]);
     }
     
-    await executeBulkInsert(client, 'resource_requests', ['id', 'request_code', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_tech_request', 'is_osr_open', 'os_rnumber', 'notes', 'status'], requestRows);
+    await executeBulkInsert(client, 'resource_requests', ['id', 'request_code', 'project_id', 'role_id', 'requestor_id', 'start_date', 'end_date', 'commitment_percentage', 'is_urgent', 'is_tech_request', 'is_osr_open', 'osr_number', 'notes', 'status'], requestRows);
 };
 
 const importInterviews = async (client: any, body: any, warnings: string[]) => {
     const { interviews } = body;
     if (!Array.isArray(interviews)) return;
 
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    // Fix: Explicitly type Maps to avoid unknown type issues
+    const roleMap = new Map<string, string>((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
     
     const interviewRows: any[][] = [];
 
@@ -384,8 +390,9 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
 
     // 2. Import Associations
     if (Array.isArray(associations)) {
-        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
+        // Fix: Explicitly type Maps to avoid unknown type issues
+        const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+        const skillMap = new Map<string, string>((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
         
         const assocRows: any[][] = [];
         
@@ -417,8 +424,9 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     const { leaves } = body;
     if (!Array.isArray(leaves)) return;
 
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const typeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), t.id]));
+    // Fix: Explicitly type Maps and use safeString to avoid unknown type issues on line 346
+    const resourceMap = new Map<string, string>((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), safeString(r.id)]));
+    const typeMap = new Map<string, string>((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), safeString(t.id)]));
     
     const leaveRows: any[][] = [];
     
@@ -560,13 +568,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 // Extra check: only ADMIN can import permissions
                 try {
                     const authHeader = req.headers['authorization'];
-                    const authHeaderStr = Array.isArray(authHeader) ? authHeader[0] : (authHeader || '');
+                    const authHeaderStr = (Array.isArray(authHeader) ? authHeader[0] : authHeader) || '';
                     
                     if (!authHeaderStr) throw new Error('No auth header');
                     
                     const tokenParts = authHeaderStr.split(' ');
                     const token = tokenParts.length > 1 ? tokenParts[1] : '';
-                    const secret = String(JWT_SECRET || '');
+                    // Fix: Use the casted JWT_SECRET and provide fallback to satisfy type requirement
+                    const secret = (JWT_SECRET || '') as string;
                     const decoded = jwt.verify(token, secret) as any;
                     
                     if (decoded.role !== 'ADMIN') throw new Error('Not Admin');

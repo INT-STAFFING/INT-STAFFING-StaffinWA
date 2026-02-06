@@ -204,6 +204,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
+        // FIX: Lazy loading LeavePage using its default export (added in pages/LeavePage.tsx)
         component: createLazyPage(() => import('./pages/LeavePage')),
     },
     {

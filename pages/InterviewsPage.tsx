@@ -34,20 +34,9 @@ const calculateAge = (birthDate: string | null): number | null => {
 };
 
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
-const normalizeInterviewPayload = <T extends Interview | Omit<Interview, 'id'>>(interview: T): T => ({
-  ...interview,
-  resourceRequestId: interview.resourceRequestId || null,
-  roleId: interview.roleId || null,
-  birthDate: interview.birthDate || null,
-  interviewDate: interview.interviewDate || null,
-  entryDate: interview.entryDate || null,
-  feedback: interview.feedback || null,
-  hiringStatus: interview.hiringStatus || null,
-  interviewersIds: interview.interviewersIds && interview.interviewersIds.length > 0 ? interview.interviewersIds : null
-});
 
 const buildInterviewPayload = (interview: Interview | Omit<Interview, 'id'>): Interview | Omit<Interview, 'id'> => {
-  const basePayload: Omit<Interview, 'id'> = {
+  const basePayload: any = {
     resourceRequestId: interview.resourceRequestId || null,
     candidateName: interview.candidateName,
     candidateSurname: interview.candidateSurname,
@@ -63,6 +52,11 @@ const buildInterviewPayload = (interview: Interview | Omit<Interview, 'id'>): In
     entryDate: interview.entryDate || null,
     status: interview.status
   };
+
+  // Preserve version for optimistic locking
+  if (interview.version !== undefined) {
+    basePayload.version = interview.version;
+  }
 
   if ('id' in interview) {
     return { id: interview.id, ...basePayload };
@@ -273,9 +267,9 @@ const InterviewsPage: React.FC = () => {
     e.preventDefault();
     if (!editingInterview) return;
     try {
-      const normalizedInterview = normalizeInterviewPayload(buildInterviewPayload(editingInterview));
-      if ('id' in normalizedInterview) await updateInterview(normalizedInterview as Interview);
-      else await addInterview(normalizedInterview as Omit<Interview, 'id'>);
+      const payload = buildInterviewPayload(editingInterview);
+      if ('id' in payload) await updateInterview(payload as Interview);
+      else await addInterview(payload as Omit<Interview, 'id'>);
       addToast('Colloquio salvato correttamente.', 'success');
       handleCloseModal();
     } catch (err) {

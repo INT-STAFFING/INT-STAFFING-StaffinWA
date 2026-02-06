@@ -2,8 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { LeaveRequest, LeaveStatus } from '../types';
-import { isHoliday, getWorkingDaysBetween, formatDateFull } from '../utils/dateUtils';
+import { LeaveRequest, LeaveStatus, LeaveType } from '../types';
+import { isHoliday, getWorkingDaysBetween, formatDateFull, formatDate } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -12,9 +12,13 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { ExportButton } from '@/components/shared/ExportButton';
 
+/**
+ * @file LeavePage.tsx
+ * @description Pagina per la gestione delle richieste di assenza (ferie, permessi, malattie).
+ */
 
 const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id'>): LeaveRequest | Omit<LeaveRequest, 'id'> => {
-    const basePayload: Omit<LeaveRequest, 'id'> = {
+    const basePayload: any = {
         resourceId: request.resourceId,
         typeId: request.typeId,
         startDate: request.startDate,
@@ -25,6 +29,11 @@ const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id
         notes: request.notes ?? '',
         isHalfDay: request.isHalfDay ?? false,
     };
+
+    // Preserve version for optimistic locking
+    if (request.version !== undefined) {
+        basePayload.version = request.version;
+    }
 
     if ('id' in request) {
         return { id: request.id, ...basePayload };
@@ -232,7 +241,7 @@ const LeavePage: React.FC = () => {
         }
     };
 
-    const handleQuickAction = async (req: typeof enrichedRequests[0], newStatus: LeaveStatus) => {
+    const handleQuickAction = async (req: any, newStatus: LeaveStatus) => {
         try {
             const payload: LeaveRequest = {
                 id: req.id,
@@ -241,10 +250,11 @@ const LeavePage: React.FC = () => {
                 startDate: req.startDate,
                 endDate: req.endDate,
                 status: newStatus,
-                managerId: user?.resourceId, // L'utente corrente agisce come manager
+                managerId: user?.resourceId || null,
                 approverIds: req.approverIds,
                 notes: req.notes,
-                isHalfDay: req.isHalfDay
+                isHalfDay: req.isHalfDay,
+                version: req.version
             };
             await updateLeaveRequest(payload);
         } catch (e) {
@@ -282,54 +292,43 @@ const LeavePage: React.FC = () => {
         { value: 'REJECTED', label: 'Rifiutata' }
     ];
 
-    const columns: ColumnDef<typeof enrichedRequests[0]>[] = [
+    const columns: ColumnDef<any>[] = [
         { header: 'Risorsa', sortKey: 'resourceName', cell: r => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.resourceName}</span> },
         { header: 'Tipologia', sortKey: 'typeName', cell: r => (
             <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: `${r.typeColor}30`, color: '#191c1e' }}>
-                <span className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: r.typeColor }}></span>
                 {r.typeName}
             </span>
         )},
-        { header: 'Periodo', sortKey: 'startDate', cell: r => <span className="text-sm">{formatDateFull(r.startDate)} - {formatDateFull(r.endDate)}</span> },
-        { header: 'Giorni', sortKey: 'duration', cell: r => <span className="text-sm font-semibold">{r.duration} gg</span> },
+        { header: 'Inizio', sortKey: 'startDate', cell: r => formatDateFull(r.startDate) },
+        { header: 'Fine', sortKey: 'endDate', cell: r => formatDateFull(r.endDate) },
+        { header: 'GG', sortKey: 'duration', cell: r => <span className="font-bold">{r.duration}</span> },
         { header: 'Stato', sortKey: 'status', cell: r => (
-            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                r.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' :
-                r.status === 'REJECTED' ? 'bg-error-container text-on-error-container' :
-                'bg-yellow-container text-on-yellow-container'
-            }`}>
-                {r.status === 'PENDING' ? 'In Attesa' : r.status === 'APPROVED' ? 'Approvata' : 'Rifiutata'}
+            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${r.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : r.status === 'REJECTED' ? 'bg-error-container text-on-error-container' : 'bg-yellow-container text-on-yellow-container'}`}>
+                {r.status}
             </span>
         )},
     ];
 
-    const renderRow = (req: typeof enrichedRequests[0]) => {
-        const canApprove = req.status === 'PENDING' && (isAdmin || (user?.resourceId && req.approverIds?.includes(user.resourceId)));
-        const isUpdating = isActionLoading('updateLeaveRequest');
+    const renderRow = (req: any) => {
+        const canApprove = !isAdmin && req.status === 'PENDING' && req.approverIds?.includes(user?.resourceId || '');
+        const canEdit = isAdmin || (req.resourceId === user?.resourceId && req.status === 'PENDING');
+        const isSaving = isActionLoading(`updateLeaveRequest-${req.id}`);
 
         return (
-            <tr key={req.id} className="group hover:bg-surface-container">
-                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit text-sm text-on-surface-variant">{col.cell(req)}</td>)}
+            <tr key={req.id} className="hover:bg-surface-container-low transition-colors">
+                {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant bg-inherit">{col.cell(req)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                    <div className="flex items-center justify-end space-x-2">
+                    <div className="flex items-center justify-end gap-2">
                         {canApprove && (
                             <>
-                                <button onClick={() => handleQuickAction(req, 'APPROVED')} disabled={isUpdating} className="p-2 rounded-full hover:bg-tertiary-container text-tertiary" title="Approva Rapido">
-                                    <span className="material-symbols-outlined">check</span>
-                                </button>
-                                <button onClick={() => handleQuickAction(req, 'REJECTED')} disabled={isUpdating} className="p-2 rounded-full hover:bg-error-container text-error" title="Rifiuta Rapido">
-                                    <span className="material-symbols-outlined">close</span>
-                                </button>
+                                <button onClick={() => handleQuickAction(req, 'APPROVED')} disabled={isSaving} className="p-2 rounded-full text-tertiary hover:bg-tertiary-container transition-colors" title="Approva"><span className="material-symbols-outlined">check_circle</span></button>
+                                <button onClick={() => handleQuickAction(req, 'REJECTED')} disabled={isSaving} className="p-2 rounded-full text-error hover:bg-error-container transition-colors" title="Rifiuta"><span className="material-symbols-outlined">cancel</span></button>
                             </>
                         )}
-                        {(isAdmin || req.resourceId === user?.resourceId) && req.status === 'PENDING' && (
+                        {canEdit && (
                             <>
-                                <button onClick={() => openEditRequestModal(req)} className="p-2 rounded-full hover:bg-surface-container text-primary" title="Modifica">
-                                    <span className="material-symbols-outlined">edit</span>
-                                </button>
-                                <button onClick={() => setRequestToDelete(req)} className="p-2 rounded-full hover:bg-surface-container text-error" title="Elimina">
-                                    <span className="material-symbols-outlined">delete</span>
-                                </button>
+                                <button onClick={() => openEditRequestModal(req)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
+                                <button onClick={() => setRequestToDelete(req)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-error transition-colors" title="Elimina"><span className="material-symbols-outlined">delete</span></button>
                             </>
                         )}
                     </div>
@@ -338,228 +337,216 @@ const LeavePage: React.FC = () => {
         );
     };
 
-    const renderMobileCard = (req: typeof enrichedRequests[0]) => (
-        <div key={req.id} className={`p-4 rounded-lg shadow-md bg-surface-container border-l-4 mb-4 ${req.status === 'APPROVED' ? 'border-tertiary' : req.status === 'REJECTED' ? 'border-error' : 'border-yellow-500'}`}>
-            <div className="flex justify-between items-start">
-                <div>
-                    <h3 className="font-bold text-lg text-on-surface">{req.resourceName}</h3>
-                    <span className="text-xs font-medium bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">{req.typeName}</span>
+    const renderMobileCard = (req: any) => {
+        const canApprove = !isAdmin && req.status === 'PENDING' && req.approverIds?.includes(user?.resourceId || '');
+        const canEdit = isAdmin || (req.resourceId === user?.resourceId && req.status === 'PENDING');
+
+        return (
+            <div key={req.id} className="bg-surface rounded-2xl shadow p-4 border border-outline-variant flex flex-col gap-3">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-on-surface">{req.resourceName}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="w-2 h-2 rounded-full" style={{backgroundColor: req.typeColor}}></span>
+                            <span className="text-xs text-on-surface-variant font-medium">{req.typeName}</span>
+                        </div>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${req.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-yellow-container text-on-yellow-container'}`}>{req.status}</span>
                 </div>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    req.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' :
-                    req.status === 'REJECTED' ? 'bg-error-container text-on-error-container' :
-                    'bg-yellow-container text-on-yellow-container'
-                }`}>{req.status}</span>
+                <div className="text-xs font-mono text-on-surface-variant bg-surface-container-low p-2 rounded-lg">
+                    {formatDateFull(req.startDate)} → {formatDateFull(req.endDate)} ({req.duration}gg)
+                </div>
+                <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant">
+                    {canApprove && (
+                        <div className="flex gap-2 mr-auto">
+                            <button onClick={() => handleQuickAction(req, 'APPROVED')} className="text-tertiary font-bold text-xs uppercase">Approva</button>
+                            <button onClick={() => handleQuickAction(req, 'REJECTED')} className="text-error font-bold text-xs uppercase">Rifiuta</button>
+                        </div>
+                    )}
+                    {canEdit && (
+                        <>
+                            <button onClick={() => openEditRequestModal(req)} className="text-primary font-bold text-xs uppercase">Modifica</button>
+                            <button onClick={() => setRequestToDelete(req)} className="text-error font-bold text-xs uppercase">Elimina</button>
+                        </>
+                    )}
+                </div>
             </div>
-            <div className="mt-2 text-sm text-on-surface-variant">
-                <p>{formatDateFull(req.startDate)} - {formatDateFull(req.endDate)}</p>
-                <p className="font-semibold">{req.duration} gg</p>
-            </div>
-            <div className="flex justify-end gap-2 mt-2 pt-2 border-t border-outline-variant">
-                <button onClick={() => openEditRequestModal(req)} className="text-primary font-medium text-sm">Modifica</button>
-                <button onClick={() => setRequestToDelete(req)} className="text-error font-medium text-sm">Elimina</button>
-            </div>
-        </div>
-    );
+        );
+    };
 
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({ ...f, resourceId: v }))} options={resourceOptions} placeholder="Tutte le Risorse" />
-            <SearchableSelect name="typeId" value={filters.typeId} onChange={(_, v) => setFilters(f => ({ ...f, typeId: v }))} options={typeOptions} placeholder="Tutti i Tipi" />
-            <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full w-fit">
-                <button onClick={() => setView('table')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'table' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Tabella</button>
-                <button onClick={() => setView('calendar')} className={`px-3 py-1 text-sm font-medium rounded-full capitalize ${view === 'calendar' ? 'bg-surface text-primary shadow' : 'text-on-surface-variant'}`}>Calendario</button>
+            <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
+            <SearchableSelect name="typeId" value={filters.typeId} onChange={(_, v) => setFilters(f => ({...f, typeId: v}))} options={typeOptions} placeholder="Tutte le Tipologie"/>
+            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
+                <ExportButton data={exportData} title="Richieste Assenza" />
+                <button onClick={() => setFilters({ resourceId: '', typeId: '', status: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold hover:opacity-90">Reset Filtri</button>
             </div>
-            <button onClick={() => setFilters({ resourceId: '', typeId: '', status: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
 
     return (
-        <div className="h-full flex flex-col">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div 
-                    onClick={() => handleFilterClick('PENDING')} 
-                    className={`cursor-pointer bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-yellow-500 transition-all ${filters.status === 'PENDING' ? 'ring-2 ring-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' : 'hover:shadow-md'}`}
-                >
-                    <p className="text-sm text-on-surface-variant">In Attesa</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.pending}</p>
-                </div>
-                <div 
-                    onClick={() => handleFilterClick('APPROVED')} 
-                    className={`cursor-pointer bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-tertiary transition-all ${filters.status === 'APPROVED' ? 'ring-2 ring-tertiary bg-tertiary-container/20' : 'hover:shadow-md'}`}
-                >
-                    <p className="text-sm text-on-surface-variant">Approvate</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.approved}</p>
-                </div>
-                <div 
-                    onClick={() => handleFilterClick('REJECTED')} 
-                    className={`cursor-pointer bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error transition-all ${filters.status === 'REJECTED' ? 'ring-2 ring-error bg-error-container/20' : 'hover:shadow-md'}`}
-                >
-                    <p className="text-sm text-on-surface-variant">Rifiutate</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.rejected}</p>
-                </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
-                    <p className="text-sm text-on-surface-variant">Assenti Oggi</p>
-                    <p className="text-2xl font-bold text-on-surface">{kpis.onLeaveToday}</p>
+        <div className="space-y-6 pb-20 md:pb-0">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-surface-container p-1 rounded-full">
+                        <button onClick={() => setView('table')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'table' ? 'bg-surface shadow text-primary' : 'text-on-surface-variant'}`}>Tabella</button>
+                        <button onClick={() => setView('calendar')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'calendar' ? 'bg-surface shadow text-primary' : 'text-on-surface-variant'}`}>Calendario</button>
+                    </div>
+                    <button onClick={openNewRequestModal} className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg hover:opacity-90 flex items-center gap-2">
+                        <span className="material-symbols-outlined">add</span> Nuova Richiesta
+                    </button>
                 </div>
             </div>
 
-            {view === 'table' && (
-                <DataTable<typeof enrichedRequests[0]>
-                    title="Gestione Assenze"
-                    addNewButtonLabel="Nuova Richiesta"
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div onClick={() => handleFilterClick('PENDING')} className={`p-4 rounded-3xl border transition-all cursor-pointer ${filters.status === 'PENDING' ? 'bg-yellow-container border-yellow-500 scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">In Attesa</p>
+                    <p className="text-3xl font-black text-on-surface">{kpis.pending}</p>
+                </div>
+                <div onClick={() => handleFilterClick('APPROVED')} className={`p-4 rounded-3xl border transition-all cursor-pointer ${filters.status === 'APPROVED' ? 'bg-tertiary-container border-tertiary scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Approvate</p>
+                    <p className="text-3xl font-black text-on-surface">{kpis.approved}</p>
+                </div>
+                <div className="p-4 bg-primary-container/20 rounded-3xl border border-primary/20">
+                    <p className="text-xs font-bold text-primary uppercase tracking-widest">Assenti Oggi</p>
+                    <p className="text-3xl font-black text-primary">{kpis.onLeaveToday}</p>
+                </div>
+                <div onClick={() => handleFilterClick('REJECTED')} className={`p-4 rounded-3xl border transition-all cursor-pointer ${filters.status === 'REJECTED' ? 'bg-error-container border-error scale-105' : 'bg-surface border-outline-variant hover:bg-surface-container'}`}>
+                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Rifiutate</p>
+                    <p className="text-3xl font-black text-on-surface">{kpis.rejected}</p>
+                </div>
+            </div>
+
+            {view === 'calendar' ? (
+                <div className="bg-surface rounded-[2.5rem] shadow-xl border border-outline-variant overflow-hidden flex flex-col">
+                    <div className="p-6 bg-surface-container-low border-b border-outline-variant flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl font-bold capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
+                            <div className="flex gap-1">
+                                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
+                                <button onClick={handleToday} className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-full border border-outline hover:bg-surface-container">Oggi</button>
+                                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-surface-container"><span className="material-symbols-outlined">chevron_right</span></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-7 gap-px bg-outline-variant border-b border-outline-variant">
+                        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(d => <div key={d} className="bg-surface-container-high py-2 text-center text-[10px] font-black uppercase text-on-surface-variant tracking-widest">{d}</div>)}
+                    </div>
+                    <div className="grid grid-cols-7 auto-rows-fr flex-grow bg-outline-variant">
+                        {calendarGrid.map((day, idx) => (
+                            <div key={idx} className={`min-h-[120px] p-2 bg-surface flex flex-col gap-1 ${!day.isCurrentMonth ? 'opacity-30' : ''} ${day.isHoliday ? 'bg-error-container/5' : ''}`}>
+                                <span className={`text-xs font-bold ${day.isWeekend || day.isHoliday ? 'text-error' : 'text-on-surface-variant'}`}>{day.date.getUTCDate()}</span>
+                                <div className="space-y-1 overflow-y-auto max-h-[100px] scrollbar-none">
+                                    {day.leaves.map(l => (
+                                        <div key={l.id} className="px-1.5 py-0.5 rounded text-[10px] font-bold truncate text-white" style={{backgroundColor: leaveTypes.find(t => t.id === l.typeId)?.color || '#ccc'}} title={`${l.resourceName}: ${l.typeName}`}>
+                                            {l.resourceName.split(' ')[0]}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <DataTable<any>
+                    title="Richieste di Assenza"
+                    addNewButtonLabel=""
                     data={enrichedRequests}
                     columns={columns}
                     filtersNode={filtersNode}
-                    onAddNew={openNewRequestModal}
+                    onAddNew={() => {}}
                     renderRow={renderRow}
                     renderMobileCard={renderMobileCard}
-                    headerActions={<ExportButton data={exportData} title="Gestione Assenze" />}
-                    initialSortKey="startDate"
                     isLoading={loading}
-                    tableLayout={{ dense: true, striped: true, headerSticky: true }}
-                    numActions={isAdmin ? 4 : 2}
+                    initialSortKey="startDate"
+                    // FIX: Type error boolean vs string. Using condition to match expected number type.
+                    numActions={isAdmin ? 3 : 2}
                 />
             )}
 
-            {view === 'calendar' && (
-                <>
-                    {/* Header Manuale per Vista Calendario */}
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-3xl font-bold text-on-surface">Gestione Assenze</h1>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <button onClick={openNewRequestModal} className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90 flex items-center gap-2">
-                                <span className="material-symbols-outlined">add</span> Nuova Richiesta
-                            </button>
-                            <ExportButton data={exportData} title="Gestione Assenze" />
-                        </div>
-                    </div>
-
-                    {/* Filtri Manuali per Vista Calendario */}
-                    <div className="bg-surface rounded-2xl shadow p-4 mb-6">
-                        {filtersNode}
-                    </div>
-
-                    <div className="bg-surface rounded-2xl shadow p-4 overflow-hidden">
-                        <div className="flex justify-between items-center mb-4">
-                            <button onClick={handlePrevMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_left</span></button>
-                            <h2 className="text-xl font-bold text-on-surface capitalize">{calendarDate.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
-                            <div className="flex items-center">
-                                <button onClick={handleNextMonth} className="p-2 hover:bg-surface-container rounded-full"><span className="material-symbols-outlined">chevron_right</span></button>
-                                <button onClick={handleToday} className="ml-2 px-3 py-1 text-sm bg-secondary-container text-on-secondary-container rounded-full">Oggi</button>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-px bg-outline-variant border border-outline-variant rounded-lg overflow-hidden text-sm">
-                            {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-                                <div key={day} className="bg-surface-container text-center py-2 font-bold text-on-surface-variant">{day}</div>
-                            ))}
-                            {calendarGrid.map((day, i) => (
-                                <div 
-                                    key={i} 
-                                    className={`min-h-[100px] bg-surface p-2 flex flex-col gap-1 
-                                        ${!day.isCurrentMonth ? 'bg-surface-container-low/50 text-on-surface-variant/50' : ''}
-                                        ${(day.isWeekend || day.isHoliday) ? 'bg-surface-container' : ''} 
-                                    `}
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <span className={`text-xs font-semibold ${day.dateIso === new Date().toISOString().split('T')[0] ? 'bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>{day.date.getUTCDate()}</span>
-                                        {day.isHoliday && <span className="material-symbols-outlined text-xs text-tertiary" title="Festivo">star</span>}
-                                    </div>
-                                    <div className="flex-grow overflow-y-auto space-y-1 max-h-[80px]">
-                                        {day.leaves.map(leave => (
-                                            <div 
-                                                key={leave.id} 
-                                                onClick={() => openEditRequestModal(leave)}
-                                                className="text-[10px] px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 border-l-2"
-                                                style={{ backgroundColor: `${leave.typeColor}30`, borderLeftColor: leave.typeColor, color: '#191c1e' }}
-                                                title={`${leave.resourceName} - ${leave.typeName}`}
-                                            >
-                                                {leave.resourceName}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* Edit Modal */}
+            {/* Request Modal */}
             {isModalOpen && editingRequest && (
-                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={'id' in editingRequest ? 'Modifica Richiesta' : 'Nuova Richiesta'}>
+                // FIX: Check for 'id' property existence using 'in' operator to handle union type correctly
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={'id' in editingRequest ? "Modifica Richiesta" : "Nuova Richiesta Assenza"}>
                     <form onSubmit={handleSave} className="space-y-6">
-                        {/* Sezione Dettagli Assenza */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">event_busy</span> Dettagli Assenza
-                            </h4>
-                            <div className="space-y-4">
-                                {!('id' in editingRequest) && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Risorsa Richiedente</label>
-                                        <SearchableSelect name="resourceId" value={editingRequest.resourceId} onChange={handleSelectChange} options={resourceOptions} placeholder="Seleziona risorsa..." required/>
-                                    </div>
-                                )}
+                        <div className="bg-surface-container-low p-4 rounded-3xl border border-outline-variant space-y-4">
+                            <div>
+                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Risorsa Richiedente</label>
+                                <SearchableSelect 
+                                    name="resourceId" 
+                                    value={editingRequest.resourceId} 
+                                    onChange={handleSelectChange} 
+                                    options={resourceOptions} 
+                                    required 
+                                    placeholder="Seleziona risorsa..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Tipologia Assenza</label>
+                                <SearchableSelect 
+                                    name="typeId" 
+                                    value={editingRequest.typeId} 
+                                    onChange={handleSelectChange} 
+                                    options={typeOptions} 
+                                    required 
+                                    placeholder="Seleziona tipo..."
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Tipologia Assenza</label>
-                                    <SearchableSelect name="typeId" value={editingRequest.typeId} onChange={handleSelectChange} options={typeOptions} placeholder="Seleziona tipo..." required/>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-medium mb-1">Data Inizio</label><input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input"/></div>
-                                    <div><label className="block text-sm font-medium mb-1">Data Fine</label><input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input"/></div>
-                                </div>
-                                <div className="flex items-center gap-2 bg-surface p-2 rounded border border-outline-variant">
-                                    <input type="checkbox" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox"/>
-                                    <label className="text-sm font-medium">Mezza Giornata (0.5 gg)</label>
+                                    <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Data Inizio</label>
+                                    <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium mb-1">Note / Motivazione</label>
-                                    <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea" rows={3} placeholder="Dettagli aggiuntivi..."></textarea>
+                                    <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Data Fine</label>
+                                    <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input" />
                                 </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-surface rounded-2xl border border-outline-variant">
+                                <input type="checkbox" id="halfday" name="isHalfDay" checked={editingRequest.isHalfDay} onChange={handleChange} className="form-checkbox h-5 w-5" />
+                                <label htmlFor="halfday" className="text-sm font-bold text-on-surface">Mezza Giornata</label>
                             </div>
                         </div>
 
-                        {/* Sezione Workflow Approvativo */}
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
-                            <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">fact_check</span> Workflow & Approvazione
-                            </h4>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Invia richiesta a (Manager Approvatori)</label>
-                                    <MultiSelectDropdown name="approverIds" selectedValues={editingRequest.approverIds || []} onChange={handleApproversChange} options={managerOptions} placeholder="Seleziona Manager..."/>
-                                    <p className="text-[10px] text-on-surface-variant mt-1 italic">La richiesta verrà inviata a tutti i manager selezionati.</p>
-                                </div>
-                                {isAdmin && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Stato Forzato (Admin Only)</label>
-                                        <select name="status" value={editingRequest.status} onChange={handleChange} className="form-select">
-                                            {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                        </select>
-                                    </div>
-                                )}
+                        <div className="bg-surface-container-low p-4 rounded-3xl border border-outline-variant space-y-4">
+                            <div>
+                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Richiedi Approvazione a</label>
+                                <MultiSelectDropdown 
+                                    name="approverIds" 
+                                    selectedValues={editingRequest.approverIds || []} 
+                                    onChange={handleApproversChange} 
+                                    options={managerOptions} 
+                                    placeholder="Seleziona manager..."
+                                />
+                                <p className="mt-2 text-[10px] text-on-surface-variant leading-tight">Verrà inviata una notifica a tutti gli approvatori selezionati. È necessaria una sola approvazione.</p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Note / Motivazione</label>
+                                <textarea name="notes" value={editingRequest.notes || ''} onChange={handleChange} className="form-textarea h-24" placeholder="Opzionale..." />
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
-                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 border border-outline rounded-full text-primary font-semibold transition-colors">Annulla</button>
-                            <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-6 py-2 bg-primary text-on-primary rounded-full font-semibold disabled:opacity-50 hover:opacity-90 shadow-sm">
-                                {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-5 h-5"/> : 'Invia Richiesta'}
+                        <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-full font-bold text-on-surface-variant hover:bg-surface-container">Annulla</button>
+                            <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center gap-2">
+                                {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-4 h-4"/> : 'Invia Richiesta'}
                             </button>
                         </div>
                     </form>
                 </Modal>
             )}
 
+            {/* Delete Modal */}
             {requestToDelete && (
-                <ConfirmationModal
+                <ConfirmationModal 
                     isOpen={!!requestToDelete}
                     onClose={() => setRequestToDelete(null)}
                     onConfirm={handleDelete}
-                    title="Elimina Richiesta"
-                    message="Sei sicuro di voler eliminare questa richiesta? L'azione è irreversibile."
+                    title="Annulla Richiesta"
+                    message="Sei sicuro di voler eliminare questa richiesta di assenza? Se già approvata, i giorni verranno ripristinati nel calcolo della capacità."
                     isConfirming={isActionLoading(`deleteLeaveRequest-${requestToDelete.id}`)}
                 />
             )}

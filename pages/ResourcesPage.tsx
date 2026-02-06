@@ -31,11 +31,9 @@ const ResourcesPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     
-    // Filters and Debounced Filters
     const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active', tutorId: '' });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
 
-    // Debounce Effect
     useEffect(() => {
         const handler = setTimeout(() => {
             setDebouncedFilters(filters);
@@ -45,14 +43,12 @@ const ResourcesPage: React.FC = () => {
 
     const [showOnlyUnassigned, setShowOnlyUnassigned] = useState(false);
     
-    // State for skills management in modal
     const [selectedSkillDetails, setSelectedSkillDetails] = useState<{ skillId: string, acquisitionDate: string, expirationDate: string, level: number }[]>([]);
     const [tempSelectedSkillId, setTempSelectedSkillId] = useState<string>('');
 
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    // Deep Linking Logic
     useEffect(() => {
         const filter = searchParams.get('filter');
         const editId = searchParams.get('editId');
@@ -65,9 +61,7 @@ const ResourcesPage: React.FC = () => {
         if (editId && !isModalOpen && resources.length > 0) {
             const target = resources.find(r => r.id === editId);
             if (target) {
-                // Ensure we open modal only if it's found
                 openModalForEdit(target);
-                // Clear param to prevent reopen on refresh
                 setSearchParams({});
             }
         }
@@ -87,16 +81,13 @@ const ResourcesPage: React.FC = () => {
         dailyCost: 0
     };
 
-    // KPI Calculations
     const kpis = useMemo(() => {
         const activeResources = resources.filter(r => !r.resigned);
         const totalActive = activeResources.length;
-        
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
         const benchCount = activeResources.filter(r => !assignedResourceIds.has(r.id!)).length;
         
         const totalCost = activeResources.reduce((sum, r) => {
-            // Priority: Resource specific cost > Role cost
             if (r.dailyCost && r.dailyCost > 0) return sum + r.dailyCost;
             const role = roles.find(role => role.id === r.roleId);
             return sum + (role?.dailyCost || 0);
@@ -110,14 +101,10 @@ const ResourcesPage: React.FC = () => {
         const now = new Date();
         const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
         const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
-        
         const effectiveLastDay = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay ? new Date(resource.lastDayOfWork) : lastDay;
         
-        // Use getTime for numeric comparison of Dates
         if(firstDay.getTime() > effectiveLastDay.getTime()) return 0;
-        
         const workingDaysInMonth = getWorkingDaysBetween(firstDay, effectiveLastDay, companyCalendar, resource.location);
-
         if (workingDaysInMonth === 0) return 0;
         const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
         if (resourceAssignments.length === 0) return 0;
@@ -128,9 +115,7 @@ const ResourcesPage: React.FC = () => {
             if (assignmentAllocations) {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = new Date(dateStr);
-                    // Use UTC comparison
                     if (allocDate.getTime() >= firstDay.getTime() && allocDate.getTime() <= effectiveLastDay.getTime()) {
-                         // Check holiday and weekends using UTC methods
                          if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
                         }
@@ -141,22 +126,17 @@ const ResourcesPage: React.FC = () => {
         return Math.round((totalPersonDays / workingDaysInMonth) * 100);
     }, [assignments, allocations, companyCalendar]);
     
-    // Uses debouncedFilters for expensive filtering
     const dataForTable = useMemo<EnrichedResource[]>(() => {
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
 
         const filtered = resources.filter(resource => {
-            if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) {
-                return false;
-            }
-            // Use debouncedFilters instead of filters
+            if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) return false;
             const nameMatch = resource.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
             const roleMatch = debouncedFilters.roleId ? resource.roleId === debouncedFilters.roleId : true;
             const horizontalMatch = debouncedFilters.horizontal ? resource.horizontal === debouncedFilters.horizontal : true;
             const locationMatch = debouncedFilters.location ? resource.location === debouncedFilters.location : true;
             const statusMatch = debouncedFilters.status === 'all' ? true : debouncedFilters.status === 'active' ? !resource.resigned : resource.resigned;
             const tutorMatch = debouncedFilters.tutorId ? resource.tutorId === debouncedFilters.tutorId : true;
-            
             return nameMatch && roleMatch && horizontalMatch && locationMatch && statusMatch && tutorMatch;
         });
 
@@ -166,8 +146,6 @@ const ResourcesPage: React.FC = () => {
             const hireDate = new Date(resource.hireDate);
             const seniority = !isNaN(hireDate.getTime()) ? (new Date().getTime() - hireDate.getTime()) / (1000 * 3600 * 24 * 365.25) : 0;
             const tutor = resources.find(r => r.id === resource.tutorId);
-
-            // Cost Logic: Resource Specific > Role Standard
             const actualCost = (resource.dailyCost && resource.dailyCost > 0) ? resource.dailyCost : (role?.dailyCost || 0);
 
             return {
@@ -228,8 +206,6 @@ const ResourcesPage: React.FC = () => {
             lastDayOfWork: resource.lastDayOfWork ? resource.lastDayOfWork.split('T')[0] : null,
         };
         setEditingResource(formattedResource); 
-        
-        // Pre-load existing skills with dates
         const currentSkills = resourceSkills
             .filter(rs => rs.resourceId === resource.id)
             .map(rs => ({
@@ -240,7 +216,6 @@ const ResourcesPage: React.FC = () => {
             }));
         setSelectedSkillDetails(currentSkills);
         setTempSelectedSkillId('');
-        
         setIsModalOpen(true); 
         handleCancelInlineEdit(); 
     };
@@ -250,48 +225,48 @@ const ResourcesPage: React.FC = () => {
         e.preventDefault();
         if (!editingResource) return;
 
-        // Validazione Manuale
         if (!editingResource.name || !editingResource.email || !editingResource.roleId || !editingResource.horizontal || !editingResource.location) {
-            addToast('Compila tutti i campi obbligatori (Nome, Email, Ruolo, Horizontal, Sede).', 'error');
+            addToast('Compila tutti i campi obbligatori.', 'error');
             return;
         }
 
-        // Sanitizzazione Payload: rimuove campi extra derivanti da EnrichedResource (es. roleName)
         const resourcePayload: any = {
             name: editingResource.name,
             email: editingResource.email,
             roleId: editingResource.roleId,
             horizontal: editingResource.horizontal,
             location: editingResource.location,
-            hireDate: editingResource.hireDate || null, // Converti stringa vuota in null
-            workSeniority: editingResource.workSeniority || 0,
-            maxStaffingPercentage: editingResource.maxStaffingPercentage,
-            resigned: editingResource.resigned,
-            lastDayOfWork: editingResource.lastDayOfWork || null, // Converti stringa vuota in null
-            notes: editingResource.notes,
+            hireDate: editingResource.hireDate || null,
+            workSeniority: Number(editingResource.workSeniority) || 0,
+            maxStaffingPercentage: Number(editingResource.maxStaffingPercentage) || 100,
+            resigned: !!editingResource.resigned,
+            lastDayOfWork: editingResource.lastDayOfWork || null,
+            notes: editingResource.notes || '',
             tutorId: editingResource.tutorId || null,
-            dailyCost: editingResource.dailyCost || 0
+            dailyCost: Number(editingResource.dailyCost) || 0
         };
 
-        // Se stiamo modificando, aggiungiamo l'ID
         if ('id' in editingResource && editingResource.id) {
             resourcePayload.id = editingResource.id;
         }
 
+        // Preserve version for optimistic locking
+        if (editingResource.version !== undefined) {
+            resourcePayload.version = editingResource.version;
+        }
+
         try {
             let resourceId: string;
-            if ('id' in editingResource) {
+            if ('id' in editingResource && editingResource.id) {
                 await updateResource(resourcePayload as Resource);
-                resourceId = editingResource.id!;
+                resourceId = editingResource.id;
             } else {
                 const newResource = await addResource(resourcePayload as Omit<Resource, 'id'>);
                 resourceId = newResource.id!;
             }
 
-            // Update Skills
             const oldSkills = resourceSkills.filter(rs => rs.resourceId === resourceId).map(rs => rs.skillId);
             const currentSkillIds = selectedSkillDetails.map(s => s.skillId);
-            
             const toAddOrUpdate = selectedSkillDetails;
             const toRemove = oldSkills.filter(id => !currentSkillIds.includes(id));
             
@@ -301,7 +276,7 @@ const ResourcesPage: React.FC = () => {
                     skillId: detail.skillId, 
                     acquisitionDate: detail.acquisitionDate || null, 
                     expirationDate: detail.expirationDate || null,
-                    level: detail.level
+                    level: Number(detail.level) || 1
                 })),
                 ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
             ]);
@@ -333,30 +308,18 @@ const ResourcesPage: React.FC = () => {
         setSelectedSkillDetails(prev => prev.map(s => s.skillId === skillId ? { ...s, level: parseInt(value, 10) } : s));
     };
 
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         if (editingResource) {
             const target = e.target as HTMLInputElement;
             const { name, value, type } = target;
             const checked = target.checked;
-    
             const numericFields = ['workSeniority', 'maxStaffingPercentage', 'dailyCost'];
-            
             let newResourceState = { ...editingResource };
-    
             if (type === 'checkbox') {
-                newResourceState = {
-                    ...newResourceState,
-                    [name]: checked,
-                };
-                if (name === 'resigned' && !checked) {
-                    newResourceState.lastDayOfWork = null;
-                }
+                newResourceState = { ...newResourceState, [name]: checked };
+                if (name === 'resigned' && !checked) newResourceState.lastDayOfWork = null;
             } else {
-                newResourceState = {
-                    ...newResourceState,
-                    [name]: numericFields.includes(name) ? (value === '' ? undefined : parseFloat(value)) : value,
-                };
+                newResourceState = { ...newResourceState, [name]: numericFields.includes(name) ? (value === '' ? 0 : parseFloat(value)) : value };
             }
             setEditingResource(newResourceState);
         }
@@ -399,15 +362,13 @@ const ResourcesPage: React.FC = () => {
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [resources]);
 
-
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
         { header: 'Costo (€)', sortKey: 'dailyCost', cell: r => <span className="text-sm text-on-surface-variant">{formatCurrency(r.dailyCost)}</span> },
         { header: 'Sede', sortKey: 'location', cell: r => <span className="text-sm text-on-surface-variant">{r.location}</span> },
-        { header: 'Tutor', sortKey: 'tutorName', cell: r => <span className="text-sm text-on-surface-variant">{r.tutorName}</span> },
+        { header: 'People Lead', sortKey: 'tutorName', cell: r => <span className="text-sm text-on-surface-variant">{r.tutorName}</span> },
         { header: 'Stato', sortKey: 'resigned', cell: r => <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${r.resigned ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>{r.resigned ? 'Dimesso' : 'Attivo'}</span> },
-        // Updated Date Format
         { header: 'Ultimo Giorno', sortKey: 'lastDayOfWork', cell: r => <span className="text-sm text-on-surface-variant">{formatDateFull(r.lastDayOfWork)}</span> },
         { header: 'Alloc. Media', sortKey: 'allocation', cell: r => (
             r.isAssigned && !r.resigned
@@ -480,7 +441,7 @@ const ResourcesPage: React.FC = () => {
                     <div><p className="text-on-surface-variant">Ruolo</p><p className="text-on-surface font-medium">{resource.roleName}</p></div>
                     <div><p className="text-on-surface-variant">Costo</p><p className="text-on-surface font-medium">{formatCurrency(resource.dailyCost)}</p></div>
                     <div><p className="text-on-surface-variant">Sede</p><p className="text-on-surface font-medium">{resource.location}</p></div>
-                    <div><p className="text-on-surface-variant">Tutor</p><p className="text-on-surface font-medium">{resource.tutorName}</p></div>
+                    <div><p className="text-on-surface-variant">People Lead</p><p className="text-on-surface font-medium">{resource.tutorName}</p></div>
                     <div>
                         <p className="text-on-surface-variant">Alloc. Media</p>
                         {resource.isAssigned && !resource.resigned
@@ -503,7 +464,7 @@ const ResourcesPage: React.FC = () => {
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
             <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
-            <SearchableSelect name="tutorId" value={filters.tutorId} onChange={handleFilterSelectChange} options={resourceOptions} placeholder="Filtra per Tutor" />
+            <SearchableSelect name="tutorId" value={filters.tutorId} onChange={handleFilterSelectChange} options={resourceOptions} placeholder="Filtra per People Lead" />
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
             <div className="flex items-center">
                 <label htmlFor="unassigned-filter" className="flex items-center cursor-pointer">
@@ -527,7 +488,6 @@ const ResourcesPage: React.FC = () => {
 
     return (
         <div>
-            {/* KPI Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
                     <p className="text-sm text-on-surface-variant">Risorse Attive</p>
@@ -555,25 +515,15 @@ const ResourcesPage: React.FC = () => {
                 headerActions={<ExportButton data={exportData} title="Gestione Risorse" />}
                 initialSortKey="name"
                 isLoading={loading}
-                tableLayout={{
-                    dense: true,
-                    striped: true,
-                    headerSticky: true,
-                    headerBackground: true,
-                    headerBorder: true,
-                }}
-                tableClassNames={{
-                    base: 'w-full text-sm',
-                }}
-                numActions={3} // MODIFICA, EDIT VELOCE, ELIMINA
+                tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                tableClassNames={{ base: 'w-full text-sm' }}
+                numActions={3}
             />
             
             {editingResource && (
                 <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={'id' in editingResource ? 'Modifica Risorsa' : 'Aggiungi Risorsa'}>
                     <form onSubmit={handleSubmit} className="space-y-6 flex flex-col h-[80vh]">
                         <div className="flex-grow overflow-y-auto px-1 space-y-6">
-                            
-                            {/* Sezione Anagrafica */}
                             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                                 <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <span className="material-symbols-outlined text-lg">person</span> Anagrafica
@@ -590,7 +540,6 @@ const ResourcesPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Sezione Inquadramento */}
                             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                                 <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <span className="material-symbols-outlined text-lg">badge</span> Inquadramento
@@ -618,7 +567,6 @@ const ResourcesPage: React.FC = () => {
                                 <div className="mt-4">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
                                     <input type="number" step="0.01" name="dailyCost" value={editingResource.dailyCost || ''} onChange={handleChange} className="form-input w-full md:w-1/2" placeholder="0.00 (Usa costo Ruolo)"/>
-                                    <p className="text-xs text-on-surface-variant mt-1">Se lasciato vuoto o a 0, verrà utilizzato il costo standard del Ruolo associato.</p>
                                 </div>
                                 <div className="mt-4">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
@@ -629,116 +577,50 @@ const ResourcesPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Sezione Tutor e Competenze */}
                             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                                 <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <span className="material-symbols-outlined text-lg">school</span> Tutor & Competenze
                                 </h4>
                                 <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tutor</label>
-                                    <SearchableSelect 
-                                        name="tutorId" 
-                                        value={editingResource.tutorId || ''} 
-                                        onChange={handleSelectChange} 
-                                        options={resourceOptions.filter(o => o.value !== ('id' in editingResource ? editingResource.id : ''))} 
-                                        placeholder="Seleziona un Tutor" 
-                                    />
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">People Lead</label>
+                                    <SearchableSelect name="tutorId" value={editingResource.tutorId || ''} onChange={handleSelectChange} options={resourceOptions.filter(o => o.value !== ('id' in editingResource ? editingResource.id : ''))} placeholder="Seleziona un Tutor" />
                                 </div>
-                                
                                 <div className="bg-surface p-3 rounded-lg border border-outline-variant">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gestione Skills</label>
                                     <div className="flex gap-2 mb-3">
-                                        <div className="flex-grow">
-                                            <SearchableSelect
-                                                name="tempSkillId"
-                                                value={tempSelectedSkillId}
-                                                onChange={(_, val) => setTempSelectedSkillId(val)}
-                                                options={skillOptions.filter(s => !selectedSkillDetails.some(sd => sd.skillId === s.value))}
-                                                placeholder="Aggiungi competenza..."
-                                            />
-                                        </div>
-                                        <button type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50">
-                                            <span className="material-symbols-outlined">add</span>
-                                        </button>
+                                        <div className="flex-grow"><SearchableSelect name="tempSkillId" value={tempSelectedSkillId} onChange={(_, val) => setTempSelectedSkillId(val)} options={skillOptions.filter(s => !selectedSkillDetails.some(sd => sd.skillId === s.value))} placeholder="Aggiungi competenza..." /></div>
+                                        <button type="button" onClick={handleAddSkill} disabled={!tempSelectedSkillId} className="px-3 py-1 bg-primary text-on-primary rounded-md disabled:opacity-50"><span className="material-symbols-outlined">add</span></button>
                                     </div>
-                                    
-                                    {selectedSkillDetails.length > 0 && (
-                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                                            {selectedSkillDetails.map(detail => {
-                                                const skillName = skills.find(s => s.id === detail.skillId)?.name || 'Unknown';
-                                                return (
-                                                    <div key={detail.skillId} className="p-2 bg-surface-container-low rounded border border-outline flex flex-col gap-2">
-                                                        <div className="flex justify-between items-center">
-                                                            <span className="font-medium text-sm text-on-surface">{skillName}</span>
-                                                            <button type="button" onClick={() => handleRemoveSkill(detail.skillId)} className="text-error hover:text-error-container">
-                                                                <span className="material-symbols-outlined text-sm">close</span>
-                                                            </button>
-                                                        </div>
-                                                        <div className="grid grid-cols-3 gap-2">
-                                                            <div className="col-span-3 md:col-span-1">
-                                                                <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Livello</label>
-                                                                <select 
-                                                                    value={detail.level || 1} 
-                                                                    onChange={(e) => handleSkillLevelChange(detail.skillId, e.target.value)}
-                                                                    className="w-full text-xs p-1 border rounded bg-transparent"
-                                                                >
-                                                                    {Object.entries(SKILL_LEVELS).map(([val, label]) => (
-                                                                        <option key={val} value={val}>{label}</option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Conseguimento</label>
-                                                                <input 
-                                                                    type="date" 
-                                                                    value={detail.acquisitionDate} 
-                                                                    onChange={(e) => handleSkillDateChange(detail.skillId, 'acquisitionDate', e.target.value)}
-                                                                    className="w-full text-xs p-1 border rounded bg-transparent"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="text-[10px] uppercase font-bold text-on-surface-variant block">Scadenza</label>
-                                                                <input 
-                                                                    type="date" 
-                                                                    value={detail.expirationDate} 
-                                                                    onChange={(e) => handleSkillDateChange(detail.skillId, 'expirationDate', e.target.value)}
-                                                                    className="w-full text-xs p-1 border rounded bg-transparent"
-                                                                />
-                                                            </div>
-                                                        </div>
+                                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                        {selectedSkillDetails.map(detail => {
+                                            const skillName = skills.find(s => s.id === detail.skillId)?.name || 'Unknown';
+                                            return (
+                                                <div key={detail.skillId} className="p-2 bg-surface-container-low rounded border border-outline flex flex-col gap-2">
+                                                    <div className="flex justify-between items-center"><span className="font-medium text-sm text-on-surface">{skillName}</span><button type="button" onClick={() => handleRemoveSkill(detail.skillId)} className="text-error hover:text-error-container"><span className="material-symbols-outlined text-sm">close</span></button></div>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <div className="col-span-3 md:col-span-1"><label className="text-[10px] uppercase font-bold text-on-surface-variant block">Livello</label><select value={detail.level || 1} onChange={(e) => handleSkillLevelChange(detail.skillId, e.target.value)} className="w-full text-xs p-1 border rounded bg-transparent">{Object.entries(SKILL_LEVELS).map(([val, label]) => (<option key={val} value={val}>{label}</option>))}</select></div>
+                                                        <div><label className="text-[10px] uppercase font-bold text-on-surface-variant block">Conseguimento</label><input type="date" value={detail.acquisitionDate} onChange={(e) => handleSkillDateChange(detail.skillId, 'acquisitionDate', e.target.value)} className="w-full text-xs p-1 border rounded bg-transparent"/></div>
+                                                        <div><label className="text-[10px] uppercase font-bold text-on-surface-variant block">Scadenza</label><input type="date" value={detail.expirationDate} onChange={(e) => handleSkillDateChange(detail.skillId, 'expirationDate', e.target.value)} className="w-full text-xs p-1 border rounded bg-transparent"/></div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Sezione Stato (Dimissioni) */}
                             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                                 <h4 className="text-sm font-bold text-primary mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <span className="material-symbols-outlined text-lg">no_accounts</span> Status Risorsa
                                 </h4>
                                 <div className="space-y-4">
-                                    <label className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant">
-                                        <input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="form-checkbox h-5 w-5"/>
-                                        <span className="text-sm font-medium text-on-surface">Risorsa Dimessa</span>
-                                    </label>
-
+                                    <label className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant"><input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="form-checkbox h-5 w-5"/><span className="text-sm font-medium text-on-surface">Risorsa Dimessa</span></label>
                                     {editingResource.resigned && (
-                                        <div className="animate-fade-in">
-                                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ultimo Giorno di Lavoro *</label>
-                                            <input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className="form-input"/>
-                                        </div>
+                                        <div className="animate-fade-in"><label className="block text-sm font-medium text-on-surface-variant mb-1">Ultimo Giorno di Lavoro *</label><input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className="form-input"/></div>
                                     )}
-                                    
-                                    <div>
-                                        <label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label>
-                                        <textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note sulla risorsa..."></textarea>
-                                    </div>
+                                    <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label><textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note sulla risorsa..."></textarea></div>
                                 </div>
                             </div>
-
                         </div>
                         <div className="flex justify-end space-x-3 pt-4 border-t border-outline-variant">
                             <button type="button" onClick={handleCloseModal} className="px-6 py-2 border border-outline rounded-full hover:bg-surface-container-low text-primary font-semibold">Annulla</button>

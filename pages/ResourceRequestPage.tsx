@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-// FIX: Use relative import for custom zod implementation.
 import { z } from '../libs/zod';
 import { useEntitiesContext, usePlanningContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
@@ -36,6 +35,7 @@ export const resourceRequestSchema = z.object({
     osrNumber: z.string().trim().optional().nullable(),
     notes: z.string().optional().nullable(),
     status: z.enum(['ATTIVA', 'STANDBY', 'CHIUSA'] as [string, string, string], { required_error: 'Seleziona lo stato della richiesta.' }),
+    version: z.number().optional()
 }).refine(data => {
     if (!data.isOsrOpen) return true;
     return !!data.osrNumber && data.osrNumber.trim().length > 0;
@@ -62,7 +62,7 @@ const getStatusBadgeClass = (status: ResourceRequestStatus): string => {
 const buildResourceRequestPayload = (
     request: ResourceRequest | Omit<ResourceRequest, 'id'>
 ): ResourceRequest | Omit<ResourceRequest, 'id'> => {
-    const basePayload: Omit<ResourceRequest, 'id'> = {
+    const basePayload: any = {
         projectId: request.projectId,
         roleId: request.roleId,
         requestorId: request.requestorId ?? null,
@@ -77,6 +77,11 @@ const buildResourceRequestPayload = (
         notes: request.notes ?? '',
         status: request.status,
     };
+
+    // Preserve version for optimistic locking
+    if (request.version !== undefined) {
+        basePayload.version = request.version;
+    }
 
     if ('id' in request) {
         return { id: request.id, ...basePayload };

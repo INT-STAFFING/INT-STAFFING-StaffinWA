@@ -51,6 +51,7 @@ const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
 const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
 const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
+// FIX: Lazy loading LeavePage using its default export (added in pages/LeavePage.tsx)
 const LeavePage = lazy(() => import('./pages/LeavePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage'));

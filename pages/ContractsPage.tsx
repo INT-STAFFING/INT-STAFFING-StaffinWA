@@ -24,8 +24,9 @@ type EnrichedContract = Contract & {
 
 // --- Helper Functions ---
 const toISODate = (s?: string | null) => (!s ? '' : new Date(s.split('T')[0]).toISOString().split('T')[0]);
+
 const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contract | Omit<Contract, 'id'> => {
-    const basePayload: Omit<Contract, 'id'> = {
+    const basePayload: any = {
         name: contract.name,
         startDate: contract.startDate || null,
         endDate: contract.endDate || null,
@@ -37,6 +38,11 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
         rateCardId: contract.rateCardId || null,
         billingType: contract.billingType || 'TIME_MATERIAL'
     };
+
+    // Preserve version for optimistic locking
+    if (contract.version !== undefined) {
+        basePayload.version = contract.version;
+    }
 
     if ('id' in contract) {
         return { id: contract.id, ...basePayload };
