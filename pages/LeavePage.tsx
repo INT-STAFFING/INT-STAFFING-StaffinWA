@@ -163,7 +163,7 @@ const LeavePage: React.FC = () => {
             const isCurrentMonth = currentDay.getUTCMonth() === month;
             
             // Find leaves for this day
-            const dayLeaves = filteredRequests.filter(req => 
+            const dayLeaves = enrichedRequests.filter(req => 
                 dateIso >= req.startDate && dateIso <= req.endDate && req.status !== 'REJECTED'
             );
 
@@ -182,7 +182,7 @@ const LeavePage: React.FC = () => {
             currentDay.setUTCDate(currentDay.getUTCDate() + 1);
         }
         return days;
-    }, [calendarDate, filteredRequests, companyCalendar]);
+    }, [calendarDate, enrichedRequests, companyCalendar]);
 
     // --- Handlers ---
 
@@ -262,6 +262,13 @@ const LeavePage: React.FC = () => {
         }
     };
 
+    const handleCalendarItemClick = (req: any) => {
+        const canEdit = isAdmin || (req.resourceId === user?.resourceId && req.status === 'PENDING');
+        if (canEdit) {
+            openEditRequestModal(req);
+        }
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (!editingRequest) return;
         const { name, value, type } = e.target;
@@ -301,7 +308,7 @@ const LeavePage: React.FC = () => {
         )},
         { header: 'Inizio', sortKey: 'startDate', cell: r => formatDateFull(r.startDate) },
         { header: 'Fine', sortKey: 'endDate', cell: r => formatDateFull(r.endDate) },
-        { header: 'GG', sortKey: 'duration', cell: r => <span className="font-bold">{r.duration}</span> },
+        { header: 'GG', sortKey: 'duration', cell: r => <span className="font-bold">{r.duration} {r.isHalfDay ? '(1/2)' : ''}</span> },
         { header: 'Stato', sortKey: 'status', cell: r => (
             <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter ${r.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : r.status === 'REJECTED' ? 'bg-error-container text-on-error-container' : 'bg-yellow-container text-on-yellow-container'}`}>
                 {r.status}
@@ -354,7 +361,7 @@ const LeavePage: React.FC = () => {
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${req.status === 'APPROVED' ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-yellow-container text-on-yellow-container'}`}>{req.status}</span>
                 </div>
                 <div className="text-xs font-mono text-on-surface-variant bg-surface-container-low p-2 rounded-lg">
-                    {formatDateFull(req.startDate)} → {formatDateFull(req.endDate)} ({req.duration}gg)
+                    {formatDateFull(req.startDate)} → {formatDateFull(req.endDate)} ({req.duration}gg {req.isHalfDay ? '1/2' : ''})
                 </div>
                 <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant">
                     {canApprove && (
@@ -440,11 +447,24 @@ const LeavePage: React.FC = () => {
                             <div key={idx} className={`min-h-[120px] p-2 bg-surface flex flex-col gap-1 ${!day.isCurrentMonth ? 'opacity-30' : ''} ${day.isHoliday ? 'bg-error-container/5' : ''}`}>
                                 <span className={`text-xs font-bold ${day.isWeekend || day.isHoliday ? 'text-error' : 'text-on-surface-variant'}`}>{day.date.getUTCDate()}</span>
                                 <div className="space-y-1 overflow-y-auto max-h-[100px] scrollbar-none">
-                                    {day.leaves.map(l => (
-                                        <div key={l.id} className="px-1.5 py-0.5 rounded text-[10px] font-bold truncate text-white" style={{backgroundColor: leaveTypes.find(t => t.id === l.typeId)?.color || '#ccc'}} title={`${l.resourceName}: ${l.typeName}`}>
-                                            {l.resourceName.split(' ')[0]}
-                                        </div>
-                                    ))}
+                                    {day.leaves.map(l => {
+                                        // Calculate permissions for this specific item
+                                        const canEdit = isAdmin || (l.resourceId === user?.resourceId && l.status === 'PENDING');
+                                        const isPending = l.status === 'PENDING';
+                                        
+                                        return (
+                                            <div 
+                                                key={l.id} 
+                                                onClick={() => handleCalendarItemClick(l)}
+                                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold truncate text-white transition-opacity ${canEdit ? 'cursor-pointer hover:opacity-80' : 'cursor-default'} ${isPending ? 'border-2 border-dashed opacity-70' : ''}`}
+                                                style={{backgroundColor: l.typeColor || '#ccc', borderColor: isPending ? l.typeColor : 'transparent'}} 
+                                                title={`${l.resourceName}: ${l.typeName} (${l.status})`}
+                                            >
+                                                {l.isHalfDay && <span className="mr-1">½</span>}
+                                                {l.resourceName.split(' ')[0]}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
