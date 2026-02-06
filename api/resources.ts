@@ -300,6 +300,7 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                 const encodedConfig = encodeURIComponent(JSON.stringify(chartConfig));
                 const imageUrl = `https://quickchart.io/chart?c=${encodedConfig}&w=300&h=300`;
 
+                // 1. Send External Webhook (Teams)
                 await notify(client, 'INTERVIEW_FEEDBACK', {
                     title: `Feedback Inserito: ${data.candidateName} ${data.candidateSurname}`,
                     color: average >= 3.5 ? 'Good' : average >= 2.5 ? 'Warning' : 'Attention',
@@ -313,6 +314,29 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     ],
                     detailedFacts: detailedFacts
                 });
+
+                // 2. Insert Internal Notification
+                // Find requestor to notify
+                const rrId = data.resourceRequestId || oldData?.resourceRequestId;
+                if (rrId) {
+                    const reqRes = await client.query('SELECT requestor_id FROM resource_requests WHERE id = $1', [rrId]);
+                    const requestorId = reqRes.rows[0]?.requestor_id;
+
+                    if (requestorId) {
+                         const candidate = data.candidateName || oldData?.candidateName || 'Candidato';
+                         await client.query(
+                            `INSERT INTO notifications (id, recipient_resource_id, title, message, link, created_at) 
+                             VALUES ($1, $2, $3, $4, $5, NOW())`,
+                            [
+                                uuidv4(), 
+                                requestorId, 
+                                'Feedback Colloquio', 
+                                `Nuovo feedback inserito per ${candidate}: ${data.feedback}. Media: ${average.toFixed(1)}/5`, 
+                                '/interviews'
+                            ]
+                        );
+                    }
+                }
             }
         }
     } catch (err) { console.error("Notification trigger failed", err); }
