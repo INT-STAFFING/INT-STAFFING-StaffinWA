@@ -28,6 +28,8 @@ export interface Client {
     sector: string;
     /** @property {string} contactEmail - L'email di contatto principale del cliente. */
     contactEmail: string;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**
@@ -57,6 +59,8 @@ export interface Role {
     trainingPct?: number;
     /** @property {number} [bdPct] - Percentuale dedicata al Business Development. */
     bdPct?: number;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**
@@ -181,6 +185,8 @@ export interface Resource {
     dailyCost?: number;
     /** @property {string} [notes] - Note aggiuntive sulla risorsa. */
     notes?: string;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**
@@ -212,6 +218,8 @@ export interface Project {
     contractId?: string | null;
     /** @property {BillingType} [billingType] - Tipo di fatturazione. */
     billingType?: BillingType;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**
@@ -241,6 +249,8 @@ export interface Contract {
     rateCardId?: string | null;
     /** @property {BillingType} [billingType] - Tipo di fatturazione predefinito per il contratto. */
     billingType?: BillingType;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**
@@ -424,6 +434,8 @@ export interface ResourceRequest {
     notes?: string;
     /** @property {ResourceRequestStatus} status - Stato della richiesta (es. 'ATTIVA', 'STANDBY', 'CHIUSA'). */
     status: ResourceRequestStatus;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**
@@ -652,6 +664,8 @@ export interface LeaveRequest {
     notes?: string;
     /** @property {boolean} [isHalfDay] - Se è una mezza giornata (0.5). */
     isHalfDay?: boolean;
+    /** @property {number} [version] - Versione del record per Optimistic Locking. */
+    version?: number;
 }
 
 /**

@@ -1,4 +1,3 @@
-
 import { db } from './db.js';
 import { ensureDbTablesExist } from './schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -30,7 +29,7 @@ const getUserFromRequest = (req: VercelRequest) => {
     if (!token) return null;
     try {
         const decoded = jwt.verify(token, JWT_SECRET!) as any;
-        return { id: decoded.userId, username: decoded.username, role: decoded.role };
+        return { id: decoded.userId, username: decoded.username, role: decoded.role, resourceId: decoded.resourceId };
     } catch (e) { return null; }
 };
 
@@ -61,7 +60,7 @@ const TABLE_MAPPING: Record<string, string> = {
     'notification_configs': 'notification_configs'
 };
 
-// --- ZOD SCHEMAS FOR VALIDATION ---
+// --- ZOD SCHEMAS ---
 const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
     'resources': z.object({
         name: z.string(),
@@ -76,7 +75,8 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         resigned: z.boolean().optional().nullable(),
         lastDayOfWork: z.string().optional().nullable(),
         tutorId: z.string().optional().nullable(),
-        dailyCost: z.number().optional().nullable()
+        dailyCost: z.number().optional().nullable(),
+        version: z.number().optional()
     }),
     'projects': z.object({
         name: z.string(),
@@ -89,12 +89,14 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         status: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         contractId: z.string().optional().nullable(),
-        billingType: z.string().optional().nullable()
+        billingType: z.string().optional().nullable(),
+        version: z.number().optional()
     }),
     'clients': z.object({
         name: z.string(),
         sector: z.string().optional().nullable(),
-        contactEmail: z.string().optional().nullable()
+        contactEmail: z.string().optional().nullable(),
+        version: z.number().optional()
     }),
     'roles': z.object({
         name: z.string(),
@@ -105,17 +107,8 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         overheadPct: z.number().optional().default(0),
         chargeablePct: z.number().optional().default(100),
         trainingPct: z.number().optional().default(0),
-        bdPct: z.number().optional().default(0)
-    }).refine(data => {
-        // Validation: Sum of percentages must be 100
-        const c = data.chargeablePct || 0;
-        const t = data.trainingPct || 0;
-        const b = data.bdPct || 0;
-        // Allow tiny floating point errors
-        return Math.abs((c + t + b) - 100) < 0.01;
-    }, {
-        message: "La somma delle percentuali (Chargeable + Training + BD) deve essere 100%",
-        path: ["chargeablePct"] // Highlight chargeablePct field on error
+        bdPct: z.number().optional().default(0),
+        version: z.number().optional()
     }),
     'skills': z.object({
         name: z.string(),
@@ -125,7 +118,7 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         name: z.string(),
         color: z.string().optional().nullable(),
         requiresApproval: z.boolean().optional().nullable(),
-        affectsCapacity: z.boolean().optional().nullable()
+        affects_capacity: z.boolean().optional().nullable()
     }),
     'leave_requests': z.object({
         resourceId: z.string(),
@@ -136,49 +129,12 @@ const VALIDATION_SCHEMAS: Record<string, z.ZodObject<any>> = {
         managerId: z.string().optional().nullable(),
         approverIds: z.array(z.string()).optional().nullable(),
         notes: z.string().optional().nullable(),
-        isHalfDay: z.boolean().optional().nullable()
-    }),
-    'rate_cards': z.object({
-        name: z.string(),
-        currency: z.string().optional().nullable()
-    }),
-    'project_expenses': z.object({
-        projectId: z.string(),
-        category: z.string(),
-        description: z.string().optional().nullable(),
-        amount: z.number(),
-        date: z.string(),
-        billable: z.boolean().optional().nullable()
-    }),
-    'billing_milestones': z.object({
-        projectId: z.string(),
-        name: z.string(),
-        date: z.string(),
-        amount: z.number(),
-        status: z.string().optional().nullable()
-    }),
-    'contracts': z.object({
-        name: z.string(),
-        startDate: z.string().optional().nullable(),
-        endDate: z.string().optional().nullable(),
-        cig: z.string(),
-        cigDerivato: z.string().optional().nullable(),
-        wbs: z.string().optional().nullable(),
-        capienza: z.number(),
-        backlog: z.number().optional().nullable(),
-        rateCardId: z.string().optional().nullable(),
-        billingType: z.string().optional().nullable()
-    }),
-    'app_users': z.object({
-        username: z.string(),
-        role: z.string(),
-        resourceId: z.string().optional().nullable(),
-        isActive: z.boolean().optional().nullable()
-        // password_hash handled separately or assumed existing/default if not passed here
+        isHalfDay: z.boolean().optional().nullable(),
+        version: z.number().optional()
     }),
     'notification_configs': z.object({
         eventType: z.string(),
-        webhookUrl: z.string().trim().min(1, 'Webhook URL required'),
+        webhookUrl: z.string().trim().min(1),
         description: z.string().optional().nullable(),
         isActive: z.boolean().optional().default(true)
     })
@@ -190,17 +146,11 @@ const toCamelAndNormalize = (o: any) => {
     for (const k in o) {
         const camelKey = k.replace(/(_\w)/g, m => m[1].toUpperCase());
         const value = o[k];
-        
-        if (value instanceof Date && 
-           (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork')) {
+        if (value instanceof Date && (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork')) {
             const y = value.getFullYear();
             const m = String(value.getMonth() + 1).padStart(2, '0');
             const d = String(value.getDate()).padStart(2, '0');
             n[camelKey] = `${y}-${m}-${d}`;
-        } else if (typeof value === 'string' && !isNaN(Number(value)) && 
-                   (camelKey.endsWith('Pct') || camelKey === 'dailyCost' || camelKey === 'standardCost' || camelKey === 'dailyExpenses' || camelKey === 'overheadPct')) {
-             // Ensure numeric fields from DB (which might be strings for NUMERIC type) are numbers
-             n[camelKey] = Number(value);
         } else {
             n[camelKey] = value;
         }
@@ -208,623 +158,197 @@ const toCamelAndNormalize = (o: any) => {
     return n;
 };
 
-// --- NOTIFICATION DISPATCHER HELPER ---
+// --- HELPER: CREATE INTERNAL NOTIFICATION ---
+const createInAppNotification = async (client: any, recipientId: string | null, title: string, message: string, link: string = '') => {
+    if (!recipientId) {
+        // Broadcast to Admins if no specific recipient
+        const admins = await client.query("SELECT resource_id FROM app_users WHERE role = 'ADMIN' AND resource_id IS NOT NULL");
+        for (const admin of admins.rows) {
+            await client.query(
+                `INSERT INTO notifications (id, recipient_resource_id, title, message, link, is_read) 
+                 VALUES ($1, $2, $3, $4, $5, false)`,
+                [uuidv4(), admin.resource_id, title, message, link]
+            );
+        }
+    } else {
+        await client.query(
+            `INSERT INTO notifications (id, recipient_resource_id, title, message, link, is_read) 
+             VALUES ($1, $2, $3, $4, $5, false)`,
+            [uuidv4(), recipientId, title, message, link]
+        );
+    }
+};
+
+// --- NOTIFICATION DISPATCHER ---
 const triggerNotification = async (client: any, method: string, tableName: string, id: string | null, data: any, oldData: any = null) => {
     try {
-        // --- CREATIONS ---
         if (method === 'POST') {
             if (tableName === 'resources') {
-                await notify(client, 'RESOURCE_CREATED', {
-                    title: 'Nuova Risorsa Inserita',
-                    color: 'Good',
-                    facts: [{ name: 'Nome', value: data.name }, { name: 'Ruolo', value: data.roleId || 'N/A' }],
-                    detailedFacts: [
-                        { name: 'Sede', value: data.location || '-' },
-                        { name: 'Horizontal', value: data.horizontal || '-' }
-                    ]
-                });
+                await notify(client, 'RESOURCE_CREATED', { title: 'Nuova Risorsa', facts: [{ name: 'Nome', value: data.name }] });
+                await createInAppNotification(client, null, 'Nuova Risorsa', `${data.name} è stata inserita nel sistema.`, '/resources');
             } else if (tableName === 'projects') {
-                 await notify(client, 'PROJECT_CREATED', {
-                    title: 'Nuovo Progetto Creato',
-                    color: 'Good',
-                    facts: [{ name: 'Progetto', value: data.name }, { name: 'Budget', value: `${data.budget} €` }]
-                });
-            } else if (tableName === 'contracts') {
-                await notify(client, 'CONTRACT_CREATED', {
-                    title: 'Nuovo Contratto',
-                    color: 'Good',
-                    facts: [{ name: 'Contratto', value: data.name }, { name: 'Capienza', value: `${data.capienza} €` }]
-                });
+                await notify(client, 'PROJECT_CREATED', { title: 'Nuovo Progetto', facts: [{ name: 'Nome', value: data.name }] });
+                await createInAppNotification(client, null, 'Nuovo Progetto', `Il progetto "${data.name}" è stato creato.`, '/projects');
             } else if (tableName === 'resource_skills') {
-                // Fetch Names
                 const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId])).rows[0]?.name;
                 const skillName = (await client.query('SELECT name FROM skills WHERE id = $1', [data.skillId])).rows[0]?.name;
-                await notify(client, 'SKILL_ADDED', {
-                    title: 'Nuova Competenza',
-                    color: 'Accent',
-                    facts: [{ name: 'Risorsa', value: resName }, { name: 'Skill', value: skillName }]
-                });
-            } else if (tableName === 'app_users') {
-                 await notify(client, 'USER_CREATED', {
-                    title: 'Nuovo Utente Sistema',
-                    color: 'Warning',
-                    facts: [{ name: 'Username', value: data.username }, { name: 'Ruolo', value: data.role }]
-                });
+                await notify(client, 'SKILL_ADDED', { title: 'Nuova Competenza', facts: [{ name: 'Risorsa', value: resName }, { name: 'Skill', value: skillName }] });
+                await createInAppNotification(client, data.resourceId, 'Competenza Acquisita', `Hai ottenuto la competenza: ${skillName}.`, '/skills-map');
             } else if (tableName === 'leave_requests') {
-                 const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId])).rows[0]?.name;
-                 
-                 // 1. Webhook Notification
-                 await notify(client, 'LEAVE_REQUEST_CREATED', {
-                    title: 'Nuova Richiesta Assenza',
-                    color: 'Accent',
-                    facts: [{ name: 'Risorsa', value: resName }, { name: 'Periodo', value: `${data.startDate} - ${data.endDate}` }],
-                    detailedFacts: [
-                        { name: 'Note', value: data.notes || '-' },
-                        { name: 'Mezza Giornata', value: data.isHalfDay ? 'Sì' : 'No' }
-                    ]
-                });
-
-                // 2. Internal Notifications (To Approvers)
-                if (Array.isArray(data.approverIds) && data.approverIds.length > 0) {
+                const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId])).rows[0]?.name;
+                await notify(client, 'LEAVE_REQUEST_CREATED', { title: 'Richiesta Assenza', facts: [{ name: 'Risorsa', value: resName }] });
+                if (Array.isArray(data.approverIds)) {
                     for (const approverId of data.approverIds) {
-                         await client.query(
-                             `INSERT INTO notifications (id, recipient_resource_id, title, message, link, is_read) 
-                              VALUES ($1, $2, $3, $4, $5, false)`,
-                             [
-                                 uuidv4(), 
-                                 approverId, 
-                                 'Richiesta Assenza', 
-                                 `${resName} ha richiesto ferie/permesso dal ${data.startDate} al ${data.endDate}.`,
-                                 '/leaves'
-                             ]
-                         );
+                        await createInAppNotification(client, approverId, 'Approvazione Assenza', `${resName} ha richiesto ferie dal ${data.startDate}.`, '/leaves');
                     }
                 }
-
-            } else if (tableName === 'interviews') {
-                 await notify(client, 'INTERVIEW_SCHEDULED', {
-                    title: 'Nuovo Colloquio',
-                    color: 'Accent',
-                    facts: [{ name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` }, { name: 'Data', value: data.interviewDate }],
-                    detailedFacts: [
-                        { name: 'Summary', value: data.cvSummary || '-' }
-                    ]
-                });
             }
-        } 
-        
-        // --- UPDATES ---
-        else if (method === 'PUT' && oldData) {
-            if (tableName === 'resources') {
-                if (!oldData.resigned && data.resigned) {
-                    await notify(client, 'RESOURCE_RESIGNED', {
-                        title: 'Dimissioni Risorsa',
-                        color: 'Attention',
-                        facts: [{ name: 'Risorsa', value: oldData.name }]
-                    });
-                } else {
-                    // Generic update
-                    await notify(client, 'RESOURCE_UPDATED', {
-                        title: 'Anagrafica Aggiornata',
-                        color: 'Good',
-                        facts: [{ name: 'Risorsa', value: oldData.name }]
-                    });
-                }
-            } else if (tableName === 'projects') {
-                if (oldData.status !== data.status) {
-                    await notify(client, 'PROJECT_STATUS_CHANGED', {
-                        title: 'Cambio Stato Progetto',
-                        color: 'Accent',
-                        facts: [{ name: 'Progetto', value: oldData.name }, { name: 'Nuovo Stato', value: data.status }]
-                    });
-                }
-                if (data.budget !== undefined && Number(oldData.budget) !== Number(data.budget)) {
-                     await notify(client, 'BUDGET_UPDATED', {
-                        title: 'Revisione Budget',
-                        color: 'Warning',
-                        facts: [{ name: 'Progetto', value: oldData.name }, { name: 'Nuovo Budget', value: `${data.budget} €` }]
-                    });
-                }
-            } else if (tableName === 'leave_requests') {
-                 if (oldData.status !== data.status) {
-                     const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [oldData.resource_id])).rows[0]?.name;
-                     const event = data.status === 'APPROVED' ? 'LEAVE_APPROVED' : (data.status === 'REJECTED' ? 'LEAVE_REJECTED' : null);
-                     
-                     if (event) {
-                         // 1. Webhook
-                         await notify(client, event, {
-                            title: event === 'LEAVE_APPROVED' ? 'Assenza Approvata' : 'Assenza Rifiutata',
-                            color: event === 'LEAVE_APPROVED' ? 'Good' : 'Attention',
-                            facts: [{ name: 'Risorsa', value: resName }, { name: 'Stato', value: data.status }],
-                            detailedFacts: [
-                                { name: 'Periodo', value: `${oldData.start_date} -> ${oldData.end_date}` }
-                            ]
-                        });
-                        
-                        // 2. Internal Notification (To Requestor)
-                        if (oldData.resource_id) {
-                            const msgTitle = event === 'LEAVE_APPROVED' ? 'Richiesta Approvata' : 'Richiesta Rifiutata';
-                            const msgBody = `La tua richiesta di assenza per il periodo ${oldData.start_date} è stata ${data.status === 'APPROVED' ? 'approvata' : 'rifiutata'}.`;
-                            
-                            await client.query(
-                                `INSERT INTO notifications (id, recipient_resource_id, title, message, link, is_read) 
-                                 VALUES ($1, $2, $3, $4, $5, false)`,
-                                [uuidv4(), oldData.resource_id, msgTitle, msgBody, '/leaves']
-                            );
-                        }
-                     }
-                 }
-            } else if (tableName === 'interviews') {
-                 if (data.feedback && data.feedback !== oldData.feedback) {
-                      await notify(client, 'INTERVIEW_FEEDBACK', {
-                        title: 'Feedback Colloquio',
-                        color: data.feedback === 'Positivo' ? 'Good' : 'Warning',
-                        facts: [{ name: 'Candidato', value: `${oldData.candidate_name} ${oldData.candidate_surname}` }, { name: 'Feedback', value: data.feedback }]
-                    });
-                 }
-                 if (data.hiringStatus === 'SI' && oldData.hiring_status !== 'SI') {
-                      await notify(client, 'CANDIDATE_HIRED', {
-                        title: 'Candidato Assunto',
-                        color: 'Good',
-                        facts: [{ name: 'Candidato', value: `${oldData.candidate_name} ${oldData.candidate_surname}` }]
-                    });
-                 }
+        } else if (method === 'PUT' && oldData) {
+            if (tableName === 'leave_requests' && oldData.status !== data.status) {
+                const resName = (await client.query('SELECT name FROM resources WHERE id = $1', [oldData.resource_id])).rows[0]?.name;
+                const event = data.status === 'APPROVED' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED';
+                await notify(client, event, { title: 'Esito Assenza', facts: [{ name: 'Risorsa', value: resName }, { name: 'Stato', value: data.status }] });
+                await createInAppNotification(client, oldData.resource_id, 'Esito Richiesta Assenza', `La tua richiesta dal ${oldData.start_date} è stata ${data.status === 'APPROVED' ? 'Approvata' : 'Rifiutata'}.`, '/leaves');
             }
         }
-        
-        // Custom Action: Password Reset
-        else if (method === 'CUSTOM_PWD' && tableName === 'app_users') {
-            await notify(client, 'PASSWORD_RESET', {
-                title: 'Reset Password',
-                color: 'Warning',
-                facts: [{ name: 'Utente', value: data.username }]
-            });
-        }
-        
-    } catch (err) {
-        console.error("Notification Dispatch Error:", err);
-    }
-}
-
+    } catch (err) { console.error("Notification Error:", err); }
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action } = req.query;
-    
     await ensureDbTablesExist(db);
     const client = await db.connect();
     const currentUser = getUserFromRequest(req);
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
-        // --- CUSTOM ACTIONS ---
-        
-        // Password Change / Reset
-        if (entity === 'app-users' && action === 'change_password' && id && method === 'PUT') {
-             if (!currentUser || (!verifyAdmin(req) && currentUser.id !== id)) return res.status(403).json({ error: 'Unauthorized' });
-             
-             const { newPassword } = req.body;
-             if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password too short' });
-             
-             const hash = await bcrypt.hash(newPassword, 10);
-             await client.query('UPDATE app_users SET password_hash = $1, must_change_password = $2 WHERE id = $3', [hash, false, id]);
-             
-             const userRes = await client.query('SELECT username FROM app_users WHERE id = $1', [id]);
-             await triggerNotification(client, 'CUSTOM_PWD', 'app_users', id as string, { username: userRes.rows[0]?.username });
-             
-             await logAction(client, currentUser, 'CHANGE_PASSWORD', 'app_users', id as string, {}, req);
-             return res.status(200).json({ success: true });
-        }
-        
-        // Impersonate
-        if (entity === 'app-users' && action === 'impersonate' && id && method === 'POST') {
-             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
-             
-             const { rows } = await client.query('SELECT * FROM app_users WHERE id = $1', [id]);
-             const targetUser = rows[0];
-             if (!targetUser) return res.status(404).json({ error: 'User not found' });
-             
-             const token = jwt.sign(
-                { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
-                JWT_SECRET!,
-                { expiresIn: '1h' }
-            );
-            
-            // Get permissions for the target role
-            const permRes = await client.query(`SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE`, [targetUser.role]);
-            const permissions = permRes.rows.map(r => r.page_path);
+        if (action === 'mark_read' && entity === 'notifications') {
+            if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+            // Determine resourceId of current user
+            const uRes = await client.query('SELECT resource_id FROM app_users WHERE id = $1', [currentUser.id]);
+            const resourceId = uRes.rows[0]?.resource_id;
+            if (!resourceId) return res.status(400).json({ error: 'User has no associated resource' });
 
-            await logAction(client, currentUser, 'IMPERSONATE', 'app_users', id as string, { target: targetUser.username }, req);
-
-             return res.status(200).json({
-                success: true,
-                token,
-                user: {
-                    id: targetUser.id,
-                    username: targetUser.username,
-                    role: targetUser.role,
-                    resourceId: targetUser.resource_id,
-                    permissions,
-                    mustChangePassword: false 
-                }
-            });
-        }
-        
-        // Bulk Password Reset
-         if (entity === 'app-users' && action === 'bulk_password_reset' && method === 'POST') {
-            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
-            
-            const { users } = req.body; // array of { username, password }
-            if (!Array.isArray(users)) return res.status(400).json({ error: 'Invalid data' });
-
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const u of users) {
-                try {
-                    const hash = await bcrypt.hash(u.password, 10);
-                    const res = await client.query(
-                        'UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2', 
-                        [hash, u.username]
-                    );
-                    if ((res.rowCount ?? 0) > 0) {
-                        successCount++;
-                         // Optional: Notify individual resets? Too noisy for bulk.
-                    } else {
-                        failCount++;
-                    }
-                } catch (e) {
-                    failCount++;
-                }
-            }
-            
-            await logAction(client, currentUser, 'BULK_PWD_RESET', 'app_users', null, { successCount, failCount }, req);
-            return res.status(200).json({ successCount, failCount });
-         }
-         
-        // Notification Mark Read
-        if (entity === 'notifications' && action === 'mark_read' && method === 'PUT') {
-            if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
-            
             if (id) {
-                // Mark single
-                await client.query(
-                    'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $2)',
-                    [id, currentUser.id]
-                );
+                await client.query('UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_resource_id = $2', [id, resourceId]);
             } else {
-                // Mark all for user
-                await client.query(
-                    'UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $1)',
-                    [currentUser.id]
-                );
+                await client.query('UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = $1', [resourceId]);
             }
             return res.status(200).json({ success: true });
         }
 
-        // --- DB INSPECTOR (ADMIN ONLY) ---
-        if (entity === 'db_inspector') {
-             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-
-             if (method === 'GET' && action === 'list_tables') {
-                 const result = await client.query(`
-                     SELECT table_name 
-                     FROM information_schema.tables 
-                     WHERE table_schema = 'public' 
-                     ORDER BY table_name
-                 `);
-                 return res.status(200).json(result.rows.map((r: any) => r.table_name));
-             }
-
-             if (method === 'GET' && action === 'get_table_data') {
-                 const table = req.query.table as string;
-                 if (!table) return res.status(400).json({ error: 'Table name required' });
-                 
-                 // Get columns to know data types
-                 const colsRes = await client.query(`
-                    SELECT column_name, data_type 
-                    FROM information_schema.columns 
-                    WHERE table_name = $1 
-                    ORDER BY ordinal_position
-                 `, [table]);
-                 
-                 const rowsRes = await client.query(`SELECT * FROM "${table}" LIMIT 100`);
-                 
-                 return res.status(200).json({
-                     columns: colsRes.rows,
-                     rows: rowsRes.rows
-                 });
-             }
-
-             if (method === 'PUT' && action === 'update_row') {
-                 const table = req.query.table as string;
-                 const rowId = req.query.id as string;
-                 const updates = req.body;
-                 
-                 if (!table || !rowId) return res.status(400).json({ error: 'Table and ID required' });
-                 
-                 const keys = Object.keys(updates);
-                 const values = Object.values(updates);
-                 if (keys.length === 0) return res.status(200).json({ message: 'No updates' });
-
-                 const setClause = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
-                 
-                 await client.query(
-                     `UPDATE "${table}" SET ${setClause} WHERE id = $${keys.length + 1}`,
-                     [...values, rowId]
-                 );
-                 return res.status(200).json({ success: true });
-             }
-
-             if (method === 'DELETE' && action === 'delete_all_rows') {
-                 const table = req.query.table as string;
-                 if (!table) return res.status(400).json({ error: 'Table required' });
-                 await client.query(`TRUNCATE TABLE "${table}" CASCADE`);
-                 return res.status(200).json({ success: true });
-             }
-
-             if (method === 'POST' && action === 'run_raw_query') {
-                 const { query } = req.body;
-                 if (!query) return res.status(400).json({ error: 'Query required' });
-                 const result = await client.query(query);
-                 return res.status(200).json({
-                     rows: result.rows,
-                     fields: result.fields,
-                     rowCount: result.rowCount,
-                     command: result.command
-                 });
-             }
-             
-             return res.status(400).json({ error: 'Invalid action for db_inspector' });
-        }
-
-        // --- CUSTOM HANDLER: ANALYTICS RECALCULATION (Heavy Task) ---
-        if (entity === 'analytics_cache' && action === 'recalc_all' && method === 'POST') {
-             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) {
-                 return res.status(403).json({ error: 'Unauthorized' });
-             }
-             try {
-                await client.query('BEGIN');
-                const budgetRes = await client.query(`SELECT SUM(budget) as total FROM projects WHERE status = 'In corso'`);
-                const totalBudget = parseFloat(budgetRes.rows[0]?.total || '0');
-                const resRes = await client.query(`SELECT COUNT(*) as count FROM resources WHERE resigned = false`);
-                const activeResources = parseInt(resRes.rows[0]?.count || '0', 10);
-                
-                const kpiData = {
-                    totalBudget,
-                    activeResources,
-                    lastUpdated: new Date().toISOString(),
-                    note: "Calculated via Async Process"
-                };
-
-                await client.query(`
-                    INSERT INTO analytics_cache (key, data, scope) 
-                    VALUES ('dashboard_kpi_current', $1, 'DASHBOARD')
-                    ON CONFLICT (key) 
-                    DO UPDATE SET data = EXCLUDED.data, updated_at = CURRENT_TIMESTAMP
-                `, [JSON.stringify(kpiData)]);
-                
-                await client.query('COMMIT');
-                return res.status(200).json({ success: true, message: 'Analytics recalculated successfully' });
-             } catch (calcError) {
-                 await client.query('ROLLBACK');
-                 return res.status(500).json({ error: 'Recalculation failed' });
-             }
-        }
-
-        if (method === 'POST' && entity === 'resources' && action === 'best_fit') {
-             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             // Placeholder logic
-             return res.status(200).json([]);
-        }
-
-        if (entity === 'app-config-batch' && method === 'POST') {
-             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-             const { updates } = req.body;
-             if (Array.isArray(updates)) {
-                 await client.query('BEGIN');
-                 for (const item of updates) {
-                     await client.query(`INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`, [item.key, item.value]);
-                 }
-                 await client.query('COMMIT');
-                 await logAction(client, currentUser, 'UPDATE_BATCH', 'app_config', null, { keys: updates.map(u => u.key) }, req);
-                 return res.status(200).json({ success: true });
-             }
-             return res.status(400).json({ error: 'Invalid updates format' });
-        }
-        
-        // --- CUSTOM HANDLER FOR ROLE PERMISSIONS (RBAC) ---
-        if (entity === 'role-permissions' && method === 'POST') {
-             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
-             const { permissions } = req.body;
-             if (Array.isArray(permissions)) {
-                 await client.query('BEGIN');
-                 // Simple full refresh strategy or upsert
-                 await client.query('DELETE FROM role_permissions'); // Clear old
-                 for (const p of permissions) {
-                     await client.query(
-                         `INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`, 
-                         [p.role, p.pagePath, p.isAllowed]
-                     );
-                 }
-                 await client.query('COMMIT');
-                 return res.status(200).json({ success: true });
-             }
-             return res.status(400).json({ error: 'Invalid permissions format' });
-        }
-
-        // --- GENERIC GET ---
         if (method === 'GET') {
-            const sensitiveEntities = ['app-users', 'role-permissions', 'audit_logs', 'db_inspector', 'theme', 'security-users', 'notification_configs'];
-            if (sensitiveEntities.includes(entity as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
-
-            // If querying notifications, filter by current user resource_id (unless admin)
-            if (entity === 'notifications') {
-                if (!currentUser) return res.status(403).json({ error: 'Unauthorized' });
-                const { rows } = await client.query(
-                    `SELECT * FROM notifications WHERE recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $1) ORDER BY created_at DESC`, 
-                    [currentUser.id]
-                );
-                return res.status(200).json(rows.map(toCamelAndNormalize));
-            }
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10000;
+            const search = req.query.search as string || '';
+            const offset = (page - 1) * limit;
 
             let queryStr = `SELECT * FROM ${tableName}`;
-            const params = [];
-            
+            const params: any[] = [];
+            const whereClauses: string[] = [];
+
             if (id) {
-                queryStr += ` WHERE id = $1`;
+                whereClauses.push(`id = $${params.length + 1}`);
                 params.push(id);
+            } else if (entity === 'notifications') {
+                if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+                whereClauses.push(`recipient_resource_id = (SELECT resource_id FROM app_users WHERE id = $${params.length + 1})`);
+                params.push(currentUser.id);
+            } else if (search && (tableName === 'resources' || tableName === 'projects')) {
+                whereClauses.push(`name ILIKE $${params.length + 1}`);
+                params.push(`%${search}%`);
             }
+
+            if (whereClauses.length > 0) queryStr += ` WHERE ${whereClauses.join(' AND ')}`;
             
-            // Audit Log Filtering
-            if (entity === 'audit_logs') {
-                const conditions = [];
-                const q = req.query;
-                let idx = 1;
-                if (q.username) { conditions.push(`username ILIKE $${idx++}`); params.push(`%${q.username}%`); }
-                if (q.actionType) { conditions.push(`action = $${idx++}`); params.push(q.actionType); }
-                if (q.targetEntity) { conditions.push(`entity = $${idx++}`); params.push(q.targetEntity); } // Mapped filter to DB column
-                if (q.entityId) { conditions.push(`entity_id = $${idx++}`); params.push(q.entityId); }
-                if (q.startDate) { conditions.push(`created_at >= $${idx++}`); params.push(q.startDate); }
-                if (q.endDate) { conditions.push(`created_at <= $${idx++}`); params.push(q.endDate); }
-                
-                if (conditions.length > 0) queryStr += ' WHERE ' + conditions.join(' AND ');
-                queryStr += ' ORDER BY created_at DESC';
-                if (q.limit) { queryStr += ` LIMIT $${idx++}`; params.push(q.limit); }
+            let totalCount = 0;
+            if (req.query.limit) {
+                const countRes = await client.query(`SELECT COUNT(*) FROM ${tableName} ${whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''}`, params);
+                totalCount = parseInt(countRes.rows[0].count, 10);
+            }
+
+            queryStr += entity === 'notifications' ? ' ORDER BY created_at DESC' : ' ORDER BY id ASC';
+            if (req.query.limit) {
+                queryStr += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+                params.push(limit, offset);
             }
 
             const { rows } = await client.query(queryStr, params);
-            if (id) {
-                return res.status(200).json(rows.length > 0 ? toCamelAndNormalize(rows[0]) : null);
-            }
-            return res.status(200).json(rows.map(toCamelAndNormalize));
+            const data = rows.map(toCamelAndNormalize);
+            return res.status(200).json(req.query.limit ? { data, total: totalCount } : data);
         }
 
-        // --- GENERIC POST (INSERT) ---
         if (method === 'POST') {
-             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             
-             // Extra security for admin tables
-             if (['notification_configs'].includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+            const isSelfLeaveRequest = tableName === 'leave_requests' && req.body.resourceId === currentUser?.resourceId;
+            const isOperational = currentUser && OPERATIONAL_ROLES.includes(currentUser.role);
+            
+            if (!currentUser || (!isOperational && !isSelfLeaveRequest)) {
+                return res.status(403).json({ error: 'Unauthorized' });
+            }
 
-             // VALIDATION STEP
-             const schema = VALIDATION_SCHEMAS[tableName as string];
-             if (!schema) {
-                 return res.status(400).json({ error: `Entity ${entity} is not supported for generic write operations.` });
-             }
-             
-             const parseResult = schema.safeParse(req.body);
-             if (!parseResult.success) {
-                 return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
-             }
-             
-             let validatedBody = parseResult.data as any;
-             const newId = uuidv4();
+            const schema = VALIDATION_SCHEMAS[tableName as string];
+            if (!schema) return res.status(400).json({ error: 'Unsupported entity' });
+            const validated = schema.parse(req.body);
 
-             // Logic for Roles: auto-calculate dailyExpenses from overheadPct
-             if (tableName === 'roles') {
-                const dailyCost = validatedBody.dailyCost || 0;
-                const overheadPct = validatedBody.overheadPct || 0;
-                // Force calculate absolute value for DB compatibility
-                validatedBody.dailyExpenses = (dailyCost * overheadPct) / 100;
-             }
-             
-             // Dynamic Query Construction using Validated Keys Only
-             const columns = Object.keys(validatedBody).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
-             const values = Object.values(validatedBody);
-             const placeholders = values.map((_, i) => `$${i + 2}`); // $1 is reserved for ID
-             
-             const q = `INSERT INTO ${tableName} (id, ${columns.join(', ')}) VALUES ($1, ${placeholders.join(', ')})`;
-             await client.query(q, [newId, ...values]);
-             
-             await logAction(client, currentUser, 'CREATE', tableName as string, newId, validatedBody, req);
-             
-             // --- NOTIFICATION TRIGGER ---
-             await triggerNotification(client, 'POST', tableName as string, newId, validatedBody);
-             // -----------------------------
+            // Safety: Force status to PENDING for non-operational users requesting leave
+            if (tableName === 'leave_requests' && !isOperational) {
+                validated.status = 'PENDING';
+            }
 
-             return res.status(201).json({ id: newId, ...validatedBody });
+            const newId = uuidv4();
+            const cols = Object.keys(validated).map(k => k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`));
+            const vals = Object.values(validated);
+            const placeholders = vals.map((_, i) => `$${i + 2}`);
+            await client.query(`INSERT INTO ${tableName} (id, ${cols.join(', ')}) VALUES ($1, ${placeholders.join(', ')})`, [newId, ...vals]);
+            await triggerNotification(client, 'POST', tableName as string, newId, validated);
+            return res.status(201).json({ id: newId, ...validated });
         }
 
-        // --- GENERIC PUT (UPDATE) ---
         if (method === 'PUT') {
-            if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-            
-            if (['notification_configs'].includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
+            const isSelfLeaveRequest = tableName === 'leave_requests' && req.body.resourceId === currentUser?.resourceId;
+            const isOperational = currentUser && OPERATIONAL_ROLES.includes(currentUser.role);
 
-            // VALIDATION STEP
-             const schema = VALIDATION_SCHEMAS[tableName as string];
-             if (!schema) {
-                 return res.status(400).json({ error: `Entity ${entity} is not supported for generic write operations.` });
-             }
-             
-             // Use partial() for updates as not all fields might be present
-             // NOTE: for Roles with refinement, we might need full object or manual check if fields missing
-             const parseResult = schema.partial().safeParse(req.body);
-             if (!parseResult.success) {
-                 return res.status(400).json({ error: "Invalid input data", details: parseResult.error.format() });
-             }
+            if (!currentUser || (!isOperational && !isSelfLeaveRequest)) {
+                return res.status(403).json({ error: 'Unauthorized' });
+            }
 
-            let validatedBody = parseResult.data as any;
-            
-            // Logic for Roles: auto-calculate dailyExpenses from overheadPct if present
-            if (tableName === 'roles') {
-                if (validatedBody.dailyCost !== undefined && validatedBody.overheadPct !== undefined) {
-                     validatedBody.dailyExpenses = (Number(validatedBody.dailyCost || 0) * Number(validatedBody.overheadPct || 0)) / 100;
-                } else if (validatedBody.overheadPct !== undefined) {
-                     const { rows } = await client.query('SELECT daily_cost FROM roles WHERE id = $1', [id]);
-                     const currentCost = Number(rows[0]?.daily_cost || 0);
-                     validatedBody.dailyExpenses = (currentCost * Number(validatedBody.overheadPct || 0)) / 100;
-                } else if (validatedBody.dailyCost !== undefined) {
-                     const { rows } = await client.query('SELECT overhead_pct FROM roles WHERE id = $1', [id]);
-                     const currentPct = Number(rows[0]?.overhead_pct || 0);
-                     validatedBody.dailyExpenses = (Number(validatedBody.dailyCost || 0) * currentPct) / 100;
+            const oldData = (await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id])).rows[0];
+            if (!oldData) return res.status(404).json({ error: 'Not found' });
+
+            // Safety: Prevent non-operational users from changing status or other sensitive fields in leave requests
+            if (tableName === 'leave_requests' && !isOperational) {
+                if (req.body.status && req.body.status !== oldData.status && oldData.status !== 'PENDING') {
+                     return res.status(403).json({ error: 'Cannot modify non-pending leave request' });
                 }
             }
 
-            const updates = Object.entries(validatedBody).map(([k, v], i) => {
-                const col = k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-                return `${col} = $${i + 1}`;
-            });
-            const values = Object.values(validatedBody);
-            
-            if (updates.length === 0) {
-                 return res.status(400).json({ error: "No valid fields to update." });
+            const updates = Object.entries(req.body).filter(([k]) => k !== 'id' && k !== 'version').map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
+            const vals = Object.entries(req.body).filter(([k]) => k !== 'id' && k !== 'version').map(([_, v]) => v);
+            await client.query(`UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = $${vals.length + 1}`, [...vals, id]);
+            await triggerNotification(client, 'PUT', tableName as string, id as string, req.body, oldData);
+            return res.status(200).json({ id, ...req.body });
+        }
+
+        if (method === 'DELETE') {
+            const oldData = (await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id])).rows[0];
+            if (!oldData) return res.status(404).json({ error: 'Not found' });
+
+            const isSelfLeaveRequest = tableName === 'leave_requests' && oldData.resource_id === currentUser?.resourceId;
+            const isOperational = currentUser && OPERATIONAL_ROLES.includes(currentUser.role);
+
+            if (!currentUser || (!isOperational && !isSelfLeaveRequest)) {
+                return res.status(403).json({ error: 'Unauthorized' });
             }
 
-            // --- FETCH OLD DATA FOR NOTIFICATIONS ---
-            const oldDataRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
-            const oldData = oldDataRes.rows[0];
-            // ----------------------------------------
-
-            const q = `UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = $${values.length + 1}`;
-            await client.query(q, [...values, id]);
-            
-            await logAction(client, currentUser, 'UPDATE', tableName as string, id as string, validatedBody, req);
-            
-            // --- NOTIFICATION TRIGGER ---
-            await triggerNotification(client, 'PUT', tableName as string, id as string, validatedBody, oldData ? toCamelAndNormalize(oldData) : null);
-            // -----------------------------
-
-            return res.status(200).json({ id, ...validatedBody });
+            await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
+            return res.status(204).end();
         }
 
-        // --- GENERIC DELETE ---
-        if (method === 'DELETE') {
-             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             if (['notification_configs'].includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Admin only' });
-             await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
-             await logAction(client, currentUser, 'DELETE', tableName as string, id as string, {}, req);
-             return res.status(204).end();
-        }
-
-        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-        return res.status(405).end(`Method ${method} Not Allowed`);
-
-    } catch (error) {
-        try { await client.query('ROLLBACK'); } catch(e) {}
-        console.error("API Error:", error);
-        return res.status(500).json({ error: (error as Error).message });
+        return res.status(405).end();
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ error: (e as Error).message });
     } finally {
         client.release();
     }

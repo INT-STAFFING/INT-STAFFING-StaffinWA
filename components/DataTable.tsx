@@ -6,6 +6,7 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import ErrorBoundary from './ErrorBoundary';
+import Pagination from './Pagination';
 
 export interface ColumnDef<T> {
     header: string;
@@ -52,8 +53,14 @@ interface DataTableProps<T extends { id?: string }> {
     emptyMessage?: React.ReactNode;
     tableLayout?: TableLayoutProps;
     tableClassNames?: TableClassNames;
-    actionsWidth?: number; // Opzionale: larghezza personalizzata manuale
-    numActions?: number;   // Opzionale: numero di pulsanti azione per calcolo automatico larghezza
+    actionsWidth?: number;
+    numActions?: number;
+    // Server-side pagination props
+    manualPagination?: boolean;
+    totalServerItems?: number;
+    serverPage?: number;
+    onServerPageChange?: (page: number) => void;
+    onServerPageSizeChange?: (size: number) => void;
 }
 
 /** Utility per combinare classNames */
@@ -78,6 +85,11 @@ export function DataTable<T extends { id?: string }>({
     tableClassNames,
     actionsWidth,
     numActions,
+    manualPagination = false,
+    totalServerItems = 0,
+    serverPage = 1,
+    onServerPageChange,
+    onServerPageSizeChange
 }: DataTableProps<T>) {
     const [sortConfig, setSortConfig] = useState<SortConfig<T>>(
         initialSortKey ? { key: initialSortKey, direction: 'ascending' } : null
@@ -86,26 +98,25 @@ export function DataTable<T extends { id?: string }>({
     const [filters, setFilters] = useState<Record<string, string>>({});
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
     const tableRef = useRef<HTMLTableElement>(null);
+    
+    // Internal pagination state (used only if manualPagination is false)
+    const [localPage, setLocalPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
 
-    // Costanti per il calcolo della larghezza
-    // Aumentato a 50 per accomodare meglio pulsanti con padding e gap
     const BUTTON_WIDTH = 50; 
     const BASE_PADDING = 16; 
 
-    // Calcolo larghezza colonna azioni
     const finalActionsWidth = useMemo(() => {
         if (actionsWidth) return actionsWidth;
         if (numActions !== undefined) {
             return Math.max((numActions * BUTTON_WIDTH) + BASE_PADDING, 100);
         }
-        return 130; // Default storico
+        return 130;
     }, [actionsWidth, numActions]);
 
-    // Inizializza le larghezze delle colonne se non settate
     useEffect(() => {
         if (tableRef.current && Object.keys(columnWidths).length === 0) {
             const initialWidths: Record<string, number> = {};
-            // Distribuzione equa iniziale o basata su minWidth
             const totalWidth = tableRef.current.offsetWidth - finalActionsWidth; 
             const defaultWidth = Math.max(150, totalWidth / columns.length);
             
@@ -146,7 +157,7 @@ export function DataTable<T extends { id?: string }>({
 
         const handleMouseMove = (event: MouseEvent) => {
             const deltaX = event.clientX - startX;
-            const newWidth = Math.max(startWidth + deltaX, 80); // Minimo 80px
+            const newWidth = Math.max(startWidth + deltaX, 80);
             setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
         };
 
@@ -168,14 +179,12 @@ export function DataTable<T extends { id?: string }>({
     };
 
     const handleColumnFilterChange = (key: string, value: string) => {
-        setFilters(prev => ({
-            ...prev,
-            [key]: value
-        }));
+        setFilters(prev => ({ ...prev, [key]: value }));
+        if (!manualPagination) setLocalPage(1); // Reset page on filter
     };
 
-    /** 🔍 Filtro client-side */
     const filteredData = useMemo(() => {
+        if (manualPagination) return data; // On manual, filtering is server side
         if (!data) return [];
         return data.filter((item) => {
             return columns.every((col) => {
@@ -187,10 +196,10 @@ export function DataTable<T extends { id?: string }>({
                 return String(cellValue).toLowerCase().includes(filterValue.toLowerCase());
             });
         });
-    }, [data, filters, columns]);
+    }, [data, filters, columns, manualPagination]);
 
-    /** 🔽 Ordinamento */
     const sortedData = useMemo(() => {
+        if (manualPagination) return filteredData; // On manual, sorting is server side
         const base = filteredData;
         if (!sortConfig) return base;
         return [...base].sort((a, b) => {
@@ -206,7 +215,13 @@ export function DataTable<T extends { id?: string }>({
                     : bValue.localeCompare(aValue);
             return 0;
         });
-    }, [filteredData, sortConfig]);
+    }, [filteredData, sortConfig, manualPagination]);
+
+    const paginatedData = useMemo(() => {
+        if (manualPagination) return sortedData;
+        const startIndex = (localPage - 1) * pageSize;
+        return sortedData.slice(startIndex, startIndex + pageSize);
+    }, [sortedData, localPage, pageSize, manualPagination]);
 
     const getSortableHeader = (label: string, colKey?: string, index?: number) => {
         const key = label; 
@@ -219,8 +234,6 @@ export function DataTable<T extends { id?: string }>({
                 : '↕️';
 
         const width = columnWidths[key];
-        
-        // Logica Sticky per header
         const isFirstDataCol = index === 0;
         const stickyClass = isFirstDataCol 
             ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
@@ -259,8 +272,6 @@ export function DataTable<T extends { id?: string }>({
                     ) : (
                         <span className="truncate">{label}</span>
                     )}
-                    
-                    {/* Resizer Handle */}
                     <div
                         className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary group-hover:bg-outline-variant"
                         onMouseDown={(e) => handleMouseDown(key, e)}
@@ -273,6 +284,24 @@ export function DataTable<T extends { id?: string }>({
 
     const desktopEmptyMessage = emptyMessage ?? 'Nessun dato trovato.';
     const loadingLabel = loadingMessage ?? 'Caricamento...';
+
+    // Handle pagination change
+    const handlePageChange = (p: number) => {
+        if (manualPagination && onServerPageChange) {
+            onServerPageChange(p);
+        } else {
+            setLocalPage(p);
+        }
+    };
+    
+    const handlePageSizeChange = (s: number) => {
+        if (manualPagination && onServerPageSizeChange) {
+            onServerPageSizeChange(s);
+        } else {
+            setPageSize(s);
+            setLocalPage(1);
+        }
+    };
 
     return (
         <ErrorBoundary label="Errore nella Tabella Dati">
@@ -300,18 +329,16 @@ export function DataTable<T extends { id?: string }>({
                     {filtersNode}
                 </div>
 
-                <div className="bg-surface rounded-2xl shadow overflow-hidden">
+                <div className="bg-surface rounded-2xl shadow overflow-hidden flex flex-col h-full">
                     {/* Desktop Table */}
-                    <div className="hidden md:block">
+                    <div className="hidden md:block flex-grow">
                         <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative">
                             <table
                                 ref={tableRef}
                                 className="w-full table-fixed border-collapse"
                             >
                                 <thead className={combineClassNames('bg-surface-container-low', classes.header)}>
-                                    {/* RIGA 1: INTESTAZIONI */}
                                     <tr className={classes.headerRow}>
-                                        {/* 1. Colonna Azioni (Fissa a Sinistra) */}
                                         <th
                                             className={combineClassNames(
                                                 'sticky left-0 z-40 px-2',
@@ -325,52 +352,47 @@ export function DataTable<T extends { id?: string }>({
                                         >
                                             Azioni
                                         </th>
-
-                                        {/* 2. Colonne Dati */}
                                         {columns.map((col, index) => getSortableHeader(col.header, col.sortKey, index))}
                                     </tr>
 
-                                    {/* RIGA 2: FILTRI COLONNA */}
-                                    <tr className="bg-surface-container-low">
-                                        {/* 1. Filtro Azioni (Vuoto ma fisso) */}
-                                        <th
-                                            className={combineClassNames(
-                                                'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                                                layout.headerSticky && 'sticky top-[45px]' // Offset approssimativo dell'header sopra
-                                            )}
-                                            style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
-                                        >
-                                            {/* Placeholder */}
-                                        </th>
-
-                                        {/* 2. Filtri Dati */}
-                                        {columns.map((col, index) => {
-                                            const key = col.sortKey || col.header;
-                                            const isFirstDataCol = index === 0;
-                                            const stickyClass = isFirstDataCol 
-                                                ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
-                                                : 'relative z-10';
-                                            
-                                            return (
-                                                <th 
-                                                    key={`filter-${key}`} 
-                                                    className={combineClassNames(
-                                                        "px-2 py-1 bg-surface-container-low border-b border-outline-variant",
-                                                        layout.headerSticky && 'sticky top-[45px]',
-                                                        stickyClass
-                                                    )}
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Filtra..."
-                                                        className="w-full text-xs form-input py-1 px-2 h-7 bg-surface border-outline-variant focus:border-primary rounded"
-                                                        value={filters[key] || ''}
-                                                        onChange={(e) => handleColumnFilterChange(key, e.target.value)}
-                                                    />
-                                                </th>
-                                            );
-                                        })}
-                                    </tr>
+                                    {/* Sub-header Filters (only if NOT manual) */}
+                                    {!manualPagination && (
+                                        <tr className="bg-surface-container-low">
+                                            <th
+                                                className={combineClassNames(
+                                                    'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
+                                                    layout.headerSticky && 'sticky top-[45px]'
+                                                )}
+                                                style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
+                                            />
+                                            {columns.map((col, index) => {
+                                                const key = col.sortKey || col.header;
+                                                const isFirstDataCol = index === 0;
+                                                const stickyClass = isFirstDataCol 
+                                                    ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
+                                                    : 'relative z-10';
+                                                
+                                                return (
+                                                    <th 
+                                                        key={`filter-${key}`} 
+                                                        className={combineClassNames(
+                                                            "px-2 py-1 bg-surface-container-low border-b border-outline-variant",
+                                                            layout.headerSticky && 'sticky top-[45px]',
+                                                            stickyClass
+                                                        )}
+                                                    >
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Filtra..."
+                                                            className="w-full text-xs form-input py-1 px-2 h-7 bg-surface border-outline-variant focus:border-primary rounded"
+                                                            value={filters[key] || ''}
+                                                            onChange={(e) => handleColumnFilterChange(key, e.target.value)}
+                                                        />
+                                                    </th>
+                                                );
+                                            })}
+                                        </tr>
+                                    )}
                                 </thead>
 
                                 <tbody className={classes.body}>
@@ -387,24 +409,19 @@ export function DataTable<T extends { id?: string }>({
                                                 ))}
                                             </tr>
                                         ))
-                                    ) : sortedData.length > 0 ? (
-                                        sortedData.map((item, rowIndex) => {
+                                    ) : paginatedData.length > 0 ? (
+                                        paginatedData.map((item, rowIndex) => {
                                             const renderedRow = renderRow(item);
                                             
                                             if (React.isValidElement(renderedRow) && renderedRow.type === 'tr') {
-                                                // Explicit cast to access props
                                                 const element = renderedRow as React.ReactElement<any>;
-                                                
                                                 const children = React.Children.toArray(element.props.children) as React.ReactElement<any>[];
-                                                
                                                 const actionCell = children[children.length - 1];
                                                 const dataCells = children.slice(0, children.length - 1);
-                                                
                                                 const rowProps = element.props;
 
                                                 return (
                                                     <tr {...rowProps} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
-                                                        {/* 1. Cella Azioni (Sticky Left) */}
                                                         <td 
                                                             className={combineClassNames(
                                                                 "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
@@ -414,8 +431,6 @@ export function DataTable<T extends { id?: string }>({
                                                         >
                                                             {actionCell && actionCell.props.children}
                                                         </td>
-
-                                                        {/* 2. Celle Dati */}
                                                         {dataCells.map((cell, cellIndex) => {
                                                             const isFirstDataCol = cellIndex === 0;
                                                             const stickyClass = isFirstDataCol 
@@ -436,7 +451,6 @@ export function DataTable<T extends { id?: string }>({
                                                     </tr>
                                                 );
                                             }
-                                            
                                             return renderedRow;
                                         })
                                     ) : (
@@ -458,27 +472,31 @@ export function DataTable<T extends { id?: string }>({
                     <div className="md:hidden p-4 space-y-4">
                         {isLoading ? (
                             <>
-                                <p className="text-center text-on-surface-variant mb-2">
-                                    {loadingLabel}
-                                </p>
+                                <p className="text-center text-on-surface-variant mb-2">{loadingLabel}</p>
                                 {Array.from({ length: 3 }).map((_, idx) => (
-                                    <div
-                                        key={`mobile-skeleton-${idx}`}
-                                        className="p-4 rounded-lg bg-surface-variant animate-pulse space-y-2"
-                                    >
+                                    <div key={`mobile-skeleton-${idx}`} className="p-4 rounded-lg bg-surface-variant animate-pulse space-y-2">
                                         <div className="h-4 rounded bg-surface" />
                                         <div className="h-4 rounded bg-surface" />
                                         <div className="h-4 rounded bg-surface w-1/2" />
                                     </div>
                                 ))}
                             </>
-                        ) : sortedData.length > 0 ? (
-                            sortedData.map(item => renderMobileCard(item))
+                        ) : paginatedData.length > 0 ? (
+                            paginatedData.map(item => renderMobileCard(item))
                         ) : (
-                            <p className="text-center py-8 text-on-surface-variant">
-                                {desktopEmptyMessage}
-                            </p>
+                            <p className="text-center py-8 text-on-surface-variant">{desktopEmptyMessage}</p>
                         )}
+                    </div>
+                    
+                    {/* Pagination Footer */}
+                    <div className="mt-auto">
+                        <Pagination 
+                            currentPage={manualPagination ? serverPage : localPage}
+                            totalItems={manualPagination ? totalServerItems : sortedData.length}
+                            itemsPerPage={pageSize}
+                            onPageChange={handlePageChange}
+                            onItemsPerPageChange={handlePageSizeChange}
+                        />
                     </div>
                 </div>
             </div>

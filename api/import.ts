@@ -1,4 +1,3 @@
-
 import { db } from './db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
@@ -86,9 +85,9 @@ const formatDateForDB = (date: Date | null): string | null => {
     return date.toISOString().split('T')[0];
 };
 
-const normalize = (str: any): string => String(str || '').trim().toLowerCase();
+const normalize = (str: unknown): string => String(str || '').trim().toLowerCase();
 
-const safeString = (val: any): string => {
+const safeString = (val: unknown): string => {
     if (val === null || val === undefined) return '';
     return String(val);
 };
@@ -150,7 +149,9 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 
     // Resources
     // Re-fetch roles to map names to IDs
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const roleMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM roles')).rows.forEach((r: any) => roleMap.set(normalize(r.name), r.id));
+    
     const resourceRows: any[][] = [];
     
     if (Array.isArray(resources)) {
@@ -184,7 +185,8 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 
     // Projects
     // Re-fetch clients to map names to IDs
-    const clientMap = new Map((await client.query('SELECT id, name FROM clients')).rows.map((c: any) => [normalize(c.name), c.id]));
+    const clientMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM clients')).rows.forEach((c: any) => clientMap.set(normalize(c.name), c.id));
     const projectRows: any[][] = [];
 
     if (Array.isArray(projects)) {
@@ -227,8 +229,13 @@ const importCoreEntities = async (client: any, body: any, warnings: string[]) =>
 const importStaffing = async (client: any, body: any, warnings: string[]) => {
     const { staffing } = body;
     if (!Array.isArray(staffing) || staffing.length === 0) return;
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
+    
+    const resourceMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM resources')).rows.forEach((r: any) => resourceMap.set(normalize(r.name), r.id));
+    
+    const projectMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM projects')).rows.forEach((p: any) => projectMap.set(normalize(p.name), p.id));
+    
     const assignmentMap = new Map<string, string>();
     (await client.query('SELECT id, resource_id, project_id FROM assignments')).rows.forEach((a: any) => assignmentMap.set(`${a.resource_id}-${a.project_id}`, a.id));
     
@@ -269,9 +276,14 @@ const importResourceRequests = async (client: any, body: any, warnings: string[]
     const { resource_requests } = body;
     if (!Array.isArray(resource_requests)) return;
     
-    const projectMap = new Map((await client.query('SELECT id, name FROM projects')).rows.map((p: any) => [normalize(p.name), p.id]));
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const projectMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM projects')).rows.forEach((p: any) => projectMap.set(normalize(p.name), p.id));
+    
+    const roleMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM roles')).rows.forEach((r: any) => roleMap.set(normalize(r.name), r.id));
+    
+    const resourceMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM resources')).rows.forEach((r: any) => resourceMap.set(normalize(r.name), r.id));
 
     const requestRows: any[][] = [];
     
@@ -325,8 +337,11 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
     const { interviews } = body;
     if (!Array.isArray(interviews)) return;
 
-    const roleMap = new Map((await client.query('SELECT id, name FROM roles')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
+    const roleMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM roles')).rows.forEach((r: any) => roleMap.set(normalize(r.name), r.id));
+    
+    const resourceMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM resources')).rows.forEach((r: any) => resourceMap.set(normalize(r.name), r.id));
     
     const interviewRows: any[][] = [];
 
@@ -384,8 +399,11 @@ const importSkills = async (client: any, body: any, warnings: string[]) => {
 
     // 2. Import Associations
     if (Array.isArray(associations)) {
-        const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-        const skillMap = new Map((await client.query('SELECT id, name FROM skills')).rows.map((s: any) => [normalize(s.name), s.id]));
+        const resourceMap = new Map<string, string>();
+        (await client.query('SELECT id, name FROM resources')).rows.forEach((r: any) => resourceMap.set(normalize(r.name), r.id));
+        
+        const skillMap = new Map<string, string>();
+        (await client.query('SELECT id, name FROM skills')).rows.forEach((s: any) => skillMap.set(normalize(s.name), s.id));
         
         const assocRows: any[][] = [];
         
@@ -417,8 +435,11 @@ const importLeaves = async (client: any, body: any, warnings: string[]) => {
     const { leaves } = body;
     if (!Array.isArray(leaves)) return;
 
-    const resourceMap = new Map((await client.query('SELECT id, name FROM resources')).rows.map((r: any) => [normalize(r.name), r.id]));
-    const typeMap = new Map((await client.query('SELECT id, name FROM leave_types')).rows.map((t: any) => [normalize(t.name), t.id]));
+    const resourceMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM resources')).rows.forEach((r: any) => resourceMap.set(normalize(r.name), r.id));
+    
+    const typeMap = new Map<string, string>();
+    (await client.query('SELECT id, name FROM leave_types')).rows.forEach((t: any) => typeMap.set(normalize(t.name), t.id));
     
     const leaveRows: any[][] = [];
     
@@ -453,7 +474,8 @@ const importUsersPermissions = async (client: any, body: any, warnings: string[]
     const res = await client.query('SELECT id, email FROM resources');
     res.rows.forEach((r: any) => {
         // Fix: Ensure we normalize a string value, handling null/undefined
-        resourceMap.set(normalize(safeString(r.email)), safeString(r.id));
+        const key = safeString(r.email);
+        resourceMap.set(normalize(key), safeString(r.id));
     });
 
     if (Array.isArray(users)) {
@@ -504,8 +526,8 @@ const importTutorMapping = async (client: any, body: any, warnings: string[]) =>
     for (const row of mapping) {
         // Fix: Force cast to any to allow loose typing
         const rowData = row as any;
-        const resKey = rowData['Email Risorsa'] || rowData['Risorsa'];
-        const tutorKey = rowData['Email Tutor'] || rowData['Tutor'];
+        const resKey = String(rowData['Email Risorsa'] || rowData['Risorsa'] || '');
+        const tutorKey = String(rowData['Email Tutor'] || rowData['Tutor'] || '');
         
         // Use updated normalize which accepts any. Explicit String cast to fix potential unknown type error.
         const resId = resourceMap.get(normalize(safeString(resKey)));

@@ -169,7 +169,32 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     
     const list = db[dbKey] || [];
     
-    if (method === 'GET') return list;
+    if (method === 'GET') {
+        let resultList = list;
+        
+        // Mock Search
+        if (params.search && (entity === 'resources' || entity === 'projects' || entity === 'clients')) {
+             const lowerSearch = params.search.toLowerCase();
+             resultList = list.filter((item: any) => item.name && item.name.toLowerCase().includes(lowerSearch));
+        }
+
+        // Mock Pagination
+        if (params.limit) {
+            const page = parseInt(params.page || '1');
+            const limit = parseInt(params.limit);
+            const start = (page - 1) * limit;
+            const end = start + limit;
+            
+            return {
+                data: resultList.slice(start, end),
+                total: resultList.length,
+                page,
+                limit
+            };
+        }
+
+        return resultList;
+    }
     
     if (method === 'POST') {
       const body = JSON.parse(options.body as string);
