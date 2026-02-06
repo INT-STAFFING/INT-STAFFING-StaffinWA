@@ -65,42 +65,38 @@ const GlobalSearchPage: React.FC = () => {
             </div>
 
             <div className="space-y-8 animate-fade-in">
-                {Object.entries(groupedResults).map(([type, items]) => {
-                    // Explicit cast to resolve type inference issue
-                    const searchItems = items as SearchResult[];
-                    return (
-                        <div key={type} className="bg-surface rounded-2xl border border-outline-variant overflow-hidden shadow-sm">
-                            <div className="bg-surface-container px-6 py-3 border-b border-outline-variant flex justify-between items-center">
-                                <h3 className="text-sm font-black text-on-surface-variant uppercase tracking-widest">{type}</h3>
-                                <span className="bg-surface text-on-surface text-xs font-bold px-2 py-0.5 rounded-full border border-outline-variant">{searchItems.length}</span>
-                            </div>
-                            <div className="divide-y divide-outline-variant">
-                                {searchItems.map(item => (
-                                    <div 
-                                        key={`${item.type}-${item.id}`}
-                                        onClick={() => handleNavigate(item.link)}
-                                        className="p-4 flex items-center gap-4 hover:bg-surface-container-low cursor-pointer transition-colors group"
-                                    >
-                                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                                            <span className="material-symbols-outlined">{item.icon}</span>
-                                        </div>
-                                        <div className="flex-grow">
-                                            <h4 className="text-lg font-semibold text-on-surface">
-                                                <HighlightedText text={item.title} highlight={query} />
-                                            </h4>
-                                            <p className="text-sm text-on-surface-variant">
-                                                <HighlightedText text={item.subtitle} highlight={query} />
-                                            </p>
-                                        </div>
-                                        <span className="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
-                                            arrow_forward
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                {Object.entries(groupedResults).map(([type, items]) => (
+                    <div key={type} className="bg-surface rounded-2xl border border-outline-variant overflow-hidden shadow-sm">
+                        <div className="bg-surface-container px-6 py-3 border-b border-outline-variant flex justify-between items-center">
+                            <h3 className="text-sm font-black text-on-surface-variant uppercase tracking-widest">{type}</h3>
+                            <span className="bg-surface text-on-surface text-xs font-bold px-2 py-0.5 rounded-full border border-outline-variant">{items.length}</span>
                         </div>
-                    );
-                })}
+                        <div className="divide-y divide-outline-variant">
+                            {items.map(item => (
+                                <div 
+                                    key={`${item.type}-${item.id}`}
+                                    onClick={() => handleNavigate(item.link)}
+                                    className="p-4 flex items-center gap-4 hover:bg-surface-container-low cursor-pointer transition-colors group"
+                                >
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+                                        <span className="material-symbols-outlined">{item.icon}</span>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <h4 className="text-lg font-semibold text-on-surface">
+                                            <HighlightedText text={item.title} highlight={query} />
+                                        </h4>
+                                        <p className="text-sm text-on-surface-variant">
+                                            <HighlightedText text={item.subtitle} highlight={query} />
+                                        </p>
+                                    </div>
+                                    <span className="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+                                        arrow_forward
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
                 
                 {query.length > 1 && results.length === 0 && (
                      <div className="text-center py-20 opacity-50">

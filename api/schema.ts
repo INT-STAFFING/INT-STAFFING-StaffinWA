@@ -78,24 +78,22 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS skill_skill_category_map ( skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, category_id UUID REFERENCES skill_categories(id) ON DELETE CASCADE, PRIMARY KEY (skill_id, category_id) );`;
 
     // 4. Operational Entities
-    await db.sql`CREATE TABLE IF NOT EXISTS clients ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, sector VARCHAR(255), contact_email VARCHAR(255), version INT DEFAULT 1 );`;
-    // Migration for version
-    await db.sql`ALTER TABLE clients ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
-
-    // Roles
-    await db.sql`CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2), overhead_pct NUMERIC(5, 2) DEFAULT 0, chargeable_pct NUMERIC(5, 2) DEFAULT 100, training_pct NUMERIC(5, 2) DEFAULT 0, bd_pct NUMERIC(5, 2) DEFAULT 0, version INT DEFAULT 1 );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS clients ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, sector VARCHAR(255), contact_email VARCHAR(255) );`;
+    
+    // Roles - Added Chargeability Columns and Overhead Pct
+    await db.sql`CREATE TABLE IF NOT EXISTS roles ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, seniority_level VARCHAR(255), daily_cost NUMERIC(10, 2), standard_cost NUMERIC(10, 2), daily_expenses NUMERIC(10, 2), overhead_pct NUMERIC(5, 2) DEFAULT 0, chargeable_pct NUMERIC(5, 2) DEFAULT 100, training_pct NUMERIC(5, 2) DEFAULT 0, bd_pct NUMERIC(5, 2) DEFAULT 0 );`;
+    // Migrations for existing tables
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS chargeable_pct NUMERIC(5, 2) DEFAULT 100;`;
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS training_pct NUMERIC(5, 2) DEFAULT 0;`;
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS bd_pct NUMERIC(5, 2) DEFAULT 0;`;
     await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS overhead_pct NUMERIC(5, 2) DEFAULT 0;`;
-    await db.sql`ALTER TABLE roles ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
 
     await db.sql`CREATE TABLE IF NOT EXISTS role_cost_history ( id UUID PRIMARY KEY, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, daily_cost NUMERIC(10, 2) NOT NULL, start_date DATE NOT NULL, end_date DATE );`;
     
-    // Resource Update
-    await db.sql`CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), location VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100, resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE, tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL, daily_cost NUMERIC(10, 2) DEFAULT 0, version INT DEFAULT 1 );`;
+    // Resource Update: Added daily_cost
+    await db.sql`CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), location VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100, resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE, tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL, daily_cost NUMERIC(10, 2) DEFAULT 0 );`;
+    // Ensure column exists for migration
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS daily_cost NUMERIC(10, 2) DEFAULT 0;`;
-    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
 
     // 5. Skills Associations
     await db.sql`CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, acquisition_date DATE, expiration_date DATE, PRIMARY KEY (resource_id, skill_id) );`;
@@ -128,7 +126,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     }
 
     // 7. Projects & Planning
-    // Add Rate Cards Tables
+    // Add Rate Cards Tables - UPDATED for Resource Specificity
     await db.sql`CREATE TABLE IF NOT EXISTS rate_cards ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, currency VARCHAR(10) DEFAULT 'EUR' );`;
     
     // Check if table exists
@@ -136,6 +134,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     if (!rateCardCheck.rows[0].exists) {
          await db.sql`CREATE TABLE rate_card_entries ( rate_card_id UUID REFERENCES rate_cards(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, daily_rate NUMERIC(10, 2) NOT NULL, PRIMARY KEY (rate_card_id, resource_id) );`;
     } else {
+        // Migration logic: Check if column role_id exists
          const colCheck = await db.sql`SELECT column_name FROM information_schema.columns WHERE table_name='rate_card_entries' AND column_name='role_id';`;
          if (colCheck.rows.length > 0) {
              await db.sql`DROP TABLE rate_card_entries;`;
@@ -143,15 +142,16 @@ export async function ensureDbTablesExist(db: VercelPool) {
          }
     }
 
-    await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0, rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL, billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL', version INT DEFAULT 1 );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0 );`;
     await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS wbs VARCHAR(255);`;
     await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL;`;
+    // ADD BILLING_TYPE TO CONTRACTS
     await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL';`;
-    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
     
-    await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL', version INT DEFAULT 1, UNIQUE(name, client_id) );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, UNIQUE(name, client_id) );`;
+    
+    // ADD BILLING_TYPE TO PROJECTS
     await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL';`;
-    await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
     
     await db.sql`CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`;
@@ -167,15 +167,12 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS billing_milestones ( id UUID PRIMARY KEY, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, date DATE NOT NULL, amount NUMERIC(12, 2) NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PLANNED' );`;
 
     // 8. Recruitment & Operations
-    await db.sql`CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, request_code VARCHAR(50), project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, is_osr_open BOOLEAN DEFAULT FALSE, osr_number VARCHAR(50), notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
-    await db.sql`ALTER TABLE resource_requests ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
-
+    await db.sql`CREATE TABLE IF NOT EXISTS resource_requests ( id UUID PRIMARY KEY, request_code VARCHAR(50), project_id UUID REFERENCES projects(id) ON DELETE CASCADE, role_id UUID REFERENCES roles(id) ON DELETE CASCADE, requestor_id UUID REFERENCES resources(id) ON DELETE SET NULL, start_date DATE NOT NULL, end_date DATE NOT NULL, commitment_percentage INT NOT NULL, is_urgent BOOLEAN DEFAULT FALSE, is_long_term BOOLEAN DEFAULT FALSE, is_tech_request BOOLEAN DEFAULT FALSE, is_osr_open BOOLEAN DEFAULT FALSE, osr_number VARCHAR(50), notes TEXT, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;
     await db.sql`CREATE TABLE IF NOT EXISTS interviews ( id UUID PRIMARY KEY, resource_request_id UUID REFERENCES resource_requests(id) ON DELETE SET NULL, candidate_name VARCHAR(255) NOT NULL, candidate_surname VARCHAR(255) NOT NULL, birth_date DATE, horizontal VARCHAR(255), role_id UUID REFERENCES roles(id) ON DELETE SET NULL, cv_summary TEXT, interviewers_ids UUID[], interview_date DATE, feedback VARCHAR(50), notes TEXT, hiring_status VARCHAR(50), entry_date DATE, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;
 
     // 9. Leave Management
     await db.sql`CREATE TABLE IF NOT EXISTS leave_types ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, color VARCHAR(50) NOT NULL, requires_approval BOOLEAN DEFAULT TRUE, affects_capacity BOOLEAN DEFAULT TRUE );`;
-    await db.sql`CREATE TABLE IF NOT EXISTS leave_requests ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, type_id UUID REFERENCES leave_types(id) ON DELETE RESTRICT, start_date DATE NOT NULL, end_date DATE NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PENDING', manager_id UUID REFERENCES resources(id) ON DELETE SET NULL, notes TEXT, approver_ids UUID[], is_half_day BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
-    await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
+    await db.sql`CREATE TABLE IF NOT EXISTS leave_requests ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, type_id UUID REFERENCES leave_types(id) ON DELETE RESTRICT, start_date DATE NOT NULL, end_date DATE NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PENDING', manager_id UUID REFERENCES resources(id) ON DELETE SET NULL, notes TEXT, approver_ids UUID[], is_half_day BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`;
     
     // 10. Analytics Cache & Simulations
     await db.sql`
@@ -188,9 +185,11 @@ export async function ensureDbTablesExist(db: VercelPool) {
         );
     `;
 
+    // Schema Migration: Ensure 'id' column exists for legacy databases
     try {
         await db.sql`ALTER TABLE analytics_cache ADD COLUMN IF NOT EXISTS id UUID DEFAULT uuid_generate_v4();`;
     } catch (e) {
+        // Ignore if column already exists or other non-critical errors during migration check
         console.warn('Migration warning for analytics_cache:', e);
     }
 

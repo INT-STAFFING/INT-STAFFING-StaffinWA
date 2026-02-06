@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +11,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { ExportButton } from '@/components/shared/ExportButton';
-import { useToast } from '../context/ToastContext';
+
 
 const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id'>): LeaveRequest | Omit<LeaveRequest, 'id'> => {
     const basePayload: Omit<LeaveRequest, 'id'> = {
@@ -39,7 +40,6 @@ const LeavePage: React.FC = () => {
         isActionLoading, managerResourceIds, loading 
     } = useEntitiesContext();
     const { user, isAdmin } = useAuth();
-    const { addToast } = useToast();
 
     // View State
     const [view, setView] = useState<'table' | 'card' | 'calendar'>('table');
@@ -215,28 +215,20 @@ const LeavePage: React.FC = () => {
             const requestPayload = buildLeaveRequestPayload(editingRequest);
             if ('id' in requestPayload) {
                 await updateLeaveRequest(requestPayload as LeaveRequest);
-                addToast('Richiesta aggiornata con successo.', 'success');
             } else {
                 await addLeaveRequest(requestPayload as Omit<LeaveRequest, 'id'>);
-                addToast('Richiesta inviata con successo.', 'success');
             }
             setIsModalOpen(false);
             setEditingRequest(null);
         } catch (err) {
             console.error(err);
-            addToast(`Errore durante il salvataggio: ${(err as Error).message}`, 'error');
         }
     };
 
     const handleDelete = async () => {
         if (requestToDelete) {
-            try {
-                await deleteLeaveRequest(requestToDelete.id!);
-                addToast('Richiesta eliminata.', 'success');
-                setRequestToDelete(null);
-            } catch (err) {
-                addToast('Errore durante l\'eliminazione.', 'error');
-            }
+            await deleteLeaveRequest(requestToDelete.id!);
+            setRequestToDelete(null);
         }
     };
 
@@ -255,10 +247,8 @@ const LeavePage: React.FC = () => {
                 isHalfDay: req.isHalfDay
             };
             await updateLeaveRequest(payload);
-            addToast(`Richiesta ${newStatus === 'APPROVED' ? 'approvata' : 'rifiutata'}.`, 'success');
         } catch (e) {
             console.error("Failed quick action", e);
-            addToast('Errore durante l\'azione rapida.', 'error');
         }
     };
 
@@ -318,7 +308,7 @@ const LeavePage: React.FC = () => {
         const isUpdating = isActionLoading('updateLeaveRequest');
 
         return (
-            <tr key={req.id} className="group hover:bg-surface-container-low transition-colors">
+            <tr key={req.id} className="group hover:bg-surface-container">
                 {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit text-sm text-on-surface-variant">{col.cell(req)}</td>)}
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                     <div className="flex items-center justify-end space-x-2">

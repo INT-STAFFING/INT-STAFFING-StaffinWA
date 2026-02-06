@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import Modal from '../Modal';
+// FIX: Using relative path for custom zod implementation.
+import { z } from '../../libs/zod';
 import { FormFieldDefinition } from './types';
 import SearchableSelect from '../SearchableSelect';
 import MultiSelectDropdown from '../MultiSelectDropdown';
@@ -28,14 +31,6 @@ export const FormDialog: React.FC<FormDialogProps> = ({
     const [values, setValues] = useState(defaultValues);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Reset local state when modal opens with new defaults
-    useEffect(() => {
-        if (isOpen) {
-            setValues(defaultValues);
-            setErrors({});
-        }
-    }, [isOpen, defaultValues]);
-
     const handleChange = (name: string, value: any) => {
         setValues((prev: any) => ({ ...prev, [name]: value }));
         setErrors((prev) => ({ ...prev, [name]: '' }));
@@ -43,20 +38,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
-        // Coerce data types before schema validation if necessary
-        const coercedValues = { ...values };
-        fields.forEach(f => {
-            if (f.type === 'number' || f.type === 'range') {
-                if (coercedValues[f.name] !== undefined && coercedValues[f.name] !== '') {
-                    coercedValues[f.name] = Number(coercedValues[f.name]);
-                } else if (f.required) {
-                    coercedValues[f.name] = 0;
-                }
-            }
-        });
-
-        const result = schema.safeParse(coercedValues);
+        const result = schema.safeParse(values);
         if (result.success) {
             onSubmit(result.data);
             onClose();
@@ -79,8 +61,8 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 
                     return (
                         <div key={field.name}>
-                            <label className="block text-sm font-bold text-on-surface-variant mb-1">
-                                {label} {field.required && <span className="text-error">*</span>}
+                            <label className="block text-sm font-medium text-on-surface-variant mb-1">
+                                {label} {field.required && '*'}
                             </label>
                             {field.type === 'date' && (
                                 <input
@@ -91,17 +73,16 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                                     required={field.required}
                                 />
                             )}
-                            {(field.type === 'number' || field.type === 'text') && (
+                            {field.type === 'number' && (
                                 <input
-                                    type={field.type}
+                                    type="number"
                                     value={values[field.name] ?? ''}
-                                    onChange={(e) => handleChange(field.name, field.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)}
+                                    onChange={(e) => handleChange(field.name, e.target.value === '' ? undefined : Number(e.target.value))}
                                     className="form-input w-full"
                                     required={field.required}
                                     min={field.min}
                                     max={field.max}
                                     step={field.step}
-                                    placeholder={field.placeholder}
                                 />
                             )}
                             {field.type === 'range' && (
@@ -115,9 +96,8 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                                         max={field.max}
                                         step={field.step}
                                     />
-                                    <div className="flex justify-between text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter">
+                                    <div className="flex justify-between text-[10px] text-on-surface-variant">
                                         <span>{field.min}%</span>
-                                        <span className="text-primary">{values[field.name] ?? 0}%</span>
                                         <span>{field.max}%</span>
                                     </div>
                                 </div>
@@ -143,14 +123,14 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                                     placeholder={field.placeholder}
                                 />
                             )}
-                            {errors[field.name] && <p className="mt-1 text-xs font-bold text-error">{errors[field.name]}</p>}
-                            {helper && <p className="mt-1 text-xs text-on-surface-variant opacity-70 italic">{helper}</p>}
+                            {errors[field.name] && <p className="mt-1 text-xs text-error">{errors[field.name]}</p>}
+                            {helper && <p className="mt-1 text-xs text-on-surface-variant opacity-70">{helper}</p>}
                         </div>
                     );
                 })}
                 <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
-                    <button type="button" onClick={onClose} className="px-6 py-2 border border-outline rounded-full text-primary font-bold hover:bg-surface-container-low transition-colors">Annulla</button>
-                    <button type="submit" className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 shadow-lg transition-all active:scale-95">
+                    <button type="button" onClick={onClose} className="px-4 py-2 border border-outline rounded-full text-primary hover:bg-surface-container-low transition-colors">Annulla</button>
+                    <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 shadow-sm transition-all">
                         {submitLabel}
                     </button>
                 </div>
