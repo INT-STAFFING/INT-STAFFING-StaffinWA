@@ -38,7 +38,6 @@ const TABLE_MAPPING: Record<string, string> = {
     'leaves': 'leave_requests',
     'leave_types': 'leave_types',
     'role-permissions': 'role_permissions',
-    'role_permissions': 'role_permissions',
     'security-users': 'app_users',
     'app-users': 'app_users',
     'rate_cards': 'rate_cards',
@@ -52,9 +51,11 @@ const TABLE_MAPPING: Record<string, string> = {
     'project_skills': 'project_skills',
     'contract_projects': 'contract_projects',
     'contract_managers': 'contract_managers',
-    'notifications': 'notifications'
+    'notifications': 'notifications',
+    'app_config': 'app_config'
 };
 
+// Generic Schema for fallback, specific ones below
 const VALIDATION_SCHEMAS: Record<string, any> = {
     'resources': z.object({
         name: z.string(),
@@ -244,10 +245,7 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                 });
             }
         } else if (method === 'PUT' && tableName === 'interviews') {
-            // Check if feedback was added/updated
             if (data.feedback && data.feedback !== oldData?.feedback) {
-                
-                // Calculate Average Rating
                 const ratingKeys = [
                     'ratingTechnicalMastery', 'ratingProblemSolving', 'ratingMethodQuality',
                     'ratingDomainKnowledge', 'ratingAutonomy', 'ratingCommunication',
@@ -262,7 +260,6 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     if (data[key] && Number(data[key]) > 0) {
                         sum += Number(data[key]);
                         count++;
-                        // Beautify key for display
                         const readableKey = key.replace('rating', '').replace(/([A-Z])/g, ' $1').trim();
                         detailedFacts.push({ name: readableKey, value: `${Number(data[key])}/5` });
                     }
@@ -270,37 +267,15 @@ const triggerNotification = async (client: any, method: string, tableName: strin
 
                 const average = count > 0 ? sum / count : 0;
                 const stars = "⭐".repeat(Math.round(average)) + "☆".repeat(5 - Math.round(average));
-                
-                // Determine Chart Color based on average
                 const chartColor = average >= 4 ? '#4caf50' : average >= 3 ? '#ff9800' : '#f44336';
-                
-                // Construct QuickChart URL for Radial Gauge
                 const chartConfig = {
                     type: 'radialGauge',
-                    data: {
-                        datasets: [{
-                            data: [average],
-                            backgroundColor: chartColor
-                        }]
-                    },
-                    options: {
-                        domain: [0, 5],
-                        trackColor: '#e0e0e0',
-                        centerPercentage: 80,
-                        centerArea: {
-                            text: average.toFixed(1),
-                            fontColor: chartColor,
-                            fontSize: 50,
-                            fontFamily: 'Arial',
-                            fontWeight: 'bold'
-                        }
-                    }
+                    data: { datasets: [{ data: [average], backgroundColor: chartColor }] },
+                    options: { domain: [0, 5], trackColor: '#e0e0e0', centerPercentage: 80, centerArea: { text: average.toFixed(1), fontColor: chartColor, fontSize: 50, fontFamily: 'Arial', fontWeight: 'bold' } }
                 };
-                
                 const encodedConfig = encodeURIComponent(JSON.stringify(chartConfig));
                 const imageUrl = `https://quickchart.io/chart?c=${encodedConfig}&w=300&h=300`;
 
-                // 1. Send External Webhook (Teams)
                 await notify(client, 'INTERVIEW_FEEDBACK', {
                     title: `Feedback Inserito: ${data.candidateName} ${data.candidateSurname}`,
                     color: average >= 3.5 ? 'Good' : average >= 2.5 ? 'Warning' : 'Attention',
@@ -315,25 +290,16 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     detailedFacts: detailedFacts
                 });
 
-                // 2. Insert Internal Notification
-                // Find requestor to notify
                 const rrId = data.resourceRequestId || oldData?.resourceRequestId;
                 if (rrId) {
                     const reqRes = await client.query('SELECT requestor_id FROM resource_requests WHERE id = $1', [rrId]);
                     const requestorId = reqRes.rows[0]?.requestor_id;
-
                     if (requestorId) {
                          const candidate = data.candidateName || oldData?.candidateName || 'Candidato';
                          await client.query(
                             `INSERT INTO notifications (id, recipient_resource_id, title, message, link, created_at) 
                              VALUES ($1, $2, $3, $4, $5, NOW())`,
-                            [
-                                uuidv4(), 
-                                requestorId, 
-                                'Feedback Colloquio', 
-                                `Nuovo feedback inserito per ${candidate}: ${data.feedback}. Media: ${average.toFixed(1)}/5`, 
-                                '/interviews'
-                            ]
+                            [uuidv4(), requestorId, 'Feedback Colloquio', `Nuovo feedback inserito per ${candidate}: ${data.feedback}. Media: ${average.toFixed(1)}/5`, '/interviews']
                         );
                     }
                 }
@@ -344,50 +310,192 @@ const triggerNotification = async (client: any, method: string, tableName: strin
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
-    const { entity, id, action, resourceId, skillId, projectId, contractId } = req.query;
+    const { entity, id, action, resourceId, skillId, projectId, contractId, table } = req.query;
     await ensureDbTablesExist(db);
     const client = await db.connect();
     const currentUser = getUserFromRequest(req);
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
     try {
+        // --- DB INSPECTOR (ADMIN ONLY) ---
+        if (entity === 'db_inspector') {
+            if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+
+            if (action === 'list_tables') {
+                const result = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+                return res.status(200).json(result.rows.map(r => r.table_name));
+            }
+            if (action === 'get_table_data' && table) {
+                const limit = 100;
+                // Basic SQL injection prevention by checking against valid tables
+                const validTablesRes = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+                const validTables = validTablesRes.rows.map(r => r.table_name);
+                if (!validTables.includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
+
+                const result = await client.query(`SELECT * FROM ${table} LIMIT $1`, [limit]);
+                const columns = result.fields.map(f => ({ column_name: f.name, data_type: f.dataTypeID })); // Simplified
+                return res.status(200).json({ columns, rows: result.rows });
+            }
+            if (action === 'update_row' && table && id) {
+                 // Basic Dynamic Update - highly simplified for inspector
+                 const updates = req.body;
+                 const validTablesRes = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+                 if (!validTablesRes.rows.map(r => r.table_name).includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
+                 
+                 const keys = Object.keys(updates);
+                 const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
+                 const values = Object.values(updates);
+                 await client.query(`UPDATE ${table} SET ${setClause} WHERE id = $${values.length + 1}`, [...values, id]);
+                 return res.status(200).json({ success: true });
+            }
+            if (action === 'delete_all_rows' && table) {
+                 const validTablesRes = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+                 if (!validTablesRes.rows.map(r => r.table_name).includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
+                 await client.query(`TRUNCATE TABLE ${table} CASCADE`);
+                 return res.status(200).json({ success: true });
+            }
+            if (action === 'run_raw_query') {
+                const { query } = req.body;
+                if (!query) return res.status(400).json({ error: 'No query provided' });
+                // RAW QUERY - EXTREME CAUTION - Admin only verified above
+                const result = await client.query(query);
+                return res.status(200).json({ 
+                    rows: result.rows, 
+                    fields: result.fields.map(f => ({ name: f.name, dataTypeID: f.dataTypeID })), 
+                    rowCount: result.rowCount, 
+                    command: result.command 
+                });
+            }
+        }
+
+        // --- APP CONFIG BATCH ---
+        if (entity === 'app-config-batch' && method === 'POST') {
+             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+             const { updates } = req.body;
+             if (!Array.isArray(updates)) return res.status(400).json({ error: 'Invalid updates format' });
+             
+             await client.query('BEGIN');
+             for (const { key, value } of updates) {
+                 await client.query(
+                     `INSERT INTO app_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`,
+                     [key, value]
+                 );
+             }
+             await client.query('COMMIT');
+             return res.status(200).json({ success: true });
+        }
+
+        // --- BEST FIT ---
+        if (entity === 'resources' && action === 'best_fit' && method === 'POST') {
+             const { roleId, projectId, startDate, endDate, commitmentPercentage } = req.body;
+             // Simplified Logic: Return resources with correct role and calculate a mock score
+             // In production, this would query Allocations to check availability
+             const resQuery = `
+                SELECT r.*, ro.name as role_name 
+                FROM resources r 
+                LEFT JOIN roles ro ON r.role_id = ro.id
+                WHERE r.resigned = FALSE 
+                ${roleId ? `AND r.role_id = $1` : ''}
+                LIMIT 10
+             `;
+             const params = roleId ? [roleId] : [];
+             const { rows } = await client.query(resQuery, params);
+             
+             const scoredResources = rows.map(r => ({
+                 resource: toCamelAndNormalize(r),
+                 score: Math.floor(Math.random() * 30) + 70, // Mock score for now
+                 details: {
+                     availability: Math.floor(Math.random() * 100),
+                     skillMatch: Math.floor(Math.random() * 100),
+                     roleMatch: r.role_id === roleId ? 100 : 50
+                 }
+             })).sort((a, b) => b.score - a.score);
+             
+             return res.status(200).json(scoredResources);
+        }
+
         // --- SPECIAL NOTIFICATION HANDLING ---
         if (entity === 'notifications') {
             if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
-            
-            // Get Resource ID for the current user
             const { rows: userRows } = await client.query('SELECT resource_id FROM app_users WHERE id = $1', [currentUser.id]);
             const userResourceId = userRows[0]?.resource_id;
 
-            if (!userResourceId && currentUser.role !== 'ADMIN') {
-                return res.status(403).json({ error: 'User not linked to a resource.' });
-            }
+            if (!userResourceId && currentUser.role !== 'ADMIN') return res.status(403).json({ error: 'User not linked to a resource.' });
 
             if (method === 'GET') {
-                // If admin, allows seeing all? Usually notifications are personal. 
-                // Let's restrict to personal unless explicitly querying for audit (which handles its own query).
-                // Or if it's the general notification fetch loop.
                 const query = `SELECT * FROM notifications WHERE recipient_resource_id = $1 ORDER BY created_at DESC`;
                 const { rows } = await client.query(query, [userResourceId]);
                 return res.status(200).json(rows.map(toCamelAndNormalize));
             }
-
             if (method === 'PUT' && action === 'mark_read') {
-                if (id) {
-                    // Mark single as read
-                    await client.query(`UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_resource_id = $2`, [id, userResourceId]);
-                    return res.status(200).json({ success: true });
-                } else {
-                    // Mark ALL as read for this user
-                    await client.query(`UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = $1`, [userResourceId]);
-                    return res.status(200).json({ success: true });
-                }
+                if (id) await client.query(`UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_resource_id = $2`, [id, userResourceId]);
+                else await client.query(`UPDATE notifications SET is_read = TRUE WHERE recipient_resource_id = $1`, [userResourceId]);
+                return res.status(200).json({ success: true });
             }
-            // Standard handlers below might intervene if we don't return here, but for 'notifications' we usually only GET or PUT(mark_read).
-            // Creating notifications is internal.
         }
-        // -------------------------------------
+        
+        // --- SPECIAL: APP USERS ACTIONS (Impersonation & Security) ---
+        if (entity === 'app-users') {
+             if (action === 'impersonate' && method === 'POST') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Only admins can impersonate.' });
+                 const targetUserId = id as string;
+                 const { rows } = await client.query('SELECT * FROM app_users WHERE id = $1', [targetUserId]);
+                 const targetUser = rows[0];
+                 if (!targetUser) return res.status(404).json({ error: 'User not found' });
+                 
+                 const token = jwt.sign({ userId: targetUser.id, username: targetUser.username, role: targetUser.role }, JWT_SECRET!, { expiresIn: '4h' });
+                 const permRes = await client.query('SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE', [targetUser.role]);
+                 const permissions = permRes.rows.map(r => r.page_path);
+                 
+                 if (currentUser) {
+                    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+                    await client.query(`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES ($1, $2, $3, $4, $5)`, [currentUser.id, currentUser.username, 'IMPERSONATE', JSON.stringify({ target: targetUser.username }), ip]);
+                 }
+                 return res.status(200).json({ success: true, token, user: { id: targetUser.id, username: targetUser.username, role: targetUser.role, resourceId: targetUser.resource_id, permissions, mustChangePassword: false } });
+             }
 
+             if (action === 'change_password' && method === 'PUT') {
+                 if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+                 const targetUserId = id as string;
+                 const isAdmin = verifyAdmin(req);
+                 const isSelf = currentUser.id === targetUserId;
+                 if (!isAdmin && !isSelf) return res.status(403).json({ error: 'Forbidden' });
+
+                 const { newPassword } = req.body;
+                 if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Invalid password (min 8 chars)' });
+
+                 const salt = await bcrypt.genSalt(10);
+                 const hashedPassword = await bcrypt.hash(newPassword, salt);
+                 const mustChange = isAdmin && !isSelf;
+
+                 await client.query(`UPDATE app_users SET password_hash = $1, must_change_password = $2, version = version + 1 WHERE id = $3`, [hashedPassword, mustChange, targetUserId]);
+                 const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+                 await client.query(`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES ($1, $2, $3, $4, $5)`, [currentUser.id, currentUser.username, 'PASSWORD_CHANGE', JSON.stringify({ targetId: targetUserId, forced: mustChange }), ip]);
+
+                 return res.status(200).json({ success: true });
+             }
+             
+             if (action === 'bulk_password_reset' && method === 'POST') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+                 const { users } = req.body;
+                 if (!Array.isArray(users)) return res.status(400).json({ error: 'Invalid data' });
+                 
+                 let successCount = 0;
+                 let failCount = 0;
+                 const salt = await bcrypt.genSalt(10);
+
+                 for (const u of users) {
+                     try {
+                         const hash = await bcrypt.hash(u.password, salt);
+                         const res = await client.query(`UPDATE app_users SET password_hash = $1, must_change_password = TRUE, version = version + 1 WHERE username = $2`, [hash, u.username]);
+                         if (res.rowCount && res.rowCount > 0) successCount++; else failCount++;
+                     } catch (e) { failCount++; }
+                 }
+                 return res.status(200).json({ successCount, failCount });
+             }
+        }
+
+        // --- GENERIC CRUD ---
         if (method === 'GET') {
             const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs'];
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
@@ -396,6 +504,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const params = [];
             if (id) { queryStr += ` WHERE id = $1`; params.push(id); }
             const { rows } = await client.query(queryStr, params);
+            // Hide password_hash for app_users
+            if (tableName === 'app_users') {
+                rows.forEach(r => delete r.password_hash);
+            }
             return res.status(200).json(id ? (rows[0] ? toCamelAndNormalize(rows[0]) : null) : rows.map(toCamelAndNormalize));
         }
 
@@ -403,6 +515,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) return res.status(400).json({ error: `Not supported: ${entity}` });
+             
+             // Special handling for app_users creation
+             if (tableName === 'app_users') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Only admins can create users' });
+                 const parseResult = schema.safeParse(req.body);
+                 if (!parseResult.success) return res.status(400).json({ error: "Invalid data", details: parseResult.error.flatten() });
+                 
+                 const validatedBody = parseResult.data;
+                 // Generate temp password hash
+                 const salt = await bcrypt.genSalt(10);
+                 // Default password "ChangeMe123!" if not provided (though generic UI doesn't provide it yet)
+                 const hashedPassword = await bcrypt.hash("ChangeMe123!", salt);
+                 
+                 const newId = uuidv4();
+                 await client.query(
+                     `INSERT INTO app_users (id, username, password_hash, role, resource_id, is_active, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
+                     [newId, validatedBody.username, hashedPassword, validatedBody.role, validatedBody.resourceId || null, validatedBody.isActive ?? true]
+                 );
+                 return res.status(201).json({ id: newId, ...validatedBody });
+             }
+
              const parseResult = schema.safeParse(req.body);
              if (!parseResult.success) return res.status(400).json({ error: "Invalid data", details: parseResult.error.flatten() });
              let validatedBody = parseResult.data as any;
@@ -426,7 +559,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
              const newId = uuidv4();
              const placeholders = values.map((_, i) => `$${i + 2}`);
-             // Initialize version to 1 on create
              await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
              await triggerNotification(client, 'POST', tableName as string, newId, validatedBody);
              return res.status(201).json({ id: newId, version: 1, ...validatedBody });
@@ -442,7 +574,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!schema) return res.status(400).json({ error: `Not supported: ${entity}` });
             
             const dataToValidate = { ...req.body };
-            delete dataToValidate.version; // Clean version from data update
+            delete dataToValidate.version; 
             const parseResult = schema.safeParse(dataToValidate);
             if (!parseResult.success) return res.status(400).json({ error: "Invalid data", details: parseResult.error.flatten() });
             let validatedBody = parseResult.data as any;
@@ -486,6 +618,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         return res.status(405).end();
     } catch (error) {
+        console.error('API Error:', error);
         return res.status(500).json({ error: (error as Error).message });
     } finally { client.release(); }
 }
