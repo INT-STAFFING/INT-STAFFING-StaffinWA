@@ -52,7 +52,9 @@ const TABLE_MAPPING: Record<string, string> = {
     'contract_projects': 'contract_projects',
     'contract_managers': 'contract_managers',
     'notifications': 'notifications',
-    'app_config': 'app_config'
+    'app_config': 'app_config',
+    'skill_categories': 'skill_categories',
+    'skill_macro_categories': 'skill_macro_categories'
 };
 
 // Generic Schema for fallback, specific ones below
@@ -103,7 +105,15 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
     }),
     'skills': z.object({
         name: z.string(),
-        isCertification: z.boolean().optional().nullable()
+        isCertification: z.boolean().optional().nullable(),
+        categoryIds: z.array(z.string()).optional().nullable() // Virtual field for creation
+    }),
+    'skill_categories': z.object({
+        name: z.string(),
+        macroCategoryIds: z.array(z.string()).optional().nullable() // Virtual field for creation
+    }),
+    'skill_macro_categories': z.object({
+        name: z.string()
     }),
     'resource_skills': z.object({
         resourceId: z.string(),
@@ -414,6 +424,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              return res.status(200).json(scoredResources);
         }
 
+        // --- ANALYTICS RECALC ---
+        if (entity === 'analytics_cache' && action === 'recalc_all' && method === 'POST') {
+             // Invalidate all cache
+             await client.query(`DELETE FROM analytics_cache`);
+             return res.status(200).json({ message: "Cache cleared", data: {} });
+        }
+
         // --- SPECIAL NOTIFICATION HANDLING ---
         if (entity === 'notifications') {
             if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
@@ -513,6 +530,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+
+             // --- SPECIAL BULK POST HANDLERS ---
+             
+             // Role Permissions Bulk Save (Security Center)
+             if (tableName === 'role_permissions') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Unauthorized' });
+                 const { permissions } = req.body;
+                 if (!permissions || !Array.isArray(permissions)) return res.status(400).json({ error: "Invalid data format. Expected 'permissions' array." });
+                 
+                 await client.query('BEGIN');
+                 for (const p of permissions) {
+                     await client.query(`
+                        INSERT INTO role_permissions (role, page_path, is_allowed)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (role, page_path) DO UPDATE SET is_allowed = $3
+                     `, [p.role, p.pagePath, p.isAllowed]);
+                 }
+                 await client.query('COMMIT');
+                 return res.status(200).json({ success: true });
+             }
+
+             // Rate Card Entries Bulk Save
+             if (tableName === 'rate_card_entries') {
+                 const { entries } = req.body;
+                 if (!entries || !Array.isArray(entries)) return res.status(400).json({ error: "Invalid data format. Expected 'entries' array." });
+                 
+                 await client.query('BEGIN');
+                 for (const e of entries) {
+                      await client.query(`
+                        INSERT INTO rate_card_entries (rate_card_id, resource_id, daily_rate)
+                        VALUES ($1, $2, $3)
+                        ON CONFLICT (rate_card_id, resource_id) DO UPDATE SET daily_rate = $3
+                     `, [e.rateCardId, e.resourceId, e.dailyRate]);
+                 }
+                 await client.query('COMMIT');
+                 return res.status(200).json({ success: true });
+             }
+
+             // --- STANDARD SINGLE ENTITY POST ---
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) return res.status(400).json({ error: `Not supported: ${entity}` });
              
@@ -540,8 +596,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              if (!parseResult.success) return res.status(400).json({ error: "Invalid data", details: parseResult.error.flatten() });
              let validatedBody = parseResult.data as any;
              
-             const columns = Object.keys(validatedBody).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
-             const values = Object.values(validatedBody);
+             // Extract specialized array fields for relation mapping tables (Skills / Categories)
+             const { categoryIds, macroCategoryIds, ...dbFields } = validatedBody;
+
+             const columns = Object.keys(dbFields).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
+             const values = Object.values(dbFields);
              
              if (['resource_skills', 'project_skills', 'contract_projects', 'contract_managers'].includes(tableName as string)) {
                 const placeholders = values.map((_, i) => `$${i + 1}`);
@@ -560,6 +619,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              const newId = uuidv4();
              const placeholders = values.map((_, i) => `$${i + 2}`);
              await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
+             
+             // Handle Relations for Skills and Categories
+             if (tableName === 'skills' && categoryIds && Array.isArray(categoryIds)) {
+                 for(const catId of categoryIds) {
+                     await client.query(`INSERT INTO skill_skill_category_map (skill_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [newId, catId]);
+                 }
+             }
+             if (tableName === 'skill_categories' && macroCategoryIds && Array.isArray(macroCategoryIds)) {
+                 for(const macroId of macroCategoryIds) {
+                     await client.query(`INSERT INTO skill_category_macro_map (category_id, macro_category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [newId, macroId]);
+                 }
+             }
+
              await triggerNotification(client, 'POST', tableName as string, newId, validatedBody);
              return res.status(201).json({ id: newId, version: 1, ...validatedBody });
         }
@@ -579,8 +651,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (!parseResult.success) return res.status(400).json({ error: "Invalid data", details: parseResult.error.flatten() });
             let validatedBody = parseResult.data as any;
             
-            const updates = Object.entries(validatedBody).map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
-            const values = Object.values(validatedBody);
+            // Extract relations for update
+            const { categoryIds, macroCategoryIds, ...dbFields } = validatedBody;
+
+            const updates = Object.entries(dbFields).map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
+            const values = Object.values(dbFields);
             
             const oldDataRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
             if (oldDataRes.rows.length === 0) return res.status(404).json({ error: "Not found" });
@@ -594,6 +669,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (result.rowCount === 0) {
                 return res.status(409).json({ error: "Conflict: Data has been modified by another user. Please refresh and try again." });
             }
+
+             // Handle Relations Updates (Full Replace)
+             if (tableName === 'skills' && categoryIds !== undefined) {
+                 await client.query(`DELETE FROM skill_skill_category_map WHERE skill_id = $1`, [id]);
+                 if (Array.isArray(categoryIds)) {
+                    for(const catId of categoryIds) {
+                        await client.query(`INSERT INTO skill_skill_category_map (skill_id, category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [id, catId]);
+                    }
+                 }
+             }
+             if (tableName === 'skill_categories' && macroCategoryIds !== undefined) {
+                 await client.query(`DELETE FROM skill_category_macro_map WHERE category_id = $1`, [id]);
+                 if (Array.isArray(macroCategoryIds)) {
+                     for(const macroId of macroCategoryIds) {
+                         await client.query(`INSERT INTO skill_category_macro_map (category_id, macro_category_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [id, macroId]);
+                     }
+                 }
+             }
 
             await triggerNotification(client, 'PUT', tableName as string, id as string, validatedBody, toCamelAndNormalize(oldDataRes.rows[0]));
             return res.status(200).json({ id, version: Number(version) + 1, ...validatedBody });
