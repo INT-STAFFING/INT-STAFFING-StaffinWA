@@ -11,7 +11,7 @@ import {
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
     Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction,
-    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig, ComputedSkill
+    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig, ComputedSkill, QuickAction
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -23,6 +23,12 @@ const DEFAULT_SIDEBAR_SECTIONS = ['Principale', 'Progetti', 'Risorse', 'Operativ
 const DEFAULT_SIDEBAR_FOOTER_ACTIONS: SidebarFooterAction[] = [
     { id: 'changePassword', label: 'Cambia Password', icon: 'lock_reset' },
     { id: 'logout', label: 'Logout', icon: 'logout' }
+];
+const DEFAULT_QUICK_ACTIONS: QuickAction[] = [
+    { label: 'Vai allo Staffing', icon: 'calendar_month', link: '/staffing' },
+    { label: 'Apri Dashboard', icon: 'dashboard', link: '/dashboard' },
+    { label: 'Mappa Competenze', icon: 'school', link: '/skills-map' },
+    { label: 'Carico Risorse', icon: 'groups', link: '/workload' },
 ];
 const DEFAULT_DASHBOARD_LAYOUT: DashboardCategory[] = [
   { id: 'generale', label: 'Generale', cards: ['kpiHeader', 'attentionCards', 'leavesOverview', 'unallocatedFte'] },
@@ -36,9 +42,16 @@ const DEFAULT_ROLE_HOME_PAGES: Record<string, string> = {
     'ADMIN': '/dashboard'
 };
 
+export interface AppState {
+    loading: boolean;
+    fetchError: string | null;
+    isSearchOpen: boolean;
+    setSearchOpen: (open: boolean) => void;
+}
+
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 export const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
-const AppStateContext = createContext<{ loading: boolean; fetchError: string | null } | undefined>(undefined);
+const AppStateContext = createContext<AppState | undefined>(undefined);
 
 export const AppProviders: React.FC<any> = ({ children, planningWindow, configKeys }) => {
     const planningMonthsBefore = planningWindow?.monthsBefore ?? 6;
@@ -49,12 +62,14 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         sidebarSectionsKey: configKeys?.sidebarSectionsKey ?? 'sidebar_sections_v1',
         sidebarSectionColorsKey: configKeys?.sidebarSectionColorsKey ?? 'sidebar_section_colors',
         sidebarFooterActionsKey: configKeys?.sidebarFooterActionsKey ?? 'sidebar_footer_actions_v1',
+        quickActionsKey: configKeys?.quickActionsKey ?? 'quick_actions_v1',
         dashboardLayoutKey: configKeys?.dashboardLayoutKey ?? 'dashboard_layout_v2',
         roleHomePagesKey: configKeys?.roleHomePagesKey ?? 'role_home_pages_v1',
         bottomNavPathsKey: configKeys?.bottomNavPathsKey ?? 'bottom_nav_paths_v1'
     };
 
     const [loading, setLoading] = useState(true);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [actionLoadingState, setActionLoadingState] = useState<Record<string, boolean>>({});
     const { addToast } = useToast();
 
@@ -94,6 +109,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
     const [sidebarConfig, setSidebarConfig] = useState<SidebarItem[]>(DEFAULT_SIDEBAR_CONFIG);
+    const [quickActions, setQuickActions] = useState<QuickAction[]>(DEFAULT_QUICK_ACTIONS);
     const [sidebarSections, setSidebarSections] = useState<string[]>(DEFAULT_SIDEBAR_SECTIONS);
     const [sidebarSectionColors, setSidebarSectionColors] = useState<SidebarSectionColors>({});
     const [sidebarFooterActions, setSidebarFooterActions] = useState<SidebarFooterAction[]>(DEFAULT_SIDEBAR_FOOTER_ACTIONS);
@@ -142,6 +158,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
             
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             if (metaData.sidebarConfig) setSidebarConfig(metaData.sidebarConfig);
+            if (metaData.quickActions) setQuickActions(metaData.quickActions);
             if (metaData.sidebarSections) setSidebarSections(metaData.sidebarSections);
             if (metaData.sidebarSectionColors) setSidebarSectionColors(metaData.sidebarSectionColors);
             if (metaData.sidebarFooterActions) setSidebarFooterActions(metaData.sidebarFooterActions);
@@ -233,7 +250,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const deleteClient = async (id: string) => { setActionLoading(`deleteClient-${id}`, true); try { await apiFetch(`/api/resources?entity=clients&id=${id}`, { method: 'DELETE' }); setClients(prev => prev.filter(c => c.id !== id)); } finally { setActionLoading(`deleteClient-${id}`, false); } };
     
     const addRole = async (role: Omit<Role, 'id'>) => { setActionLoading('addRole', true); try { const newRole = await apiFetch<Role>('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) }); setRoles(prev => [...prev, newRole]); } finally { setActionLoading('addRole', false); } };
-    const updateRole = async (role: Role) => { setActionLoading(`updateRole-${role.id}`, true); try { const updated = await apiFetch<Role>(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }); setRoles(prev => prev.map(r => r.id === role.id ? updated : r)); const historyRes = await apiFetch<RoleCostHistory[]>('/api/resources?entity=role_cost_history'); setRoleCostHistory(historyRes); addToast('Ruolo aggiornato', 'success'); } catch (e: any) { addToast(e.message, 'error'); } finally { setActionLoading(`updateRole-${role.id}`, false); } };
+    const updateRole = async (role: Role) => { setActionLoading(`updateRole-${role.id}`, true); try { const updated = await apiFetch<Role>(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }); setRoles(prev => prev.map(r => r.id === role.id ? updated : r)); const historyRes = await apiFetch<RoleCostHistory[]>('/api/resources?entity=role_cost_history'); setRoleCostHistory(historyRes); addToast('Ruolo aggiornata', 'success'); } catch (e: any) { addToast(e.message, 'error'); } finally { setActionLoading(`updateRole-${role.id}`, false); } };
     const deleteRole = async (id: string) => { setActionLoading(`deleteRole-${id}`, true); try { await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' }); setRoles(prev => prev.filter(r => r.id !== id)); } finally { setActionLoading(`deleteRole-${id}`, false); } };
     
     const addRateCard = async (rateCard: Omit<RateCard, 'id'>) => { setActionLoading('addRateCard', true); try { const newRateCard = await apiFetch<RateCard>('/api/resources?entity=rate_cards', { method: 'POST', body: JSON.stringify(rateCard) }); setRateCards(prev => [...prev, newRateCard]); } finally { setActionLoading('addRateCard', false); } };
@@ -399,6 +416,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     
     const updatePageVisibility = async (visibility: PageVisibility) => { setActionLoading('updatePageVisibility', true); try { const updates = Object.entries(visibility).map(([path, onlyAdmin]) => ({ key: `page_vis.${path}`, value: String(onlyAdmin) })); await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) }); setPageVisibility(visibility); } finally { setActionLoading('updatePageVisibility', false); } };
     const updateSidebarConfig = async (config: SidebarItem[]) => { setActionLoading('updateSidebarConfig', true); try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.sidebarLayoutKey, value: JSON.stringify(config) }] }) }); setSidebarConfig(config); } finally { setActionLoading('updateSidebarConfig', false); } };
+    const updateQuickActions = async (actions: QuickAction[]) => { setActionLoading('updateQuickActions', true); try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: resolvedConfigKeys.quickActionsKey, value: JSON.stringify(actions) }] }) }); setQuickActions(actions); } finally { setActionLoading('updateQuickActions', false); } };
 
     const addNotificationConfig = async (config: Omit<NotificationConfig, 'id'>) => {
         setActionLoading('addNotificationConfig', true);
@@ -520,7 +538,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers, 
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
         notifications, analyticsCache, loading, isActionLoading, billingMilestones, notificationConfigs,
         fetchData, fetchNotifications, markNotificationAsRead,
         addResource, updateResource, deleteResource,
@@ -549,12 +567,12 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         addLeaveType, updateLeaveType, deleteLeaveType,
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
         updatePageVisibility,
-        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths
+        updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths
     }), [
         clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
-        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
+        planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
         notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones, notificationConfigs, getResourceComputedSkills,
         fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject,
         addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
@@ -564,15 +582,24 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         updateSkillThresholds, updatePlanningSettings, addSkillCategory, updateSkillCategory, deleteSkillCategory, addSkillMacro, updateSkillMacro, deleteSkillMacro,
         addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig,
         forceRecalculateAnalytics, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updatePageVisibility,
-        updateSidebarConfig, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths
+        updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths
     ]);
 
+    const appStateValue = useMemo(() => ({
+        loading,
+        fetchError,
+        isSearchOpen,
+        setSearchOpen: setIsSearchOpen
+    }), [loading, fetchError, isSearchOpen]);
+
     return (
-        <EntitiesContext.Provider value={providerValue}>
-            <AllocationsContext.Provider value={{ allocations, updateAllocation, bulkUpdateAllocations }}>
-                {children}
-            </AllocationsContext.Provider>
-        </EntitiesContext.Provider>
+        <AppStateContext.Provider value={appStateValue}>
+            <EntitiesContext.Provider value={providerValue}>
+                <AllocationsContext.Provider value={{ allocations, updateAllocation, bulkUpdateAllocations }}>
+                    {children}
+                </AllocationsContext.Provider>
+            </EntitiesContext.Provider>
+        </AppStateContext.Provider>
     );
 };
 
@@ -590,7 +617,7 @@ export const useAllocationsContext = () => {
 
 export const useAppState = () => {
     const context = useContext(AppStateContext);
-    if (!context) return { loading: false, fetchError: null };
+    if (!context) throw new Error("useAppState must be used within AppProviders");
     return context;
 };
 

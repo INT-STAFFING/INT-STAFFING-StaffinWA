@@ -6,7 +6,7 @@ import { SpinnerIcon } from '../components/icons';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
-import { DashboardCategory, SidebarSectionColors, SidebarItem } from '../types';
+import { DashboardCategory, SidebarSectionColors, SidebarItem, QuickAction } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 const DataLoadSection: React.FC = () => {
@@ -67,6 +67,157 @@ const DataLoadSection: React.FC = () => {
                         className="form-input text-lg font-bold"
                     />
                     <p className="mt-3 text-[10px] text-on-surface-variant leading-relaxed">Definisce quanto lontano nel futuro si estende la griglia di staffing e il forecasting.</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SearchConfigSection: React.FC = () => {
+    const { quickActions, updateQuickActions, isActionLoading } = useEntitiesContext();
+    const { navigationRoutes } = useRoutesManifest();
+    const { addToast } = useToast();
+    
+    const [localActions, setLocalActions] = useState<QuickAction[]>(quickActions || []);
+    
+    useEffect(() => {
+        if (quickActions) setLocalActions(quickActions);
+    }, [quickActions]);
+
+    const handleSave = async () => {
+        try {
+            await updateQuickActions(localActions);
+            addToast('Azioni rapide salvate su Database.', 'success');
+        } catch (error) {
+            addToast('Errore durante il salvataggio.', 'error');
+        }
+    };
+
+    const handleAdd = () => {
+        if (localActions.length >= 8) {
+            addToast('Puoi configurare al massimo 8 azioni rapide.', 'warning');
+            return;
+        }
+        const firstAvailable = navigationRoutes[0];
+        const newAction: QuickAction = {
+            label: firstAvailable.label,
+            icon: firstAvailable.icon,
+            link: firstAvailable.path,
+            color: ''
+        };
+        setLocalActions([...localActions, newAction]);
+    };
+
+    const handleRemove = (index: number) => {
+        setLocalActions(localActions.filter((_, i) => i !== index));
+    };
+
+    const handleUpdate = (index: number, updates: Partial<QuickAction>) => {
+        const next = [...localActions];
+        next[index] = { ...next[index], ...updates };
+        setLocalActions(next);
+    };
+
+    const handleMove = (index: number, direction: -1 | 1) => {
+        if ((direction === -1 && index === 0) || (direction === 1 && index === localActions.length - 1)) return;
+        const next = [...localActions];
+        const temp = next[index];
+        next[index] = next[index + direction];
+        next[index + direction] = temp;
+        setLocalActions(next);
+    };
+
+    const hasChanges = JSON.stringify(quickActions) !== JSON.stringify(localActions);
+
+    return (
+        <div className="space-y-8">
+            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-on-surface">Configurazione Ricerca Rapida</h2>
+                        <p className="text-sm text-on-surface-variant">Gestisci le "Quick Actions" che appaiono nel widget di ricerca Cmd+K.</p>
+                    </div>
+                    <div className="flex gap-3">
+                         <button onClick={handleAdd} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold flex items-center gap-2 hover:opacity-90">
+                            <span className="material-symbols-outlined text-sm">add</span> Aggiungi Azione
+                        </button>
+                        {hasChanges && (
+                            <button 
+                                onClick={handleSave} 
+                                disabled={isActionLoading('updateQuickActions')}
+                                className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
+                            >
+                                {isActionLoading('updateQuickActions') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva su DB'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {localActions.map((action, index) => (
+                        <div key={index} className="p-6 bg-surface-container-low rounded-3xl border border-outline-variant flex items-center gap-4 group hover:bg-surface-container transition-colors">
+                            <div className="flex flex-col gap-1">
+                                <button onClick={() => handleMove(index, -1)} disabled={index === 0} className="p-1 hover:bg-surface-container rounded-full disabled:opacity-20"><span className="material-symbols-outlined text-sm">keyboard_arrow_up</span></button>
+                                <button onClick={() => handleMove(index, 1)} disabled={index === localActions.length - 1} className="p-1 hover:bg-surface-container rounded-full disabled:opacity-20"><span className="material-symbols-outlined text-sm">keyboard_arrow_down</span></button>
+                            </div>
+                            
+                            <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <div className="md:col-span-4">
+                                    <label className="text-[10px] font-black uppercase text-primary tracking-widest block mb-1">Pagina</label>
+                                    <select 
+                                        value={action.link} 
+                                        onChange={e => {
+                                            const route = navigationRoutes.find(r => r.path === e.target.value);
+                                            if (route) handleUpdate(index, { link: route.path, label: route.label, icon: route.icon });
+                                        }}
+                                        className="w-full bg-transparent border-b border-outline-variant text-sm font-bold p-0 focus:ring-0"
+                                    >
+                                        {navigationRoutes.map(r => <option key={r.path} value={r.path}>{r.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="md:col-span-3">
+                                    <label className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest block mb-1">Etichetta Custom</label>
+                                    <input 
+                                        type="text" 
+                                        value={action.label} 
+                                        onChange={e => handleUpdate(index, { label: e.target.value })}
+                                        className="w-full bg-transparent border-b border-outline-variant text-sm p-0 focus:ring-0"
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest block mb-1">Icona</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-lg opacity-60">{action.icon}</span>
+                                        <input 
+                                            type="text" 
+                                            value={action.icon} 
+                                            onChange={e => handleUpdate(index, { icon: e.target.value })}
+                                            className="w-full bg-transparent border-b border-outline-variant text-xs p-0 focus:ring-0"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2 flex items-center gap-2">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-on-surface-variant tracking-widest block mb-1">Colore</label>
+                                        <input 
+                                            type="color" 
+                                            value={action.color && action.color.startsWith('#') ? action.color : '#006493'}
+                                            onChange={e => handleUpdate(index, { color: e.target.value })}
+                                            className="h-8 w-8 rounded cursor-pointer border-0 bg-transparent p-0"
+                                        />
+                                    </div>
+                                    <button onClick={() => handleRemove(index)} className="p-2 text-error hover:bg-error-container/20 rounded-full mt-3">
+                                        <span className="material-symbols-outlined">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {localActions.length === 0 && (
+                        <div className="col-span-full py-12 text-center text-on-surface-variant border-2 border-dashed border-outline-variant rounded-3xl opacity-60">
+                             Nessuna azione rapida configurata. Usa il pulsante in alto per aggiungere.
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -698,6 +849,7 @@ const AdminSettingsPage: React.FC = () => {
     const tabs = [
         { id: 'general', label: 'Dati & Performance', icon: 'speed' },
         { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+        { id: 'search', label: 'Ricerca', icon: 'manage_search' },
         { id: 'ui', label: 'Look & Feel', icon: 'palette' },
     ];
 
@@ -705,12 +857,12 @@ const AdminSettingsPage: React.FC = () => {
         <div className="space-y-8 max-w-6xl mx-auto py-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h1 className="text-4xl font-black text-on-surface tracking-tighter">Impostazioni <span className="text-primary">Admin</span></h1>
-                <div className="flex bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant">
+                <div className="flex bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant overflow-x-auto max-w-full">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all ${
+                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all whitespace-nowrap ${
                                 activeTab === tab.id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                             }`}
                         >
@@ -724,6 +876,7 @@ const AdminSettingsPage: React.FC = () => {
             <div className="animate-fade-in">
                 {activeTab === 'general' && <DataLoadSection />}
                 {activeTab === 'dashboard' && <DashboardConfigSection />}
+                {activeTab === 'search' && <SearchConfigSection />}
                 {activeTab === 'ui' && <ThemeSection />}
             </div>
 

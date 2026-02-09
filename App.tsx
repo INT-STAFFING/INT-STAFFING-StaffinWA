@@ -17,6 +17,7 @@ import { RoutesProvider, useRoutesManifest } from './context/RoutesContext';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
+import SearchWidget from './components/SearchWidget';
 import { SpinnerIcon } from './components/icons';
 import { FormFieldFeedback } from './components/forms';
 
@@ -226,6 +227,9 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
           </Suspense>
         </div>
       </main>
+      
+      {/* Search Palette Portal */}
+      <SearchWidget />
     </div>
   );
 };

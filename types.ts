@@ -361,6 +361,13 @@ export interface SidebarItem {
     requiredPermission?: string;
 }
 
+export interface QuickAction {
+    label: string;
+    icon: string;
+    link: string;
+    color?: string;
+}
+
 export interface SidebarFooterAction {
     id: 'changePassword' | 'logout';
     label: string;
@@ -470,6 +477,7 @@ export interface EntitiesState {
     leaveRequests: LeaveRequest[];
     managerResourceIds: string[];
     sidebarConfig: SidebarItem[];
+    quickActions: QuickAction[];
     sidebarSections: string[];
     sidebarSectionColors: SidebarSectionColors;
     sidebarFooterActions: SidebarFooterAction[];
@@ -552,6 +560,7 @@ export interface EntitiesActions {
     deleteLeaveRequest: (id: string) => Promise<void>;
     updatePageVisibility: (visibility: PageVisibility) => Promise<void>;
     updateSidebarConfig: (config: SidebarItem[]) => Promise<void>;
+    updateQuickActions: (actions: QuickAction[]) => Promise<void>;
     updateSidebarSections: (sections: string[]) => Promise<void>;
     updateSidebarSectionColors: (colors: SidebarSectionColors) => Promise<void>;
     updateSidebarFooterActions: (actions: SidebarFooterAction[]) => Promise<void>;

@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useEntitiesContext } from '../context/AppContext';
+import { useEntitiesContext, useAppState } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import type { AppRoute } from '../routes';
 import type { SidebarFooterAction } from '../types';
@@ -24,6 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const hasPermission = useAuth().hasPermission;
     const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useEntitiesContext();
     const { navigationRoutes } = useRoutesManifest();
+    const { setSearchOpen } = useAppState();
 
     // State per la modale cambio password
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -165,15 +166,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             <SidebarHeadless
                 isOpen={isOpen}
                 onCloseMobile={() => setIsOpen(false)}
-                headerSlot={<h1 className="text-2xl font-bold text-primary tracking-widest">PLANNER</h1>}
+                headerSlot={
+                    <div className="flex items-center justify-between w-full px-4">
+                        <h1 className="text-2xl font-bold text-primary tracking-widest">PLANNER</h1>
+                        <button 
+                            onClick={() => setSearchOpen(true)}
+                            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-surface-container-high text-primary hover:bg-primary hover:text-on-primary transition-all shadow-sm group"
+                            title="Ricerca Rapida (Cmd+K)"
+                        >
+                            <span className="material-symbols-outlined group-hover:scale-110 transition-transform">search</span>
+                        </button>
+                    </div>
+                }
                 userSlot={
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
                             {user?.username.charAt(0).toUpperCase()}
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="overflow-hidden flex-1">
                             <p className="text-sm font-medium text-on-surface truncate">{user?.username}</p>
-                            <p className="text-xs text-on-surface-variant truncate">{user?.role}</p>
+                            <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider truncate">{user?.role}</p>
                         </div>
                     </div>
                 }
