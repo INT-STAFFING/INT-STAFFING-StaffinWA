@@ -1,3 +1,4 @@
+
 # Staffing Allocation Planner - Manuale Utente Dettagliato
 
 Questo documento serve come guida completa e tecnica all'applicazione **Staffing Allocation Planner**. È progettato per fornire a utenti, amministratori e sviluppatori una comprensione approfondita di ogni funzionalità, calcolo e dettaglio dell'interfaccia.

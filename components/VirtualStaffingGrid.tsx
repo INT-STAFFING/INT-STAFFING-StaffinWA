@@ -1,5 +1,5 @@
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Resource, Assignment, LeaveRequest, LeaveType } from '../types';
 import { useAllocationsContext, useEntitiesContext } from '../context/AppContext';
@@ -16,7 +16,26 @@ const AllocationCell: React.FC<{
   isNonWorkingDay: boolean;
 }> = React.memo(({ assignment, date, isNonWorkingDay }) => {
   const { allocations, updateAllocation } = useAllocationsContext();
-  const percentage = allocations[assignment.id!]?.[date] || 0;
+  const contextPercentage = allocations[assignment.id!]?.[date] || 0;
+  
+  // Local state for immediate UI feedback (Debounced)
+  const [localValue, setLocalValue] = useState<number>(contextPercentage);
+
+  // Sync local state if context changes externally (e.g. bulk update)
+  useEffect(() => {
+    setLocalValue(contextPercentage);
+  }, [contextPercentage]);
+
+  // DEBOUNCE LOGIC: Update context only after 400ms of inactivity
+  useEffect(() => {
+    if (localValue === contextPercentage) return;
+
+    const timer = setTimeout(() => {
+        updateAllocation(assignment.id!, date, localValue);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [localValue, assignment.id, date, updateAllocation, contextPercentage]);
 
   if (isNonWorkingDay) {
     return (
@@ -27,13 +46,13 @@ const AllocationCell: React.FC<{
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    updateAllocation(assignment.id!, date, parseInt(e.target.value, 10));
+    setLocalValue(parseInt(e.target.value, 10));
   };
 
   return (
     <div className="w-full h-full flex items-center justify-center">
         <select
-            value={percentage}
+            value={localValue}
             onChange={handleChange}
             className="w-full h-full bg-transparent border-0 text-center appearance-none text-sm focus:ring-0 focus:outline-none text-on-surface cursor-pointer"
             onClick={(e) => e.stopPropagation()}
@@ -213,11 +232,6 @@ const VirtualStaffingGrid: React.FC<VirtualStaffingGridProps> = ({
 
                     return (
                         <React.Fragment key={virtualRow.key}>
-                            {/* Row Container: We need a container for absolute positioning of cells relative to the row top? 
-                                No, with 2D virtualization, cells are positioned absolute relative to the BIG grid container.
-                                But we want to process row by row to easily handle the "Resource Info" cell.
-                            */}
-                            
                             {/* 1. Resource/Project Info Cell (Sticky Left) */}
                             <div
                                 style={{
@@ -300,7 +314,6 @@ const VirtualStaffingGrid: React.FC<VirtualStaffingGridProps> = ({
                                                     resourceAssignments={assignmentsByResource.get(row.resource.id!) || []} 
                                                 />
                                             ) : (
-                                                // Simplified aggregated view for resource row if needed
                                                 <span className="text-xs text-on-surface-variant">-</span>
                                             )
                                         ) : (

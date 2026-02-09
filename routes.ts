@@ -141,7 +141,7 @@ export const routesManifest: AppRoute[] = [
         section: 'Analisi',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('./pages/RevenuePage')),
+        component: createLazyPage(() => import('./pages/RevenuePage').then(module => ({ default: module.RevenuePage }))),
     },
     {
         path: '/forecasting',
@@ -204,7 +204,6 @@ export const routesManifest: AppRoute[] = [
         section: 'Risorse',
         showInSidebar: true,
         featureFlag: 'pageVisibility',
-        // FIX: Lazy loading LeavePage using its default export (added in pages/LeavePage.tsx)
         component: createLazyPage(() => import('./pages/LeavePage')),
     },
     {
@@ -299,15 +298,6 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/RateCardsPage')),
     },
     {
-        path: '/test-staffing',
-        label: 'Test Staffing',
-        icon: 'science',
-        section: 'Configurazione',
-        showInSidebar: true,
-        featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('./pages/TestStaffingPage')),
-    },
-    {
         path: '/import',
         label: 'Importa Dati',
         icon: 'upload',
@@ -351,7 +341,6 @@ export const routesManifest: AppRoute[] = [
         icon: 'hub',
         section: 'Amministrazione',
         showInSidebar: true,
-        // requiredRole removed to allow RBAC matrix to control access for Managers if enabled
         featureFlag: 'pageVisibility',
         component: createLazyPage(() => import('./pages/NotificationSettingsPage')),
     },

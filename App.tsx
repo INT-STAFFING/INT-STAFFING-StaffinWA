@@ -50,8 +50,6 @@ const SkillsMapPage = lazy(() => import('./pages/SkillsMapPage'));
 const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SkillAnalysisPage = lazy(() => import('./pages/SkillAnalysisPage'));
 const CertificationsPage = lazy(() => import('./pages/CertificationsPage'));
-const TestStaffingPage = lazy(() => import('./pages/TestStaffingPage'));
-// FIX: Lazy loading LeavePage using its default export (added in pages/LeavePage.tsx)
 const LeavePage = lazy(() => import('./pages/LeavePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const NotificationSettingsPage = lazy(() => import('./pages/NotificationSettingsPage'));
@@ -214,7 +212,6 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/staffing-visualization" element={<DynamicRoute path="/staffing-visualization"><StaffingVisualizationPage /></DynamicRoute>} />
               <Route path="/manuale-utente" element={<DynamicRoute path="/manuale-utente"><UserManualPage /></DynamicRoute>} />
               <Route path="/simple-user-manual" element={<DynamicRoute path="/simple-user-manual"><SimpleUserManualPage /></DynamicRoute>} />
-              <Route path="/test-staffing" element={<DynamicRoute path="/test-staffing"><TestStaffingPage /></DynamicRoute>} />
               <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
               <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
               <Route path="/revenue" element={<DynamicRoute path="/revenue"><RevenuePage /></DynamicRoute>} />
