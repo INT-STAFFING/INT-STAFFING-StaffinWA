@@ -65,7 +65,7 @@ const GlobalSearchPage: React.FC = () => {
             </div>
 
             <div className="space-y-8 animate-fade-in">
-                {Object.entries(groupedResults).map(([type, items]) => (
+                {Object.entries(groupedResults).map(([type, items]: [string, SearchResult[]]) => (
                     <div key={type} className="bg-surface rounded-2xl border border-outline-variant overflow-hidden shadow-sm">
                         <div className="bg-surface-container px-6 py-3 border-b border-outline-variant flex justify-between items-center">
                             <h3 className="text-sm font-black text-on-surface-variant uppercase tracking-widest">{type}</h3>
