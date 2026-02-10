@@ -6,8 +6,10 @@ import { SpinnerIcon } from '../components/icons';
 import { useEntitiesContext } from '../context/AppContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
-import { DashboardCategory, SidebarSectionColors, SidebarItem, QuickAction } from '../types';
+import { DashboardCategory, SidebarSectionColors, SidebarItem, QuickAction, Resource } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import SearchableSelect from '../components/SearchableSelect';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 const DataLoadSection: React.FC = () => {
     const { planningSettings, updatePlanningSettings, isActionLoading } = useEntitiesContext();
@@ -69,6 +71,123 @@ const DataLoadSection: React.FC = () => {
                     <p className="mt-3 text-[10px] text-on-surface-variant leading-relaxed">Definisce quanto lontano nel futuro si estende la griglia di staffing e il forecasting.</p>
                 </div>
             </div>
+        </div>
+    );
+};
+
+const TalentConfigSection: React.FC = () => {
+    const { resources, updateResource, isActionLoading } = useEntitiesContext();
+    const { addToast } = useToast();
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    const [editedResources, setEditedResources] = useState<Record<string, Partial<Resource>>>({});
+
+    const handleFieldChange = (id: string, field: keyof Resource, value: any) => {
+        setEditedResources(prev => ({
+            ...prev,
+            [id]: { ...prev[id], [field]: value }
+        }));
+    };
+
+    const hasChanges = Object.keys(editedResources).length > 0;
+
+    const handleBulkSave = async () => {
+        try {
+            const promises = Object.entries(editedResources).map(async ([id, changes]) => {
+                const original = resources.find(r => r.id === id);
+                if (original) {
+                    return updateResource({ ...original, ...changes });
+                }
+            });
+            
+            await Promise.all(promises);
+            setEditedResources({});
+            addToast('Modifiche salvate con successo.', 'success');
+        } catch (e) {
+            addToast('Errore durante il salvataggio.', 'error');
+        }
+    };
+
+    const filteredResources = useMemo(() => 
+        resources.filter(r => !r.resigned && r.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    [resources, searchTerm]);
+
+    const columns: ColumnDef<Resource>[] = [
+        { header: 'Risorsa', sortKey: 'name', cell: r => <span className="font-bold">{r.name}</span> },
+        { 
+            header: 'Talent Flag', 
+            cell: r => {
+                const currentVal = editedResources[r.id!]?.isTalent ?? r.isTalent;
+                return (
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="checkbox" 
+                            checked={!!currentVal} 
+                            onChange={e => handleFieldChange(r.id!, 'isTalent', e.target.checked)}
+                            className="form-checkbox h-5 w-5 text-tertiary rounded"
+                        />
+                        {currentVal && <span className="text-xs font-bold text-tertiary">TALENT</span>}
+                    </div>
+                );
+            }
+        },
+        { 
+            header: 'Seniority Code', 
+            cell: r => (
+                <input 
+                    type="text" 
+                    value={editedResources[r.id!]?.seniorityCode ?? r.seniorityCode ?? ''} 
+                    onChange={e => handleFieldChange(r.id!, 'seniorityCode', e.target.value)}
+                    className="form-input py-1 px-2 text-sm w-24"
+                    placeholder="es. L4"
+                />
+            )
+        }
+    ];
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center bg-surface p-4 rounded-2xl border border-outline-variant shadow-sm">
+                <div>
+                    <h3 className="text-xl font-bold text-on-surface">Gestione Massiva Talent & Growth</h3>
+                    <p className="text-sm text-on-surface-variant">Modifica rapidamente i flag talent e i codici di seniority per le risorse.</p>
+                </div>
+                {hasChanges && (
+                    <button 
+                        onClick={handleBulkSave} 
+                        disabled={isActionLoading('updateResource')}
+                        className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center gap-2"
+                    >
+                        {isActionLoading('updateResource') ? <SpinnerIcon className="w-4 h-4"/> : 'Salva Modifiche'}
+                    </button>
+                )}
+            </div>
+
+            <DataTable<Resource>
+                title=""
+                addNewButtonLabel=""
+                data={filteredResources}
+                columns={columns}
+                filtersNode={
+                    <input 
+                        type="text" 
+                        placeholder="Cerca risorsa..." 
+                        value={searchTerm} 
+                        onChange={e => setSearchTerm(e.target.value)} 
+                        className="form-input w-64"
+                    />
+                }
+                onAddNew={() => {}}
+                renderRow={(r) => (
+                    <tr key={r.id} className="hover:bg-surface-container-low transition-colors group">
+                        {columns.map((col, i) => <td key={i} className="px-6 py-3 whitespace-nowrap bg-inherit">{col.cell(r)}</td>)}
+                    </tr>
+                )}
+                renderMobileCard={() => <></>}
+                initialSortKey="name"
+                isLoading={false}
+                tableLayout={{ dense: true, striped: true, headerSticky: true }}
+            />
         </div>
     );
 };
@@ -273,12 +392,10 @@ const DashboardConfigSection: React.FC = () => {
         }));
     };
 
-    // Calculate changes to show save button
     const hasChanges = JSON.stringify(dashboardLayout) !== JSON.stringify(localLayout);
 
     return (
         <div className="space-y-8">
-            {/* Action Bar */}
             <div className="bg-surface rounded-3xl shadow-sm p-6 border border-outline-variant flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-on-surface">Configurazione Dashboard</h2>
@@ -365,6 +482,7 @@ const ThemeSection: React.FC = () => {
         sidebarConfig, updateSidebarConfig 
     } = useEntitiesContext();
     const { navigationRoutes } = useRoutesManifest();
+    const { addToast } = useToast();
     
     // Local States
     const [localTheme, setLocalTheme] = useState<Theme>(theme);
@@ -375,8 +493,6 @@ const ThemeSection: React.FC = () => {
     const [localSidebarColors, setLocalSidebarColors] = useState<SidebarSectionColors>(sidebarSectionColors || {});
     const [localSidebarConfig, setLocalSidebarConfig] = useState<SidebarItem[]>(sidebarConfig || []);
     const [newSectionName, setNewSectionName] = useState('');
-
-    const { addToast } = useToast();
     const [saving, setSaving] = useState(false);
 
     // Sync Effects
@@ -386,28 +502,8 @@ const ThemeSection: React.FC = () => {
     useEffect(() => { setLocalSidebarColors(sidebarSectionColors || {}); }, [sidebarSectionColors]);
     useEffect(() => { setLocalSidebarConfig(sidebarConfig || []); }, [sidebarConfig]);
 
-    const handleColorChange = (modeKey: 'light' | 'dark', key: string, value: string) => {
-        setLocalTheme(prev => ({
-            ...prev,
-            [modeKey]: { ...prev[modeKey], [key]: value }
-        }));
-    };
-
     const handleToastConfigChange = (key: keyof Theme, value: string) => {
         setLocalTheme(prev => ({ ...prev, [key]: value as any }));
-    };
-
-    const handleVizChange = (chart: 'sankey' | 'network', prop: string, value: number) => {
-        setLocalTheme(prev => ({
-            ...prev,
-            visualizationSettings: {
-                ...prev.visualizationSettings,
-                [chart]: {
-                    ...prev.visualizationSettings[chart],
-                    [prop]: value
-                }
-            }
-        }));
     };
 
     const toggleBottomPath = (path: string) => {
@@ -456,445 +552,143 @@ const ThemeSection: React.FC = () => {
     };
 
     // --- Sidebar Items Handlers ---
-    const handleItemColorChange = (path: string, color: string) => {
-        // Need to update localSidebarConfig. If the item doesn't exist there (it might be implicit), we add it.
-        // We iterate navigationRoutes which merges config + defaults.
-        const existingIdx = localSidebarConfig.findIndex(item => item.path === path);
-        if (existingIdx >= 0) {
-            const next = [...localSidebarConfig];
-            next[existingIdx] = { ...next[existingIdx], color };
-            setLocalSidebarConfig(next);
-        } else {
-            // Find base properties from manifest if not in config
-            const base = navigationRoutes.find(r => r.path === path);
-            if (base) {
-                setLocalSidebarConfig(prev => [...prev, {
-                    path: base.path,
-                    label: base.label,
-                    icon: base.icon,
-                    section: base.section || 'Altro',
-                    color
-                }]);
-            }
-        }
-    };
-
     const handleResetItemColor = (path: string) => {
          const existingIdx = localSidebarConfig.findIndex(item => item.path === path);
          if (existingIdx >= 0) {
              const next = [...localSidebarConfig];
-             delete next[existingIdx].color; // Remove color override
+             const { color, ...rest } = next[existingIdx];
+             next[existingIdx] = rest as SidebarItem;
              setLocalSidebarConfig(next);
          }
     };
-
-    // --- Save Handlers ---
-    const handleSaveTheme = async () => {
+    
+    const handleSave = async () => {
         setSaving(true);
         try {
             await saveTheme(localTheme);
-            addToast('Personalizzazione tema salvata.', 'success');
+            if (JSON.stringify(localBottomPaths) !== JSON.stringify(bottomNavPaths)) await updateBottomNavPaths(localBottomPaths);
+            if (JSON.stringify(localSidebarSections) !== JSON.stringify(sidebarSections)) await updateSidebarSections(localSidebarSections);
+            if (JSON.stringify(localSidebarColors) !== JSON.stringify(sidebarSectionColors)) await updateSidebarSectionColors(localSidebarColors);
+            if (JSON.stringify(localSidebarConfig) !== JSON.stringify(sidebarConfig)) await updateSidebarConfig(localSidebarConfig);
+            
+            addToast('Tema e configurazioni salvati.', 'success');
         } catch (e) {
-            addToast('Errore salvataggio tema.', 'error');
-        } finally { setSaving(false); }
+            addToast('Errore durante il salvataggio.', 'error');
+        } finally {
+            setSaving(false);
+        }
     };
-    
-    const handleSaveSidebarSections = async () => {
-        try {
-            // Save both sections list and colors
-            await updateSidebarSections(localSidebarSections);
-            await updateSidebarSectionColors(localSidebarColors);
-            addToast('Struttura sezioni e colori aggiornati.', 'success');
-        } catch (e) { addToast('Errore salvataggio sezioni.', 'error'); }
-    };
-
-    const handleSaveSidebarItems = async () => {
-        try {
-            await updateSidebarConfig(localSidebarConfig);
-            addToast('Colori pagine aggiornati.', 'success');
-        } catch (e) { addToast('Errore salvataggio pagine.', 'error'); }
-    };
-
-    const handleSaveBottomNav = async () => {
-        try {
-            await updateBottomNavPaths(localBottomPaths);
-            addToast('Configurazione mobile salvata.', 'success');
-        } catch (e) { addToast('Errore salvataggio navigazione.', 'error'); }
-    };
-
-    const handleReset = async () => {
-        if (!confirm('Ripristinare i colori originali?')) return;
-        setSaving(true);
-        try { await resetTheme(); addToast('Ripristino completato.', 'success'); } 
-        catch (e) { addToast('Errore ripristino.', 'error'); } 
-        finally { setSaving(false); }
-    };
-
-    const sidebarSectionsChanged = 
-        JSON.stringify(localSidebarSections) !== JSON.stringify(sidebarSections || []) ||
-        JSON.stringify(localSidebarColors) !== JSON.stringify(sidebarSectionColors || {});
-
-    const sidebarItemsChanged = JSON.stringify(localSidebarConfig) !== JSON.stringify(sidebarConfig || []);
-    const bottomNavChanges = JSON.stringify(localBottomPaths) !== JSON.stringify(bottomNavPaths || []);
 
     return (
-        <div className="space-y-8">
-            {/* Action Bar */}
-            <div className="bg-surface rounded-3xl shadow-sm p-6 border border-outline-variant flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant space-y-8">
+            <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-xl font-bold text-on-surface">Look & Feel</h2>
-                    <p className="text-sm text-on-surface-variant">Personalizza palette, navigazione e parametri grafici (Salvati su DB per tutti).</p>
+                    <h2 className="text-xl font-bold text-on-surface">Tema e Navigazione</h2>
+                    <p className="text-sm text-on-surface-variant">Personalizza l'aspetto e l'organizzazione del menu laterale.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={toggleMode} className="p-3 rounded-2xl bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition-all shadow-sm">
-                        <span className="material-symbols-outlined">{mode === 'light' ? 'dark_mode' : 'light_mode'}</span>
-                    </button>
-                    <button onClick={handleReset} className="text-error font-bold text-sm hover:underline px-4" disabled={saving}>Reset</button>
-                    <button onClick={handleSaveTheme} disabled={saving} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg flex items-center gap-2">
-                        {saving ? <SpinnerIcon className="w-4 h-4" /> : 'Salva su DB'}
-                    </button>
+                <button 
+                    onClick={handleSave} 
+                    disabled={saving}
+                    className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
+                >
+                    {saving ? <SpinnerIcon className="w-4 h-4" /> : 'Salva Tutto'}
+                </button>
+            </div>
+            
+            {/* Simple Theme Toggles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 className="font-bold mb-2">Modalità</h3>
+                    <div className="flex gap-2">
+                         <button onClick={toggleMode} className="px-4 py-2 bg-surface-container rounded-lg border border-outline-variant flex items-center gap-2">
+                             <span className="material-symbols-outlined">{mode === 'dark' ? 'dark_mode' : 'light_mode'}</span>
+                             {mode === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                         </button>
+                    </div>
+                </div>
+                <div>
+                     <h3 className="font-bold mb-2">Posizione Toast</h3>
+                     <select 
+                        value={localTheme.toastPosition} 
+                        onChange={(e) => handleToastConfigChange('toastPosition', e.target.value)}
+                        className="form-select w-full"
+                    >
+                        <option value="top-center">Alto Centro</option>
+                        <option value="top-right">Alto Destra</option>
+                        <option value="bottom-right">Basso Destra</option>
+                    </select>
                 </div>
             </div>
 
-            {/* Colors Grid */}
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-black text-primary uppercase tracking-widest border-b border-outline-variant pb-2 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-lg">light_mode</span> Light Palette
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                            {Object.entries(localTheme.light).map(([key, val]) => (
-                                <div key={key} className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-xl border border-outline-variant group">
-                                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter truncate max-w-[120px]">{key}</span>
-                                    <input type="color" value={val as string} onChange={(e) => handleColorChange('light', key, e.target.value)} className="h-8 w-8 rounded-lg cursor-pointer border-none p-0"/>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-black text-primary uppercase tracking-widest border-b border-outline-variant pb-2 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-lg">dark_mode</span> Dark Palette
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                            {Object.entries(localTheme.dark).map(([key, val]) => (
-                                <div key={key} className="flex items-center justify-between p-3 bg-surface-container-lowest rounded-xl border border-outline-variant group">
-                                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter truncate max-w-[120px]">{key}</span>
-                                    <input type="color" value={val as string} onChange={(e) => handleColorChange('dark', key, e.target.value)} className="h-8 w-8 rounded-lg cursor-pointer border-none p-0"/>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            {/* Sidebar Sections Manager */}
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div>
-                        <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">view_sidebar</span> Gestione Sezioni Sidebar
-                        </h3>
-                        <p className="text-sm text-on-surface-variant">Aggiungi, rimuovi, riordina e colora le sezioni del menu laterale.</p>
-                    </div>
-                    {sidebarSectionsChanged && (
-                        <button onClick={handleSaveSidebarSections} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg">
-                            Salva Sezioni
-                        </button>
-                    )}
-                </div>
-                
-                {/* Add New Section */}
-                <div className="flex gap-2 mb-6">
+            {/* Sidebar Sections Management */}
+            <div>
+                <h3 className="font-bold mb-4">Sezioni Sidebar</h3>
+                <div className="flex gap-2 mb-4">
                     <input 
                         type="text" 
                         value={newSectionName} 
                         onChange={e => setNewSectionName(e.target.value)} 
-                        placeholder="Nuova sezione (es. Extra)..." 
-                        className="form-input max-w-xs"
+                        placeholder="Nuova sezione..." 
+                        className="form-input"
                     />
-                    <button onClick={handleAddSection} disabled={!newSectionName} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-lg font-bold disabled:opacity-50">
-                        Aggiungi
-                    </button>
+                    <button onClick={handleAddSection} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-lg font-bold">Aggiungi</button>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {localSidebarSections.map((section, idx) => {
-                        const currentColor = localSidebarColors[section] || '#72787d';
-                        const isSet = !!localSidebarColors[section];
-                        
-                        return (
-                            <div key={section} className="p-4 bg-surface-container-low rounded-2xl border border-outline-variant relative group">
-                                <div className="flex justify-between items-start mb-3 gap-2">
-                                     <div className="flex items-center gap-2">
-                                        {/* Reorder Controls */}
-                                        <div className="flex flex-col gap-1">
-                                            <button
-                                                onClick={() => handleMoveSection(idx, -1)}
-                                                disabled={idx === 0}
-                                                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-20 text-on-surface-variant"
-                                                title="Sposta su"
-                                            >
-                                                <span className="material-symbols-outlined text-xs">keyboard_arrow_up</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleMoveSection(idx, 1)}
-                                                disabled={idx === localSidebarSections.length - 1}
-                                                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-surface-container disabled:opacity-20 text-on-surface-variant"
-                                                title="Sposta giù"
-                                            >
-                                                <span className="material-symbols-outlined text-xs">keyboard_arrow_down</span>
-                                            </button>
-                                        </div>
-                                        <span className="text-xs font-bold uppercase tracking-wider truncate break-all" style={{ color: currentColor }}>
-                                            {section}
-                                        </span>
-                                    </div>
-                                    <button onClick={() => handleDeleteSection(section)} className="text-on-surface-variant hover:text-error p-1 rounded hover:bg-surface-container flex-shrink-0">
-                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <input 
-                                        type="color" 
-                                        value={currentColor.startsWith('#') ? currentColor : '#000000'}
-                                        onChange={(e) => handleSectionColorChange(section, e.target.value)}
-                                        className="h-8 w-8 rounded cursor-pointer border-0 bg-transparent p-0"
-                                    />
-                                    {isSet && (
-                                         <button onClick={() => handleResetSectionColor(section)} className="text-[10px] text-on-surface-variant hover:text-primary underline">
-                                            Reset Colore
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Sidebar Pages Colors Manager */}
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div>
-                        <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">format_paint</span> Personalizzazione Voci Menu
-                        </h3>
-                        <p className="text-sm text-on-surface-variant">Cambia il colore delle singole pagine nella sidebar.</p>
-                    </div>
-                    {sidebarItemsChanged && (
-                        <button onClick={handleSaveSidebarItems} className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold shadow-lg">
-                            Salva Colori Pagine
-                        </button>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {localSidebarSections.map(section => {
-                        const items = navigationRoutes.filter(r => (r.section || 'Altro') === section);
-                        if (items.length === 0) return null;
-
-                        return (
-                            <div key={section} className="bg-surface-container-low rounded-2xl border border-outline-variant overflow-hidden">
-                                <div className="px-4 py-2 bg-surface-container font-bold text-xs uppercase text-on-surface-variant tracking-wider">
-                                    {section}
-                                </div>
-                                <div className="divide-y divide-outline-variant">
-                                    {items.map(item => {
-                                        // Find config for this item to get current color
-                                        const configItem = localSidebarConfig.find(c => c.path === item.path);
-                                        const currentColor = configItem?.color || ''; // empty means default
-                                        
-                                        return (
-                                            <div key={item.path} className="p-3 flex items-center justify-between hover:bg-surface-container transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="material-symbols-outlined text-on-surface-variant">{item.icon}</span>
-                                                    <span className="text-sm font-medium" style={{ color: currentColor || undefined }}>{item.label}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                     <input 
-                                                        type="color" 
-                                                        value={currentColor && currentColor.startsWith('#') ? currentColor : '#000000'}
-                                                        onChange={(e) => handleItemColorChange(item.path, e.target.value)}
-                                                        className="h-6 w-6 rounded cursor-pointer border-0 bg-transparent p-0 opacity-50 hover:opacity-100"
-                                                        title="Cambia colore"
-                                                    />
-                                                    {currentColor && (
-                                                        <button onClick={() => handleResetItemColor(item.path)} className="text-on-surface-variant hover:text-error" title="Rimuovi colore">
-                                                            <span className="material-symbols-outlined text-sm">format_color_reset</span>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Bottom Navigation Section */}
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h3 className="text-xl font-bold text-on-surface flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary">smartphone</span> Configurazione Navigazione Mobile
-                        </h3>
-                        <p className="text-sm text-on-surface-variant">Seleziona le pagine da visualizzare nella barra rapida in basso (max 5 consigliate).</p>
-                    </div>
-                    {bottomNavChanges && (
-                        <button 
-                            onClick={handleSaveBottomNav} 
-                            disabled={isActionLoading('updateBottomNavPaths')}
-                            className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold flex items-center gap-2 shadow-lg"
-                        >
-                            {isActionLoading('updateBottomNavPaths') ? <SpinnerIcon className="w-4 h-4" /> : 'Salva su DB'}
-                        </button>
-                    )}
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {navigationRoutes.map(route => {
-                        const isSelected = localBottomPaths.includes(route.path);
-                        return (
-                            <button
-                                key={route.path}
-                                onClick={() => toggleBottomPath(route.path)}
-                                className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
-                                    isSelected 
-                                        ? 'bg-primary-container border-primary text-on-primary-container ring-2 ring-primary/20' 
-                                        : 'bg-surface-container-low border-outline-variant text-on-surface-variant hover:bg-surface-container-high'
-                                }`}
-                            >
-                                <span className="material-symbols-outlined text-xl">{route.icon}</span>
-                                <span className="text-sm font-bold truncate">{route.label}</span>
-                                {isSelected && (
-                                    <span className="material-symbols-outlined text-sm ml-auto">check_circle</span>
+                <div className="space-y-2">
+                    {localSidebarSections.map((section, idx) => (
+                        <div key={section} className="flex items-center justify-between p-3 bg-surface-container-low rounded-xl border border-outline-variant">
+                            <span className="font-medium">{section}</span>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="color" 
+                                    value={localSidebarColors[section] || '#000000'} 
+                                    onChange={e => handleSectionColorChange(section, e.target.value)}
+                                    className="h-8 w-8 rounded cursor-pointer border-0 p-0"
+                                    title="Colore Sezione"
+                                />
+                                {localSidebarColors[section] && (
+                                    <button onClick={() => handleResetSectionColor(section)} className="text-xs text-on-surface-variant underline">Reset Colore</button>
                                 )}
-                            </button>
-                        );
-                    })}
-                </div>
-                {localBottomPaths.length > 5 && (
-                    <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl text-xs text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm">warning</span>
-                        Hai selezionato {localBottomPaths.length} elementi. Per un'esperienza mobile ottimale, si consiglia di non superare i 5 elementi.
-                    </div>
-                )}
-            </div>
-
-            {/* Charts Config */}
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">query_stats</span> Parametri Grafici
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="space-y-6 bg-surface-container-low p-6 rounded-2xl border border-outline-variant">
-                        <h4 className="text-sm font-black text-primary uppercase tracking-widest">Diagramma Sankey</h4>
-                        <div className="space-y-4">
-                            <div><label className="text-xs font-bold block mb-1">Larghezza Nodo: {localTheme.visualizationSettings.sankey.nodeWidth}px</label><input type="range" min="5" max="100" value={localTheme.visualizationSettings.sankey.nodeWidth} onChange={(e) => handleVizChange('sankey', 'nodeWidth', Number(e.target.value))} className="w-full accent-primary"/></div>
-                            <div><label className="text-xs font-bold block mb-1">Opacità Link: {Math.round(localTheme.visualizationSettings.sankey.linkOpacity * 100)}%</label><input type="range" min="0.1" max="1" step="0.05" value={localTheme.visualizationSettings.sankey.linkOpacity} onChange={(e) => handleVizChange('sankey', 'linkOpacity', Number(e.target.value))} className="w-full accent-primary"/></div>
+                                <div className="flex flex-col ml-2">
+                                    <button onClick={() => handleMoveSection(idx, -1)} disabled={idx === 0}><span className="material-symbols-outlined text-sm">keyboard_arrow_up</span></button>
+                                    <button onClick={() => handleMoveSection(idx, 1)} disabled={idx === localSidebarSections.length - 1}><span className="material-symbols-outlined text-sm">keyboard_arrow_down</span></button>
+                                </div>
+                                <button onClick={() => handleDeleteSection(section)} className="ml-2 text-error"><span className="material-symbols-outlined">delete</span></button>
+                            </div>
                         </div>
-                    </div>
-                    <div className="space-y-6 bg-surface-container-low p-6 rounded-2xl border border-outline-variant">
-                        <h4 className="text-sm font-black text-primary uppercase tracking-widest">Mappa Network</h4>
-                        <div className="space-y-4">
-                            <div><label className="text-xs font-bold block mb-1">Repulsione (Charge): {localTheme.visualizationSettings.network.chargeStrength}</label><input type="range" min="-1000" max="-50" step="10" value={localTheme.visualizationSettings.network.chargeStrength} onChange={(e) => handleVizChange('network', 'chargeStrength', Number(e.target.value))} className="w-full accent-primary"/></div>
-                            <div><label className="text-xs font-bold block mb-1">Raggio Nodi: {localTheme.visualizationSettings.network.nodeRadius}px</label><input type="range" min="5" max="40" value={localTheme.visualizationSettings.network.nodeRadius} onChange={(e) => handleVizChange('network', 'nodeRadius', Number(e.target.value))} className="w-full accent-primary"/></div>
-                        </div>
-                    </div>
+                    ))}
                 </div>
             </div>
-
-            <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-                <h3 className="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">notifications_active</span> Configurazione Toast
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="space-y-4">
-                        <label className="block text-xs font-black text-primary uppercase tracking-widest">Posizione</label>
-                        <select value={localTheme.toastPosition} onChange={(e) => handleToastConfigChange('toastPosition', e.target.value)} className="form-select">
-                            <option value="top-center">Top Center</option>
-                            <option value="top-right">Top Right</option>
-                            <option value="bottom-center">Bottom Center</option>
-                        </select>
-                    </div>
-                    <div className="p-4 bg-tertiary-container/10 rounded-2xl border border-tertiary/20 space-y-4">
-                        <label className="block text-xs font-black text-tertiary uppercase tracking-widest">Colori Successo</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><span className="text-[10px] block mb-1">BG</span><input type="color" value={localTheme.toastSuccessBackground} onChange={(e) => handleToastConfigChange('toastSuccessBackground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                            <div><span className="text-[10px] block mb-1">Text</span><input type="color" value={localTheme.toastSuccessForeground} onChange={(e) => handleToastConfigChange('toastSuccessForeground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                        </div>
-                    </div>
-                    <div className="p-4 bg-error-container/10 rounded-2xl border border-error/20 space-y-4">
-                        <label className="block text-xs font-black text-error uppercase tracking-widest">Colori Errore</label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><span className="text-[10px] block mb-1">BG</span><input type="color" value={localTheme.toastErrorBackground} onChange={(e) => handleToastConfigChange('toastErrorBackground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                            <div><span className="text-[10px] block mb-1">Text</span><input type="color" value={localTheme.toastErrorForeground} onChange={(e) => handleToastConfigChange('toastErrorForeground', e.target.value)} className="h-10 w-full rounded-lg cursor-pointer"/></div>
-                        </div>
-                    </div>
+            
+             {/* Bottom Nav Config */}
+             <div>
+                <h3 className="font-bold mb-4">Menu Mobile (Bottom Bar)</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {navigationRoutes.map(route => (
+                        <label key={route.path} className="flex items-center gap-2 p-2 bg-surface-container-low rounded-lg border border-outline-variant cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={localBottomPaths.includes(route.path)} 
+                                onChange={() => toggleBottomPath(route.path)}
+                                className="form-checkbox"
+                            />
+                            <span className="text-xs font-medium">{route.label}</span>
+                        </label>
+                    ))}
                 </div>
             </div>
-
-            <style>{`.custom-scrollbar::-webkit-scrollbar { width: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 10px; }`}</style>
         </div>
     );
 };
 
 const AdminSettingsPage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState('general');
-
-    const tabs = [
-        { id: 'general', label: 'Dati & Performance', icon: 'speed' },
-        { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-        { id: 'search', label: 'Ricerca', icon: 'manage_search' },
-        { id: 'ui', label: 'Look & Feel', icon: 'palette' },
-    ];
-
     return (
-        <div className="space-y-8 max-w-6xl mx-auto py-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h1 className="text-4xl font-black text-on-surface tracking-tighter">Impostazioni <span className="text-primary">Admin</span></h1>
-                <div className="flex bg-surface-container p-1 rounded-2xl shadow-inner border border-outline-variant overflow-x-auto max-w-full">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center px-6 py-2 font-bold text-sm rounded-xl transition-all whitespace-nowrap ${
-                                activeTab === tab.id ? 'bg-surface text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-                            }`}
-                        >
-                            <span className="material-symbols-outlined mr-2 text-lg">{tab.icon}</span>
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="animate-fade-in">
-                {activeTab === 'general' && <DataLoadSection />}
-                {activeTab === 'dashboard' && <DashboardConfigSection />}
-                {activeTab === 'search' && <SearchConfigSection />}
-                {activeTab === 'ui' && <ThemeSection />}
-            </div>
-
-            <div className="bg-primary/5 p-6 rounded-[2.5rem] border border-primary/10 flex items-center gap-4">
-                <div className="p-3 bg-primary text-on-primary rounded-2xl shadow-md">
-                    <span className="material-symbols-outlined text-2xl">security</span>
-                </div>
-                <div className="flex-grow">
-                    <p className="font-bold text-on-surface">Sicurezza e Accessi?</p>
-                    <p className="text-xs text-on-surface-variant">Le impostazioni relative a utenti, ruoli e permessi sono gestite nel <strong>Security Center</strong>.</p>
-                </div>
-                <button 
-                    onClick={() => window.location.hash = '#/security-center'}
-                    className="px-6 py-2 bg-surface text-primary border border-primary font-bold rounded-full hover:bg-primary hover:text-on-primary transition-all active:scale-95"
-                >
-                    Vai al Security Center
-                </button>
-            </div>
+        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+            <h1 className="text-3xl font-bold text-on-surface">Impostazioni Amministratore</h1>
+            <DataLoadSection />
+            <TalentConfigSection />
+            <SearchConfigSection />
+            <DashboardConfigSection />
+            <ThemeSection />
         </div>
     );
 };

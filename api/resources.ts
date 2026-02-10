@@ -54,7 +54,9 @@ const TABLE_MAPPING: Record<string, string> = {
     'notifications': 'notifications',
     'app_config': 'app_config',
     'skill_categories': 'skill_categories',
-    'skill_macro_categories': 'skill_macro_categories'
+    'skill_macro_categories': 'skill_macro_categories',
+    'resource_evaluations': 'resource_evaluations',
+    'evaluation_metrics': 'evaluation_metrics'
 };
 
 // Generic Schema for fallback, specific ones below
@@ -72,7 +74,9 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         resigned: z.boolean().optional().nullable(),
         lastDayOfWork: z.string().optional().nullable(),
         tutorId: z.string().optional().nullable(),
-        dailyCost: z.number().optional().nullable()
+        dailyCost: z.number().optional().nullable(),
+        isTalent: z.boolean().optional().nullable(),
+        seniorityCode: z.string().optional().nullable()
     }),
     'projects': z.object({
         name: z.string(),
@@ -217,6 +221,21 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         ratingCommunication: z.number().optional().nullable(),
         ratingProactivity: z.number().optional().nullable(),
         ratingTeamFit: z.number().optional().nullable()
+    }),
+    'resource_evaluations': z.object({
+        resourceId: z.string(),
+        fiscalYear: z.number(),
+        evaluatorId: z.string().optional().nullable(),
+        status: z.string().optional(),
+        overallRating: z.number().optional().nullable(),
+        summary: z.string().optional().nullable(),
+        // Nested metrics for transactional save
+        metrics: z.array(z.object({
+             category: z.string(),
+             metricKey: z.string(),
+             metricValue: z.string().optional().nullable(),
+             score: z.number().optional().nullable()
+        })).optional()
     })
 };
 
@@ -226,11 +245,15 @@ const toCamelAndNormalize = (o: any) => {
     for (const k in o) {
         const camelKey = k.replace(/(_\w)/g, m => m[1].toUpperCase());
         const value = o[k];
-        if (value instanceof Date && (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork')) {
-            const y = value.getFullYear();
-            const m = String(value.getMonth() + 1).padStart(2, '0');
-            const d = String(value.getDate()).padStart(2, '0');
-            n[camelKey] = `${y}-${m}-${d}`;
+        if (value instanceof Date && (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork' || camelKey === 'updatedAt')) {
+            if (camelKey === 'updatedAt') {
+                 n[camelKey] = value.toISOString(); // Keep timestamp
+            } else {
+                 const y = value.getFullYear();
+                 const m = String(value.getMonth() + 1).padStart(2, '0');
+                 const d = String(value.getDate()).padStart(2, '0');
+                 n[camelKey] = `${y}-${m}-${d}`;
+            }
         } else {
             n[camelKey] = value;
         }
@@ -517,6 +540,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs'];
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
             
+            // SPECIAL HANDLING FOR EVALUATIONS FETCH (Includes Nested Metrics)
+            if (tableName === 'resource_evaluations') {
+                let queryStr = `SELECT * FROM resource_evaluations`;
+                const params = [];
+                if (id) { queryStr += ` WHERE id = $1`; params.push(id); }
+                else if (resourceId) { queryStr += ` WHERE resource_id = $1`; params.push(resourceId); }
+                
+                queryStr += ` ORDER BY fiscal_year DESC`;
+
+                const { rows } = await client.query(queryStr, params);
+                const evaluations = rows.map(toCamelAndNormalize);
+                
+                // Fetch metrics efficiently
+                const evalIds = evaluations.map((e: any) => e.id);
+                if (evalIds.length > 0) {
+                     const metricsRes = await client.query(`SELECT * FROM evaluation_metrics WHERE evaluation_id = ANY($1::uuid[])`, [evalIds]);
+                     const metrics = metricsRes.rows.map(toCamelAndNormalize);
+                     evaluations.forEach((ev: any) => {
+                         ev.metrics = metrics.filter((m: any) => m.evaluationId === ev.id);
+                     });
+                } else {
+                    evaluations.forEach((ev: any) => ev.metrics = []);
+                }
+                
+                return res.status(200).json(evaluations);
+            }
+
             let queryStr = `SELECT * FROM ${tableName}`;
             const params = [];
             if (id) { queryStr += ` WHERE id = $1`; params.push(id); }
@@ -596,8 +646,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              if (!parseResult.success) return res.status(400).json({ error: "Invalid data", details: parseResult.error.flatten() });
              let validatedBody = parseResult.data as any;
              
-             // Extract specialized array fields for relation mapping tables (Skills / Categories)
-             const { categoryIds, macroCategoryIds, ...dbFields } = validatedBody;
+             // Extract specialized array fields for relation mapping tables (Skills / Categories) AND Evaluation Metrics
+             const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
 
              const columns = Object.keys(dbFields).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
              const values = Object.values(dbFields);
@@ -618,7 +668,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
              const newId = uuidv4();
              const placeholders = values.map((_, i) => `$${i + 2}`);
-             await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
+             
+             // TRANSACTIONAL INSERT FOR EVALUATIONS
+             if (tableName === 'resource_evaluations') {
+                 await client.query('BEGIN');
+                 try {
+                     await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
+                     
+                     if (metrics && Array.isArray(metrics)) {
+                         for (const m of metrics) {
+                             await client.query(
+                                 `INSERT INTO evaluation_metrics (id, evaluation_id, category, metric_key, metric_value, score) VALUES ($1, $2, $3, $4, $5, $6)`,
+                                 [uuidv4(), newId, m.category, m.metricKey, m.metricValue || null, m.score || null]
+                             );
+                         }
+                     }
+                     await client.query('COMMIT');
+                 } catch (e) {
+                     await client.query('ROLLBACK');
+                     throw e;
+                 }
+             } else {
+                 await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
+             }
              
              // Handle Relations for Skills and Categories
              if (tableName === 'skills' && categoryIds && Array.isArray(categoryIds)) {
@@ -652,7 +724,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let validatedBody = parseResult.data as any;
             
             // Extract relations for update
-            const { categoryIds, macroCategoryIds, ...dbFields } = validatedBody;
+            const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
 
             const updates = Object.entries(dbFields).map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
             const values = Object.values(dbFields);
@@ -660,14 +732,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const oldDataRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]);
             if (oldDataRes.rows.length === 0) return res.status(404).json({ error: "Not found" });
 
-            const result = await client.query(
-                `UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 
-                 WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, 
-                [...values, id, version]
-            );
+            // TRANSACTIONAL UPDATE FOR EVALUATIONS
+            if (tableName === 'resource_evaluations') {
+                await client.query('BEGIN');
+                try {
+                    const result = await client.query(
+                        `UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 
+                         WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, 
+                        [...values, id, version]
+                    );
 
-            if (result.rowCount === 0) {
-                return res.status(409).json({ error: "Conflict: Data has been modified by another user. Please refresh and try again." });
+                    if (result.rowCount === 0) {
+                         await client.query('ROLLBACK');
+                         return res.status(409).json({ error: "Conflict: Data modified by another user." });
+                    }
+
+                    if (metrics !== undefined) { // Explicitly check undefined to allow partial updates
+                        await client.query(`DELETE FROM evaluation_metrics WHERE evaluation_id = $1`, [id]);
+                        if (Array.isArray(metrics)) {
+                             for (const m of metrics) {
+                                 await client.query(
+                                     `INSERT INTO evaluation_metrics (id, evaluation_id, category, metric_key, metric_value, score) VALUES ($1, $2, $3, $4, $5, $6)`,
+                                     [uuidv4(), id, m.category, m.metricKey, m.metricValue || null, m.score || null]
+                                 );
+                             }
+                        }
+                    }
+                    await client.query('COMMIT');
+                } catch(e) {
+                    await client.query('ROLLBACK');
+                    throw e;
+                }
+            } else {
+                 const result = await client.query(
+                    `UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 
+                     WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, 
+                    [...values, id, version]
+                );
+
+                if (result.rowCount === 0) {
+                    return res.status(409).json({ error: "Conflict: Data has been modified by another user. Please refresh and try again." });
+                }
             }
 
              // Handle Relations Updates (Full Replace)

@@ -6,13 +6,13 @@
 
 import React, { useState } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves, exportUsersPermissions, exportTutorMapping } from '../utils/exportUtils';
+import { exportCoreEntities, exportStaffing, exportResourceRequests, exportInterviews, exportSkills, exportLeaves, exportUsersPermissions, exportTutorMapping, exportMonthlyAllocations } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
 import { AppUser, RolePermission } from '../types';
 import { authorizedJsonFetch } from '../utils/api';
 
-type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users' | 'tutor';
+type ExportType = 'core' | 'staffing' | 'requests' | 'interviews' | 'skills' | 'leaves' | 'users' | 'tutor' | 'monthly_allocations';
 
 interface ExportCardProps {
     title: string;
@@ -90,6 +90,9 @@ const ExportPage: React.FC = () => {
                 case 'tutor':
                     await exportTutorMapping(allData);
                     break;
+                case 'monthly_allocations':
+                    await exportMonthlyAllocations({ ...allData, allocations });
+                    break;
             }
         } catch (error) {
             console.error(`Failed to export ${type}:`, error);
@@ -118,6 +121,13 @@ const ExportPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-on-surface mb-8">Esportazione Dati</h1>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <ExportCard
+                    title="Allocazioni Mensili (3 Mesi)"
+                    description="Esporta le percentuali di allocazione distinte per il mese corrente e i due successivi (3 colonne). Ideale per analizzare il carico mese per mese."
+                    onExport={() => handleExport('monthly_allocations')}
+                    isExporting={exportingType === 'monthly_allocations'}
+                    icon="date_range"
+                />
                 <ExportCard
                     title="Entità Principali"
                     description="Esporta un file contenente Risorse, Progetti, Clienti, Ruoli, Calendario e tutte le opzioni di configurazione. Ideale per un backup completo."

@@ -45,6 +45,9 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS resources ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE, role_id UUID REFERENCES roles(id), horizontal VARCHAR(255), location VARCHAR(255), hire_date DATE, work_seniority INT, notes TEXT, max_staffing_percentage INT DEFAULT 100, resigned BOOLEAN DEFAULT FALSE, last_day_of_work DATE, tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL, daily_cost NUMERIC(10, 2) DEFAULT 0, version INT DEFAULT 1 );`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS daily_cost NUMERIC(10, 2) DEFAULT 0;`;
+    // New Resource Columns
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS is_talent BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS seniority_code VARCHAR(50);`;
 
     // 5. Skills Associations
     await db.sql`CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, acquisition_date DATE, expiration_date DATE, PRIMARY KEY (resource_id, skill_id) );`;
@@ -92,6 +95,7 @@ export async function ensureDbTablesExist(db: VercelPool) {
     
     await db.sql`CREATE TABLE IF NOT EXISTS interviews ( id UUID PRIMARY KEY, resource_request_id UUID REFERENCES resource_requests(id) ON DELETE SET NULL, candidate_name VARCHAR(255) NOT NULL, candidate_surname VARCHAR(255) NOT NULL, birth_date DATE, horizontal VARCHAR(255), role_id UUID REFERENCES roles(id) ON DELETE SET NULL, cv_summary TEXT, interviewers_ids UUID[], interview_date DATE, feedback VARCHAR(50), notes TEXT, hiring_status VARCHAR(50), entry_date DATE, status VARCHAR(50) NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
     await db.sql`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
+    
     // Ratings columns for interviews
     await db.sql`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS rating_technical_mastery INT;`;
     await db.sql`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS rating_problem_solving INT;`;
@@ -108,7 +112,11 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS leave_requests ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, type_id UUID REFERENCES leave_types(id) ON DELETE RESTRICT, start_date DATE NOT NULL, end_date DATE NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'PENDING', manager_id UUID REFERENCES resources(id) ON DELETE SET NULL, notes TEXT, approver_ids UUID[], is_half_day BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
     await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
     
-    // 10. Analytics Cache
+    // 10. Performance Evaluation
+    await db.sql`CREATE TABLE IF NOT EXISTS resource_evaluations ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, fiscal_year INT NOT NULL, evaluator_id UUID REFERENCES resources(id) ON DELETE SET NULL, status VARCHAR(50) DEFAULT 'DRAFT', overall_rating INT, summary TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1, UNIQUE(resource_id, fiscal_year) );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS evaluation_metrics ( id UUID PRIMARY KEY, evaluation_id UUID REFERENCES resource_evaluations(id) ON DELETE CASCADE, category VARCHAR(100) NOT NULL, metric_key VARCHAR(100) NOT NULL, metric_value TEXT, score INT );`;
+
+    // 11. Analytics Cache
     await db.sql`
         CREATE TABLE IF NOT EXISTS analytics_cache (
             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

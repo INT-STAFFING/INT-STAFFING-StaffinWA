@@ -58,6 +58,7 @@ const ResourceRequestPage = lazy(() => import('./pages/ResourceRequestPage').the
 const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => ({ default: module.ContractsPage })));
 const WbsAllocationPage = lazy(() => import('./pages/WbsAllocationPage').then(module => ({ default: module.WbsAllocationPage })));
 const RevenuePage = lazy(() => import('./pages/RevenuePage').then(module => ({ default: module.RevenuePage })));
+const PerformanceTimelinePage = lazy(() => import('./pages/PerformanceTimeline').then(module => ({ default: module.PerformanceTimelinePage })));
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -216,6 +217,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/leaves" element={<DynamicRoute path="/leaves"><LeavePage /></DynamicRoute>} />
               <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
               <Route path="/revenue" element={<DynamicRoute path="/revenue"><RevenuePage /></DynamicRoute>} />
+              <Route path="/performance" element={<DynamicRoute path="/performance"><PerformanceTimelinePage /></DynamicRoute>} />
               
               <Route path="/admin-settings" element={<DynamicRoute path="/admin-settings"><AdminSettingsPage /></DynamicRoute>} />
               <Route path="/security-center" element={<DynamicRoute path="/security-center"><SecurityCenterPage /></DynamicRoute>} />

@@ -5,8 +5,9 @@
  */
 
 import { Client, Role, Resource, Project, Assignment, Allocation, ConfigOption, CalendarEvent, WbsTask, ResourceRequest, Interview, Contract, Skill, ResourceSkill, ProjectSkill, PageVisibility, LeaveRequest, LeaveType, AppUser, RolePermission, EntitiesContextType } from '../types';
+import { isHoliday } from './dateUtils';
 
-type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
+type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping' | 'monthly_allocations';
 
 const formatDateForExport = (date: Date | string | null | undefined): string => {
     if (!date) return '';
@@ -137,6 +138,85 @@ export const exportStaffing = async (data: EntitiesContextType & { allocations: 
     ws['!cols'] = [{ wch: 25 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Staffing');
     XLSX.writeFile(wb, `Staffing_Export_Staffing_${formatDateForExport(new Date())}.xlsx`);
+};
+
+/**
+ * Esporta le allocazioni mensili (media %) per risorsa/progetto per il mese corrente e i 2 successivi.
+ * Genera 3 colonne separate, una per ogni mese.
+ */
+export const exportMonthlyAllocations = async (data: EntitiesContextType & { allocations: Allocation }) => {
+    const XLSX = await import('xlsx');
+    const { resources, projects, clients, assignments, allocations, companyCalendar } = data;
+    const wb = XLSX.utils.book_new();
+    
+    // Definisci i 3 mesi di interesse
+    const today = new Date();
+    const months = [0, 1, 2].map(offset => {
+        const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, 1));
+        const monthName = d.toLocaleString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+        // Primo giorno del mese
+        const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+        // Ultimo giorno del mese
+        const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+        return { start, end, label: monthName.charAt(0).toUpperCase() + monthName.slice(1) };
+    });
+
+    const exportRows: any[] = [];
+
+    // Per ogni assegnazione, calcola la media % per ciascuno dei 3 mesi
+    for (const assignment of assignments) {
+        const resource = resources.find(r => r.id === assignment.resourceId);
+        const project = projects.find(p => p.id === assignment.projectId);
+        const client = clients.find(c => c.id === project?.clientId);
+
+        if (!resource || !project || resource.resigned) continue;
+
+        // Inizializza l'oggetto riga con le chiavi in ordine per garantire l'ordine delle colonne in Excel
+        const row: any = {
+            'Risorsa': resource.name,
+            'Progetto': project.name,
+            'Cliente': client ? client.name : 'N/A',
+        };
+
+        const assignmentAllocs = allocations[assignment.id!] || {};
+
+        months.forEach(month => {
+            let totalPercentage = 0;
+            let workingDays = 0;
+
+            const current = new Date(month.start);
+            while (current <= month.end) {
+                const day = current.getUTCDay();
+                // Verifica se è lavorativo (no weekend, no festivi)
+                if (day !== 0 && day !== 6 && !isHoliday(current, resource.location, companyCalendar)) {
+                    workingDays++;
+                    const dateStr = current.toISOString().split('T')[0];
+                    totalPercentage += (assignmentAllocs[dateStr] || 0);
+                }
+                current.setUTCDate(current.getUTCDate() + 1);
+            }
+
+            // Calcola media mensile
+            const avg = workingDays > 0 ? (totalPercentage / workingDays) : 0;
+            // Usa il nome del mese come header colonna (es. "Febbraio 2024")
+            row[month.label] = parseFloat(avg.toFixed(1)); 
+        });
+
+        exportRows.push(row);
+    }
+
+    // Sort by Resource then Project
+    exportRows.sort((a, b) => {
+        const resCompare = a['Risorsa'].localeCompare(b['Risorsa']);
+        if (resCompare !== 0) return resCompare;
+        return a['Progetto'].localeCompare(b['Progetto']);
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    // Imposta larghezza colonne: Risorsa, Progetto, Cliente, Mese 1, Mese 2, Mese 3
+    ws['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Allocazioni Mensili');
+    XLSX.writeFile(wb, `Staffing_Monthly_Allocations_${formatDateForExport(new Date())}.xlsx`);
 };
 
 

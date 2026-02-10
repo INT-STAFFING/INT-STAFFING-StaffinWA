@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { apiFetch } from '../services/apiClient';
 import { useEntitiesContext } from '../context/AppContext';
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 interface Column {
     column_name: string;
@@ -52,7 +53,6 @@ const DbInspectorPage: React.FC = () => {
     const [bulkPassLoading, setBulkPassLoading] = useState(false);
 
     const { addToast } = useToast();
-    const { logout } = useAuth(); 
 
     // Used only for manual fetch (Export SQL) where apiFetch is not suitable (Blob response)
     const getAuthToken = () => localStorage.getItem('authToken');
@@ -276,7 +276,7 @@ const DbInspectorPage: React.FC = () => {
                     type="date"
                     value={dateValue}
                     onChange={e => handleInputChange(e, colName, colType)}
-                    className="form-input text-sm p-1"
+                    className="form-input text-xs p-1 h-8"
                 />
             );
         }
@@ -286,7 +286,7 @@ const DbInspectorPage: React.FC = () => {
                     type="number"
                     value={value ?? ''}
                     onChange={e => handleInputChange(e, colName, colType)}
-                    className="form-input text-sm p-1"
+                    className="form-input text-xs p-1 h-8"
                 />
             );
         }
@@ -295,7 +295,7 @@ const DbInspectorPage: React.FC = () => {
                 <select
                     value={String(value ?? 'false')}
                     onChange={e => handleInputChange(e, colName, colType)}
-                    className="form-select text-sm p-1"
+                    className="form-select text-xs p-1 h-8"
                 >
                     <option value="true">true</option>
                     <option value="false">false</option>
@@ -307,7 +307,7 @@ const DbInspectorPage: React.FC = () => {
                 type="text"
                 value={value ?? ''}
                 onChange={e => handleInputChange(e, colName, colType)}
-                className="form-input text-sm p-1"
+                className="form-input text-xs p-1 h-8"
             />
         );
     };
@@ -316,222 +316,264 @@ const DbInspectorPage: React.FC = () => {
         const currencyColumns = [
             'daily_cost', 'standard_cost', 'daily_expenses', 'budget', 'capienza', 'backlog',
             'produzione_lorda', 'produzione_lorda_network_italia', 'perdite', 'spese_onorari_esterni',
-            'spese_altro', 'fatture_onorari', 'fatture_spese', 'iva', 'incassi'
+            'spese_altro', 'fatture_onorari', 'fatture_spese', 'iva', 'incassi', 'amount'
         ];
     
         if (columnName && currencyColumns.includes(columnName) && (typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value))))) {
             return formatCurrency(Number(value));
         }
         
-        if (value === null || value === undefined) return <i className="text-on-surface-variant/70">NULL</i>;
-        if (typeof value === 'boolean') return value ? 'true' : 'false';
-        if (typeof value === 'object' && value !== null) return JSON.stringify(value);
-        return String(value);
+        if (value === null || value === undefined) return <span className="text-on-surface-variant/50 italic text-[10px]">NULL</span>;
+        if (typeof value === 'boolean') return <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${value ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-on-surface-variant'}`}>{value ? 'true' : 'false'}</span>;
+        if (typeof value === 'object' && value !== null) return <code className="text-[10px] bg-surface-container-high px-1 rounded">{JSON.stringify(value)}</code>;
+        return <span className="truncate block max-w-[200px]" title={String(value)}>{String(value)}</span>;
     };
+
+    // --- DataTable Adaptation ---
+    const columns = useMemo<ColumnDef<any>[]>(() => {
+        if (!tableData) return [];
+        return tableData.columns.map(col => ({
+            header: col.column_name,
+            sortKey: col.column_name,
+            minWidth: 150,
+            cell: (row) => (
+                <div className="flex flex-col">
+                    <span className="text-xs text-on-surface">{renderCellContent(row[col.column_name], col.column_name)}</span>
+                    <span className="text-[9px] text-on-surface-variant/40 font-mono tracking-tighter">{col.data_type}</span>
+                </div>
+            )
+        }));
+    }, [tableData]);
+
+    const renderRow = (row: any) => {
+        const isEditing = editingRowId === row.id;
+
+        if (isEditing && tableData) {
+            return (
+                <tr key={row.id} className="bg-surface-container border-b border-primary/20">
+                    <td className="px-2 py-2 sticky left-0 z-10 bg-surface-container border-r border-primary/10 text-center">
+                         <div className="flex items-center justify-center gap-1">
+                            <button onClick={handleSave} disabled={isSaving} className="p-1 rounded bg-primary text-on-primary shadow-sm hover:opacity-90 disabled:opacity-50" title="Salva">
+                                {isSaving ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">check</span>}
+                            </button>
+                            <button onClick={handleCancel} disabled={isSaving} className="p-1 rounded bg-surface-variant text-on-surface-variant hover:bg-surface-container-high" title="Annulla">
+                                <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    </td>
+                    {tableData.columns.map(col => (
+                        <td key={col.column_name} className="px-4 py-2 align-middle">
+                             {col.column_name !== 'id' ? (
+                                renderInputField(col, editingRowData[col.column_name])
+                             ) : (
+                                <span className="text-xs text-on-surface-variant font-mono bg-surface px-1 rounded">{row.id}</span>
+                             )}
+                        </td>
+                    ))}
+                </tr>
+            );
+        }
+
+        return (
+            <tr key={row.id} className="hover:bg-surface-container-low transition-colors border-b border-outline-variant/30 group">
+                 <td className="px-2 py-2 sticky left-0 z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant text-center">
+                    <button onClick={() => handleEdit(row)} className="p-1.5 rounded-full text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors" title="Modifica Riga">
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
+                </td>
+                {columns.map((col, i) => (
+                    <td key={i} className="px-4 py-3 bg-inherit align-middle">
+                        {col.cell(row)}
+                    </td>
+                ))}
+            </tr>
+        );
+    };
+
+    const filtersNode = (
+        <div className="flex flex-col xl:flex-row gap-4 items-end justify-between w-full">
+            <div className="w-full xl:w-1/3">
+                 <label htmlFor="table-select" className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Tabella Database</label>
+                 <div className="relative">
+                    <select
+                        id="table-select"
+                        value={selectedTable}
+                        onChange={e => setSelectedTable(e.target.value)}
+                        className="form-select w-full text-sm font-medium"
+                        disabled={isLoading}
+                    >
+                        {tables.map(table => <option key={table} value={table}>{table}</option>)}
+                    </select>
+                </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+                 <button
+                    onClick={() => handleExport('postgres')}
+                    disabled={isLoading || isExportingPg || isExportingMysql}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-primary/10 text-primary font-bold text-xs uppercase tracking-wider rounded-full disabled:opacity-50 hover:bg-primary/20 transition-all border border-primary/20"
+                >
+                    {isExportingPg ? <SpinnerIcon className="w-4 h-4 mr-1"/> : <span className="material-symbols-outlined text-base mr-1">download</span>}
+                    PG Dump
+                </button>
+                <button
+                    onClick={() => handleExport('mysql')}
+                    disabled={isLoading || isExportingPg || isExportingMysql}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-tertiary/10 text-tertiary font-bold text-xs uppercase tracking-wider rounded-full hover:bg-tertiary/20 disabled:opacity-50 transition-all border border-tertiary/20"
+                >
+                    {isExportingMysql ? <SpinnerIcon className="w-4 h-4 mr-1"/> : <span className="material-symbols-outlined text-base mr-1">download</span>}
+                    MySQL Dump
+                </button>
+                <button
+                    onClick={() => setIsDeleteAllModalOpen(true)}
+                    disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-error text-on-error font-bold text-xs uppercase tracking-wider rounded-full hover:opacity-90 disabled:opacity-50 shadow-sm transition-all ml-2"
+                    title="Elimina Tutte le Righe dalla Tabella Selezionata"
+                >
+                    <span className="material-symbols-outlined text-base mr-1">delete_forever</span>
+                    Svuota
+                </button>
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-on-surface">Database Inspector</h1>
+            <div className="flex justify-between items-center bg-surface p-4 rounded-2xl shadow-sm border border-outline-variant">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-secondary-container rounded-xl text-on-secondary-container">
+                        <span className="material-symbols-outlined text-2xl">database</span>
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-on-surface leading-none">Database Inspector</h1>
+                        <p className="text-xs text-on-surface-variant mt-1">Gestione avanzata e query diretta sui dati</p>
+                    </div>
+                </div>
                 
                 <button
                     onClick={handleGlobalRefresh}
-                    className="flex items-center gap-2 px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full font-bold hover:opacity-90 shadow-sm transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-surface-container text-on-surface font-bold rounded-full hover:bg-surface-container-high transition-all text-xs uppercase tracking-wider"
                     title="Forza il ricaricamento di tutti i dati applicativi dal database"
                 >
-                    <span className="material-symbols-outlined">sync</span>
-                    Ricarica Dati App
+                    <span className="material-symbols-outlined text-lg">sync</span>
+                    Ricarica App
                 </button>
             </div>
             
-            <div className="flex border-b border-outline-variant">
+            <div className="flex border-b border-outline-variant bg-surface rounded-t-2xl px-2">
                 <button 
                     onClick={() => setMode('inspector')}
-                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${mode === 'inspector' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${mode === 'inspector' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
                 >
-                    Ispettore Tabelle
+                    <span className="material-symbols-outlined text-lg">table_view</span> Ispettore Tabelle
                 </button>
                 <button 
                     onClick={() => setMode('query')}
                     className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${mode === 'query' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
                 >
-                    <span className="material-symbols-outlined text-sm">terminal</span> SQL Editor
+                    <span className="material-symbols-outlined text-lg">terminal</span> SQL Editor
                 </button>
                 <button 
                     onClick={() => setMode('bulk_password')}
                     className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${mode === 'bulk_password' ? 'border-primary text-primary' : 'border-transparent text-on-surface-variant hover:text-on-surface'}`}
                 >
-                    <span className="material-symbols-outlined text-sm">password</span> Bulk Password
+                    <span className="material-symbols-outlined text-lg">password</span> Bulk Password
                 </button>
             </div>
 
             {mode === 'inspector' && (
                 <div className="animate-fade-in">
-                    <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label htmlFor="table-select" className="block text-sm font-medium text-on-surface-variant mb-2">Seleziona una Tabella</label>
-                                <select
-                                    id="table-select"
-                                    value={selectedTable}
-                                    onChange={e => setSelectedTable(e.target.value)}
-                                    className="form-select w-full"
-                                    disabled={isLoading}
-                                >
-                                    {tables.map(table => <option key={table} value={table}>{table}</option>)}
-                                </select>
-                            </div>
-                             <div className="space-y-2">
-                                 <label className="block text-sm font-medium text-on-surface-variant mb-2">Azioni Globali</label>
-                                 <div className="flex items-center gap-2">
-                                     <button
-                                        onClick={() => handleExport('postgres')}
-                                        disabled={isLoading || isExportingPg || isExportingMysql}
-                                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-primary text-on-primary font-semibold rounded-full disabled:opacity-50"
-                                    >
-                                        {isExportingPg ? <SpinnerIcon className="w-5 h-5"/> : 'Export Neon (PG)'}
-                                    </button>
-                                    <button
-                                        onClick={() => handleExport('mysql')}
-                                        disabled={isLoading || isExportingPg || isExportingMysql}
-                                        className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-tertiary text-on-tertiary font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                                    >
-                                        {isExportingMysql ? <SpinnerIcon className="w-5 h-5"/> : 'Export MySQL'}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsDeleteAllModalOpen(true)}
-                                        disabled={isLoading || !selectedTable || !tableData || tableData.rows.length === 0}
-                                        className="px-4 py-2 bg-error text-on-error font-semibold rounded-full hover:opacity-90 disabled:opacity-50"
-                                        title="Elimina Tutte le Righe dalla Tabella Selezionata"
-                                    >
-                                        Svuota
-                                    </button>
-                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {isLoading && !tableData && (
-                        <div className="flex justify-center items-center py-12">
-                            <SpinnerIcon className="w-8 h-8 text-primary" />
-                        </div>
-                    )}
-                    
-                    {tableData && (
-                        <ErrorBoundary label="Errore Visualizzazione Tabella">
-                            <div className="bg-surface rounded-2xl shadow overflow-x-auto relative">
-                                {(isLoading || isSaving) && (
-                                    <div className="absolute inset-0 bg-surface/50 flex justify-center items-center z-10">
-                                        <SpinnerIcon className="w-8 h-8 text-primary" />
-                                    </div>
-                                )}
-                                <table className="min-w-full divide-y divide-outline-variant">
-                                    <thead className="bg-surface-container-low">
-                                        <tr>
-                                            {tableData.columns.map(col => (
-                                                <th key={col.column_name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
-                                                    {col.column_name}
-                                                    <span className="block text-on-surface-variant/70 font-normal normal-case">{col.data_type}</span>
-                                                </th>
-                                            ))}
-                                            <th className="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Azioni</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-outline-variant">
-                                        {tableData.rows.map(row => (
-                                            <tr key={row.id} className="hover:bg-surface-container">
-                                                {tableData.columns.map(col => (
-                                                    <td key={col.column_name} className="px-4 py-3 whitespace-nowrap text-sm text-on-surface-variant align-top">
-                                                        {editingRowId === row.id && col.column_name !== 'id' ? (
-                                                            renderInputField(col, editingRowData[col.column_name])
-                                                        ) : (
-                                                            renderCellContent(row[col.column_name], col.column_name)
-                                                        )}
-                                                    </td>
-                                                ))}
-                                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                                    {editingRowId === row.id ? (
-                                                        <div className="flex items-center justify-end space-x-2">
-                                                            <button onClick={handleSave} disabled={isSaving} className="p-1 text-tertiary hover:opacity-80 disabled:opacity-50">
-                                                                {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
-                                                            </button>
-                                                            <button onClick={handleCancel} disabled={isSaving} className="p-1 text-on-surface-variant hover:opacity-80 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
-                                                        </div>
-                                                    ) : (
-                                                        <button onClick={() => handleEdit(row)} className="text-on-surface-variant hover:text-primary" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {tableData.rows.length === 0 && (
-                                    <p className="text-center text-on-surface-variant py-8">La tabella è vuota.</p>
-                                )}
-                            </div>
-                        </ErrorBoundary>
-                    )}
+                    {/* Using the standard DataTable component */}
+                    <DataTable
+                        title=""
+                        addNewButtonLabel=""
+                        onAddNew={() => {}}
+                        data={tableData?.rows || []}
+                        columns={columns}
+                        filtersNode={filtersNode}
+                        renderRow={renderRow}
+                        renderMobileCard={() => <></>} // Not optimized for mobile yet
+                        isLoading={isLoading}
+                        // Important: Actions column is managed by renderRow logic + sticky positioning
+                        numActions={1} 
+                        actionsWidth={100}
+                        tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                    />
                 </div>
             )}
 
             {mode === 'query' && (
                 <div className="animate-fade-in space-y-4">
-                    <div className="bg-surface rounded-2xl shadow p-6">
-                        <label className="block text-sm font-medium text-on-surface mb-2">Query SQL Raw</label>
-                        <textarea 
-                            value={sqlQuery}
-                            onChange={e => setSqlQuery(e.target.value)}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && e.ctrlKey) {
-                                    handleRunQuery();
-                                }
-                            }}
-                            className="form-textarea font-mono text-sm w-full h-40 bg-surface-container text-on-surface border-outline-variant focus:ring-primary"
-                            placeholder="SELECT * FROM users WHERE..."
-                        ></textarea>
+                    <div className="bg-surface rounded-2xl shadow p-6 border border-outline-variant">
+                        <label className="block text-sm font-bold text-on-surface mb-2 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-primary">code</span> Query SQL Raw
+                        </label>
+                        <div className="relative">
+                            <textarea 
+                                value={sqlQuery}
+                                onChange={e => setSqlQuery(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && e.ctrlKey) {
+                                        handleRunQuery();
+                                    }
+                                }}
+                                className="form-textarea font-mono text-sm w-full h-40 bg-surface-container-low text-on-surface border-outline-variant focus:ring-primary rounded-xl p-4 leading-relaxed"
+                                placeholder="SELECT * FROM app_users WHERE role = 'ADMIN'..."
+                            ></textarea>
+                            <div className="absolute bottom-4 right-4 text-[10px] text-on-surface-variant bg-surface/80 px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+                                Ctrl + Enter per eseguire
+                            </div>
+                        </div>
                         <div className="mt-4 flex justify-end">
                             <button 
                                 onClick={handleRunQuery}
                                 disabled={isLoading || !sqlQuery.trim()}
-                                className="px-6 py-2 bg-primary text-on-primary font-semibold rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                                className="px-6 py-2 bg-primary text-on-primary font-bold rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-2 shadow-lg"
                             >
                                 {isLoading ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">play_arrow</span>}
-                                Esegui (Ctrl+Enter)
+                                Esegui Query
                             </button>
                         </div>
                     </div>
 
                     {queryError && (
-                        <div className="p-4 bg-error-container text-on-error-container rounded-lg border border-error">
-                            <strong>Errore SQL:</strong>
-                            <pre className="mt-1 text-xs whitespace-pre-wrap">{queryError}</pre>
+                        <div className="p-4 bg-error-container text-on-error-container rounded-xl border border-error/20 flex gap-3 items-start">
+                            <span className="material-symbols-outlined shrink-0 mt-0.5">error</span>
+                            <div>
+                                <strong className="block text-sm font-bold mb-1">Errore SQL</strong>
+                                <pre className="text-xs whitespace-pre-wrap font-mono opacity-90">{queryError}</pre>
+                            </div>
                         </div>
                     )}
 
                     {queryResult && (
                         <ErrorBoundary label="Errore Risultati Query">
-                            <div className="bg-surface rounded-2xl shadow overflow-hidden">
-                                <div className="p-4 bg-surface-container border-b border-outline-variant flex justify-between items-center">
-                                    <span className="text-sm font-bold text-on-surface">Risultati Query</span>
-                                    <span className="text-xs text-on-surface-variant bg-surface px-2 py-1 rounded">Rows: {queryResult.rowCount} | Cmd: {queryResult.command}</span>
+                            <div className="bg-surface rounded-2xl shadow overflow-hidden border border-outline-variant">
+                                <div className="p-3 bg-surface-container border-b border-outline-variant flex justify-between items-center">
+                                    <span className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">table_rows</span> Risultati
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <span className="text-[10px] font-bold text-on-surface-variant bg-surface px-2 py-1 rounded border border-outline-variant">Rows: {queryResult.rowCount}</span>
+                                        <span className="text-[10px] font-bold text-on-surface-variant bg-surface px-2 py-1 rounded border border-outline-variant">Cmd: {queryResult.command}</span>
+                                    </div>
                                 </div>
                                 <div className="overflow-x-auto max-h-[500px]">
-                                    <table className="min-w-full divide-y divide-outline-variant">
+                                    <table className="min-w-full divide-y divide-outline-variant text-sm">
                                         <thead className="bg-surface-container-low sticky top-0">
                                             <tr>
                                                 {queryResult.fields.map((field: any) => (
-                                                    <th key={field.name} className="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+                                                    <th key={field.name} className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap border-b border-outline-variant bg-surface-container-low">
                                                         {field.name}
-                                                        <span className="block text-[10px] opacity-50 normal-case">ID: {field.dataTypeID}</span>
+                                                        <span className="ml-1 text-[9px] opacity-50 normal-case font-mono bg-surface-variant px-1 rounded">{field.dataTypeID}</span>
                                                     </th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-outline-variant bg-surface">
                                             {queryResult.rows.map((row, i) => (
-                                                <tr key={i} className="hover:bg-surface-container">
+                                                <tr key={i} className="hover:bg-surface-container-low transition-colors">
                                                     {queryResult.fields.map((field: any) => (
-                                                        <td key={field.name} className="px-4 py-2 whitespace-nowrap text-sm text-on-surface font-mono">
+                                                        <td key={field.name} className="px-4 py-2 whitespace-nowrap text-on-surface font-mono text-xs">
                                                             {renderCellContent(row[field.name])}
                                                         </td>
                                                     ))}
@@ -540,7 +582,10 @@ const DbInspectorPage: React.FC = () => {
                                         </tbody>
                                     </table>
                                     {queryResult.rows.length === 0 && (
-                                        <p className="text-center text-on-surface-variant py-8">Nessun risultato restituito.</p>
+                                        <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant opacity-60">
+                                            <span className="material-symbols-outlined text-4xl mb-2">data_object</span>
+                                            <p className="text-sm font-medium">Nessun risultato restituito dalla query.</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -551,26 +596,29 @@ const DbInspectorPage: React.FC = () => {
 
             {mode === 'bulk_password' && (
                 <div className="animate-fade-in space-y-4">
-                    <div className="bg-surface rounded-2xl shadow p-6">
-                        <h2 className="text-xl font-bold text-on-surface mb-4">Importazione Bulk Password</h2>
-                        <p className="text-sm text-on-surface-variant mb-4">
+                    <div className="bg-surface rounded-2xl shadow p-8 border border-outline-variant">
+                        <h2 className="text-xl font-bold text-on-surface mb-2 flex items-center gap-2">
+                             <span className="material-symbols-outlined text-primary">lock_reset</span>
+                             Importazione Bulk Password
+                        </h2>
+                        <p className="text-sm text-on-surface-variant mb-6 bg-surface-container-low p-4 rounded-xl border-l-4 border-tertiary">
                             Inserisci qui sotto l'elenco delle coppie <strong>Username, Password</strong> (una per riga, separate da virgola).
                             <br />
-                            Le password verranno crittografate (hash) e aggiornate nel database. Gli utenti saranno costretti a cambiare password al prossimo accesso.
+                            Le password verranno crittografate e aggiornate. Gli utenti saranno forzati al cambio password al prossimo accesso.
                         </p>
                         
                         <textarea 
                             value={bulkPasswordsInput}
                             onChange={e => setBulkPasswordsInput(e.target.value)}
-                            className="form-textarea font-mono text-sm w-full h-64 bg-surface-container text-on-surface border-outline-variant focus:ring-primary"
-                            placeholder="mario.rossi, Password123!&#10;luigi.verdi, Segreta2024&#10;..."
+                            className="form-textarea font-mono text-xs w-full h-64 bg-surface-container-lowest text-on-surface border-outline-variant focus:ring-primary rounded-xl p-4 leading-relaxed shadow-inner"
+                            placeholder={"mario.rossi, Password123!\nluigi.verdi, Segreta2024\n..."}
                         ></textarea>
                         
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-6 flex justify-end">
                             <button 
                                 onClick={handleBulkPasswordUpdate}
                                 disabled={bulkPassLoading || !bulkPasswordsInput.trim()}
-                                className="px-6 py-2 bg-tertiary-container text-on-tertiary-container font-semibold rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+                                className="px-6 py-2 bg-tertiary-container text-on-tertiary-container font-bold rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-2 shadow-md transition-all"
                             >
                                 {bulkPassLoading ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">upload</span>}
                                 Aggiorna Password
@@ -587,12 +635,13 @@ const DbInspectorPage: React.FC = () => {
                 title={`Conferma Eliminazione Totale`}
                 message={
                     <>
-                        Sei assolutamente sicuro di voler eliminare <strong>tutte le righe</strong> dalla tabella <strong>{selectedTable}</strong>?
+                        Sei assolutamente sicuro di voler eliminare <strong>tutte le righe</strong> dalla tabella <span className="font-mono bg-surface-variant px-1 rounded">{selectedTable}</span>?
                         <br />
-                        <strong className="text-error">Questa azione è irreversibile.</strong>
+                        <span className="text-error font-bold mt-2 block">Questa azione è irreversibile e distruttiva.</span>
                     </>
                 }
                 isConfirming={isSaving}
+                confirmButtonText="Sì, Svuota Tabella"
             />
         </div>
     );

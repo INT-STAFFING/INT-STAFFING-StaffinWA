@@ -92,6 +92,8 @@ export interface Resource {
     dailyCost?: number;
     notes?: string;
     version?: number;
+    isTalent?: boolean;
+    seniorityCode?: string;
 }
 
 export interface Project {
@@ -418,6 +420,30 @@ export interface DashboardCategory {
     cards: string[];
 }
 
+export type EvaluationStatus = 'DRAFT' | 'COMPLETED' | 'ARCHIVED';
+
+export interface EvaluationMetric {
+    id?: string;
+    evaluationId?: string;
+    category: string;
+    metricKey: string;
+    metricValue: string;
+    score?: number;
+}
+
+export interface ResourceEvaluation {
+    id?: string;
+    resourceId: string;
+    fiscalYear: number;
+    evaluatorId: string | null;
+    status: EvaluationStatus;
+    overallRating?: number;
+    summary?: string;
+    updatedAt?: string;
+    version?: number;
+    metrics?: EvaluationMetric[];
+}
+
 /**
  * @typedef ExportablePrimitive
  * @description Tipi primitivi supportati per l'esportazione dati.
@@ -488,6 +514,7 @@ export interface EntitiesState {
     notificationConfigs: NotificationConfig[];
     analyticsCache: Record<string, unknown>;
     loading: boolean;
+    evaluations: ResourceEvaluation[];
 }
 
 export interface EntitiesActions {
@@ -572,6 +599,11 @@ export interface EntitiesActions {
     deleteNotificationConfig: (id: string) => Promise<void>;
     forceRecalculateAnalytics: () => Promise<void>;
     getBestFitResources: (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => Promise<any[]>;
+    // Evaluation Actions
+    fetchEvaluations: (resourceId?: string) => Promise<void>;
+    addEvaluation: (evaluation: Omit<ResourceEvaluation, 'id'>) => Promise<void>;
+    updateEvaluation: (evaluation: ResourceEvaluation) => Promise<void>;
+    deleteEvaluation: (id: string) => Promise<void>;
 }
 
 export interface EntitiesContextType extends EntitiesState, EntitiesActions {

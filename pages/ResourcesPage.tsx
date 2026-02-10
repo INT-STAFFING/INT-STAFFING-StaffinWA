@@ -78,7 +78,9 @@ const ResourcesPage: React.FC = () => {
         resigned: false,
         lastDayOfWork: null,
         tutorId: null,
-        dailyCost: 0
+        dailyCost: 0,
+        isTalent: false,
+        seniorityCode: ''
     };
 
     const kpis = useMemo(() => {
@@ -175,7 +177,9 @@ const ResourcesPage: React.FC = () => {
             'Anzianità (anni)': r.seniority.toFixed(1),
             'Max Staffing %': r.maxStaffingPercentage,
             'Allocazione Media %': r.allocation,
-            'Progetti Attivi': r.activeProjects
+            'Progetti Attivi': r.activeProjects,
+            'Talent': r.isTalent ? 'SI' : 'NO',
+            'Codice Seniority': r.seniorityCode || ''
         }));
     }, [dataForTable]);
 
@@ -243,7 +247,9 @@ const ResourcesPage: React.FC = () => {
             lastDayOfWork: editingResource.lastDayOfWork || null,
             notes: editingResource.notes || '',
             tutorId: editingResource.tutorId || null,
-            dailyCost: Number(editingResource.dailyCost) || 0
+            dailyCost: Number(editingResource.dailyCost) || 0,
+            isTalent: !!editingResource.isTalent,
+            seniorityCode: editingResource.seniorityCode || null
         };
 
         if ('id' in editingResource && editingResource.id) {
@@ -564,15 +570,34 @@ const ResourcesPage: React.FC = () => {
                                         <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                                     </div>
                                 </div>
-                                <div className="mt-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
-                                    <input type="number" step="0.01" name="dailyCost" value={editingResource.dailyCost || ''} onChange={handleChange} className="form-input w-full md:w-1/2" placeholder="0.00 (Usa costo Ruolo)"/>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
+                                        <input type="number" step="0.01" name="dailyCost" value={editingResource.dailyCost || ''} onChange={handleChange} className="form-input" placeholder="0.00 (Usa costo Ruolo)"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
+                                        <div className="flex items-center gap-4">
+                                            <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="flex-grow accent-primary" disabled={editingResource.resigned}/>
+                                            <span className="text-sm font-bold text-primary w-12 text-right">{editingResource.maxStaffingPercentage}%</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="mt-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
-                                    <div className="flex items-center gap-4">
-                                        <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="flex-grow accent-primary" disabled={editingResource.resigned}/>
-                                        <span className="text-sm font-bold text-primary w-12 text-right">{editingResource.maxStaffingPercentage}%</span>
+                            </div>
+                            
+                            {/* NEW: Talent & Growth Section */}
+                            <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
+                                <h4 className="text-sm font-bold text-tertiary mb-4 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">psychology</span> Talent & Growth
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Seniority Code</label>
+                                        <input type="text" name="seniorityCode" value={editingResource.seniorityCode || ''} onChange={handleChange} className="form-input" placeholder="es. L4, M2, S1" />
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <input type="checkbox" name="isTalent" checked={editingResource.isTalent} onChange={handleChange} className="form-checkbox h-5 w-5 text-tertiary" id="talent-check" />
+                                        <label htmlFor="talent-check" className="text-sm font-bold text-on-surface">Flag come "Talent"</label>
                                     </div>
                                 </div>
                             </div>

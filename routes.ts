@@ -162,6 +162,15 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/ResourcesPage')),
     },
     {
+        path: '/performance',
+        label: 'Performance',
+        icon: 'history_edu',
+        section: 'Risorse',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/PerformanceTimeline').then(module => ({ default: module.PerformanceTimelinePage }))),
+    },
+    {
         path: '/skills',
         label: 'Competenze',
         icon: 'school',

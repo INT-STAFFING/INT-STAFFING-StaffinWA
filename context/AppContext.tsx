@@ -11,7 +11,7 @@ import {
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
     Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction,
-    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig, ComputedSkill, QuickAction
+    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig, ComputedSkill, QuickAction, ResourceEvaluation
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -120,6 +120,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const [notificationConfigs, setNotificationConfigs] = useState<NotificationConfig[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [evaluations, setEvaluations] = useState<ResourceEvaluation[]>([]); // New state
 
     const setActionLoading = useCallback((action: string, isLoading: boolean) => {
         setActionLoadingState(prev => ({ ...prev, [action]: isLoading }));
@@ -220,6 +221,88 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
             setNotifications(prev => prev.map(n => id ? (n.id === id ? { ...n, isRead: true } : n) : { ...n, isRead: true }));
         } catch (error) { console.error("Failed to mark notification as read", error); }
     }, []);
+    
+    // --- Evaluation Actions ---
+    const fetchEvaluations = useCallback(async (resourceId?: string) => {
+        setActionLoading('fetchEvaluations', true);
+        try {
+             const url = resourceId 
+                ? `/api/resources?entity=resource_evaluations&resourceId=${resourceId}`
+                : `/api/resources?entity=resource_evaluations`;
+             const data = await apiFetch<ResourceEvaluation[]>(url);
+             
+             setEvaluations(prev => {
+                 let baseList = prev;
+                 if (resourceId) {
+                    // Remove existing entries for this resource to avoid duplication/stale data
+                    baseList = prev.filter(e => e.resourceId !== resourceId);
+                 } else {
+                     // If fetching all, start with empty or replace entirely
+                     return data;
+                 }
+                 
+                 // Upsert using Map for ID uniqueness
+                 const map = new Map(baseList.map(i => [i.id, i]));
+                 data.forEach(item => {
+                     if (item.id) map.set(item.id, item);
+                 });
+                 
+                 return Array.from(map.values());
+             });
+        } catch(e) {
+            console.error(e);
+            addToast('Errore caricamento valutazioni', 'error');
+        } finally {
+            setActionLoading('fetchEvaluations', false);
+        }
+    }, []);
+
+    const addEvaluation = async (evaluation: Omit<ResourceEvaluation, 'id'>) => {
+        setActionLoading('addEvaluation', true);
+        try {
+             const saved = await apiFetch<ResourceEvaluation>('/api/resources?entity=resource_evaluations', {
+                 method: 'POST',
+                 body: JSON.stringify(evaluation)
+             });
+             setEvaluations(prev => [...prev, saved]);
+             addToast('Valutazione creata', 'success');
+        } catch(e) {
+            addToast('Errore creazione valutazione', 'error');
+            throw e;
+        } finally {
+             setActionLoading('addEvaluation', false);
+        }
+    };
+
+    const updateEvaluation = async (evaluation: ResourceEvaluation) => {
+        setActionLoading(`updateEvaluation-${evaluation.id}`, true);
+        try {
+             const saved = await apiFetch<ResourceEvaluation>(`/api/resources?entity=resource_evaluations&id=${evaluation.id}`, {
+                 method: 'PUT',
+                 body: JSON.stringify(evaluation)
+             });
+             setEvaluations(prev => prev.map(e => e.id === evaluation.id ? saved : e));
+             addToast('Valutazione aggiornata', 'success');
+        } catch(e) {
+             addToast('Errore aggiornamento valutazione', 'error');
+             throw e;
+        } finally {
+             setActionLoading(`updateEvaluation-${evaluation.id}`, false);
+        }
+    };
+
+    const deleteEvaluation = async (id: string) => {
+        setActionLoading(`deleteEvaluation-${id}`, true);
+        try {
+             await apiFetch(`/api/resources?entity=resource_evaluations&id=${id}`, { method: 'DELETE' });
+             setEvaluations(prev => prev.filter(e => e.id !== id));
+             addToast('Valutazione eliminata', 'success');
+        } catch(e) {
+             addToast('Errore eliminazione', 'error');
+        } finally {
+             setActionLoading(`deleteEvaluation-${id}`, false);
+        }
+    };
 
     useEffect(() => {
         fetchData();
@@ -539,7 +622,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, billingMilestones, notificationConfigs,
+        notifications, analyticsCache, loading, isActionLoading, billingMilestones, notificationConfigs, evaluations,
         fetchData, fetchNotifications, markNotificationAsRead,
         addResource, updateResource, deleteResource,
         addProject, updateProject, deleteProject,
@@ -567,13 +650,14 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         addLeaveType, updateLeaveType, deleteLeaveType,
         addLeaveRequest, updateLeaveRequest, deleteLeaveRequest,
         updatePageVisibility,
-        updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths
+        updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
+        fetchEvaluations, addEvaluation, updateEvaluation, deleteEvaluation
     }), [
         clients, roles, roleCostHistory, rateCards, rateCardEntries, projectExpenses, resources, projects, contracts, contractProjects, contractManagers,
         assignments, horizontals, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones, notificationConfigs, getResourceComputedSkills,
+        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones, notificationConfigs, getResourceComputedSkills, evaluations,
         fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject,
         addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
         addProjectExpense, updateProjectExpense, deleteProjectExpense, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
@@ -582,7 +666,8 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         updateSkillThresholds, updatePlanningSettings, addSkillCategory, updateSkillCategory, deleteSkillCategory, addSkillMacro, updateSkillMacro, deleteSkillMacro,
         addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig,
         forceRecalculateAnalytics, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updatePageVisibility,
-        updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths
+        updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
+        fetchEvaluations, addEvaluation, updateEvaluation, deleteEvaluation
     ]);
 
     const appStateValue = useMemo(() => ({
