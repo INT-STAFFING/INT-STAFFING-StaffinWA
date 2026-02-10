@@ -351,16 +351,6 @@ const DbInspectorPage: React.FC = () => {
         if (isEditing && tableData) {
             return (
                 <tr key={row.id} className="bg-surface-container border-b border-primary/20">
-                    <td className="px-2 py-2 sticky left-0 z-10 bg-surface-container border-r border-primary/10 text-center">
-                         <div className="flex items-center justify-center gap-1">
-                            <button onClick={handleSave} disabled={isSaving} className="p-1 rounded bg-primary text-on-primary shadow-sm hover:opacity-90 disabled:opacity-50" title="Salva">
-                                {isSaving ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">check</span>}
-                            </button>
-                            <button onClick={handleCancel} disabled={isSaving} className="p-1 rounded bg-surface-variant text-on-surface-variant hover:bg-surface-container-high" title="Annulla">
-                                <span className="material-symbols-outlined text-sm">close</span>
-                            </button>
-                        </div>
-                    </td>
                     {tableData.columns.map(col => (
                         <td key={col.column_name} className="px-4 py-2 align-middle">
                              {col.column_name !== 'id' ? (
@@ -370,22 +360,34 @@ const DbInspectorPage: React.FC = () => {
                              )}
                         </td>
                     ))}
+                    {/* Action Column MUST be last for DataTable to sticky it left correctly */}
+                    <td className="px-2 py-2 text-center">
+                         <div className="flex items-center justify-center gap-1">
+                            <button onClick={handleSave} disabled={isSaving} className="p-1 rounded bg-primary text-on-primary shadow-sm hover:opacity-90 disabled:opacity-50" title="Salva">
+                                {isSaving ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">check</span>}
+                            </button>
+                            <button onClick={handleCancel} disabled={isSaving} className="p-1 rounded bg-surface-variant text-on-surface-variant hover:bg-surface-container-high" title="Annulla">
+                                <span className="material-symbols-outlined text-sm">close</span>
+                            </button>
+                        </div>
+                    </td>
                 </tr>
             );
         }
 
         return (
             <tr key={row.id} className="hover:bg-surface-container-low transition-colors border-b border-outline-variant/30 group">
-                 <td className="px-2 py-2 sticky left-0 z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant text-center">
-                    <button onClick={() => handleEdit(row)} className="p-1.5 rounded-full text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors" title="Modifica Riga">
-                        <span className="material-symbols-outlined text-lg">edit</span>
-                    </button>
-                </td>
                 {columns.map((col, i) => (
                     <td key={i} className="px-4 py-3 bg-inherit align-middle">
                         {col.cell(row)}
                     </td>
                 ))}
+                {/* Action Column MUST be last for DataTable to sticky it left correctly */}
+                 <td className="px-2 py-2 text-center">
+                    <button onClick={() => handleEdit(row)} className="p-1.5 rounded-full text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors" title="Modifica Riga">
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
+                </td>
             </tr>
         );
     };

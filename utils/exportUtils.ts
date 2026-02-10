@@ -146,7 +146,7 @@ export const exportStaffing = async (data: EntitiesContextType & { allocations: 
  */
 export const exportMonthlyAllocations = async (data: EntitiesContextType & { allocations: Allocation }) => {
     const XLSX = await import('xlsx');
-    const { resources, projects, clients, assignments, allocations, companyCalendar } = data;
+    const { resources, projects, clients, assignments, allocations, companyCalendar, roles, contracts } = data;
     const wb = XLSX.utils.book_new();
     
     // Definisci i 3 mesi di interesse
@@ -171,11 +171,17 @@ export const exportMonthlyAllocations = async (data: EntitiesContextType & { all
 
         if (!resource || !project || resource.resigned) continue;
 
+        const role = roles.find(r => r.id === resource.roleId);
+        const contract = contracts.find(c => c.id === project.contractId);
+
         // Inizializza l'oggetto riga con le chiavi in ordine per garantire l'ordine delle colonne in Excel
         const row: any = {
             'Risorsa': resource.name,
+            'Ruolo': role?.name || '',
             'Progetto': project.name,
             'Cliente': client ? client.name : 'N/A',
+            'CIG': contract?.cig || '',
+            'WBS': contract?.wbs || '',
         };
 
         const assignmentAllocs = allocations[assignment.id!] || {};
@@ -213,8 +219,8 @@ export const exportMonthlyAllocations = async (data: EntitiesContextType & { all
     });
 
     const ws = XLSX.utils.json_to_sheet(exportRows);
-    // Imposta larghezza colonne: Risorsa, Progetto, Cliente, Mese 1, Mese 2, Mese 3
-    ws['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+    // Imposta larghezza colonne: Risorsa, Ruolo, Progetto, Cliente, CIG, WBS, Mese 1, Mese 2, Mese 3
+    ws['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Allocazioni Mensili');
     XLSX.writeFile(wb, `Staffing_Monthly_Allocations_${formatDateForExport(new Date())}.xlsx`);
 };

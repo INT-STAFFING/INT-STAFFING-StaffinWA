@@ -13,13 +13,19 @@ import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatCurrency } from '../utils/formatters';
 import ExportButton from '../components/ExportButton';
-import { FormFieldFeedback } from '../components/forms';
+import ConfirmationModal from '../components/ConfirmationModal';
+import { useToast } from '../context/ToastContext';
 
 const RolesPage: React.FC = () => {
     const { roles, seniorityLevels, addRole, updateRole, deleteRole, isActionLoading, loading } = useEntitiesContext();
+    const { addToast } = useToast();
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | Omit<Role, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', seniorityLevel: '' });
+    
+    // Deletion State
+    const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
     
     // Percentages Validation State
     const [pctSum, setPctSum] = useState(100);
@@ -94,10 +100,29 @@ const RolesPage: React.FC = () => {
         e.preventDefault();
         if (editingRole && !pctError) {
             try {
-                if ('id' in editingRole) await updateRole(editingRole);
-                else await addRole(editingRole);
+                if ('id' in editingRole) {
+                    await updateRole(editingRole);
+                    addToast('Ruolo aggiornato con successo', 'success');
+                } else {
+                    await addRole(editingRole);
+                    addToast('Nuovo ruolo creato', 'success');
+                }
                 handleCloseModal();
-            } catch (e) {}
+            } catch (e: any) {
+                // Error handled by context toast usually, but explicit here for safety
+            }
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!roleToDelete) return;
+        try {
+            await deleteRole(roleToDelete.id!);
+            addToast(`Ruolo "${roleToDelete.name}" eliminato.`, 'success');
+            setRoleToDelete(null);
+        } catch (e: any) {
+            console.error("Delete failed", e);
+            addToast(`Impossibile eliminare il ruolo. Potrebbe essere assegnato a delle risorse.`, 'error');
         }
     };
 
@@ -128,7 +153,17 @@ const RolesPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateRole(inlineEditingData); handleCancelInlineEdit(); } };
+    const handleSaveInlineEdit = async () => { 
+        if (inlineEditingData) { 
+            try {
+                await updateRole(inlineEditingData); 
+                addToast('Ruolo aggiornato.', 'success');
+                handleCancelInlineEdit(); 
+            } catch (e) {
+                // Error handled by context
+            }
+        } 
+    };
 
     const seniorityOptions = useMemo(() => seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [seniorityLevels]);
 
@@ -173,7 +208,7 @@ const RolesPage: React.FC = () => {
                     <div className="flex items-center justify-end space-x-2">
                         <button onClick={() => openModalForEdit(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica Dettagli"><span className="material-symbols-outlined">edit_note</span></button>
                         <button onClick={() => handleStartInlineEdit(role)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors" title="Modifica Rapida"><span className="material-symbols-outlined">edit</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina">
+                        <button onClick={() => setRoleToDelete(role)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina">
                            {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
@@ -213,7 +248,7 @@ const RolesPage: React.FC = () => {
                     <div className="flex items-center space-x-1 flex-shrink-0 ml-4">
                         <button onClick={() => openModalForEdit(role)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit_note</span></button>
                         <button onClick={() => handleStartInlineEdit(role)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">edit</span></button>
-                        <button onClick={() => deleteRole(role.id!)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
+                        <button onClick={() => setRoleToDelete(role)} className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high">
                              {isActionLoading(`deleteRole-${role.id}`) ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">delete</span>}
                         </button>
                     </div>
@@ -350,6 +385,26 @@ const RolesPage: React.FC = () => {
                         </div>
                     </form>
                 </Modal>
+            )}
+
+            {/* Confirmation Modal for Deletion */}
+            {roleToDelete && (
+                <ConfirmationModal 
+                    isOpen={!!roleToDelete}
+                    onClose={() => setRoleToDelete(null)}
+                    onConfirm={handleDeleteConfirm}
+                    title="Elimina Ruolo"
+                    message={
+                        <>
+                            Sei sicuro di voler eliminare il ruolo <strong>{roleToDelete.name}</strong>?
+                            <br/>
+                            <span className="text-sm text-error block mt-2">
+                                Attenzione: Se il ruolo è assegnato a delle risorse, l'eliminazione fallirà.
+                            </span>
+                        </>
+                    }
+                    isConfirming={isActionLoading(`deleteRole-${roleToDelete.id}`)}
+                />
             )}
         </div>
     );
