@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEntitiesContext, useAppState } from '../context/AppContext';
@@ -23,8 +23,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const changePassword = useAuth().changePassword;
     const hasPermission = useAuth().hasPermission;
     const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useEntitiesContext();
-    const { navigationRoutes } = useRoutesManifest();
+    const { navigationRoutes, homePath } = useRoutesManifest();
     const { setSearchOpen } = useAppState();
+
+    // State per le sezioni espanse
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
     // State per la modale cambio password
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -32,6 +35,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+    // Inizializzazione basata sulla landing page (homePath)
+    useEffect(() => {
+        const homeRoute = navigationRoutes.find(r => r.path === homePath);
+        if (homeRoute) {
+            const initialSection = homeRoute.section || 'Principale';
+            setExpandedSections(new Set([initialSection]));
+        } else if (sidebarSections.length > 0) {
+            setExpandedSections(new Set([sidebarSections[0]]));
+        }
+    }, [homePath, navigationRoutes, sidebarSections]);
 
     // Calcolo notifiche non lette
     const unreadNotifications = useMemo(() => {
@@ -89,9 +103,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         }
     };
 
+    const handleToggleSection = (sectionName: string) => {
+        setExpandedSections(prev => {
+            const next = new Set(prev);
+            if (next.has(sectionName)) {
+                next.delete(sectionName);
+            } else {
+                next.add(sectionName);
+            }
+            return next;
+        });
+    };
+
     const sections: SidebarSectionGroup[] = useMemo(() => {
         return groupedItems.map(([sectionName, items]) => {
-            // Default color mapping for new sections
             let defaultColor = undefined;
             if (sectionName === 'Analisi') defaultColor = 'tertiary';
             
@@ -121,10 +146,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             return {
                 name: sectionName,
                 color: sectionColor,
-                items: renderableItems
+                items: renderableItems,
+                isExpanded: expandedSections.has(sectionName)
             };
         });
-    }, [groupedItems, location.pathname, setIsOpen, sidebarSectionColors, unreadNotifications]);
+    }, [groupedItems, location.pathname, setIsOpen, sidebarSectionColors, unreadNotifications, expandedSections]);
 
     const footerActions: SidebarFooterAction[] = useMemo(() => {
         return sidebarFooterActions
@@ -193,6 +219,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                 footerActions={footerActions}
                 renderItem={(item) => <SidebarItemFactory item={item} />}
                 renderFooterAction={renderFooterAction}
+                onToggleSection={handleToggleSection}
             />
 
             {/* Change Password Modal */}

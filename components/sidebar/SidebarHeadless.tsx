@@ -14,6 +14,7 @@ export interface SidebarSectionGroup {
     name: string;
     color?: string;
     items: RenderableSidebarItem[];
+    isExpanded: boolean;
 }
 
 interface SidebarHeadlessProps {
@@ -25,6 +26,7 @@ interface SidebarHeadlessProps {
     renderItem: (item: RenderableSidebarItem) => React.ReactNode;
     renderFooterAction: (action: SidebarFooterAction) => React.ReactNode;
     onCloseMobile: () => void;
+    onToggleSection: (sectionName: string) => void;
 }
 
 const SidebarHeadless: React.FC<SidebarHeadlessProps> = ({
@@ -35,7 +37,8 @@ const SidebarHeadless: React.FC<SidebarHeadlessProps> = ({
     footerActions,
     renderItem,
     renderFooterAction,
-    onCloseMobile
+    onCloseMobile,
+    onToggleSection
 }) => {
     const sidebarClasses = `fixed inset-y-0 left-0 z-50 w-64 bg-surface border-r border-outline-variant transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
@@ -59,7 +62,6 @@ const SidebarHeadless: React.FC<SidebarHeadlessProps> = ({
                     {sections.map(section => {
                         if (!section.items.length) return null;
                         
-                        // Supporto sia per variabili CSS (es. 'primary') che per codici HEX (es. '#ff0000')
                         const colorValue = section.color 
                             ? (section.color.startsWith('#') ? section.color : `var(--color-${section.color})`)
                             : undefined;
@@ -67,18 +69,26 @@ const SidebarHeadless: React.FC<SidebarHeadlessProps> = ({
                         const sectionStyle = colorValue ? { color: colorValue } : undefined;
 
                         return (
-                            <div key={section.name} className="pb-4">
-                                <p
-                                    className="px-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2"
-                                    style={sectionStyle}
+                            <div key={section.name} className="mb-1">
+                                <button
+                                    onClick={() => onToggleSection(section.name)}
+                                    className="w-full px-4 py-2 flex items-center justify-between text-xs font-bold text-on-surface-variant uppercase tracking-wider hover:bg-surface-container-low transition-colors group"
                                 >
-                                    {section.name}
-                                </p>
-                                {section.items.map(item => (
-                                    <div key={item.path} onClick={() => handleItemClick(item)}>
-                                        {renderItem(item)}
+                                    <span style={sectionStyle}>{section.name}</span>
+                                    <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${section.isExpanded ? 'rotate-180' : ''}`}>
+                                        keyboard_arrow_down
+                                    </span>
+                                </button>
+                                
+                                <div className={`grid transition-all duration-300 ease-in-out ${section.isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'}`}>
+                                    <div className="overflow-hidden">
+                                        {section.items.map(item => (
+                                            <div key={item.path} onClick={() => handleItemClick(item)}>
+                                                {renderItem(item)}
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
                             </div>
                         );
                     })}
