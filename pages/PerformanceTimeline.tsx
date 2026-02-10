@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { ResourceEvaluation, EvaluationMetric, EvaluationStatus } from '../types';
+import { ResourceEvaluation, EvaluationMetric, EvaluationStatus, Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
@@ -27,7 +27,8 @@ const TimelineItem: React.FC<{
     onEdit: (e: ResourceEvaluation) => void; 
     onDelete: (id: string) => void;
     canEdit: boolean;
-}> = ({ evalData, isLast, onEdit, onDelete, canEdit }) => {
+    evaluatorResource?: Resource;
+}> = ({ evalData, isLast, onEdit, onDelete, canEdit, evaluatorResource }) => {
     const statusConfig = EVALUATION_STATUSES.find(s => s.value === evalData.status) || EVALUATION_STATUSES[0];
     const metrics = evalData.metrics || [];
 
@@ -46,7 +47,13 @@ const TimelineItem: React.FC<{
                 <div className="flex justify-between items-start mb-3">
                     <div>
                         <h3 className="text-lg font-bold text-on-surface">Anno Fiscale {evalData.fiscalYear}</h3>
-                        <p className="text-xs text-on-surface-variant">Ultimo aggiornamento: {formatDateFull(evalData.updatedAt)}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                             <span className="material-symbols-outlined text-sm text-primary">person_edit</span>
+                             <p className="text-xs font-bold text-primary truncate">
+                                Valutatore: {evaluatorResource?.name || 'Sistema / Non specificato'}
+                             </p>
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant mt-1">Aggiornato: {formatDateFull(evalData.updatedAt)}</p>
                     </div>
                     <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${statusConfig.color}`}>
                         {statusConfig.label}
@@ -124,18 +131,15 @@ export const PerformanceTimelinePage: React.FC = () => {
     // Initial fetch based on user role
     useEffect(() => {
         if (user && user.role === 'SIMPLE' && user.resourceId) {
-            // Se utente semplice, forza la selezione su se stesso
             setSelectedResourceId(user.resourceId);
             fetchEvaluations(user.resourceId);
         } else {
-            // Admin, Manager o Utente non loggato (Demo mode): carica tutto
             fetchEvaluations(); 
         }
     }, [user, fetchEvaluations]);
 
     // Derived State
     const canManage = useMemo(() => {
-        // Se non c'è utente (Demo) o è Admin/Manager, permette la gestione
         if (!user) return true;
         return isAdmin || user.role.includes('MANAGER');
     }, [isAdmin, user]);
@@ -159,6 +163,7 @@ export const PerformanceTimelinePage: React.FC = () => {
     const openNewModal = () => {
         setEditingEval({
             resourceId: selectedResourceId,
+            evaluatorId: user?.resourceId || '', // Default to current user
             fiscalYear: new Date().getFullYear(),
             status: 'DRAFT',
             overallRating: 0
@@ -178,12 +183,15 @@ export const PerformanceTimelinePage: React.FC = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingEval.fiscalYear) return;
+        if (!editingEval.fiscalYear || !editingEval.evaluatorId) {
+            addToast('Compila tutti i campi obbligatori compreso il valutatore.', 'warning');
+            return;
+        }
 
         const payload = {
             ...editingEval,
-            resourceId: selectedResourceId, // Ensure context security
-            metrics: metricsState.filter(m => m.metricKey) // Filter empty keys
+            resourceId: selectedResourceId,
+            metrics: metricsState.filter(m => m.metricKey)
         } as ResourceEvaluation;
 
         try {
@@ -300,6 +308,7 @@ export const PerformanceTimelinePage: React.FC = () => {
                                         onEdit={openEditModal} 
                                         onDelete={setDeleteId}
                                         canEdit={canManage}
+                                        evaluatorResource={resources.find(r => r.id === ev.evaluatorId)}
                                     />
                                 ))}
                             </div>
@@ -318,9 +327,20 @@ export const PerformanceTimelinePage: React.FC = () => {
             {isModalOpen && (
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingEval.id ? "Modifica Valutazione" : "Nuova Valutazione"}>
                     <form onSubmit={handleSave} className="space-y-6">
-                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant grid grid-cols-2 gap-4">
+                        <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Valutatore *</label>
+                                <SearchableSelect 
+                                    name="evaluatorId" 
+                                    value={editingEval.evaluatorId || ''} 
+                                    onChange={(_, v) => setEditingEval({...editingEval, evaluatorId: v})} 
+                                    options={resourceOptions} 
+                                    placeholder="Chi ha effettuato la valutazione?" 
+                                    required 
+                                />
+                            </div>
                             <div>
-                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Anno Fiscale</label>
+                                <label className="block text-xs font-black uppercase text-on-surface-variant mb-1">Anno Fiscale *</label>
                                 <input 
                                     type="number" 
                                     value={editingEval.fiscalYear} 

@@ -113,7 +113,15 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
     
     // 10. Performance Evaluation
-    await db.sql`CREATE TABLE IF NOT EXISTS resource_evaluations ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, fiscal_year INT NOT NULL, evaluator_id UUID REFERENCES resources(id) ON DELETE SET NULL, status VARCHAR(50) DEFAULT 'DRAFT', overall_rating INT, summary TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1, UNIQUE(resource_id, fiscal_year) );`;
+    // UPDATE: Unique constraint adjusted to include evaluator_id
+    await db.sql`CREATE TABLE IF NOT EXISTS resource_evaluations ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, fiscal_year INT NOT NULL, evaluator_id UUID REFERENCES resources(id) ON DELETE SET NULL, status VARCHAR(50) DEFAULT 'DRAFT', overall_rating INT, summary TEXT, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1, UNIQUE(resource_id, fiscal_year, evaluator_id) );`;
+    
+    // Fix existing constraints in case it was already created with old schema
+    try {
+        await db.sql`ALTER TABLE resource_evaluations DROP CONSTRAINT IF EXISTS resource_evaluations_resource_id_fiscal_year_key;`;
+        await db.sql`ALTER TABLE resource_evaluations ADD CONSTRAINT resource_evaluations_composite_unique UNIQUE(resource_id, fiscal_year, evaluator_id);`;
+    } catch(e) { /* Ignore if it fails */ }
+
     await db.sql`CREATE TABLE IF NOT EXISTS evaluation_metrics ( id UUID PRIMARY KEY, evaluation_id UUID REFERENCES resource_evaluations(id) ON DELETE CASCADE, category VARCHAR(100) NOT NULL, metric_key VARCHAR(100) NOT NULL, metric_value TEXT, score INT );`;
 
     // 11. Analytics Cache
