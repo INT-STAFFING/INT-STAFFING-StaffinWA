@@ -1,4 +1,3 @@
-
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -161,18 +160,6 @@ const LeavesOverviewCard: React.FC<{ navigate: (path: string) => void }> = ({ na
             color: leaveTypes.find(t => t.id === l.typeId)?.color || '#ccc'
         }));
     }, [leaveRequests, resources, leaveTypes, today]);
-
-    const upcomingLeaves = useMemo(() => {
-        return leaveRequests.filter(l => 
-            l.status === 'APPROVED' && 
-            l.startDate > today && 
-            l.startDate <= nextWeekStr
-        ).map(l => ({
-            resourceName: resources.find(r => r.id === l.resourceId)?.name || 'Sconosciuto',
-            date: formatDate(new Date(l.startDate), 'short'),
-            typeName: leaveTypes.find(t => t.id === l.typeId)?.name || 'Assenza'
-        }));
-    }, [leaveRequests, resources, leaveTypes, today, nextWeekStr]);
 
     const pendingCount = useMemo(() => {
         return leaveRequests.filter(l => l.status === 'PENDING').length;
@@ -356,7 +343,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                      <GraphDataView 
                         data={data}
                         type="bar"
-                        config={{ xKey: 'name', yKey: 'fte' }}
+                        config={{ xKey: "name", yKey: "fte" }}
                     />
                 )}
             </div>
@@ -641,10 +628,10 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
     );
 };
 
-const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
+const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
     const columns: ColumnDef<any>[] = [
-        { header: "Horizontal", sortKey: "name", cell: (d) => d.name },
+        { header: "Function", sortKey: "name", cell: (d) => d.name },
         { header: "G/U Totali", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
     ];
     
@@ -657,7 +644,7 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
 
     const exportData = useMemo(() => {
         return data.map((d: any) => ({
-            Horizontal: d.name,
+            Function: d.name,
             'G/U Totali': d.totalPersonDays.toFixed(1)
         }));
     }, [data]);
@@ -665,10 +652,62 @@ const EffortByHorizontalCard: React.FC<any> = ({ data, total, isLoading }) => {
     return (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex justify-between items-center">
-                 <h2 className="text-lg font-semibold">Analisi Sforzo per Horizontal</h2>
+                 <h2 className="text-lg font-semibold">Analisi Sforzo per Function</h2>
                  <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
-                    <ExportButton data={exportData} title="Analisi Sforzo per Horizontal" />
+                    <ExportButton data={exportData} title="Analisi Sforzo per Function" />
+                 </div>
+            </div>
+            <div className="flex-grow h-[30rem]">
+                {view === 'table' ? (
+                    <DashboardDataTable
+                        columns={columns}
+                        data={data}
+                        isLoading={isLoading}
+                        initialSortKey="totalPersonDays"
+                        footerNode={footer}
+                        maxVisibleRows={10}
+                    />
+                ) : (
+                     <GraphDataView 
+                        data={data}
+                        type="bar"
+                        config={{ xKey: 'name', yKey: 'totalPersonDays' }}
+                    />
+                )}
+            </div>
+        </div>
+    );
+};
+
+const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) => {
+    const [view, setView] = useState<'table' | 'graph'>('table');
+    const columns: ColumnDef<any>[] = [
+        { header: "Industry", sortKey: "name", cell: (d) => d.name },
+        { header: "G/U Totali", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
+    ];
+    
+    const footer = (
+        <tr>
+            <td className="px-4 py-2">Totale</td>
+            <td className="px-4 py-2">{total.toFixed(1)}</td>
+        </tr>
+    );
+
+    const exportData = useMemo(() => {
+        return data.map((d: any) => ({
+            Industry: d.name,
+            'G/U Totali': d.totalPersonDays.toFixed(1)
+        }));
+    }, [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary">
+            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+                 <h2 className="text-lg font-semibold">Analisi Sforzo per Industry</h2>
+                 <div className="flex items-center gap-2">
+                    <ViewToggleButton view={view} setView={setView} />
+                    <ExportButton data={exportData} title="Analisi Sforzo per Industry" />
                  </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -859,8 +898,7 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    // ... (rest of the component remains largely the same, mostly imports and structure)
-    const { resources, roles, projects, clients, assignments, horizontals, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
+    const { resources, roles, projects, clients, assignments, functions, industries, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 
@@ -986,7 +1024,6 @@ const DashboardPage: React.FC = () => {
         };
     }, [assignments, resources, roles, projects, allocations, companyCalendar, clients, activeResources, getRoleCost]);
 
-    // ... (averageAllocationData and fteData logic remains unchanged as they deal with days, not costs) ...
     const averageAllocationData = useMemo(() => {
         const filteredResources = avgAllocFilter.resourceId
             ? activeResources.filter(r => r.id === avgAllocFilter.resourceId)
@@ -1055,7 +1092,6 @@ const DashboardPage: React.FC = () => {
                 }
             });
 
-            // FIX: Corrected typo from totalPerson_days to totalPersonDays
             return { ...project, totalPersonDays, fte: totalPersonDays / totalWorkingDays };
         }).filter(p => p.totalPersonDays > 0);
     }, [projects, assignments, allocations, companyCalendar, resources, fteFilter]);
@@ -1170,7 +1206,6 @@ const DashboardPage: React.FC = () => {
                 const assignmentAllocations = allocations[assignment.id!];
                 if (assignmentAllocations) {
                     let currentDate = new Date(filterStartDate);
-                    // Use getTime comparison for safety
                     while (currentDate.getTime() <= filterEndDate.getTime()) {
                         const dateStr = currentDate.toISOString().slice(0, 10);
                         if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) {
@@ -1222,26 +1257,47 @@ const DashboardPage: React.FC = () => {
         }).filter(d => d.avgAllocation < 100);
     }, [activeResources, assignments, allocations, companyCalendar, underutilizedFilter]);
 
-    const effortByHorizontalData = useMemo(() => {
+    const effortByFunctionData = useMemo(() => {
         const data: {[key: string]: number} = {};
-        horizontals.forEach(h => data[h.value] = 0);
+        functions.forEach(h => data[h.value] = 0);
 
         assignments.forEach(assignment => {
             const resource = resources.find(r => r.id === assignment.resourceId);
-            if(!resource || !resource.horizontal || !data.hasOwnProperty(resource.horizontal)) return;
+            if(!resource || !resource.function || !data.hasOwnProperty(resource.function)) return;
 
             const assignmentAllocations = allocations[assignment.id!];
             if(assignmentAllocations) {
                 for(const dateStr in assignmentAllocations) {
                     const allocDate = parseISODate(dateStr);
                      if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
-                        data[resource.horizontal] += (assignmentAllocations[dateStr] / 100);
+                        data[resource.function] += (assignmentAllocations[dateStr] / 100);
                     }
                 }
             }
         });
         return Object.entries(data).map(([name, totalPersonDays]) => ({ id: name, name, totalPersonDays }));
-    }, [horizontals, resources, assignments, allocations, companyCalendar]);
+    }, [functions, resources, assignments, allocations, companyCalendar]);
+
+    const effortByIndustryData = useMemo(() => {
+        const data: {[key: string]: number} = {};
+        industries.forEach(i => data[i.value] = 0);
+
+        assignments.forEach(assignment => {
+            const resource = resources.find(r => r.id === assignment.resourceId);
+            if(!resource || !resource.industry || !data.hasOwnProperty(resource.industry)) return;
+
+            const assignmentAllocations = allocations[assignment.id!];
+            if(assignmentAllocations) {
+                for(const dateStr in assignmentAllocations) {
+                    const allocDate = parseISODate(dateStr);
+                     if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
+                        data[resource.industry] += (assignmentAllocations[dateStr] / 100);
+                    }
+                }
+            }
+        });
+        return Object.entries(data).map(([name, totalPersonDays]) => ({ id: name, name, totalPersonDays }));
+    }, [industries, resources, assignments, allocations, companyCalendar]);
 
     const analysisByLocationData = useMemo(() => {
         const now = new Date();
@@ -1397,9 +1453,13 @@ const DashboardPage: React.FC = () => {
         return { totalDays, totalCost, weightedAverage: totalDays > 0 ? totalCost / totalDays : 0 };
     }, [averageDailyRateData]);
 
-    const effortByHorizontalTotal = useMemo(() => {
-        return effortByHorizontalData.reduce((sum, d) => sum + d.totalPersonDays, 0);
-    }, [effortByHorizontalData]);
+    const effortByFunctionTotal = useMemo(() => {
+        return effortByFunctionData.reduce((sum, d) => sum + d.totalPersonDays, 0);
+    }, [effortByFunctionData]);
+
+    const effortByIndustryTotal = useMemo(() => {
+        return effortByIndustryData.reduce((sum, d) => sum + d.totalPersonDays, 0);
+    }, [effortByIndustryData]);
 
     // --- Helper function to get icon for category tabs ---
     const getCategoryIcon = (id: string) => {
@@ -1425,7 +1485,8 @@ const DashboardPage: React.FC = () => {
             case 'averageDailyRate': return <AverageDailyRateCard key={cardId} data={averageDailyRateData} filter={avgDailyRateFilter} setFilter={setAvgDailyRateFilter} clientOptions={clients.map(c => ({ value: c.id!, label: c.name }))} totals={avgDailyRateTotals} isLoading={loading} />;
             case 'underutilizedResources': return <UnderutilizedResourcesCard key={cardId} data={underutilizedResourcesData} month={underutilizedFilter} setMonth={setUnderutilizedFilter} isLoading={loading} />;
             case 'monthlyClientCost': return <MonthlyClientCostCard key={cardId} data={currentMonthKPIs.clientCostArray} navigate={navigate} isLoading={loading} />;
-            case 'effortByHorizontal': return <EffortByHorizontalCard key={cardId} data={effortByHorizontalData} total={effortByHorizontalTotal} isLoading={loading} />;
+            case 'effortByFunction': return <EffortByFunctionCard key={cardId} data={effortByFunctionData} total={effortByFunctionTotal} isLoading={loading} />;
+            case 'effortByIndustry': return <EffortByIndustryCard key={cardId} data={effortByIndustryData} total={effortByIndustryTotal} isLoading={loading} />;
             case 'locationAnalysis': return <LocationAnalysisCard key={cardId} data={analysisByLocationData} isLoading={loading} />;
             case 'saturationTrend': return <SaturationTrendCard key={cardId} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={activeResources.map(r => ({ value: r.id!, label: r.name }))} data={saturationTrendData} />;
             case 'costForecast': return <CostForecastCard key={cardId} data={monthlyCostForecastData} />;

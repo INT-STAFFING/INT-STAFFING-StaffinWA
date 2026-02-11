@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
@@ -25,13 +24,20 @@ type EnrichedResource = Resource & {
 
 // --- Component ---
 const ResourcesPage: React.FC = () => {
-    const { resources, roles, addResource, updateResource, deleteResource, horizontals, assignments, locations, companyCalendar, isActionLoading, loading, skills, resourceSkills, addResourceSkill, deleteResourceSkill } = useEntitiesContext();
+    const { 
+        resources, roles, addResource, updateResource, deleteResource, 
+        functions, industries, assignments, locations, companyCalendar, 
+        isActionLoading, loading, skills, resourceSkills, 
+        addResourceSkill, deleteResourceSkill 
+    } = useEntitiesContext();
+    
     const { allocations } = useAllocationsContext();
     const { addToast } = useToast();
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
     
-    const [filters, setFilters] = useState({ name: '', roleId: '', horizontal: '', location: '', status: 'active', tutorId: '' });
+    const [filters, setFilters] = useState({ name: '', roleId: '', function: '', industry: '', location: '', status: 'active', tutorId: '' });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
 
     useEffect(() => {
@@ -67,12 +73,12 @@ const ResourcesPage: React.FC = () => {
         }
     }, [searchParams, setSearchParams, resources, isModalOpen]);
 
-    
     const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
     const [inlineEditingData, setInlineEditingData] = useState<Resource | null>(null);
 
     const emptyResource: Omit<Resource, 'id'> = {
-        name: '', email: '', roleId: '', horizontal: horizontals[0]?.value || '',
+        name: '', email: '', roleId: '', function: functions[0]?.value || '',
+        industry: industries[0]?.value || '',
         location: locations[0]?.value || '',
         hireDate: '', workSeniority: 0, notes: '', maxStaffingPercentage: 100,
         resigned: false,
@@ -135,11 +141,12 @@ const ResourcesPage: React.FC = () => {
             if (showOnlyUnassigned && assignedResourceIds.has(resource.id!)) return false;
             const nameMatch = resource.name.toLowerCase().includes(debouncedFilters.name.toLowerCase());
             const roleMatch = debouncedFilters.roleId ? resource.roleId === debouncedFilters.roleId : true;
-            const horizontalMatch = debouncedFilters.horizontal ? resource.horizontal === debouncedFilters.horizontal : true;
+            const functionMatch = debouncedFilters.function ? resource.function === debouncedFilters.function : true;
+            const industryMatch = debouncedFilters.industry ? resource.industry === debouncedFilters.industry : true;
             const locationMatch = debouncedFilters.location ? resource.location === debouncedFilters.location : true;
             const statusMatch = debouncedFilters.status === 'all' ? true : debouncedFilters.status === 'active' ? !resource.resigned : resource.resigned;
             const tutorMatch = debouncedFilters.tutorId ? resource.tutorId === debouncedFilters.tutorId : true;
-            return nameMatch && roleMatch && horizontalMatch && locationMatch && statusMatch && tutorMatch;
+            return nameMatch && roleMatch && functionMatch && industryMatch && locationMatch && statusMatch && tutorMatch;
         });
 
         return filtered.map(resource => {
@@ -170,7 +177,8 @@ const ResourcesPage: React.FC = () => {
             'Ruolo': r.roleName,
             'Costo Giornaliero': formatCurrency(r.dailyCost),
             'Sede': r.location,
-            'Horizontal': r.horizontal,
+            'Function': r.function,
+            'Industry': r.industry,
             'Tutor': r.tutorName,
             'Stato': r.resigned ? 'Dimesso' : 'Attivo',
             'Data Assunzione': formatDateFull(r.hireDate),
@@ -186,7 +194,7 @@ const ResourcesPage: React.FC = () => {
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
     const handleFilterSelectChange = (name: string, value: string) => setFilters(prev => ({ ...prev, [name]: value }));
     const resetFilters = () => {
-        setFilters({ name: '', roleId: '', horizontal: '', location: '', status: 'active', tutorId: '' });
+        setFilters({ name: '', roleId: '', function: '', industry: '', location: '', status: 'active', tutorId: '' });
         setShowOnlyUnassigned(false);
     };
     
@@ -229,7 +237,7 @@ const ResourcesPage: React.FC = () => {
         e.preventDefault();
         if (!editingResource) return;
 
-        if (!editingResource.name || !editingResource.email || !editingResource.roleId || !editingResource.horizontal || !editingResource.location) {
+        if (!editingResource.name || !editingResource.email || !editingResource.roleId || !editingResource.function || !editingResource.location) {
             addToast('Compila tutti i campi obbligatori.', 'error');
             return;
         }
@@ -238,7 +246,8 @@ const ResourcesPage: React.FC = () => {
             name: editingResource.name,
             email: editingResource.email,
             roleId: editingResource.roleId,
-            horizontal: editingResource.horizontal,
+            function: editingResource.function,
+            industry: editingResource.industry || '',
             location: editingResource.location,
             hireDate: editingResource.hireDate || null,
             workSeniority: Number(editingResource.workSeniority) || 0,
@@ -256,7 +265,6 @@ const ResourcesPage: React.FC = () => {
             resourcePayload.id = editingResource.id;
         }
 
-        // Preserve version for optimistic locking
         if (editingResource.version !== undefined) {
             resourcePayload.version = editingResource.version;
         }
@@ -362,7 +370,8 @@ const ResourcesPage: React.FC = () => {
     };
     
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);
-    const horizontalOptions = useMemo(() => horizontals.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
+    const functionOptions = useMemo(() => functions.sort((a,b)=> a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [functions]);
+    const industryOptions = useMemo(() => industries.sort((a,b)=> a.value.localeCompare(b.value)).map(i => ({ value: i.value, label: i.value })), [industries]);
     const locationOptions = useMemo(() => locations.sort((a,b)=> a.value.localeCompare(b.value)).map(l => ({ value: l.value, label: l.value })), [locations]);
     const statusOptions = useMemo(() => [{value: 'all', label: 'Tutti'}, {value: 'active', label: 'Attivi'}, {value: 'resigned', label: 'Dimessi'}], []);
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
@@ -466,29 +475,32 @@ const ResourcesPage: React.FC = () => {
     };
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
+            <SearchableSelect name="function" value={filters.function} onChange={handleFilterSelectChange} options={functionOptions} placeholder="Tutte le Function" />
+            <SearchableSelect name="industry" value={filters.industry} onChange={handleFilterSelectChange} options={industryOptions} placeholder="Tutte le Industry" />
             <SearchableSelect name="location" value={filters.location} onChange={handleFilterSelectChange} options={locationOptions} placeholder="Tutte le sedi" />
-            <SearchableSelect name="tutorId" value={filters.tutorId} onChange={handleFilterSelectChange} options={resourceOptions} placeholder="Filtra per People Lead" />
             <SearchableSelect name="status" value={filters.status} onChange={handleFilterSelectChange} options={statusOptions} placeholder="Stato" />
-            <div className="flex items-center">
-                <label htmlFor="unassigned-filter" className="flex items-center cursor-pointer">
-                    <div className="relative">
-                        <input
-                            type="checkbox"
-                            id="unassigned-filter"
-                            className="sr-only"
-                            checked={showOnlyUnassigned}
-                            onChange={(e) => setShowOnlyUnassigned(e.target.checked)}
-                        />
-                        <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
-                        <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${showOnlyUnassigned ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
-                    </div>
-                    <span className="ml-3 text-sm text-on-surface">Solo non allocate</span>
-                </label>
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center">
+                    <label htmlFor="unassigned-filter" className="flex items-center cursor-pointer">
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                id="unassigned-filter"
+                                className="sr-only"
+                                checked={showOnlyUnassigned}
+                                onChange={(e) => setShowOnlyUnassigned(e.target.checked)}
+                            />
+                            <div className="block bg-surface-variant w-14 h-8 rounded-full"></div>
+                            <div className={`dot absolute left-1 top-1 bg-outline w-6 h-6 rounded-full transition-transform duration-300 ease-in-out ${showOnlyUnassigned ? 'transform translate-x-6 !bg-primary' : ''}`}></div>
+                        </div>
+                        <span className="ml-3 text-sm text-on-surface">Solo non allocate</span>
+                    </label>
+                </div>
+                <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">Reset</button>
             </div>
-            <button onClick={resetFilters} className="px-6 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full hover:opacity-90 w-full">Reset</button>
         </div>
     );
 
@@ -556,36 +568,39 @@ const ResourcesPage: React.FC = () => {
                                         <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Horizontal *</label>
-                                        <SearchableSelect name="horizontal" value={editingResource.horizontal} onChange={handleSelectChange} options={horizontalOptions} placeholder="Seleziona un horizontal" required />
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Function *</label>
+                                        <SearchableSelect name="function" value={editingResource.function} onChange={handleSelectChange} options={functionOptions} placeholder="Seleziona una function" required />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Industry</label>
+                                        <SearchableSelect name="industry" value={editingResource.industry || ''} onChange={handleSelectChange} options={industryOptions} placeholder="Seleziona una industry" />
+                                    </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
                                         <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required />
                                     </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Data Assunzione</label>
                                         <input type="date" name="hireDate" value={editingResource.hireDate} onChange={handleChange} className="form-input"/>
                                     </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo Giornaliero (€)</label>
                                         <input type="number" step="0.01" name="dailyCost" value={editingResource.dailyCost || ''} onChange={handleChange} className="form-input" placeholder="0.00 (Usa costo Ruolo)"/>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
-                                        <div className="flex items-center gap-4">
-                                            <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="flex-grow accent-primary" disabled={editingResource.resigned}/>
-                                            <span className="text-sm font-bold text-primary w-12 text-right">{editingResource.maxStaffingPercentage}%</span>
-                                        </div>
+                                </div>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Staffing ({editingResource.maxStaffingPercentage}%)</label>
+                                    <div className="flex items-center gap-4">
+                                        <input type="range" min="0" max="100" step="5" name="maxStaffingPercentage" value={editingResource.maxStaffingPercentage} onChange={handleChange} className="flex-grow accent-primary" disabled={editingResource.resigned}/>
+                                        <span className="text-sm font-bold text-primary w-12 text-right">{editingResource.maxStaffingPercentage}%</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            {/* NEW: Talent & Growth Section */}
                             <div className="bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                                 <h4 className="text-sm font-bold text-tertiary mb-4 uppercase tracking-wider flex items-center gap-2">
                                     <span className="material-symbols-outlined text-lg">psychology</span> Talent & Growth

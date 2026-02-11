@@ -81,7 +81,8 @@ export interface Resource {
     name: string;
     email: string;
     roleId: string;
-    horizontal: string;
+    function: string; // Ridenominato da horizontal
+    industry: string; // Nuova entità
     location: string;
     hireDate: string; 
     workSeniority: number;
@@ -444,28 +445,9 @@ export interface ResourceEvaluation {
     metrics?: EvaluationMetric[];
 }
 
-/**
- * @typedef ExportablePrimitive
- * @description Tipi primitivi supportati per l'esportazione dati.
- */
 export type ExportablePrimitive = string | number | boolean | Date;
-
-/**
- * @typedef ExportableCell
- * @description Tipi di dato validi per una singola cella durante l'esportazione.
- */
 export type ExportableCell = ExportablePrimitive | ExportablePrimitive[];
-
-/**
- * @typedef ExportableInput
- * @description Formato di input flessibile per l'esportazione di righe dati.
- */
 export type ExportableInput = Record<string, unknown>;
-
-/**
- * @typedef ExportableData
- * @description Record normalizzato di dati pronti per l'esportazione tabellare.
- */
 export type ExportableData = Record<string, ExportableCell>;
 
 export interface EntitiesState {
@@ -482,7 +464,8 @@ export interface EntitiesState {
     contractProjects: ContractProject[];
     contractManagers: ContractManager[];
     assignments: Assignment[];
-    horizontals: ConfigOption[];
+    functions: ConfigOption[]; // Ridenominato da horizontals
+    industries: ConfigOption[]; // Nuova entità
     seniorityLevels: ConfigOption[];
     projectStatuses: ConfigOption[];
     clientSectors: ConfigOption[];
@@ -599,7 +582,6 @@ export interface EntitiesActions {
     deleteNotificationConfig: (id: string) => Promise<void>;
     forceRecalculateAnalytics: () => Promise<void>;
     getBestFitResources: (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => Promise<any[]>;
-    // Evaluation Actions
     fetchEvaluations: (resourceId?: string) => Promise<void>;
     addEvaluation: (evaluation: Omit<ResourceEvaluation, 'id'>) => Promise<void>;
     updateEvaluation: (evaluation: ResourceEvaluation) => Promise<void>;

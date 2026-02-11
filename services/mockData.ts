@@ -2,11 +2,17 @@
 import { v4 as uuidv4 } from 'uuid';
 
 export const INITIAL_MOCK_DATA = {
-  horizontals: [
-    { id: 'h1', value: 'Web Development' }, 
-    { id: 'h2', value: 'Data Science' },
-    { id: 'h3', value: 'Cloud Architecture' },
-    { id: 'h4', value: 'Cyber Security' }
+  functions: [
+    { id: 'h1', value: 'Software Engineering' }, 
+    { id: 'h2', value: 'Data & AI' },
+    { id: 'h3', value: 'Business Transformation' },
+    { id: 'h4', value: 'Cloud Architecture' }
+  ],
+  industries: [
+    { id: 'i1', value: 'Banking & Finance' },
+    { id: 'i2', value: 'Energy & Utilities' },
+    { id: 'i3', value: 'Public Sector' },
+    { id: 'i4', value: 'Retail & Consumer' }
   ],
   seniorityLevels: [
     { id: 's1', value: 'Junior' }, 
@@ -21,71 +27,52 @@ export const INITIAL_MOCK_DATA = {
     { id: 'ps4', value: 'Pianificato' }
   ],
   clientSectors: [
-    { id: 'cs1', value: 'Tecnologia' },
-    { id: 'cs2', value: 'Finance' },
+    { id: 'cs1', value: 'Banking' },
+    { id: 'cs2', value: 'Energy' },
     { id: 'cs3', value: 'Retail' },
-    { id: 'cs4', value: 'Energy' }
+    { id: 'cs4', value: 'Public Sector' }
   ],
   locations: [
     { id: 'l1', value: 'Milano' }, 
     { id: 'l2', value: 'Roma' },
-    { id: 'l3', value: 'Remote' }
+    { id: 'l3', value: 'Torino' }
   ],
   clients: [
-    { id: 'c1', name: 'Global Tech Solution', sector: 'Tecnologia', contactEmail: 'info@globaltech.com' },
+    { id: 'c1', name: 'Banca Intesa', sector: 'Banking', contactEmail: 'it@intesa.it' },
     { id: 'c2', name: 'EcoEnergy SPA', sector: 'Energy', contactEmail: 'staffing@ecoenergy.it' }
   ],
   roles: [
-    { id: 'r1', name: 'Frontend Developer', seniorityLevel: 'Senior', dailyCost: 450, standardCost: 450, dailyExpenses: 15.75 },
-    { id: 'r2', name: 'Backend Engineer', seniorityLevel: 'Senior', dailyCost: 500, standardCost: 500, dailyExpenses: 17.5 },
-    { id: 'r3', name: 'Project Manager', seniorityLevel: 'Manager', dailyCost: 650, standardCost: 650, dailyExpenses: 22.75 }
+    { id: 'r1', name: 'Senior Developer', seniorityLevel: 'Senior', dailyCost: 600, standardCost: 550, dailyExpenses: 21 },
+    { id: 'r2', name: 'Project Manager', seniorityLevel: 'Manager', dailyCost: 800, standardCost: 750, dailyExpenses: 28 }
   ],
   resources: [
     { 
-      id: 'res1', name: 'Mario Rossi', email: 'mario@demo.com', roleId: 'r1', 
-      horizontal: 'Web Development', location: 'Milano', hireDate: '2023-01-01', 
-      workSeniority: 5, maxStaffingPercentage: 100, resigned: false, lastDayOfWork: null 
+      id: 'res1', name: 'Mario Rossi', email: 'm.rossi@partner.it', roleId: 'r1', 
+      function: 'Software Engineering', industry: 'Banking & Finance', location: 'Milano', 
+      hireDate: '2022-01-10', workSeniority: 8, maxStaffingPercentage: 100, resigned: false, lastDayOfWork: null 
     },
     { 
-      id: 'res2', name: 'Giulia Bianchi', email: 'giulia@demo.com', roleId: 'r3', 
-      horizontal: 'Web Development', location: 'Roma', hireDate: '2022-06-15', 
-      workSeniority: 8, maxStaffingPercentage: 100, resigned: false, lastDayOfWork: null 
+      id: 'res2', name: 'Elena Bianchi', email: 'e.bianchi@partner.it', roleId: 'r2', 
+      function: 'Business Transformation', industry: 'Energy & Utilities', location: 'Roma', 
+      hireDate: '2021-05-15', workSeniority: 12, maxStaffingPercentage: 100, resigned: false, lastDayOfWork: null 
     }
   ],
   projects: [
-    { 
-      id: 'p1', name: 'Portale E-commerce', clientId: 'c1', startDate: '2024-01-01', 
-      endDate: '2025-12-31', budget: 150000, realizationPercentage: 100, 
-      projectManager: 'Giulia Bianchi', status: 'In corso' 
-    },
-    { 
-      id: 'p2', name: 'Smart Grid Analitica', clientId: 'c2', startDate: '2025-01-01', 
-      endDate: '2025-12-31', budget: 80000, realizationPercentage: 100, 
-      projectManager: 'Admin', status: 'In corso' 
-    }
+    { id: 'p1', name: 'App Mobile Intesa', clientId: 'c1', startDate: '2024-02-01', endDate: '2024-11-30', budget: 120000, realizationPercentage: 100, projectManager: 'Elena Bianchi', status: 'In corso' }
   ],
   users: [
     { id: 'admin-id', username: 'admin', role: 'ADMIN', resourceId: null, isActive: true, mustChangePassword: false }
   ],
   assignments: [
-    { id: 'as1', resourceId: 'res1', projectId: 'p1' },
-    { id: 'as2', resourceId: 'res2', projectId: 'p1' }
+    { id: 'as1', resourceId: 'res1', projectId: 'p1' }
   ],
   allocations: {
-    'as1': { '2025-07-21': 50, '2025-07-22': 50, '2025-07-23': 50 },
-    'as2': { '2025-07-21': 100, '2025-07-22': 100, '2025-07-23': 100 }
+    'as1': { '2024-06-03': 100, '2024-06-04': 100, '2024-06-05': 100 }
   },
-  companyCalendar: [
-      { id: 'cal1', name: 'Ferragosto', date: '2025-08-15', type: 'NATIONAL_HOLIDAY', location: null }
-  ],
-  leaveTypes: [
-    { id: 'lt1', name: 'Ferie', color: '#006493', requiresApproval: true, affects_capacity: true },
-    { id: 'lt2', name: 'Malattia', color: '#ba1a1a', requiresApproval: false, affects_capacity: true }
-  ],
+  companyCalendar: [],
+  leaveTypes: [],
   leaveRequests: [],
-  notifications: [
-    { id: 'not1', recipientResourceId: 'res2', title: 'Benvenuto', message: 'Il sistema di staffing è pronto per l\'uso.', isRead: false, createdAt: new Date().toISOString() }
-  ],
+  notifications: [],
   resourceRequests: [],
   interviews: [],
   contracts: [],

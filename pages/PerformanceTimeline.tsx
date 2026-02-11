@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -264,7 +263,8 @@ export const PerformanceTimelinePage: React.FC = () => {
                                 {activeResource?.name.charAt(0)}
                             </div>
                             <h2 className="text-xl font-bold text-on-surface">{activeResource?.name}</h2>
-                            <p className="text-sm text-on-surface-variant mb-4">{activeResource?.horizontal}</p>
+                            {/* FIX: horizontal -> function */}
+                            <p className="text-sm text-on-surface-variant mb-4">{activeResource?.function}</p>
                             
                             <div className="grid grid-cols-2 gap-2 text-left bg-surface-container-low p-4 rounded-xl mb-4">
                                 <div>

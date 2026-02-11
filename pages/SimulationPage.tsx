@@ -1,4 +1,3 @@
-
 import React, { useState, useReducer, useEffect, useMemo, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
@@ -402,6 +401,7 @@ const SimulationBillingModal: React.FC<{
                                 <label className="text-[10px] uppercase font-bold text-on-surface-variant">Importo</label>
                                 <input type="number" className="form-input text-xs p-1" value={newMilestone.amount || ''} onChange={e => setNewMilestone({...newMilestone, amount: Number(e.target.value)})} />
                             </div>
+                            {/* // FIX: Removed out-of-place Cost G. input from SimulationBillingModal */}
                             <button onClick={handleAdd} className="col-span-4 bg-primary text-on-primary text-xs font-bold py-2 rounded hover:opacity-90">Aggiungi Rata</button>
                         </div>
                     </>
@@ -420,7 +420,7 @@ const SimulationBillingModal: React.FC<{
 const SimulationPage: React.FC = () => {
     const { 
         resources: realResources, projects: realProjects, assignments: realAssignments, contracts: realContracts, 
-        rateCards, rateCardEntries, roles, horizontals, locations, companyCalendar, clients,
+        rateCards, rateCardEntries, roles, functions, locations, companyCalendar, clients,
         projectExpenses: realExpenses, billingMilestones: realMilestones
     } = useEntitiesContext();
     const { allocations: realAllocations } = useAllocationsContext();
@@ -428,7 +428,6 @@ const SimulationPage: React.FC = () => {
 
     const [state, dispatch] = useReducer(simulationReducer, initialState);
     const [scenarios, setScenarios] = useState<any[]>([]); // Metadata list
-    // ... [Other states omitted for brevity] ...
     
     // UI Local State
     const [activeTab, setActiveTab] = useState<'config' | 'staffing' | 'analysis'>('config');
@@ -436,8 +435,9 @@ const SimulationPage: React.FC = () => {
     const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isGhostModalOpen, setIsGhostModalOpen] = useState(false);
+    // FIX: horizontal -> function
     const [newGhost, setNewGhost] = useState<Partial<SimulationResource>>({ 
-        horizontal: horizontals[0]?.value, 
+        function: functions[0]?.value, 
         location: locations[0]?.value, 
         roleId: roles[0]?.id 
     });
@@ -472,7 +472,7 @@ const SimulationPage: React.FC = () => {
 
     // --- Actions ---
 
-    // NEW: Handle Export to Excel
+    // Handle Export to Excel
     const handleExportExcel = async () => {
         try {
              const XLSX = await import('xlsx');
@@ -528,7 +528,7 @@ const SimulationPage: React.FC = () => {
         }
     };
 
-    // NEW: Handle Import from Excel
+    // Handle Import from Excel
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -696,7 +696,6 @@ const SimulationPage: React.FC = () => {
                 }
             });
             
-            // ... [Date finding logic unchanged] ...
             let earliestDate = new Date().toISOString();
             let found = false;
             Object.values(simAllocations).forEach(assignmentAlloc => {
@@ -717,7 +716,6 @@ const SimulationPage: React.FC = () => {
         }
     };
 
-    // ... [openSaveModal, performSave, handleLoadScenario unchanged] ...
     // Open Modal instead of direct save
     const openSaveModal = () => {
         if (!state.name) {
@@ -855,7 +853,9 @@ const SimulationPage: React.FC = () => {
                 name: newGhost.name || 'Nuova Risorsa',
                 email: `ghost.${id}@sim.local`,
                 roleId: newGhost.roleId || '',
-                horizontal: newGhost.horizontal || '',
+                // FIX: horizontal -> function
+                function: newGhost.function || '',
+                industry: '', // Added required industry property
                 location: newGhost.location || '',
                 hireDate: new Date().toISOString().split('T')[0],
                 workSeniority: 0,
@@ -867,7 +867,8 @@ const SimulationPage: React.FC = () => {
                 dailyExpenses
             }
         });
-        setNewGhost({ horizontal: horizontals[0]?.value, location: locations[0]?.value, roleId: roles[0]?.id, name: '' });
+        // FIX: horizontal -> function
+        setNewGhost({ function: functions[0]?.value, location: locations[0]?.value, roleId: roles[0]?.id, name: '' });
         setIsGhostModalOpen(false);
         addToast('Risorsa simulata aggiunta.', 'success');
     };
@@ -950,7 +951,6 @@ const SimulationPage: React.FC = () => {
     };
     
     // --- Analysis Data Calculation ---
-    // (Analysis logic remains roughly the same as we are using the 'financials' map which contains absolute dailyExpenses computed on import/add)
     const analysisData = useMemo(() => {
         const monthlyData: Record<string, { revenue: number, cost: number }> = {};
         
@@ -1135,7 +1135,6 @@ const SimulationPage: React.FC = () => {
                         </div>
                         {/* Project Config */}
                         <div className="bg-surface p-6 rounded-2xl shadow border border-outline-variant">
-                             {/* ... (Same as previous content for project config) */}
                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                                 <h3 className="text-lg font-bold">Configurazione Progetti e Listini</h3>
                                 <div className="flex items-center gap-2 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
@@ -1213,7 +1212,6 @@ const SimulationPage: React.FC = () => {
 
                 {activeTab === 'staffing' && (
                     <div className="h-full flex flex-col bg-surface rounded-2xl shadow border border-outline-variant">
-                         {/* ... (Staffing content unchanged) */}
                           <div className="flex-shrink-0 p-3 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
                             <div className="flex gap-2">
                                 <button onClick={() => { const d = new Date(currentDate); d.setMonth(d.getMonth() - 6); setCurrentDate(d); }} className="p-1 rounded hover:bg-surface-container text-on-surface-variant">
@@ -1354,8 +1352,8 @@ const SimulationPage: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold mb-1">Horizontal</label>
-                                <SearchableSelect name="horizontal" value={newGhost.horizontal || ''} onChange={(_, v) => setNewGhost({...newGhost, horizontal: v})} options={horizontals.map(h => ({ value: h.value, label: h.value }))} placeholder="Horizontal" />
+                                <label className="block text-sm font-bold mb-1">Function</label>
+                                <SearchableSelect name="function" value={newGhost.function || ''} onChange={(_, v) => setNewGhost({...newGhost, function: v})} options={functions.map(h => ({ value: h.value, label: h.value }))} placeholder="Function" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-1">Sede</label>
@@ -1373,7 +1371,6 @@ const SimulationPage: React.FC = () => {
             {/* Save Scenario Modal */}
             {isSaveModalOpen && (
                 <Modal isOpen={isSaveModalOpen} onClose={() => setIsSaveModalOpen(false)} title="Salva Scenario">
-                     {/* ... (Existing save modal content) */}
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-bold mb-1">Nome Scenario</label>
@@ -1412,7 +1409,6 @@ const SimulationPage: React.FC = () => {
             {/* Load Modal */}
             {isLoadModalOpen && (
                 <Modal isOpen={isLoadModalOpen} onClose={() => setIsLoadModalOpen(false)} title="Carica Scenario">
-                     {/* ... (Existing load modal content) */}
                     <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                         {scenarios.length === 0 ? <p className="text-center p-4">Nessuno scenario salvato.</p> : scenarios.map(s => (
                             <div key={s.key} onClick={() => handleLoadScenario(s.key)} className="p-4 border rounded-xl hover:bg-surface-container cursor-pointer">

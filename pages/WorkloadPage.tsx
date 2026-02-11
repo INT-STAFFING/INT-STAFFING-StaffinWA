@@ -1,4 +1,3 @@
-
 /**
  * @file WorkloadPage.tsx
  * @description Pagina di visualizzazione del carico totale per risorsa (sola lettura).
@@ -156,7 +155,8 @@ const WorkloadPage: React.FC = () => {
     const { resources, roles, companyCalendar, assignments, leaveRequests, leaveTypes } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     
-    const [filters, setFilters] = useState({ resourceId: '', roleId: '', horizontal: '' });
+    // Updated filters state horizontal -> function
+    const [filters, setFilters] = useState({ resourceId: '', roleId: '', function: '' });
     const [statusFilter, setStatusFilter] = useState<WorkloadFilterStatus>('ALL');
     
     // Pagination State
@@ -285,7 +285,8 @@ const WorkloadPage: React.FC = () => {
         // Apply Manual Filters
         if (filters.resourceId) visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
         if (filters.roleId) visibleResources = visibleResources.filter(r => r.roleId === filters.roleId);
-        if (filters.horizontal) visibleResources = visibleResources.filter(r => r.horizontal === filters.horizontal);
+        // Corrected filter resource.function instead of resource.horizontal
+        if (filters.function) visibleResources = visibleResources.filter(r => r.function === filters.function);
         
         // Apply Status Filter (Calculated on the fly based on CURRENT MONTH)
         if (statusFilter !== 'ALL') {
@@ -315,7 +316,8 @@ const WorkloadPage: React.FC = () => {
             Risorsa: r.name,
             Ruolo: roles.find(role => role.id === r.roleId)?.name || 'N/A',
             Sede: r.location,
-            Horizontal: r.horizontal,
+            // Corrected usage of resource.function instead of resource.horizontal
+            Function: r.function,
             'Carico Mensile (%)': calculateMonthlyAvgLoad(r).toFixed(0),
             'Max Staffing %': r.maxStaffingPercentage
         }));
@@ -449,7 +451,7 @@ const WorkloadPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div><label className="block text-sm font-medium text-on-surface-variant">Risorsa</label><SearchableSelect name="resourceId" value={filters.resourceId} onChange={handleFilterChange} options={resourceOptions} placeholder="Tutte"/></div>
                         <div><label className="block text-sm font-medium text-on-surface-variant">Ruolo</label><SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterChange} options={roleOptions} placeholder="Tutti"/></div>
-                        <button onClick={() => { setFilters({ resourceId: '', roleId: '', horizontal: '' }); setStatusFilter('ALL'); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
+                        <button onClick={() => { setFilters({ resourceId: '', roleId: '', function: '' }); setStatusFilter('ALL'); setCurrentPage(1); }} className="px-6 py-2 bg-secondary-container text-on-secondary-container rounded-full w-full md:w-auto">Reset</button>
                     </div>
                 </div>
             </div>

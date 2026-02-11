@@ -1,7 +1,7 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { z } from '../libs/zod';
-import { useEntitiesContext, usePlanningContext } from '../context/AppContext';
+// Fixed import: usePlanningContext does not exist, everything is in useEntitiesContext
+import { useEntitiesContext } from '../context/AppContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -104,9 +104,9 @@ const ScoreBar: React.FC<{ score: number; colorClass: string; label: string }> =
 export const ResourceRequestPage: React.FC = () => {
     const { 
         resourceRequests, projects, roles, resources, 
-        addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading, loading
+        addResourceRequest, updateResourceRequest, deleteResourceRequest, isActionLoading, loading,
+        getBestFitResources // Obtained from useEntitiesContext
     } = useEntitiesContext();
-    const { getBestFitResources } = usePlanningContext();
     const { addToast } = useToast();
 
     const [isModalOpen, setIsModalOpen] = useState(false);

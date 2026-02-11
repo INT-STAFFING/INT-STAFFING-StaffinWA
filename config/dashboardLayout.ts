@@ -14,12 +14,13 @@ export type DashboardCardId =
   | 'temporalBudgetAnalysis'
   | 'underutilizedResources'
   | 'monthlyClientCost'
-  | 'effortByHorizontal'
+  | 'effortByFunction'
+  | 'effortByIndustry'
   | 'locationAnalysis'
   | 'saturationTrend'
   | 'costForecast'
   | 'averageDailyRate'
-  | 'leavesOverview'; // Aggiunta card assenze
+  | 'leavesOverview';
 
 // Interface defining the metadata for each dashboard card.
 export interface DashboardCardConfig {
@@ -44,7 +45,8 @@ export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
   { id: 'averageDailyRate', label: 'Tariffa Media Giornaliera', description: 'Calcola il costo medio giornaliero effettivo per ogni progetto.', icon: '💶', group: 'main' },
   { id: 'underutilizedResources', label: 'Risorse Sottoutilizzate', description: 'Elenca le risorse con un carico di lavoro inferiore al 100%.', icon: '📉', group: 'main' },
   { id: 'monthlyClientCost', label: 'Costo Mensile per Cliente', description: 'Mostra il costo stimato per cliente nel mese corrente.', icon: '🏢', group: 'main' },
-  { id: 'effortByHorizontal', label: 'Sforzo per Horizontal', description: 'Visualizza i giorni/uomo totali suddivisi per area di competenza.', icon: '🛠️', group: 'main' },
+  { id: 'effortByFunction', label: 'Sforzo per Function', description: 'Visualizza i giorni/uomo totali suddivisi per area funzionale delle risorse.', icon: '🛠️', group: 'main' },
+  { id: 'effortByIndustry', label: 'Sforzo per Industry', description: 'Visualizza i giorni/uomo totali suddivisi per settore (Industry) delle risorse.', icon: 'factory', group: 'main' },
   { id: 'locationAnalysis', label: 'Analisi per Sede', description: 'Analizza l\'utilizzo e le risorse per ogni sede di lavoro.', icon: '📍', group: 'main' },
   { id: 'saturationTrend', label: 'Trend Saturazione Risorsa', description: 'Grafico dell\'andamento del carico per una singola risorsa.', icon: '📈', group: 'full-width' },
   { id: 'costForecast', label: 'Forecast Costo Mensile', description: 'Previsione dei costi totali per i prossimi mesi.', icon: '🔮', group: 'full-width' },
@@ -55,7 +57,7 @@ export const DASHBOARD_CARDS_CONFIG: DashboardCardConfig[] = [
 export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
   'kpiHeader',
   'attentionCards',
-  'leavesOverview', // Aggiunta all'ordine di default
+  'leavesOverview',
   'unallocatedFte',
   'averageAllocation',
   'ftePerProject',
@@ -64,7 +66,8 @@ export const DEFAULT_DASHBOARD_CARD_ORDER: DashboardCardId[] = [
   'averageDailyRate',
   'underutilizedResources',
   'monthlyClientCost',
-  'effortByHorizontal',
+  'effortByFunction',
+  'effortByIndustry',
   'locationAnalysis',
   'saturationTrend',
   'costForecast',

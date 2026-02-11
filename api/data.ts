@@ -58,22 +58,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // --- METADATA SCOPE ---
         if (scope === 'metadata' || scope === 'all') {
              const [
-                clientsRes, rolesRes, roleCostHistoryRes, resourcesRes, horizontalsRes,
-                seniorityLevelsRes, projectStatusesRes, clientSectorsRes, locationsRes,
+                clientsRes, rolesRes, roleCostHistoryRes, resourcesRes, functionsRes,
+                industriesRes, seniorityLevelsRes, projectStatusesRes, clientSectorsRes, locationsRes,
                 calendarRes, skillsRes, resourceSkillsRes, pageVisibilityRes,
                 skillThresholdsRes, projectsRes, leaveTypesRes, managersRes,
                 sidebarConfigRes, quickActionsRes, sidebarSectionsRes, sidebarSectionColorsRes,
                 sidebarFooterActionsRes, dashboardLayoutRes, roleHomePagesRes,
                 bottomNavPathsRes, analyticsRes, skillCatsRes, skillMacrosRes,
                 skillMapRes, catMacroMapRes, planningConfigRes,
-                // New consolidated fetches
                 rateCardsRes, rateCardEntriesRes, projectExpensesRes, notificationConfigsRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
                 db.sql`SELECT * FROM role_cost_history;`,
                 db.sql`SELECT * FROM resources;`,
-                db.sql`SELECT * FROM horizontals;`,
+                db.sql`SELECT * FROM functions;`, // Ridenominato
+                db.sql`SELECT * FROM industries;`, // Aggiunto
                 db.sql`SELECT * FROM seniority_levels;`,
                 db.sql`SELECT * FROM project_statuses;`,
                 db.sql`SELECT * FROM client_sectors;`,
@@ -100,7 +100,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM skill_skill_category_map;`,
                 db.sql`SELECT * FROM skill_category_macro_map;`,
                 db.sql`SELECT key, value FROM app_config WHERE key LIKE 'planning_range_%';`,
-                // New consolidated fetches
                 db.sql`SELECT * FROM rate_cards;`,
                 db.sql`SELECT * FROM rate_card_entries;`,
                 db.sql`SELECT * FROM project_expenses;`,
@@ -109,7 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const companyCalendar = calendarRes.rows.map(toCamelCase) as CalendarEvent[];
 
-            // ... (Config parsing logic preserved) ...
             const pageVisibility: any = {};
             pageVisibilityRes.rows.forEach(row => pageVisibility[row.key.replace('page_vis.', '')] = row.value === 'true');
 
@@ -129,7 +127,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             const analyticsCache = analyticsRes.rows.length > 0 ? analyticsRes.rows[0].data : {};
 
-            // Hydrate Skills (unchanged logic)
             const categories = skillCatsRes.rows.map(toCamelCase);
             const macros = skillMacrosRes.rows.map(toCamelCase);
             const catMap = new Map(categories.map((c: any) => [c.id, c]));
@@ -173,7 +170,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 roleCostHistory: roleCostHistoryRes.rows.map(toCamelCase),
                 resources: resourcesRes.rows.map(toCamelCase),
                 projects: projectsRes.rows.map(toCamelCase),
-                horizontals: horizontalsRes.rows,
+                functions: functionsRes.rows, // Ridenominato
+                industries: industriesRes.rows, // Aggiunto
                 seniorityLevels: seniorityLevelsRes.rows,
                 projectStatuses: projectStatusesRes.rows,
                 clientSectors: clientSectorsRes.rows,
@@ -197,7 +195,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 roleHomePages: parseJsonConfig(roleHomePagesRes, null),
                 bottomNavPaths: parseJsonConfig(bottomNavPathsRes, []),
                 analyticsCache,
-                // Mapped consolidated data
                 rateCards: rateCardsRes.rows.map(toCamelCase),
                 rateCardEntries: rateCardEntriesRes.rows.map(toCamelCase),
                 projectExpenses: projectExpensesRes.rows.map(toCamelCase),
@@ -210,15 +207,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let allocationsQueryPromise;
             let leaveRequestsQueryPromise;
             
-            // For Allocations, we respect the planning window to keep performance
             if (start && end) {
                 allocationsQueryPromise = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
             } else {
                 allocationsQueryPromise = db.sql`SELECT * FROM allocations;`;
             }
             
-            // For Leave Requests, we fetch ALL to ensure the management table is complete
-            // Leaves are generally low volume compared to daily allocations
             leaveRequestsQueryPromise = db.sql`SELECT * FROM leave_requests ORDER BY start_date DESC;`;
 
             const [
@@ -250,7 +244,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const allocations: Allocation = {};
             allocationsRes.rows.forEach(row => {
                 const { assignment_id, allocation_date, percentage } = row;
-                // FIX DATE: Estrazione sicura YYYY-MM-DD
                 const y = allocation_date.getFullYear();
                 const m = String(allocation_date.getMonth() + 1).padStart(2, '0');
                 const d = String(allocation_date.getDate()).padStart(2, '0');

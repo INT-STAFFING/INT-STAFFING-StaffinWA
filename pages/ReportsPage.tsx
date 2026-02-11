@@ -1,4 +1,3 @@
-
 /**
  * @file ReportsPage.tsx
  * @description Pagina per la visualizzazione di report analitici su costi e utilizzo utilizzando il componente DataTable.
@@ -229,10 +228,12 @@ const ProjectCostsReport: React.FC = () => {
 
 
 const ResourceUtilizationReport: React.FC = () => {
-    const { resources, roles, assignments, companyCalendar, horizontals, getRoleCost, loading } = useEntitiesContext();
+    // Corrected destructuring using functions instead of horizontals
+    const { resources, roles, assignments, companyCalendar, functions, getRoleCost, loading } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-    const [filters, setFilters] = useState({ roleId: '', horizontal: '' });
+    // Updated filters state horizontal -> function
+    const [filters, setFilters] = useState({ roleId: '', function: '' });
 
     const reportData = useMemo(() => {
         const [year, monthNum] = month.split('-').map(Number);
@@ -241,7 +242,8 @@ const ResourceUtilizationReport: React.FC = () => {
 
         return resources
             .filter(r => !r.resigned)
-            .filter(r => (!filters.roleId || r.roleId === filters.roleId) && (!filters.horizontal || r.horizontal === filters.horizontal))
+            // Corrected usage of resource.function instead of resource.horizontal
+            .filter(r => (!filters.roleId || r.roleId === filters.roleId) && (!filters.function || r.function === filters.function))
             .map(resource => {
                 const role = roles.find(ro => ro.id === resource.roleId);
                 
@@ -324,7 +326,8 @@ const ResourceUtilizationReport: React.FC = () => {
     };
     
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
-    const horizontalOptions = useMemo(() => horizontals.map(h => ({ value: h.value, label: h.value })), [horizontals]);
+    // Corrected functionOptions instead of horizontalOptions
+    const functionOptions = useMemo(() => functions.map(h => ({ value: h.value, label: h.value })), [functions]);
 
     // DataTable Config
     const columns: ColumnDef<typeof reportData[0]>[] = [
@@ -392,7 +395,7 @@ const ResourceUtilizationReport: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
             <SearchableSelect name="roleId" value={filters.roleId} onChange={(_, v) => setFilters(f => ({...f, roleId: v}))} options={roleOptions} placeholder="Tutti i Ruoli"/>
-            <SearchableSelect name="horizontal" value={filters.horizontal} onChange={(_, v) => setFilters(f => ({...f, horizontal: v}))} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
+            <SearchableSelect name="function" value={filters.function} onChange={(_, v) => setFilters(f => ({...f, function: v}))} options={functionOptions} placeholder="Tutte le Function"/>
             <div className="flex flex-wrap items-center gap-2">
                 <button onClick={exportToCSV} className="inline-flex items-center justify-center px-4 py-2 bg-secondary-container text-on-secondary-container font-semibold rounded-full shadow-sm hover:opacity-90">
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV

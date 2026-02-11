@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
-import { useConfigContext } from '../context/AppContext';
+import { useEntitiesContext } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -41,7 +40,7 @@ const EVENT_TYPES = [
 ];
 
 const NotificationSettingsPage: React.FC = () => {
-    const { notificationConfigs, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig } = useConfigContext();
+    const { notificationConfigs, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig } = useEntitiesContext();
     const { addToast } = useToast();
     
     // UI State

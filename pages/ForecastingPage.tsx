@@ -1,4 +1,3 @@
-
 /**
  * @file ForecastingPage.tsx
  * @description Pagina di forecasting e capacity planning per analizzare il carico di lavoro futuro con proiezioni intelligenti.
@@ -16,10 +15,12 @@ import SearchableSelect from '../components/SearchableSelect';
  * @returns {React.ReactElement} La pagina di Forecasting.
  */
 const ForecastingPage: React.FC = () => {
-    const { resources, assignments, horizontals, clients, projects, companyCalendar, leaveRequests, leaveTypes } = useEntitiesContext();
+    // Corrected destructuring using functions instead of horizontals
+    const { resources, assignments, functions, clients, projects, companyCalendar, leaveRequests, leaveTypes } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
-    const [filters, setFilters] = useState({ horizontal: '', clientId: '', projectId: ''});
+    // Updated filters state horizontal -> function
+    const [filters, setFilters] = useState({ function: '', clientId: '', projectId: ''});
     const [enableProjections, setEnableProjections] = useState(true); // Toggle per attivare l'algoritmo predittivo
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -48,7 +49,7 @@ const ForecastingPage: React.FC = () => {
     };
 
     const resetFilters = () => {
-        setFilters({ horizontal: '', clientId: '', projectId: ''});
+        setFilters({ function: '', clientId: '', projectId: ''});
     };
 
     // OPTIMIZATION: Pre-calculate holiday lookup map for O(1) access
@@ -57,7 +58,6 @@ const ForecastingPage: React.FC = () => {
         const map = new Set<string>();
         companyCalendar.forEach(event => {
             // FIX: Handle event.date as any to avoid TS error 'property does not exist on type never'
-            // because strict types define date as string, making the else branch unreachable in TS eyes.
             const dateStr = typeof event.date === 'string' ? event.date : (event.date as any).toISOString().split('T')[0];
             if (event.type === 'LOCAL_HOLIDAY' && event.location) {
                 map.add(`${dateStr}:${event.location}`);
@@ -142,8 +142,9 @@ const ForecastingPage: React.FC = () => {
         
         // Pre-filter resources and assignments to reduce inner loop iterations
         let filteredResources = resources.filter(r => !r.resigned);
-        if (filters.horizontal) {
-            filteredResources = filteredResources.filter(r => r.horizontal === filters.horizontal);
+        // Corrected filter resource.function instead of resource.horizontal
+        if (filters.function) {
+            filteredResources = filteredResources.filter(r => r.function === filters.function);
         }
         
         let assignmentsToConsider = [...assignments];
@@ -316,7 +317,8 @@ const ForecastingPage: React.FC = () => {
         return 'bg-tertiary';
     };
 
-    const horizontalOptions = useMemo(() => horizontals.sort((a,b) => a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [horizontals]);
+    // Corrected functionOptions instead of horizontalOptions
+    const functionOptions = useMemo(() => functions.sort((a,b) => a.value.localeCompare(b.value)).map(h => ({ value: h.value, label: h.value })), [functions]);
     const clientOptions = useMemo(() => clients.sort((a,b) => a.name.localeCompare(b.name)).map(c => ({ value: c.id!, label: c.name })), [clients]);
     const projectOptions = useMemo(() => availableProjects.sort((a,b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id!, label: p.name })), [availableProjects]);
 
@@ -388,8 +390,8 @@ const ForecastingPage: React.FC = () => {
             <div className="mb-6 p-4 bg-surface rounded-2xl shadow">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label className="block text-sm font-medium text-on-surface-variant">Horizontal</label>
-                        <SearchableSelect name="horizontal" value={filters.horizontal} onChange={handleFilterChange} options={horizontalOptions} placeholder="Tutti gli Horizontal"/>
+                        <label className="block text-sm font-medium text-on-surface-variant">Function</label>
+                        <SearchableSelect name="function" value={filters.function} onChange={handleFilterChange} options={functionOptions} placeholder="Tutte le Function"/>
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-on-surface-variant">Cliente</label>
