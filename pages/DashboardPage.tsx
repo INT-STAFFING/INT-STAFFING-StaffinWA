@@ -1074,7 +1074,7 @@ const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data
                  )}
             </div>
             <div className="text-xs text-on-surface-variant mt-2 text-center">
-                Visualizza i contratti con saturazione > 80%
+                Visualizza i contratti con saturazione &gt; 80%
             </div>
         </div>
     );
@@ -1135,7 +1135,7 @@ const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, i
         
         // Define stack
         const stackGen = stack().keys(['tm', 'fixed']);
-        const stackedData = stackGen(data as any);
+        const stackedData = stackGen(data);
 
         const x = scaleBand()
             .domain(data.map(d => d.month))
