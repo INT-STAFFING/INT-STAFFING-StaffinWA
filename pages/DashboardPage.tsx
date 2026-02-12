@@ -1135,7 +1135,7 @@ const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, i
         
         // Define stack
         const stackGen = stack().keys(['tm', 'fixed']);
-        const stackedData = stackGen(data);
+        const stackedData = stackGen(data as any);
 
         const x = scaleBand()
             .domain(data.map(d => d.month))

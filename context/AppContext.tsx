@@ -1,3 +1,4 @@
+
 /**
  * @file AppContext.tsx
  * @description Provider di contesto principale per la gestione dello stato globale dell'applicazione.
@@ -278,19 +279,98 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         }
     }, [addToast]);
 
-    // Actions (addResource, updateResource, etc.) implementation remains unchanged...
+    // Optimized CRUD Operations
     const addResource = async (resource: Omit<Resource, 'id'>) => { setActionLoading('addResource', true); try { const newResource = await apiFetch<Resource>('/api/resources?entity=resources', { method: 'POST', body: JSON.stringify(resource) }); setResources(prev => [...prev, newResource]); return newResource; } finally { setActionLoading('addResource', false); } };
     const updateResource = async (resource: Resource) => { setActionLoading(`updateResource-${resource.id}`, true); try { const updated = await apiFetch<Resource>(`/api/resources?entity=resources&id=${resource.id}`, { method: 'PUT', body: JSON.stringify(resource) }); setResources(prev => prev.map(r => r.id === resource.id ? updated : r)); addToast('Risorsa aggiornata', 'success'); } catch (e: any) { addToast(e.message, 'error'); } finally { setActionLoading(`updateResource-${resource.id}`, false); } };
-    const deleteResource = async (id: string) => { setActionLoading(`deleteResource-${id}`, true); try { await apiFetch(`/api/resources?entity=resources&id=${id}`, { method: 'DELETE' }); setResources(prev => prev.filter(r => r.id !== id)); } finally { setActionLoading(`deleteResource-${id}`, false); } };
+    const deleteResource = async (id: string) => { 
+        setActionLoading(`deleteResource-${id}`, true); 
+        try { 
+            await apiFetch(`/api/resources?entity=resources&id=${id}`, { method: 'DELETE' }); 
+            setResources(prev => prev.filter(r => r.id !== id)); 
+            // Local cleanup
+            setAssignments(prev => prev.filter(a => a.resourceId !== id));
+            setResourceSkills(prev => prev.filter(rs => rs.resourceId !== id));
+            setLeaveRequests(prev => prev.filter(l => l.resourceId !== id));
+        } finally { 
+            setActionLoading(`deleteResource-${id}`, false); 
+        } 
+    };
+
     const addProject = async (project: Omit<Project, 'id'>) => { setActionLoading('addProject', true); try { const newProject = await apiFetch<Project | null>('/api/resources?entity=projects', { method: 'POST', body: JSON.stringify(project) }); setProjects(prev => [...prev, newProject!]); return newProject; } finally { setActionLoading('addProject', false); } };
     const updateProject = async (project: Project) => { setActionLoading(`updateProject-${project.id}`, true); try { const updated = await apiFetch<Project>(`/api/resources?entity=projects&id=${project.id}`, { method: 'PUT', body: JSON.stringify(project) }); setProjects(prev => prev.map(p => p.id === project.id ? updated : p)); addToast('Progetto aggiornato', 'success'); } catch (e: any) { addToast(e.message, 'error'); } finally { setActionLoading(`updateProject-${project.id}`, false); } };
-    const deleteProject = async (id: string) => { setActionLoading(`deleteProject-${id}`, true); try { await apiFetch(`/api/resources?entity=projects&id=${id}`, { method: 'DELETE' }); setProjects(prev => prev.filter(p => p.id !== id)); } finally { setActionLoading(`deleteProject-${id}`, false); } };
+    const deleteProject = async (id: string) => { 
+        setActionLoading(`deleteProject-${id}`, true); 
+        try { 
+            await apiFetch(`/api/resources?entity=projects&id=${id}`, { method: 'DELETE' }); 
+            setProjects(prev => prev.filter(p => p.id !== id)); 
+            // Local cleanup
+            setAssignments(prev => prev.filter(a => a.projectId !== id));
+            setProjectSkills(prev => prev.filter(ps => ps.projectId !== id));
+        } finally { 
+            setActionLoading(`deleteProject-${id}`, false); 
+        } 
+    };
+
     const addClient = async (client: Omit<Client, 'id'>) => { setActionLoading('addClient', true); try { const newClient = await apiFetch<Client>('/api/resources?entity=clients', { method: 'POST', body: JSON.stringify(client) }); setClients(prev => [...prev, newClient]); } finally { setActionLoading('addClient', false); } };
     const updateClient = async (client: Client) => { setActionLoading(`updateClient-${client.id}`, true); try { const updated = await apiFetch<Client>(`/api/resources?entity=clients&id=${client.id}`, { method: 'PUT', body: JSON.stringify(client) }); setClients(prev => prev.map(c => c.id === client.id ? updated : c)); addToast('Cliente aggiornato', 'success'); } catch (e: any) { addToast(e.message, 'error'); } finally { setActionLoading(`updateClient-${client.id}`, false); } };
     const deleteClient = async (id: string) => { setActionLoading(`deleteClient-${id}`, true); try { await apiFetch(`/api/resources?entity=clients&id=${id}`, { method: 'DELETE' }); setClients(prev => prev.filter(c => c.id !== id)); } finally { setActionLoading(`deleteClient-${id}`, false); } };
+    
     const addRole = async (role: Omit<Role, 'id'>) => { setActionLoading('addRole', true); try { const newRole = await apiFetch<Role>('/api/resources?entity=roles', { method: 'POST', body: JSON.stringify(role) }); setRoles(prev => [...prev, newRole]); } finally { setActionLoading('addRole', false); } };
     const updateRole = async (role: Role) => { setActionLoading(`updateRole-${role.id}`, true); try { const updated = await apiFetch<Role>(`/api/resources?entity=roles&id=${role.id}`, { method: 'PUT', body: JSON.stringify(role) }); setRoles(prev => prev.map(r => r.id === role.id ? updated : r)); const historyRes = await apiFetch<RoleCostHistory[]>('/api/resources?entity=role_cost_history'); setRoleCostHistory(historyRes); addToast('Ruolo aggiornata', 'success'); } catch (e: any) { addToast(e.message, 'error'); } finally { setActionLoading(`updateRole-${role.id}`, false); } };
     const deleteRole = async (id: string) => { setActionLoading(`deleteRole-${id}`, true); try { await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' }); setRoles(prev => prev.filter(r => r.id !== id)); } finally { setActionLoading(`deleteRole-${id}`, false); } };
+    
+    const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => { 
+        setActionLoading('addContract', true); 
+        try { 
+            const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) }); 
+            await Promise.all([ 
+                ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, projectId: pid }) })), 
+                ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, resourceId: mid }) })) 
+            ]); 
+            setContracts(prev => [...prev, newContract]);
+            setContractProjects(prev => [...prev, ...projectIds.map(pid => ({ contractId: newContract.id!, projectId: pid }))]);
+            setContractManagers(prev => [...prev, ...managerIds.map(mid => ({ contractId: newContract.id!, resourceId: mid }))]);
+        } finally { 
+            setActionLoading('addContract', false); 
+        } 
+    };
+    const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => { 
+        setActionLoading(`updateContract-${contract.id}`, true); 
+        try { 
+            const updated = await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) }); 
+            setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
+            // Relations update skipped as per architecture limitation discussed
+        } finally { 
+            setActionLoading(`updateContract-${contract.id}`, false); 
+        } 
+    };
+    const deleteContract = async (id: string) => { 
+        setActionLoading(`deleteContract-${id}`, true); 
+        try { 
+            await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' }); 
+            setContracts(prev => prev.filter(c => c.id !== id)); 
+            setContractProjects(prev => prev.filter(cp => cp.contractId !== id));
+            setContractManagers(prev => prev.filter(cm => cm.contractId !== id));
+        } finally { 
+            setActionLoading(`deleteContract-${id}`, false); 
+        } 
+    };
+    const recalculateContractBacklog = async (id: string) => { setActionLoading(`recalculateBacklog-${id}`, true); try { const contract = contracts.find(c => c.id === id); if (!contract) return; const linkedProjects = contractProjects.filter(cp => cp.contractId === id).map(cp => cp.projectId); const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0); const newBacklog = Number(contract.capienza) - usedBudget; await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, []); } finally { setActionLoading(`recalculateBacklog-${id}`, false); } };
+
+    const addSkill = async (skill: Omit<Skill, 'id'>) => { setActionLoading('addSkill', true); try { const newSkill = await apiFetch<Skill>('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) }); setSkills(prev => [...prev, newSkill]); } finally { setActionLoading('addSkill', false); } };
+    const updateSkill = async (skill: Skill) => { setActionLoading(`updateSkill-${skill.id}`, true); try { const updated = await apiFetch<Skill>(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) }); setSkills(prev => prev.map(s => s.id === skill.id ? updated : s)); } finally { setActionLoading(`updateSkill-${skill.id}`, false); } };
+    const deleteSkill = async (id: string) => { 
+        setActionLoading(`deleteSkill-${id}`, true); 
+        try { 
+            await apiFetch(`/api/resources?entity=skills&id=${id}`, { method: 'DELETE' }); 
+            setSkills(prev => prev.filter(s => s.id !== id)); 
+            setResourceSkills(prev => prev.filter(rs => rs.skillId !== id));
+            setProjectSkills(prev => prev.filter(ps => ps.skillId !== id));
+        } finally { 
+            setActionLoading(`deleteSkill-${id}`, false); 
+        } 
+    };
+
     const addRateCard = async (rateCard: Omit<RateCard, 'id'>) => { setActionLoading('addRateCard', true); try { const newRateCard = await apiFetch<RateCard>('/api/resources?entity=rate_cards', { method: 'POST', body: JSON.stringify(rateCard) }); setRateCards(prev => [...prev, newRateCard]); } finally { setActionLoading('addRateCard', false); } };
     const updateRateCard = async (rateCard: RateCard) => { setActionLoading(`updateRateCard-${rateCard.id}`, true); try { const updated = await apiFetch<RateCard>(`/api/resources?entity=rate_cards&id=${rateCard.id}`, { method: 'PUT', body: JSON.stringify(rateCard) }); setRateCards(prev => prev.map(rc => rc.id === rateCard.id ? updated : rc)); } finally { setActionLoading(`updateRateCard-${rateCard.id}`, false); } };
     const deleteRateCard = async (id: string) => { setActionLoading(`deleteRateCard-${id}`, true); try { await apiFetch(`/api/resources?entity=rate_cards&id=${id}`, { method: 'DELETE' }); setRateCards(prev => prev.filter(rc => rc.id !== id)); } finally { setActionLoading(`deleteRateCard-${id}`, false); } };
@@ -315,13 +395,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const addInterview = async (interview: Omit<Interview, 'id'>) => { setActionLoading('addInterview', true); try { const newInt = await apiFetch<Interview>('/api/resources?entity=interviews', { method: 'POST', body: JSON.stringify(interview) }); setInterviews(prev => [...prev, newInt]); } finally { setActionLoading('addInterview', false); } };
     const updateInterview = async (interview: Interview) => { setActionLoading(`updateInterview-${interview.id}`, true); try { const updated = await apiFetch<Interview>(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) }); setInterviews(prev => prev.map(i => i.id === interview.id ? updated : i)); } finally { setActionLoading(`updateInterview-${interview.id}`, false); } };
     const deleteInterview = async (id: string) => { setActionLoading(`deleteInterview-${id}`, true); try { await apiFetch(`/api/resources?entity=interviews&id=${id}`, { method: 'DELETE' }); setInterviews(prev => prev.filter(i => i.id !== id)); } finally { setActionLoading(`deleteInterview-${id}`, false); } };
-    const addContract = async (contract: Omit<Contract, 'id'>, projectIds: string[], managerIds: string[]) => { setActionLoading('addContract', true); try { const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', { method: 'POST', body: JSON.stringify(contract) }); await Promise.all([ ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, projectId: pid }) })), ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', { method: 'POST', body: JSON.stringify({ contractId: newContract.id, resourceId: mid }) })) ]); await fetchData(); } finally { setActionLoading('addContract', false); } };
-    const updateContract = async (contract: Contract, projectIds: string[], managerIds: string[]) => { setActionLoading(`updateContract-${contract.id}`, true); try { await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, { method: 'PUT', body: JSON.stringify(contract) }); await fetchData(); } finally { setActionLoading(`updateContract-${contract.id}`, false); } };
-    const deleteContract = async (id: string) => { setActionLoading(`deleteContract-${id}`, true); try { await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' }); setContracts(prev => prev.filter(c => c.id !== id)); } finally { setActionLoading(`deleteContract-${id}`, false); } };
-    const recalculateContractBacklog = async (id: string) => { setActionLoading(`recalculateBacklog-${id}`, true); try { const contract = contracts.find(c => c.id === id); if (!contract) return; const linkedProjects = contractProjects.filter(cp => cp.contractId === id).map(cp => cp.projectId); const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0); const newBacklog = Number(contract.capienza) - usedBudget; await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, []); } finally { setActionLoading(`recalculateBacklog-${id}`, false); } };
-    const addSkill = async (skill: Omit<Skill, 'id'>) => { setActionLoading('addSkill', true); try { const newSkill = await apiFetch<Skill>('/api/resources?entity=skills', { method: 'POST', body: JSON.stringify(skill) }); setSkills(prev => [...prev, newSkill]); await fetchData(); } finally { setActionLoading('addSkill', false); } };
-    const updateSkill = async (skill: Skill) => { setActionLoading(`updateSkill-${skill.id}`, true); try { const updated = await apiFetch<Skill>(`/api/resources?entity=skills&id=${skill.id}`, { method: 'PUT', body: JSON.stringify(skill) }); await fetchData(); } finally { setActionLoading(`updateSkill-${skill.id}`, false); } };
-    const deleteSkill = async (id: string) => { setActionLoading(`deleteSkill-${id}`, true); try { await apiFetch(`/api/resources?entity=skills&id=${id}`, { method: 'DELETE' }); setSkills(prev => prev.filter(s => s.id !== id)); } finally { setActionLoading(`deleteSkill-${id}`, false); } };
+    
     const addResourceSkill = async (rs: ResourceSkill) => { setActionLoading(`addResourceSkill-${rs.resourceId}`, true); try { const savedSkill = await apiFetch<ResourceSkill>('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) }); setResourceSkills(prev => [...prev.filter(i => !(i.resourceId === rs.resourceId && i.skillId === rs.skillId)), savedSkill]); } finally { setActionLoading(`addResourceSkill-${rs.resourceId}`, false); } };
     const deleteResourceSkill = async (resourceId: string, skillId: string) => { try { await apiFetch(`/api/resources?entity=resource_skills&resourceId=${resourceId}&skillId=${skillId}`, { method: 'DELETE' }); setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId))); } catch (e) {} };
     const addProjectSkill = async (ps: ProjectSkill) => { try { const savedPs = await apiFetch<ProjectSkill>('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) }); setProjectSkills(prev => [...prev, savedPs]); } catch (e) {} };

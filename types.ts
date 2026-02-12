@@ -77,24 +77,24 @@ export interface BillingMilestone {
 }
 
 export interface Resource {
-    id?: string;
+    id: string;
     name: string;
     email: string;
     roleId: string;
-    function: string; // Ridenominato da horizontal
-    industry: string; // Nuova entità
+    function: string; // Allineato a RENAME COLUMN horizontal in schema.ts
+    industry: string; // Allineato a ADD COLUMN industry in schema.ts
     location: string;
-    hireDate: string; 
+    hireDate: string;
     workSeniority: number;
+    notes?: string;
     maxStaffingPercentage: number;
     resigned: boolean;
     lastDayOfWork: string | null;
     tutorId?: string | null;
     dailyCost?: number;
-    notes?: string;
-    version?: number;
     isTalent?: boolean;
     seniorityCode?: string;
+    version?: number;
 }
 
 export interface Project {
