@@ -1,3 +1,4 @@
+
 /**
  * @file DashboardPage.tsx
  * @description Pagina della dashboard che visualizza varie metriche e analisi aggregate sui dati di staffing.
@@ -5,7 +6,7 @@
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { getWorkingDaysBetween, isHoliday, formatDate } from '../utils/dateUtils';
+import { getWorkingDaysBetween, isHoliday, formatDate, formatDateFull } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
@@ -17,11 +18,11 @@ import {
 } from '../config/dashboardLayout';
 import GraphDataView from '../components/GraphDataView';
 import { select } from 'd3-selection';
-import { scaleTime, scaleLinear } from 'd3-scale';
+import { scaleTime, scaleLinear, scaleBand, scaleOrdinal } from 'd3-scale';
 import { extent, max } from 'd3-array';
 import { axisBottom, axisLeft } from 'd3-axis';
 import { timeFormat } from 'd3-time-format';
-import { line } from 'd3-shape';
+import { line, stack } from 'd3-shape';
 import { format } from 'd3-format';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -51,7 +52,10 @@ const DASHBOARD_COLORS = {
   chart: {
     primary: '#006493',
     secondary: '#50606e',
+    tertiary: '#64597b',
     threshold: '#ba1a1a',
+    fixed: '#e67c73', // Light red for fixed price
+    tm: '#5b9bd5',    // Light blue for T&M
   },
 };
 
@@ -140,14 +144,28 @@ const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
     </div>
 );
 
+const NoWbsLeakageCard: React.FC<{ leakageAmount: number, navigate: (path: string) => void }> = ({ leakageAmount, navigate }) => (
+    <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-error cursor-pointer hover:opacity-90`} onClick={() => navigate('/wbs-analysis')}>
+         <div className="flex justify-between items-start w-full">
+            <div>
+                <h3 className={`text-sm font-medium ${DASHBOARD_COLORS.attention.text}`}>Leakage "No WBS" (Mese Corrente)</h3>
+                <div className="mt-1 flex items-baseline gap-2">
+                    <p className={`text-3xl ${DASHBOARD_COLORS.attention.strongText}`}>{formatCurrency(leakageAmount)}</p>
+                </div>
+            </div>
+            <span className={`material-symbols-outlined ${DASHBOARD_COLORS.attention.icon}`}>money_off</span>
+        </div>
+         <div className="mt-auto pt-2 text-xs text-on-yellow-container/80">
+            Costo stimato allocazioni su progetti senza contratto/WBS.
+        </div>
+    </div>
+);
+
 const LeavesOverviewCard: React.FC<{ navigate: (path: string) => void }> = ({ navigate }) => {
     const { leaveRequests, resources, leaveTypes } = useEntitiesContext();
     const { isAdmin } = useAuth();
     
     const today = new Date().toISOString().split('T')[0];
-    const nextWeek = new Date();
-    nextWeek.setUTCDate(nextWeek.getUTCDate() + 7);
-    const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
     const absentToday = useMemo(() => {
         return leaveRequests.filter(l => 
@@ -892,13 +910,345 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
     );
 };
 
+const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> = ({ data, isLoading }) => {
+    const { matrix, functions, industries } = data;
+    
+    // Sort logic handled in parent or here
+    const sortedFunctions = useMemo(() => [...functions].sort((a: string, b: string) => a.localeCompare(b)), [functions]);
+    const sortedIndustries = useMemo(() => [...industries].sort((a: string, b: string) => a.localeCompare(b)), [industries]);
+
+    // Color scale helper for heatmap
+    const getHeatmapColor = (value: number, maxVal: number) => {
+        if (value === 0) return 'bg-transparent';
+        const intensity = Math.ceil((value / maxVal) * 100);
+        // Using opacity based approach for simpler Tailwind
+        return `bg-primary/${Math.max(10, Math.min(100, intensity))} text-on-primary-container`;
+    };
+
+    const maxVal = useMemo(() => {
+        let m = 0;
+        Object.values(matrix).forEach((row: any) => {
+             Object.values(row).forEach((val: any) => {
+                 if(typeof val === 'number' && val > m) m = val;
+             });
+        });
+        return m > 0 ? m : 1;
+    }, [matrix]);
+
+    const exportData = useMemo(() => {
+        const rows: any[] = [];
+        sortedFunctions.forEach((func: string) => {
+            const row: any = { Function: func };
+            sortedIndustries.forEach((ind: string) => {
+                row[ind] = (matrix[func]?.[ind] || 0).toFixed(1);
+            });
+            rows.push(row);
+        });
+        return rows;
+    }, [matrix, sortedFunctions, sortedIndustries]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Matrice Allocazione (FTE)</h2>
+                <ExportButton data={exportData} title="Matrice Allocazione" />
+            </div>
+            <div className="flex-grow overflow-auto relative max-h-[500px]">
+                <table className="w-full text-sm border-collapse">
+                    <thead className="bg-surface-container-low sticky top-0 z-10">
+                        <tr>
+                            <th className="p-2 border-b border-r border-outline-variant bg-surface-container-low sticky left-0 z-20">Function \ Industry</th>
+                            {sortedIndustries.map((ind: string) => (
+                                <th key={ind} className="p-2 border-b border-outline-variant text-center font-semibold text-xs min-w-[100px]">{ind}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sortedFunctions.map((func: string) => (
+                            <tr key={func} className="hover:bg-surface-container-low">
+                                <td className="p-2 border-r border-outline-variant font-medium sticky left-0 bg-surface z-10">{func}</td>
+                                {sortedIndustries.map((ind: string) => {
+                                    const val = matrix[func]?.[ind] || 0;
+                                    return (
+                                        <td key={`${func}-${ind}`} className={`p-2 text-center border-b border-outline-variant ${getHeatmapColor(val, maxVal)}`}>
+                                            {val > 0 ? val.toFixed(1) : '-'}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {sortedFunctions.length === 0 && <div className="text-center p-4 text-on-surface-variant">Nessun dato disponibile.</div>}
+            </div>
+        </div>
+    );
+};
+
+const RevenueByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+    // Top 5 filtering
+    const top5 = useMemo(() => [...data].sort((a,b) => b.value - a.value).slice(0, 5), [data]);
+
+    const exportData = useMemo(() => data.map(d => ({ Industry: d.name, Revenue: formatCurrency(d.value) })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Top 5 Revenue per Industry</h2>
+                <ExportButton data={exportData} title="Revenue per Industry" />
+            </div>
+            <div className="flex-grow h-[300px]">
+                <GraphDataView 
+                    data={top5} 
+                    type="bar" 
+                    config={{ xKey: 'name', yKey: 'value' }} 
+                />
+            </div>
+        </div>
+    );
+};
+
+const BenchByFunctionCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+     const exportData = useMemo(() => data.map(d => ({ Function: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Bench % per Function</h2>
+                <ExportButton data={exportData} title="Bench per Function" />
+            </div>
+            <div className="flex-grow h-[300px]">
+                <GraphDataView 
+                    data={data} 
+                    type="bar" 
+                    config={{ xKey: 'name', yKey: 'value' }} 
+                />
+            </div>
+        </div>
+    );
+};
+
+const BenchByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+    const exportData = useMemo(() => data.map(d => ({ Industry: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Bench % per Industry</h2>
+                <ExportButton data={exportData} title="Bench per Industry" />
+            </div>
+            <div className="flex-grow h-[300px]">
+                <GraphDataView 
+                    data={data} 
+                    type="bar" 
+                    config={{ xKey: 'name', yKey: 'value' }} 
+                />
+            </div>
+        </div>
+    );
+};
+
+const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+    const exportData = useMemo(() => data.map(d => ({ 
+        Contratto: d.name, 
+        Capienza: formatCurrency(d.capienza), 
+        Consumato: formatCurrency(d.consumed), 
+        'Saturazione %': d.saturation.toFixed(1) + '%' 
+    })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Saturazione WBS (Top Rischi)</h2>
+                <ExportButton data={exportData} title="Saturazione WBS" />
+            </div>
+            <div className="flex-grow h-[300px]">
+                 {data.length === 0 ? (
+                     <div className="flex items-center justify-center h-full text-on-surface-variant">Nessun contratto a rischio.</div>
+                 ) : (
+                    <GraphDataView 
+                        data={data} 
+                        type="bar" 
+                        config={{ xKey: 'name', yKey: 'consumed' }} 
+                    />
+                 )}
+            </div>
+            <div className="text-xs text-on-surface-variant mt-2 text-center">
+                Visualizza i contratti con saturazione > 80%
+            </div>
+        </div>
+    );
+};
+
+const ContractExpirationsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+     const columns: ColumnDef<any>[] = [
+        { header: "Scadenza", sortKey: "endDate", cell: (d) => formatDate(d.endDate, 'short') },
+        { header: "Contratto", sortKey: "name", cell: (d) => <span title={d.name} className="truncate block max-w-[150px]">{d.name}</span> },
+        { header: "Backlog", sortKey: "backlog", cell: (d) => formatCurrency(d.backlog) },
+    ];
+    
+    const exportData = useMemo(() => data.map(d => ({ 
+        Scadenza: formatDateFull(d.endDate), 
+        Contratto: d.name, 
+        Backlog: formatCurrency(d.backlog) 
+    })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-tertiary h-full">
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Scadenzario Contratti (90gg)</h2>
+                <ExportButton data={exportData} title="Scadenzario Contratti" />
+            </div>
+            <div className="flex-grow h-[300px] overflow-auto">
+                 <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="endDate"
+                />
+            </div>
+        </div>
+    );
+};
+
+// --- NEW CARDS IMPLEMENTATION ---
+
+const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+    const svgRef = useRef<SVGSVGElement>(null);
+
+    const exportData = useMemo(() => data.map(d => ({ 
+        Mese: d.month, 
+        'Time & Material': formatCurrency(d.tm), 
+        'Fixed Price': formatCurrency(d.fixed) 
+    })), [data]);
+
+    useEffect(() => {
+        if (!svgRef.current || data.length === 0) return;
+        const svg = select(svgRef.current);
+        svg.selectAll("*").remove();
+
+        const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+        const width = svgRef.current.clientWidth - margin.left - margin.right;
+        const height = svgRef.current.clientHeight - margin.top - margin.bottom;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        // Define stack
+        const stackGen = stack().keys(['tm', 'fixed']);
+        const stackedData = stackGen(data as any);
+
+        const x = scaleBand()
+            .domain(data.map(d => d.month))
+            .range([0, width])
+            .padding(0.3);
+
+        const yMax = max(stackedData, (layer) => max(layer, (d) => d[1])) || 0;
+        const y = scaleLinear().domain([0, yMax * 1.1]).range([height, 0]);
+
+        const color = scaleOrdinal().domain(['tm', 'fixed']).range([DASHBOARD_COLORS.chart.tm, DASHBOARD_COLORS.chart.fixed]);
+
+        g.selectAll("g")
+            .data(stackedData)
+            .join("g")
+            .attr("fill", (d: any) => color(d.key) as string)
+            .selectAll("rect")
+            .data(d => d)
+            .join("rect")
+            .attr("x", (d: any) => x(d.data.month)!)
+            .attr("y", d => y(d[1]))
+            .attr("height", d => y(d[0]) - y(d[1]))
+            .attr("width", x.bandwidth())
+            .append("title")
+            .text((d: any) => formatCurrency(d[1] - d[0]));
+
+        g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x).tickFormat((d: string) => d.split('-')[1]));
+        g.append("g").call(axisLeft(y).ticks(5).tickFormat(d => `${Number(d)/1000}k`));
+
+        // Legend
+        const legend = svg.append("g").attr("transform", `translate(${width - 100}, 0)`);
+        legend.append("rect").attr("width", 10).attr("height", 10).attr("fill", DASHBOARD_COLORS.chart.tm);
+        legend.append("text").attr("x", 15).attr("y", 10).text("T&M").style("font-size", "10px").attr("fill", "currentColor");
+        legend.append("rect").attr("width", 10).attr("height", 10).attr("y", 15).attr("fill", DASHBOARD_COLORS.chart.fixed);
+        legend.append("text").attr("x", 15).attr("y", 25).text("Fixed").style("font-size", "10px").attr("fill", "currentColor");
+
+    }, [data, isLoading]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary h-full">
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Revenue Mix (T&M vs Fixed)</h2>
+                <ExportButton data={exportData} title="Revenue Mix" />
+            </div>
+            <div className="flex-grow h-[300px]">
+                 {data.length === 0 ? <div className="text-center p-4 text-on-surface-variant">Nessun dato.</div> : <svg ref={svgRef} className="w-full h-full" />}
+            </div>
+        </div>
+    );
+};
+
+const BillingPipelineCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+    const exportData = useMemo(() => data.map(d => ({ 
+        Mese: d.month, 
+        'Fatturato Previsto': formatCurrency(d.amount) 
+    })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary h-full">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Pipeline Fatturazione (PLANNED)</h2>
+                <ExportButton data={exportData} title="Pipeline Fatturazione" />
+            </div>
+            <div className="flex-grow h-[300px]">
+                <GraphDataView 
+                    data={data} 
+                    type="bar" 
+                    config={{ xKey: 'month', yKey: 'amount' }} 
+                />
+            </div>
+        </div>
+    );
+};
+
+const TopMarginProjectsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+     const columns: ColumnDef<any>[] = [
+        { header: "Progetto", sortKey: "name", cell: (d) => <span className="font-semibold">{d.name}</span> },
+        { header: "Ricavi", sortKey: "revenue", cell: (d) => formatCurrency(d.revenue) },
+        { header: "Margine", sortKey: "margin", cell: (d) => <span className={d.margin < 0 ? 'text-error' : 'text-tertiary'}>{formatCurrency(d.margin)}</span> },
+        { header: "Margine %", sortKey: "marginPct", cell: (d) => <span className={`px-2 py-0.5 rounded text-xs font-bold ${d.marginPct < 0 ? 'bg-error-container text-on-error-container' : 'bg-tertiary-container text-on-tertiary-container'}`}>{d.marginPct.toFixed(1)}%</span> },
+    ];
+    
+    const exportData = useMemo(() => data.map(d => ({ 
+        Progetto: d.name, 
+        Ricavi: formatCurrency(d.revenue), 
+        Margine: formatCurrency(d.margin),
+        'Margine %': d.marginPct.toFixed(1) + '%'
+    })), [data]);
+
+    return (
+        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-tertiary h-full">
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Top Progetti per Margine (Mese Corrente)</h2>
+                <ExportButton data={exportData} title="Top Margine Progetti" />
+            </div>
+            <div className="flex-grow h-[300px] overflow-auto">
+                 <DashboardDataTable
+                    columns={columns}
+                    data={data}
+                    isLoading={isLoading}
+                    initialSortKey="margin"
+                />
+            </div>
+        </div>
+    );
+};
+
 
 /**
  * Componente principale della pagina Dashboard.
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, functions, industries, locations, companyCalendar, loading, getRoleCost, dashboardLayout } = useEntitiesContext();
+    const { resources, roles, projects, clients, assignments, functions, industries, locations, companyCalendar, loading, getRoleCost, getSellRate, contracts, rateCards, dashboardLayout, billingMilestones, projectExpenses } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 
@@ -1419,6 +1769,355 @@ const DashboardPage: React.FC = () => {
 
     }, [activeResources, assignments, allocations, roles, projects, companyCalendar, getRoleCost]);
 
+    // --- New Data Logic ---
+    const allocationMatrixData = useMemo(() => {
+        const matrix: Record<string, Record<string, number>> = {}; // Func -> Industry -> FTE
+        const now = new Date();
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+        const workingDaysInMonth = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, null); // Approx without location
+
+        // Init matrix
+        functions.forEach(f => {
+            matrix[f.value] = {};
+            industries.forEach(i => matrix[f.value][i.value] = 0);
+        });
+
+        assignments.forEach(assignment => {
+            const resource = resources.find(r => r.id === assignment.resourceId);
+            if (!resource || !resource.function || !resource.industry) return;
+
+            const assignmentAllocations = allocations[assignment.id!];
+            if (assignmentAllocations) {
+                let totalPersonDays = 0;
+                for (const dateStr in assignmentAllocations) {
+                    const allocDate = parseISODate(dateStr);
+                    if (allocDate >= firstDay && allocDate <= lastDay) {
+                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
+                            totalPersonDays += (assignmentAllocations[dateStr] / 100);
+                        }
+                    }
+                }
+                // Accumulate FTE
+                if (workingDaysInMonth > 0) {
+                     // Ensure keys exist (handling data dirtiness)
+                    if (!matrix[resource.function]) matrix[resource.function] = {};
+                    if (matrix[resource.function][resource.industry] === undefined) matrix[resource.function][resource.industry] = 0;
+                    
+                    matrix[resource.function][resource.industry] += (totalPersonDays / workingDaysInMonth);
+                }
+            }
+        });
+        
+        return { 
+            matrix, 
+            functions: functions.map(f => f.value), 
+            industries: industries.map(i => i.value) 
+        };
+    }, [assignments, resources, allocations, functions, industries, companyCalendar]);
+
+    const revenueByIndustryData = useMemo(() => {
+        const revenueMap: Record<string, number> = {};
+        const now = new Date();
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+
+        assignments.forEach(assignment => {
+            const project = projects.find(p => p.id === assignment.projectId);
+            const client = clients.find(c => c.id === project?.clientId);
+            if (!client || !client.sector) return; // Use Client Sector as Industry proxy
+
+            const resource = resources.find(r => r.id === assignment.resourceId);
+            if (!resource) return;
+
+            const contract = contracts.find(c => c.id === project?.contractId);
+            const rateCardId = contract?.rateCardId;
+
+            const assignmentAllocations = allocations[assignment.id!];
+            if (assignmentAllocations) {
+                 for (const dateStr in assignmentAllocations) {
+                    const allocDate = parseISODate(dateStr);
+                    if (allocDate >= firstDay && allocDate <= lastDay) {
+                        if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
+                             const fraction = assignmentAllocations[dateStr] / 100;
+                             const sellRate = getSellRate(rateCardId, resource.id!);
+                             const revenue = fraction * sellRate;
+                             
+                             revenueMap[client.sector] = (revenueMap[client.sector] || 0) + revenue;
+                        }
+                    }
+                }
+            }
+        });
+
+        return Object.entries(revenueMap).map(([name, value]) => ({ name, value }));
+    }, [assignments, projects, clients, resources, contracts, allocations, companyCalendar, getSellRate]);
+    
+    const benchData = useMemo(() => {
+        const now = new Date();
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+
+        const funcStats: Record<string, { capacity: number, allocated: number }> = {};
+        const indStats: Record<string, { capacity: number, allocated: number }> = {};
+        
+        functions.forEach(f => funcStats[f.value] = { capacity: 0, allocated: 0 });
+        industries.forEach(i => indStats[i.value] = { capacity: 0, allocated: 0 });
+
+        activeResources.forEach(resource => {
+             const workingDays = getWorkingDaysBetween(firstDay, lastDay, companyCalendar, resource.location);
+             const capacity = workingDays * (resource.maxStaffingPercentage / 100);
+
+             if (resource.function) {
+                 if (!funcStats[resource.function]) funcStats[resource.function] = { capacity: 0, allocated: 0 };
+                 funcStats[resource.function].capacity += capacity;
+             }
+             if (resource.industry) {
+                 if (!indStats[resource.industry]) indStats[resource.industry] = { capacity: 0, allocated: 0 };
+                 indStats[resource.industry].capacity += capacity;
+             }
+
+             const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
+             let allocated = 0;
+             resourceAssignments.forEach(a => {
+                  const assignmentAllocations = allocations[a.id!];
+                  if (assignmentAllocations) {
+                        for (const dateStr in assignmentAllocations) {
+                            const allocDate = parseISODate(dateStr);
+                            if (allocDate >= firstDay && allocDate <= lastDay) {
+                                if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
+                                     allocated += (assignmentAllocations[dateStr] / 100);
+                                }
+                            }
+                        }
+                  }
+             });
+
+             if (resource.function) funcStats[resource.function].allocated += allocated;
+             if (resource.industry) indStats[resource.industry].allocated += allocated;
+        });
+        
+        const byFunction = Object.entries(funcStats)
+            .map(([name, stats]) => ({
+                name,
+                value: stats.capacity > 0 ? ((stats.capacity - stats.allocated) / stats.capacity) * 100 : 0
+            }))
+            .filter(d => d.value > 0); // Only show relevant bench
+
+        const byIndustry = Object.entries(indStats)
+             .map(([name, stats]) => ({
+                name,
+                value: stats.capacity > 0 ? ((stats.capacity - stats.allocated) / stats.capacity) * 100 : 0
+            }))
+            .filter(d => d.value > 0);
+
+        return { byFunction, byIndustry };
+
+    }, [activeResources, assignments, allocations, companyCalendar, functions, industries]);
+
+
+    // --- New WBS Calculations ---
+    const wbsSaturationData = useMemo(() => {
+        return contracts
+            .map(c => {
+                const consumed = Number(c.capienza) - (Number(c.backlog) || 0);
+                const saturation = c.capienza > 0 ? (consumed / c.capienza) * 100 : 0;
+                return { ...c, consumed, saturation };
+            })
+            .filter(c => c.saturation > 80)
+            .sort((a, b) => b.saturation - a.saturation)
+            .slice(0, 5);
+    }, [contracts]);
+
+    const noWbsLeakageAmount = useMemo(() => {
+        let leakage = 0;
+        const now = new Date();
+        const firstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+        const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+
+        assignments.forEach(assignment => {
+            const project = projects.find(p => p.id === assignment.projectId);
+            const contract = contracts.find(c => c.id === project?.contractId);
+            
+            // Check leak condition: No Contract OR No WBS on Contract
+            if (!project?.contractId || (contract && !contract.wbs)) {
+                const resource = resources.find(r => r.id === assignment.resourceId);
+                if (!resource) return;
+
+                const assignmentAllocations = allocations[assignment.id!];
+                if (assignmentAllocations) {
+                     for (const dateStr in assignmentAllocations) {
+                        const allocDate = parseISODate(dateStr);
+                        if (allocDate >= firstDay && allocDate <= lastDay) {
+                             if (!isHoliday(allocDate, resource.location, companyCalendar) && allocDate.getUTCDay() !== 0 && allocDate.getUTCDay() !== 6) {
+                                 const fraction = assignmentAllocations[dateStr] / 100;
+                                 // Using COST as metric for "money spent" without cover
+                                 const dailyRate = getRoleCost(resource.roleId, allocDate);
+                                 leakage += fraction * dailyRate;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        return leakage;
+    }, [assignments, projects, contracts, resources, allocations, companyCalendar, getRoleCost]);
+
+    const contractExpirationsData = useMemo(() => {
+        const today = new Date();
+        const future90 = new Date(); 
+        future90.setDate(today.getDate() + 90);
+        
+        return contracts.filter(c => {
+            if (!c.endDate) return false;
+            const d = parseISODate(c.endDate);
+            return d >= today && d <= future90;
+        }).sort((a, b) => {
+            const da = a.endDate ? parseISODate(a.endDate).getTime() : 0;
+            const db = b.endDate ? parseISODate(b.endDate).getTime() : 0;
+            return da - db;
+        });
+    }, [contracts]);
+
+    // --- REVENUE MIX & PIPELINE & TOP MARGIN DATA ---
+    const { revenueMixData, billingPipelineData, topMarginProjectsData } = useMemo(() => {
+        const today = new Date();
+        const currentYear = today.getUTCFullYear();
+        const currentMonthIdx = today.getUTCMonth(); // 0-11
+        const startOfYear = new Date(Date.UTC(currentYear, 0, 1));
+        const endOfYear = new Date(Date.UTC(currentYear, 11, 31));
+        
+        // Init Revenue Mix Data for current year
+        const mixData: { month: string, tm: number, fixed: number }[] = [];
+        for (let m = 0; m < 12; m++) {
+            mixData.push({ 
+                month: `${currentYear}-${String(m + 1).padStart(2, '0')}`,
+                tm: 0,
+                fixed: 0
+            });
+        }
+        
+        // Init Pipeline (Next 6 months)
+        const pipelineData: { month: string, amount: number }[] = [];
+        for (let m = 0; m < 6; m++) {
+            const d = new Date(Date.UTC(currentYear, currentMonthIdx + m, 1));
+            pipelineData.push({
+                month: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+                amount: 0
+            });
+        }
+
+        // Project Margin Calc (Current Month)
+        const projectMargins: Record<string, { revenue: number, cost: number, name: string }> = {};
+        const cmStart = new Date(Date.UTC(currentYear, currentMonthIdx, 1));
+        const cmEnd = new Date(Date.UTC(currentYear, currentMonthIdx + 1, 0));
+        
+        // 1. Process Assignments (T&M Revenue & Labor Cost)
+        assignments.forEach(assign => {
+            const project = projects.find(p => p.id === assign.projectId);
+            const resource = resources.find(r => r.id === assign.resourceId);
+            if (!project || !resource) return;
+
+            const contract = contracts.find(c => c.id === project.contractId);
+            const rateCardId = contract?.rateCardId;
+            const assignAlloc = allocations[assign.id!];
+
+            if (assignAlloc) {
+                for (const dateStr in assignAlloc) {
+                    const d = parseISODate(dateStr);
+                    // Filter within current year for Mix
+                    if (d < startOfYear || d > endOfYear) continue;
+                    
+                    const pct = assignAlloc[dateStr] / 100;
+                    if (pct <= 0) continue;
+                    if (isHoliday(d, resource.location, companyCalendar) || d.getUTCDay() === 0 || d.getUTCDay() === 6) continue;
+
+                    const monthKey = dateStr.substring(0, 7);
+                    
+                    // REVENUE MIX: T&M
+                    if (project.billingType === 'TIME_MATERIAL' || !project.billingType) {
+                        const sellRate = getSellRate(rateCardId, resource.id!);
+                        const revenue = pct * sellRate;
+                        const mixEntry = mixData.find(m => m.month === monthKey);
+                        if (mixEntry) mixEntry.tm += revenue;
+                        
+                         // TOP MARGIN (Current Month Only)
+                        if (d >= cmStart && d <= cmEnd) {
+                             if (!projectMargins[project.id!]) projectMargins[project.id!] = { revenue: 0, cost: 0, name: project.name };
+                             projectMargins[project.id!].revenue += revenue;
+                        }
+                    }
+
+                    // TOP MARGIN: Cost (Current Month Only)
+                    if (d >= cmStart && d <= cmEnd) {
+                         if (!projectMargins[project.id!]) projectMargins[project.id!] = { revenue: 0, cost: 0, name: project.name };
+                         const dailyCost = getRoleCost(resource.roleId, d);
+                         // Cost is recognized regardless of billing type
+                         projectMargins[project.id!].cost += (pct * dailyCost);
+                    }
+                }
+            }
+        });
+
+        // 2. Process Milestones (Fixed Revenue & Pipeline)
+        billingMilestones.forEach(bm => {
+            const dateStr = bm.date; // YYYY-MM-DD
+            const amount = Number(bm.amount);
+            const monthKey = dateStr.substring(0, 7);
+            const project = projects.find(p => p.id === bm.projectId);
+            
+            // REVENUE MIX: Fixed Price (Historical & Future within year)
+            if (dateStr >= startOfYear.toISOString() && dateStr <= endOfYear.toISOString()) {
+                if (project?.billingType === 'FIXED_PRICE') {
+                    const mixEntry = mixData.find(m => m.month === monthKey);
+                    if (mixEntry) mixEntry.fixed += amount;
+                    
+                     // TOP MARGIN (Current Month Only) - Recognized Revenue
+                     if (dateStr >= cmStart.toISOString() && dateStr <= cmEnd.toISOString()) {
+                        if (!projectMargins[project.id!]) projectMargins[project.id!] = { revenue: 0, cost: 0, name: project.name };
+                        projectMargins[project.id!].revenue += amount;
+                     }
+                }
+            }
+
+            // BILLING PIPELINE: Planned Milestones >= Today
+            if (bm.status === 'PLANNED' && dateStr >= today.toISOString().split('T')[0]) {
+                 const pipeEntry = pipelineData.find(p => p.month === monthKey);
+                 if (pipeEntry) pipeEntry.amount += amount;
+            }
+        });
+        
+        // 3. Process Expenses (Top Margin Cost)
+        projectExpenses.forEach(exp => {
+             const dateStr = exp.date;
+             if (dateStr >= cmStart.toISOString() && dateStr <= cmEnd.toISOString()) {
+                 const project = projects.find(p => p.id === exp.projectId);
+                 if (project) {
+                    if (!projectMargins[project.id!]) projectMargins[project.id!] = { revenue: 0, cost: 0, name: project.name };
+                    projectMargins[project.id!].cost += Number(exp.amount);
+                 }
+             }
+        });
+
+        const topMarginList = Object.values(projectMargins)
+            .map(p => ({
+                name: p.name,
+                revenue: p.revenue,
+                cost: p.cost,
+                margin: p.revenue - p.cost,
+                marginPct: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0
+            }))
+            .sort((a,b) => b.margin - a.margin)
+            .slice(0, 10);
+
+        return {
+            revenueMixData: mixData,
+            billingPipelineData: pipelineData,
+            topMarginProjectsData: topMarginList
+        };
+    }, [assignments, allocations, billingMilestones, projects, resources, contracts, rateCards, getRoleCost, getSellRate, companyCalendar, projectExpenses]);
+
+
     // Totals
     const avgAllocationTotals = useMemo(() => {
         const totalCurrent = averageAllocationData.reduce((sum, d) => sum + d.currentMonth, 0);
@@ -1490,6 +2189,16 @@ const DashboardPage: React.FC = () => {
             case 'locationAnalysis': return <LocationAnalysisCard key={cardId} data={analysisByLocationData} isLoading={loading} />;
             case 'saturationTrend': return <SaturationTrendCard key={cardId} trendResource={trendResource} setTrendResource={setTrendResource} resourceOptions={activeResources.map(r => ({ value: r.id!, label: r.name }))} data={saturationTrendData} />;
             case 'costForecast': return <CostForecastCard key={cardId} data={monthlyCostForecastData} />;
+            case 'allocationMatrix': return <AllocationMatrixCard key={cardId} data={allocationMatrixData} isLoading={loading} />;
+            case 'revenueByIndustry': return <RevenueByIndustryCard key={cardId} data={revenueByIndustryData} isLoading={loading} />;
+            case 'benchByFunction': return <BenchByFunctionCard key={cardId} data={benchData.byFunction} isLoading={loading} />;
+            case 'benchByIndustry': return <BenchByIndustryCard key={cardId} data={benchData.byIndustry} isLoading={loading} />;
+            case 'wbsSaturation': return <WbsSaturationCard key={cardId} data={wbsSaturationData} isLoading={loading} />;
+            case 'noWbsLeakage': return <NoWbsLeakageCard key={cardId} leakageAmount={noWbsLeakageAmount} navigate={navigate} />;
+            case 'contractExpirations': return <ContractExpirationsCard key={cardId} data={contractExpirationsData} isLoading={loading} />;
+            case 'revenueMix': return <RevenueMixCard key={cardId} data={revenueMixData} isLoading={loading} />;
+            case 'billingPipeline': return <BillingPipelineCard key={cardId} data={billingPipelineData} isLoading={loading} />;
+            case 'topMarginProjects': return <TopMarginProjectsCard key={cardId} data={topMarginProjectsData} isLoading={loading} />;
             default: return null;
         }
     };
@@ -1522,10 +2231,14 @@ const DashboardPage: React.FC = () => {
             {/* Content */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
                 {activeCategory?.cards.map(cardId => {
+                    // Check if card is full-width by config
+                    const config = DASHBOARD_CARDS_CONFIG.find(c => c.id === cardId);
+                    const isFullWidth = config?.group === 'full-width';
+                    
                     return (
-                        <React.Fragment key={cardId}>
+                        <div key={cardId} className={isFullWidth ? "col-span-1 lg:col-span-2" : ""}>
                             {renderCard(cardId)}
-                        </React.Fragment>
+                        </div>
                     );
                 })}
             </div>

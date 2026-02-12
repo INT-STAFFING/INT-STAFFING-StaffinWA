@@ -332,7 +332,7 @@ export const routesManifest: AppRoute[] = [
         showInSidebar: true,
         requiredRole: 'ADMIN',
         featureFlag: 'pageVisibility',
-        component: createLazyPage(() => import('./pages/AdminSettingsPage').then(module => ({ default: module.default || module.AdminSettingsPage }))),
+        component: createLazyPage(() => import('./pages/AdminSettingsPage')),
     },
     {
         path: '/security-center',
