@@ -359,7 +359,7 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
             int['Nome Candidato'] || int.candidateName,
             int['Cognome Candidato'] || int.candidateSurname,
             formatDateForDB(birthDate),
-            int['Horizontal'] || int.horizontal,
+            int['Function'] || int.function || int['Horizontal'] || int.horizontal, // Updated to accept Function
             roleId,
             int['Riassunto CV'] || int.cvSummary,
             interviewerIds,
@@ -372,7 +372,7 @@ const importInterviews = async (client: any, body: any, warnings: string[]) => {
         ]);
     }
 
-    await executeBulkInsert(client, 'interviews', ['id', 'candidate_name', 'candidate_surname', 'birth_date', 'horizontal', 'role_id', 'cv_summary', 'interviewers_ids', 'interview_date', 'feedback', 'notes', 'hiring_status', 'entry_date', 'status'], interviewRows);
+    await executeBulkInsert(client, 'interviews', ['id', 'candidate_name', 'candidate_surname', 'birth_date', 'function', 'role_id', 'cv_summary', 'interviewers_ids', 'interview_date', 'feedback', 'notes', 'hiring_status', 'entry_date', 'status'], interviewRows);
 };
 
 const importSkills = async (client: any, body: any, warnings: string[]) => {

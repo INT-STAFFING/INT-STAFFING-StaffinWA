@@ -203,7 +203,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         candidateName: z.string(),
         candidateSurname: z.string(),
         birthDate: z.string().optional().nullable(),
-        horizontal: z.string().optional().nullable(),
+        function: z.string().optional().nullable(), // renamed from horizontal
         roleId: z.string().optional().nullable(),
         cvSummary: z.string().optional().nullable(),
         interviewersIds: z.array(z.string()).optional().nullable(),

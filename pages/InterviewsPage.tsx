@@ -42,7 +42,7 @@ const buildInterviewPayload = (interview: Interview | Omit<Interview, 'id'>): In
     candidateName: interview.candidateName,
     candidateSurname: interview.candidateSurname,
     birthDate: interview.birthDate || null,
-    horizontal: interview.horizontal || null,
+    function: interview.function || null,
     roleId: interview.roleId || null,
     cvSummary: interview.cvSummary || null,
     interviewersIds: interview.interviewersIds && interview.interviewersIds.length > 0 ? interview.interviewersIds : null,
@@ -157,7 +157,7 @@ const InterviewsPage: React.FC = () => {
         return dataForTable.map(i => ({
             'Candidato': `${i.candidateName} ${i.candidateSurname}`,
             'Ruolo Proposto': i.roleName,
-            'Function': i.horizontal || '-',
+            'Function': i.function || '-',
             'Stato Processo': i.status,
             'Esito Colloquio': i.feedback || '-',
             'Stato Assunzione': i.hiringStatus || '-',
@@ -171,7 +171,7 @@ const InterviewsPage: React.FC = () => {
 
     const openModalForNew = () => {
         setEditingInterview({
-            candidateName: '', candidateSurname: '', birthDate: null, horizontal: functions[0]?.value || '', 
+            candidateName: '', candidateSurname: '', birthDate: null, function: functions[0]?.value || '', 
             roleId: '', cvSummary: '', interviewersIds: [], interviewDate: new Date().toISOString().split('T')[0],
             feedback: null, notes: '', hiringStatus: null, entryDate: null, status: 'Aperto',
             resourceRequestId: null
@@ -201,7 +201,6 @@ const InterviewsPage: React.FC = () => {
         } catch (e) {}
     };
 
-    // FIX: Added missing handleDelete handler
     const handleDelete = async () => {
         if (interviewToDelete) {
             try {
@@ -247,7 +246,7 @@ const InterviewsPage: React.FC = () => {
         { header: 'Ruolo / Function', cell: i => (
             <div className="flex flex-col">
                 <span className="text-sm font-medium">{i.roleName}</span>
-                <span className="text-[10px] text-primary font-bold uppercase">{i.horizontal}</span>
+                <span className="text-[10px] text-primary font-bold uppercase">{i.function}</span>
             </div>
         )},
         { header: 'Rating', sortKey: 'averageRating', cell: i => i.averageRating ? (
@@ -286,7 +285,7 @@ const InterviewsPage: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="font-bold text-on-surface">{i.candidateName} {i.candidateSurname}</h3>
-                        <p className="text-[10px] text-primary font-bold uppercase tracking-widest">{i.horizontal} • {i.roleName}</p>
+                        <p className="text-[10px] text-primary font-bold uppercase tracking-widest">{i.function} • {i.roleName}</p>
                     </div>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black tracking-tighter ${getStatusBadgeClass(i.status)}`}>{i.status}</span>
@@ -421,7 +420,7 @@ const InterviewsPage: React.FC = () => {
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-bold text-on-surface-variant uppercase ml-1 mb-1">Function Target</label>
-                                        <SearchableSelect name="horizontal" value={editingInterview.horizontal || ''} onChange={(_, v) => setEditingInterview({...editingInterview, horizontal: v})} options={functions.map(h => ({ value: h.value, label: h.value }))} placeholder="Scegli Function..." />
+                                        <SearchableSelect name="function" value={editingInterview.function || ''} onChange={(_, v) => setEditingInterview({...editingInterview, function: v})} options={functions.map(h => ({ value: h.value, label: h.value }))} placeholder="Scegli Function..." />
                                     </div>
                                 </div>
                             </div>

@@ -47,6 +47,7 @@ export interface RateCard {
 }
 
 export interface RateCardEntry {
+    id?: string; // Optional ID for frontend keys (composite key in DB)
     rateCardId: string;
     resourceId: string;
     dailyRate: number;
@@ -81,8 +82,8 @@ export interface Resource {
     name: string;
     email: string;
     roleId: string;
-    function: string; // Allineato a RENAME COLUMN horizontal in schema.ts
-    industry: string; // Allineato a ADD COLUMN industry in schema.ts
+    function: string; 
+    industry: string; 
     location: string;
     hireDate: string;
     workSeniority: number;
@@ -214,7 +215,7 @@ export interface Interview {
     candidateName: string;
     candidateSurname: string;
     birthDate: string | null;
-    horizontal: string | null;
+    function: string | null; // Renamed from horizontal
     roleId: string | null;
     cvSummary: string | null;
     interviewersIds: string[] | null;
@@ -464,8 +465,8 @@ export interface EntitiesState {
     contractProjects: ContractProject[];
     contractManagers: ContractManager[];
     assignments: Assignment[];
-    functions: ConfigOption[]; // Ridenominato da horizontals
-    industries: ConfigOption[]; // Nuova entità
+    functions: ConfigOption[]; 
+    industries: ConfigOption[]; 
     seniorityLevels: ConfigOption[];
     projectStatuses: ConfigOption[];
     clientSectors: ConfigOption[];
