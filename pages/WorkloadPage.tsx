@@ -5,12 +5,14 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
-import { Resource, Assignment, LeaveRequest, LeaveType } from '../types';
+import { Resource, Assignment, LeaveRequest, LeaveType, Role } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
-import { ExportButton } from '@/components/shared/ExportButton';
+import ExportButton from '../components/ExportButton';
+// Added missing imports for DataTable and ColumnDef
+import { DataTable, ColumnDef } from '../components/DataTable';
 
 type ViewMode = 'day' | 'week' | 'month';
 type WorkloadFilterStatus = 'ALL' | 'UNDER' | 'OVER' | 'ISSUES';
@@ -22,8 +24,8 @@ interface DailyTotalCellProps {
   resource: Resource;
   date: string;
   isNonWorkingDay: boolean;
-  resourceAssignments: Assignment[]; // Optimized: Passed from parent
-  leaveInfo?: { request: LeaveRequest; type: LeaveType }; // Optimized: Passed from parent
+  resourceAssignments: Assignment[];
+  leaveInfo?: { request: LeaveRequest; type: LeaveType };
 }
 
 const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ resource, date, isNonWorkingDay, resourceAssignments, leaveInfo }) => {
@@ -32,13 +34,11 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ reso
   const activeLeave = leaveInfo?.request;
   const leaveType = leaveInfo?.type;
 
-  // Override working day status if forced by leave or resource end date
   let effectiveIsNonWorking = isNonWorkingDay;
   if (resource.lastDayOfWork && date > resource.lastDayOfWork) {
     effectiveIsNonWorking = true;
   }
 
-  // Render Leave Cell (Full Day)
   if (activeLeave && leaveType && !activeLeave.isHalfDay) {
       return (
         <td 
@@ -59,7 +59,6 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ reso
     );
   }
 
-  // Calculate total only using the pre-filtered assignments
   const total = resourceAssignments.reduce((sum, a) => {
       return sum + (allocations[a.id!]?.[date] || 0);
   }, 0);
@@ -152,16 +151,17 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
 const WorkloadPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
-    const { resources, roles, companyCalendar, assignments, leaveRequests, leaveTypes } = useEntitiesContext();
+    // Destructured loading from useEntitiesContext to fix line 510 error
+    const { resources, roles, companyCalendar, assignments, leaveRequests, leaveTypes, loading } = useEntitiesContext();
     const { allocations } = useAllocationsContext();
     
-    // Updated filters state horizontal -> function
     const [filters, setFilters] = useState({ resourceId: '', roleId: '', function: '' });
     const [statusFilter, setStatusFilter] = useState<WorkloadFilterStatus>('ALL');
     
-    // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
+
+    const rolesById = useMemo(() => new Map<string, Role>(roles.map((r) => [r.id!, r])), [roles]);
 
     const handlePrev = useCallback(() => {
         setCurrentDate(prev => {
@@ -243,19 +243,15 @@ const WorkloadPage: React.FC = () => {
         return cols;
     }, [currentDate, viewMode, companyCalendar]);
 
-    // Calculate Monthly Load helper for Status Filter
-    const calculateMonthlyAvgLoad = useCallback((resource: Resource) => {
-        const firstDay = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
-        const lastDay = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
-        
-        const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < lastDay 
+    const calculateAvgLoadForPeriod = useCallback((resource: Resource, startDate: Date, endDate: Date) => {
+        const effectiveEndDate = resource.lastDayOfWork && new Date(resource.lastDayOfWork) < endDate 
             ? new Date(resource.lastDayOfWork) 
-            : lastDay;
+            : endDate;
         
-        if (firstDay > effectiveEndDate) return 0;
+        if (startDate > effectiveEndDate) return { avg: 0, allocated: 0, available: 0 };
 
-        const workingDays = getWorkingDaysBetween(firstDay, effectiveEndDate, companyCalendar, resource.location);
-        if (workingDays === 0) return 0;
+        const workingDays = getWorkingDaysBetween(startDate, effectiveEndDate, companyCalendar, resource.location);
+        if (workingDays === 0) return { avg: 0, allocated: 0, available: 0 };
 
         const resourceAssignments = assignments.filter(a => a.resourceId === resource.id);
         let totalPersonDays = 0;
@@ -265,7 +261,7 @@ const WorkloadPage: React.FC = () => {
             if (assignmentAllocations) {
                 for (const dateStr in assignmentAllocations) {
                     const allocDate = new Date(dateStr);
-                    if (allocDate >= firstDay && allocDate <= effectiveEndDate) {
+                    if (allocDate >= startDate && allocDate <= effectiveEndDate) {
                         const day = allocDate.getUTCDay();
                         if (!isHoliday(allocDate, resource.location, companyCalendar) && day !== 0 && day !== 6) {
                             totalPersonDays += (assignmentAllocations[dateStr] / 100);
@@ -275,56 +271,58 @@ const WorkloadPage: React.FC = () => {
             }
         });
 
-        return (totalPersonDays / workingDays) * 100;
-    }, [currentDate, assignments, allocations, companyCalendar]);
+        const availableDays = workingDays * (resource.maxStaffingPercentage / 100);
+        return { 
+            avg: (totalPersonDays / workingDays) * 100,
+            allocated: totalPersonDays,
+            available: availableDays
+        };
+    }, [assignments, allocations, companyCalendar]);
 
     const displayData = useMemo(() => {
-        // Explicitly filter out resigned resources (robust check)
         let visibleResources = resources.filter((r) => r.resigned !== true);
         
-        // Apply Manual Filters
         if (filters.resourceId) visibleResources = visibleResources.filter(r => r.id === filters.resourceId);
         if (filters.roleId) visibleResources = visibleResources.filter(r => r.roleId === filters.roleId);
-        // Corrected filter resource.function instead of resource.horizontal
         if (filters.function) visibleResources = visibleResources.filter(r => r.function === filters.function);
         
-        // Apply Status Filter (Calculated on the fly based on CURRENT MONTH)
         if (statusFilter !== 'ALL') {
+            const firstCol = timeColumns[0];
+            const lastCol = timeColumns[timeColumns.length - 1];
+            
             visibleResources = visibleResources.filter(r => {
-                const avgLoad = Math.round(calculateMonthlyAvgLoad(r));
+                const { avg } = calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate);
+                const roundedAvg = Math.round(avg);
                 const max = r.maxStaffingPercentage;
                 
-                if (statusFilter === 'UNDER') return avgLoad < max;
-                if (statusFilter === 'OVER') return avgLoad > max;
-                if (statusFilter === 'ISSUES') return avgLoad !== max;
+                if (statusFilter === 'UNDER') return roundedAvg < max;
+                if (statusFilter === 'OVER') return roundedAvg > max;
+                if (statusFilter === 'ISSUES') return roundedAvg !== max;
                 return true;
             });
         }
 
         return visibleResources.sort((a, b) => a.name.localeCompare(b.name));
-    }, [resources, filters, statusFilter, calculateMonthlyAvgLoad]);
+    }, [resources, filters, statusFilter, timeColumns, calculateAvgLoadForPeriod]);
 
-    // Paginated Data
     const paginatedData = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         return displayData.slice(startIndex, startIndex + itemsPerPage);
     }, [displayData, currentPage, itemsPerPage]);
     
-    // Create export data structure with meaningful names and calculated load
     const exportData = useMemo(() => {
+        const firstCol = timeColumns[0];
+        const lastCol = timeColumns[timeColumns.length - 1];
         return paginatedData.map(r => ({
             Risorsa: r.name,
-            Ruolo: roles.find(role => role.id === r.roleId)?.name || 'N/A',
+            Ruolo: rolesById.get(r.roleId)?.name || 'N/A',
             Sede: r.location,
-            // Corrected usage of resource.function instead of resource.horizontal
             Function: r.function,
-            'Carico Mensile (%)': calculateMonthlyAvgLoad(r).toFixed(0),
+            'Carico Medio (%)': calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg.toFixed(0),
             'Max Staffing %': r.maxStaffingPercentage
         }));
-    }, [paginatedData, roles, calculateMonthlyAvgLoad]);
+    }, [paginatedData, rolesById, timeColumns, calculateAvgLoadForPeriod]);
 
-    // OPTIMIZATION: Pre-calculate Assignments map for the visible resources
-    // This prevents filtering assignments inside every single cell (O(N^2) -> O(N))
     const assignmentsMap = useMemo(() => {
         const map = new Map<string, Assignment[]>();
         const visibleIds = new Set(paginatedData.map(r => r.id));
@@ -340,15 +338,10 @@ const WorkloadPage: React.FC = () => {
         return map;
     }, [paginatedData, assignments]);
 
-    // OPTIMIZATION: Pre-calculate Leaves Lookup Map
-    // Key: resourceId_dateIso
     const leavesLookup = useMemo(() => {
         const map = new Map<string, { request: LeaveRequest; type: LeaveType }>();
-        // Only process approved leaves
         const approvedLeaves = leaveRequests.filter(l => l.status === 'APPROVED');
         
-        // For 'Day' view, we need precise daily lookup. For Aggregated, less critical but useful.
-        // To avoid exploding memory, we only map the visible date range if viewMode is 'day'
         if (viewMode === 'day' && timeColumns.length > 0) {
             const rangeStart = timeColumns[0].startDate;
             const rangeEnd = timeColumns[timeColumns.length - 1].endDate;
@@ -356,38 +349,28 @@ const WorkloadPage: React.FC = () => {
             const rangeEndStr = formatDate(rangeEnd, 'iso');
 
             approvedLeaves.forEach(req => {
-                // Check overlap with visible range
                 if (req.endDate < rangeStartStr || req.startDate > rangeEndStr) return;
-
                 const type = leaveTypes.find(t => t.id === req.typeId);
                 if (!type) return;
 
-                // Iterate days of the leave request
                 let d = new Date(req.startDate);
                 const end = new Date(req.endDate);
                 
-                // Optimization: Clamp start/end to visible range
                 if (d.getTime() < rangeStart.getTime()) d = new Date(rangeStart.getTime());
                 const effectiveEnd = end.getTime() > rangeEnd.getTime() ? rangeEnd : end;
 
                 while (d.getTime() <= effectiveEnd.getTime()) {
                     const dateStr = d.toISOString().split('T')[0];
                     const key = getLeaveKey(req.resourceId, dateStr);
-                    // Last leave wins if duplicates (shouldn't happen in clean data)
                     map.set(key, { request: req, type });
                     d.setUTCDate(d.getUTCDate() + 1);
                 }
             });
         }
-        
         return map;
     }, [leaveRequests, leaveTypes, viewMode, timeColumns]);
 
-    const resourceOptions = useMemo(
-        // Ensure dropdown also filters out resigned resources strictly
-        () => resources.filter(r => r.resigned !== true).map(r => ({ value: r.id!, label: r.name })), 
-        [resources]
-    );
+    const resourceOptions = useMemo(() => resources.filter(r => r.resigned !== true).map(r => ({ value: r.id!, label: r.name })), [resources]);
     const roleOptions = useMemo(() => roles.map(r => ({ value: r.id!, label: r.name })), [roles]);
     
     const handleFilterChange = (name: string, value: string) => {
@@ -395,10 +378,60 @@ const WorkloadPage: React.FC = () => {
         setCurrentPage(1);
     };
 
-    // Handle Status Filter Toggle
     const handleStatusFilter = (status: WorkloadFilterStatus) => {
         setStatusFilter(status);
         setCurrentPage(1);
+    };
+
+    // Corrected columns type to use ColumnDef to fix line 383 error
+    const columns: ColumnDef<Resource>[] = [
+        { header: 'Risorsa', sortKey: 'name', cell: r => <Link to={`/staffing?resourceId=${r.id}`} className="text-primary hover:underline font-medium">{r.name}</Link> },
+    ];
+
+    const renderMobileCard = (resource: Resource) => {
+        const firstCol = timeColumns[0];
+        const lastCol = timeColumns[timeColumns.length - 1];
+        const { avg, allocated, available } = calculateAvgLoadForPeriod(resource, firstCol.startDate, lastCol.endDate);
+        const max = resource.maxStaffingPercentage;
+        
+        let colorClass = 'border-primary';
+        let barColor = 'bg-primary';
+        if (Math.round(avg) > max) { colorClass = 'border-error'; barColor = 'bg-error'; }
+        else if (Math.round(avg) === max) { colorClass = 'border-tertiary'; barColor = 'bg-tertiary'; }
+        else if (avg > 0) { colorClass = 'border-yellow-500'; barColor = 'bg-yellow-500'; }
+
+        return (
+            <div key={resource.id} className={`bg-surface-container-low p-4 rounded-2xl shadow border-l-4 ${colorClass} flex flex-col gap-3 mb-4`}>
+                <div className="flex justify-between items-start">
+                    <div className="flex flex-col min-w-0">
+                        <h3 className="font-bold text-lg text-on-surface truncate">{resource.name}</h3>
+                        <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">{rolesById.get(resource.roleId)?.name || 'N/A'}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                        <span className="text-lg font-black text-on-surface">{avg.toFixed(0)}%</span>
+                        <p className="text-[10px] text-on-surface-variant font-bold uppercase">Utilizzo Medio</p>
+                    </div>
+                </div>
+
+                <div className="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden">
+                    <div 
+                        className={`h-full ${barColor} transition-all duration-500`} 
+                        style={{ width: `${Math.min(avg, 100)}%` }}
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-1 pt-3 border-t border-outline-variant/30 text-sm">
+                    <div>
+                        <p className="text-[10px] uppercase font-bold text-on-surface-variant opacity-70">G/U Allocati</p>
+                        <p className="font-semibold text-on-surface">{allocated.toFixed(1)}</p>
+                    </div>
+                    <div>
+                        <p className="text-[10px] uppercase font-bold text-on-surface-variant opacity-70">G/U Disponibili</p>
+                        <p className="font-semibold text-on-surface">{available.toFixed(1)} <span className="text-[10px] opacity-50">({max}%)</span></p>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -419,33 +452,12 @@ const WorkloadPage: React.FC = () => {
                 </div>
 
                 <div className="p-4 bg-surface rounded-2xl shadow flex flex-col gap-4">
-                    {/* Quick Filters Row */}
                     <div className="flex flex-wrap gap-2 pb-2 border-b border-outline-variant">
-                        <span className="text-sm font-medium text-on-surface-variant self-center mr-2">Filtri Rapidi (Mese Corrente):</span>
-                        <button 
-                            onClick={() => handleStatusFilter('ALL')} 
-                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'ALL' ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
-                        >
-                            Tutte
-                        </button>
-                        <button 
-                            onClick={() => handleStatusFilter('UNDER')} 
-                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'UNDER' ? 'bg-yellow-container text-on-yellow-container border border-yellow-500' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
-                        >
-                            Sottostaffate (&lt; 100%)
-                        </button>
-                        <button 
-                            onClick={() => handleStatusFilter('OVER')} 
-                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'OVER' ? 'bg-error-container text-on-error-container border border-error' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
-                        >
-                            Sovrastaffate (&gt; 100%)
-                        </button>
-                        <button 
-                            onClick={() => handleStatusFilter('ISSUES')} 
-                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'ISSUES' ? 'bg-tertiary-container text-on-tertiary-container border border-tertiary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
-                        >
-                            Anomalie (≠ 100%)
-                        </button>
+                        <span className="text-sm font-medium text-on-surface-variant self-center mr-2">Filtri Rapidi:</span>
+                        <button onClick={() => handleStatusFilter('ALL')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'ALL' ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}>Tutte</button>
+                        <button onClick={() => handleStatusFilter('UNDER')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'UNDER' ? 'bg-yellow-container text-on-yellow-container border border-yellow-500' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}>Sottostaffate</button>
+                        <button onClick={() => handleStatusFilter('OVER')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'OVER' ? 'bg-error-container text-on-error-container border border-error' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}>Sovrastaffate</button>
+                        <button onClick={() => handleStatusFilter('ISSUES')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${statusFilter === 'ISSUES' ? 'bg-tertiary-container text-on-tertiary-container border border-tertiary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}>Anomalie</button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -456,64 +468,55 @@ const WorkloadPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-grow mt-4 bg-surface rounded-2xl shadow overflow-x-auto">
-                <div className="max-h-[660px] overflow-y-auto">
-                    <table className="min-w-full divide-y divide-outline-variant">
-                        <thead className="bg-surface-container-low sticky top-0 z-10">
-                            <tr>
-                                <th className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-20" style={{ minWidth: '200px' }}>Risorsa</th>
-                                {timeColumns.map((col, index) => (
-                                    <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 ${col.isNonWorkingDay ? 'bg-surface-container' : ''}`}>
-                                        <div className="flex flex-col items-center">
-                                            <span className={col.isNonWorkingDay ? 'text-on-surface-variant' : 'text-on-surface'}>{col.label}</span>
-                                            {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
-                                        </div>
-                                    </th>
-                                ))}
+            <div className="flex-grow mt-4">
+                 {/* Using DataTable to fix line 468 error */}
+                 <DataTable<Resource>
+                    title="Analisi Carico di Lavoro"
+                    addNewButtonLabel=""
+                    data={paginatedData}
+                    columns={columns}
+                    filtersNode={null}
+                    onAddNew={() => {}}
+                    renderRow={(resource) => {
+                        const resourceAssignments = assignmentsMap.get(resource.id!) || [];
+                        return (
+                            <tr key={resource.id} className="hover:bg-surface-container-low transition-colors">
+                                <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9 border-r border-outline-variant">
+                                    <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
+                                </td>
+                                {timeColumns.map((col, index) => {
+                                    if (viewMode === 'day') {
+                                        const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso));
+                                        return (
+                                            <ReadonlyDailyTotalCell 
+                                                key={index} 
+                                                resource={resource} 
+                                                date={col.dateIso} 
+                                                isNonWorkingDay={col.isNonWorkingDay} 
+                                                resourceAssignments={resourceAssignments}
+                                                leaveInfo={leaveInfo}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <ReadonlyAggregatedTotalCell 
+                                            key={index} 
+                                            resource={resource} 
+                                            startDate={col.startDate} 
+                                            endDate={col.endDate} 
+                                            resourceAssignments={resourceAssignments}
+                                        />
+                                    );
+                                })}
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-outline-variant">
-                            {paginatedData.map(resource => {
-                                // Pass pre-filtered assignments
-                                const resourceAssignments = assignmentsMap.get(resource.id!) || [];
-                                
-                                return (
-                                    <tr key={resource.id} className="hover:bg-surface-container-low">
-                                        <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9">
-                                            <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
-                                        </td>
-                                        {timeColumns.map((col, index) => {
-                                            if (viewMode === 'day') {
-                                                // Fast lookup
-                                                const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso));
-                                                
-                                                return (
-                                                    <ReadonlyDailyTotalCell 
-                                                        key={index} 
-                                                        resource={resource} 
-                                                        date={col.dateIso} 
-                                                        isNonWorkingDay={col.isNonWorkingDay} 
-                                                        resourceAssignments={resourceAssignments}
-                                                        leaveInfo={leaveInfo}
-                                                    />
-                                                );
-                                            }
-                                            return (
-                                                <ReadonlyAggregatedTotalCell 
-                                                    key={index} 
-                                                    resource={resource} 
-                                                    startDate={col.startDate} 
-                                                    endDate={col.endDate} 
-                                                    resourceAssignments={resourceAssignments}
-                                                />
-                                            );
-                                        })}
-                                    </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                        );
+                    }}
+                    renderMobileCard={renderMobileCard}
+                    isLoading={loading}
+                    initialSortKey="name"
+                    tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                />
+                
                 <Pagination
                     currentPage={currentPage}
                     totalItems={displayData.length}

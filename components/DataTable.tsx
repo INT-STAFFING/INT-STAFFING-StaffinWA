@@ -88,7 +88,6 @@ export function DataTable<T extends { id?: string }>({
     const tableRef = useRef<HTMLTableElement>(null);
 
     // Costanti per il calcolo della larghezza
-    // Aumentato a 50 per accomodare meglio pulsanti con padding e gap
     const BUTTON_WIDTH = 50; 
     const BASE_PADDING = 16; 
 
@@ -105,7 +104,6 @@ export function DataTable<T extends { id?: string }>({
     useEffect(() => {
         if (tableRef.current && Object.keys(columnWidths).length === 0) {
             const initialWidths: Record<string, number> = {};
-            // Distribuzione equa iniziale o basata su minWidth
             const totalWidth = tableRef.current.offsetWidth - finalActionsWidth; 
             const defaultWidth = Math.max(150, totalWidth / columns.length);
             
@@ -174,7 +172,6 @@ export function DataTable<T extends { id?: string }>({
         }));
     };
 
-    /** 🔍 Filtro client-side */
     const filteredData = useMemo(() => {
         if (!data) return [];
         return data.filter((item) => {
@@ -189,7 +186,6 @@ export function DataTable<T extends { id?: string }>({
         });
     }, [data, filters, columns]);
 
-    /** 🔽 Ordinamento */
     const sortedData = useMemo(() => {
         const base = filteredData;
         if (!sortConfig) return base;
@@ -208,11 +204,11 @@ export function DataTable<T extends { id?: string }>({
         });
     }, [filteredData, sortConfig]);
 
-    const getSortableHeader = (label: string, colKey?: string, index?: number) => {
-        const key = label; 
-        const isSorted = sortConfig?.key === colKey;
+    const getSortableHeader = (col: ColumnDef<T>, index: number) => {
+        const key = col.header; 
+        const isSorted = sortConfig?.key === col.sortKey;
         const sortIcon =
-            sortConfig && sortConfig.key === colKey
+            sortConfig && sortConfig.key === col.sortKey
                 ? sortConfig.direction === 'ascending'
                     ? '▲'
                     : '▼'
@@ -220,7 +216,6 @@ export function DataTable<T extends { id?: string }>({
 
         const width = columnWidths[key];
         
-        // Logica Sticky per header
         const isFirstDataCol = index === 0;
         const stickyClass = isFirstDataCol 
             ? `sticky left-[${finalActionsWidth}px] z-30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-outline-variant` 
@@ -230,7 +225,7 @@ export function DataTable<T extends { id?: string }>({
 
         return (
             <th
-                key={label}
+                key={col.header}
                 style={{ width: width ? `${width}px` : 'auto' }}
                 className={combineClassNames(
                     layout.headerSticky && 'sticky top-0 z-20',
@@ -241,26 +236,26 @@ export function DataTable<T extends { id?: string }>({
                     'text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider',
                     stickyClass,
                     classes.headerCell,
+                    col.className, // Applicazione della classe custom per sm:table-cell
                     'group'
                 )}
             >
                 <div className="flex items-center justify-between h-full w-full truncate">
-                    {colKey ? (
+                    {col.sortKey ? (
                         <button
                             type="button"
-                            onClick={() => requestSort(colKey)}
+                            onClick={() => requestSort(col.sortKey!)}
                             className="flex items-center space-x-1 hover:text-on-surface truncate w-full"
                         >
                             <span className={`truncate ${isSorted ? 'font-bold text-on-surface' : ''}`}>
-                                {label}
+                                {col.header}
                             </span>
                             <span className="text-gray-400 text-[10px]">{sortIcon}</span>
                         </button>
                     ) : (
-                        <span className="truncate">{label}</span>
+                        <span className="truncate">{col.header}</span>
                     )}
                     
-                    {/* Resizer Handle */}
                     <div
                         className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary group-hover:bg-outline-variant"
                         onMouseDown={(e) => handleMouseDown(key, e)}
@@ -301,17 +296,14 @@ export function DataTable<T extends { id?: string }>({
                 </div>
 
                 <div className="bg-surface rounded-2xl shadow overflow-hidden">
-                    {/* Desktop Table */}
                     <div className="hidden md:block">
-                        <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative">
+                        <div className="max-h-[70vh] overflow-x-auto overflow-y-auto relative text-sm">
                             <table
                                 ref={tableRef}
                                 className="w-full table-fixed border-collapse"
                             >
                                 <thead className={combineClassNames('bg-surface-container-low', classes.header)}>
-                                    {/* RIGA 1: INTESTAZIONI */}
                                     <tr className={classes.headerRow}>
-                                        {/* 1. Colonna Azioni (Fissa a Sinistra) */}
                                         <th
                                             className={combineClassNames(
                                                 'sticky left-0 z-40 px-2',
@@ -325,25 +317,18 @@ export function DataTable<T extends { id?: string }>({
                                         >
                                             Azioni
                                         </th>
-
-                                        {/* 2. Colonne Dati */}
-                                        {columns.map((col, index) => getSortableHeader(col.header, col.sortKey, index))}
+                                        {columns.map((col, index) => getSortableHeader(col, index))}
                                     </tr>
 
-                                    {/* RIGA 2: FILTRI COLONNA */}
                                     <tr className="bg-surface-container-low">
-                                        {/* 1. Filtro Azioni (Vuoto ma fisso) */}
                                         <th
                                             className={combineClassNames(
                                                 'sticky left-0 z-30 px-2 py-1 bg-surface-container-low border-b border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]',
-                                                layout.headerSticky && 'sticky top-[45px]' // Offset approssimativo dell'header sopra
+                                                layout.headerSticky && 'sticky top-[45px]'
                                             )}
                                             style={{ minWidth: `${finalActionsWidth}px`, width: `${finalActionsWidth}px` }}
                                         >
-                                            {/* Placeholder */}
                                         </th>
-
-                                        {/* 2. Filtri Dati */}
                                         {columns.map((col, index) => {
                                             const key = col.sortKey || col.header;
                                             const isFirstDataCol = index === 0;
@@ -357,7 +342,8 @@ export function DataTable<T extends { id?: string }>({
                                                     className={combineClassNames(
                                                         "px-2 py-1 bg-surface-container-low border-b border-outline-variant",
                                                         layout.headerSticky && 'sticky top-[45px]',
-                                                        stickyClass
+                                                        stickyClass,
+                                                        col.className
                                                     )}
                                                 >
                                                     <input
@@ -392,19 +378,14 @@ export function DataTable<T extends { id?: string }>({
                                             const renderedRow = renderRow(item);
                                             
                                             if (React.isValidElement(renderedRow) && renderedRow.type === 'tr') {
-                                                // Explicit cast to access props
                                                 const element = renderedRow as React.ReactElement<any>;
-                                                
                                                 const children = React.Children.toArray(element.props.children) as React.ReactElement<any>[];
-                                                
                                                 const actionCell = children[children.length - 1];
                                                 const dataCells = children.slice(0, children.length - 1);
-                                                
                                                 const rowProps = element.props;
 
                                                 return (
                                                     <tr {...rowProps} className={combineClassNames(rowProps.className, classes.bodyRow, 'hover:bg-surface-container-low group')}>
-                                                        {/* 1. Cella Azioni (Sticky Left) */}
                                                         <td 
                                                             className={combineClassNames(
                                                                 "sticky left-0 z-10 px-2 py-3 text-center border-r border-outline-variant bg-surface group-hover:bg-surface-container-low",
@@ -415,8 +396,8 @@ export function DataTable<T extends { id?: string }>({
                                                             {actionCell && actionCell.props.children}
                                                         </td>
 
-                                                        {/* 2. Celle Dati */}
                                                         {dataCells.map((cell, cellIndex) => {
+                                                            const colDef = columns[cellIndex];
                                                             const isFirstDataCol = cellIndex === 0;
                                                             const stickyClass = isFirstDataCol 
                                                                 ? `sticky left-[${finalActionsWidth}px] z-10 bg-surface group-hover:bg-surface-container-low border-r border-outline-variant shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]`
@@ -428,6 +409,7 @@ export function DataTable<T extends { id?: string }>({
                                                                 className: combineClassNames(
                                                                     safeCell.props.className,
                                                                     stickyClass,
+                                                                    colDef?.className, // Applicazione della classe responsive sm:table-cell
                                                                     "truncate px-4 py-3 text-sm text-on-surface-variant overflow-hidden text-ellipsis whitespace-nowrap max-w-xs"
                                                                 ),
                                                                 style: { ...safeCell.props.style, maxWidth: '100%' }
@@ -454,7 +436,6 @@ export function DataTable<T extends { id?: string }>({
                         </div>
                     </div>
 
-                    {/* Mobile Cards */}
                     <div className="md:hidden p-4 space-y-4">
                         {isLoading ? (
                             <>

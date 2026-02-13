@@ -54,13 +54,17 @@ export const FormDialog: React.FC<FormDialogProps> = ({
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {fields.map((field) => {
                     const label = typeof field.label === 'function' ? field.label(values) : field.label;
                     const helper = typeof field.helperText === 'function' ? field.helperText(values) : field.helperText;
+                    
+                    // Comportamento responsive per campi che richiedono più spazio
+                    const isWideField = field.type === 'textarea' || field.type === 'multiselect' || field.type === 'range';
+                    const colSpanClass = isWideField ? 'md:col-span-2' : 'col-span-1';
 
                     return (
-                        <div key={field.name}>
+                        <div key={field.name} className={colSpanClass}>
                             <label className="block text-sm font-medium text-on-surface-variant mb-1">
                                 {label} {field.required && '*'}
                             </label>
@@ -128,7 +132,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
                         </div>
                     );
                 })}
-                <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant">
+                <div className="flex justify-end gap-2 pt-4 border-t border-outline-variant col-span-1 md:col-span-2 mt-2">
                     <button type="button" onClick={onClose} className="px-4 py-2 border border-outline rounded-full text-primary hover:bg-surface-container-low transition-colors">Annulla</button>
                     <button type="submit" className="px-4 py-2 bg-primary text-on-primary rounded-full font-bold hover:opacity-90 shadow-sm transition-all">
                         {submitLabel}
