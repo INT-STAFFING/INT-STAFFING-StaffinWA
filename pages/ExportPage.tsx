@@ -95,8 +95,7 @@ const ExportPage: React.FC = () => {
                     break;
             }
         } catch (error) {
-            console.error(`Failed to export ${type}:`, error);
-            alert(`Errore durante l'esportazione di ${type}. Controlla la console.`);
+            alert(`Errore durante l'esportazione di ${type}.`);
         } finally {
             setExportingType(null);
         }
@@ -111,7 +110,6 @@ const ExportPage: React.FC = () => {
             await exportUsersPermissions(users, permissions, allData.resources);
 
         } catch (e) {
-            console.error(e);
             throw e;
         }
     };

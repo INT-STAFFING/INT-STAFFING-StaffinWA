@@ -298,7 +298,6 @@ const ResourcesPage: React.FC = () => {
             addToast('Risorsa salvata con successo!', 'success');
             handleCloseModal();
         } catch (e) {
-            console.error(e);
             addToast('Errore durante il salvataggio della risorsa.', 'error');
         }
     };

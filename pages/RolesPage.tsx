@@ -121,7 +121,6 @@ const RolesPage: React.FC = () => {
             addToast(`Ruolo "${roleToDelete.name}" eliminato.`, 'success');
             setRoleToDelete(null);
         } catch (e: any) {
-            console.error("Delete failed", e);
             addToast(`Impossibile eliminare il ruolo. Potrebbe essere assegnato a delle risorse.`, 'error');
         }
     };

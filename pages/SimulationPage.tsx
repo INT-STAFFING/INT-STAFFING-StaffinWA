@@ -462,7 +462,7 @@ const SimulationPage: React.FC = () => {
              }));
              setScenarios(list);
          } catch (e) {
-             console.error("Failed to load scenarios list", e);
+             addToast('Errore durante il caricamento degli scenari.', 'error');
          }
     }, []);
 
@@ -523,7 +523,6 @@ const SimulationPage: React.FC = () => {
              addToast('Simulazione esportata in Excel.', 'success');
 
         } catch (e) {
-            console.error(e);
             addToast('Errore durante l\'esportazione Excel.', 'error');
         }
     };

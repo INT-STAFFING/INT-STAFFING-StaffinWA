@@ -200,7 +200,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         try {
             const notifs = await apiFetch<Notification[]>('/api/resources?entity=notifications');
             setNotifications(notifs);
-        } catch (error) { console.error("Failed to fetch notifications", error); }
+        } catch (error) { /* Notification fetch failures are non-critical */ }
     }, []);
 
     // FIX: Trigger data fetching on mount

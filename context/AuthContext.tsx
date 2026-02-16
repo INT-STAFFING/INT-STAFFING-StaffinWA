@@ -6,6 +6,7 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
 import { useToast } from './ToastContext';
+import { useEntitiesContext } from './AppContext';
 import { AppUser, UserRole } from '../types';
 import { apiFetch } from '../services/apiClient';
 
@@ -51,6 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoginProtectionEnabled, setIsLoginProtectionEnabled] = useState(true);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const { addToast } = useToast();
+    const { fetchData } = useEntitiesContext();
 
     useEffect(() => {
         const checkAuthState = async () => {
@@ -139,6 +141,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 method: 'PUT',
                 body: JSON.stringify({ newPassword }),
             });
+            const updatedUser = { ...user, mustChangePassword: false };
+            setUser(updatedUser);
+            localStorage.setItem('authUser', JSON.stringify(updatedUser));
             addToast('Password modificata con successo.', 'success');
         } catch (error) {
             addToast(`Errore cambio password: ${(error as Error).message}`, 'error');
@@ -167,14 +172,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 localStorage.setItem('authUser', JSON.stringify(userObj));
                 setUser(userObj);
                 addToast(`Impersonificazione avviata: ${userObj.username}`, 'success');
-                
-                // Force page reload to reset all states and contexts with new user
-                window.location.reload();
+
+                // Re-fetch all data with the new user's token
+                await fetchData();
             }
         } catch (error) {
             addToast(`Errore impersonificazione: ${(error as Error).message}`, 'error');
         }
-    }, [addToast]);
+    }, [addToast, fetchData]);
 
     const hasPermission = useCallback((path: string): boolean => {
         if (!user) return false;

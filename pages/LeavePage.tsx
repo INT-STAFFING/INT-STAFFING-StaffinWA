@@ -230,7 +230,7 @@ const LeavePage: React.FC = () => {
             setIsModalOpen(false);
             setEditingRequest(null);
         } catch (err) {
-            console.error(err);
+            // Error is handled by the context/API layer
         }
     };
 
@@ -258,7 +258,7 @@ const LeavePage: React.FC = () => {
             };
             await updateLeaveRequest(payload);
         } catch (e) {
-            console.error("Failed quick action", e);
+            // Error is handled by the context/API layer
         }
     };
 
