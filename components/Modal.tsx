@@ -39,12 +39,18 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         dialogRef.current?.focus();
     }, []);
 
+    const handleBackdropClick = () => {
+        const confirmed = window.confirm('Chiudere senza salvare? Le modifiche non salvate andranno perse.');
+        if (confirmed) {
+            onClose();
+        }
+    };
+
     return (
         // Backdrop: overlay scuro che copre la pagina, con padding per non far toccare i bordi alla modale.
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-scrim bg-opacity-50 p-4 animate-fade-in"
-            // Rimossa la chiusura al click sul backdrop per evitare perdita di dati
-            // onClick={onClose} 
+            onClick={handleBackdropClick}
             role="presentation"
         >
             <div
@@ -59,7 +65,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
                 ref={dialogRef}
                 onKeyDown={(event) => {
                     if (event.key === 'Escape') {
-                        onClose();
+                        const confirmed = window.confirm('Chiudere senza salvare? Le modifiche non salvate andranno perse.');
+                        if (confirmed) {
+                            onClose();
+                        }
                     }
                 }}
             >
