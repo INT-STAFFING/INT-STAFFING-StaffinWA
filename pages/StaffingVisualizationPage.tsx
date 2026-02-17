@@ -4,7 +4,7 @@
  * @description Pagina di visualizzazione grafica dello staffing con diagrammi Sankey e Network.
  */
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
@@ -22,7 +22,8 @@ const StaffingVisualizationPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const svgRef = useRef<SVGSVGElement>(null);
-    const [quickChartUrl, setQuickChartUrl] = useState<string>('');
+    const sankeyImgRef = useRef<string>('');
+    const [sankeyBlobUrl, setSankeyBlobUrl] = useState<string>('');
 
     const monthOptions = useMemo(() => {
         const options = [];
@@ -142,14 +143,13 @@ const StaffingVisualizationPage: React.FC = () => {
 
     const chartDataString = useMemo(() => JSON.stringify(chartData), [chartData]);
 
-    // Generate QuickChart URL for Sankey diagram
-    const sankeyChartUrl = useMemo(() => {
-        if (chartData.nodes.length === 0) return '';
+    // Build the QuickChart config string for Sankey (stable reference via useCallback)
+    const buildSankeyConfig = useCallback(() => {
+        if (chartData.nodes.length === 0) return null;
 
         const isDarkMode = document.documentElement.classList.contains('dark');
         const currentPalette = isDarkMode ? theme.dark : theme.light;
 
-        // Color mapping by node type
         const colorMap: Record<string, string> = {
             resource: currentPalette.primary,
             project: currentPalette.tertiary,
@@ -157,71 +157,108 @@ const StaffingVisualizationPage: React.FC = () => {
             contract: currentPalette.primaryContainer,
         };
 
-        // Build labels map and color map by node ID
         const labels: Record<string, string> = {};
-        const nodeColors: Record<string, string> = {};
         chartData.nodes.forEach(node => {
             labels[node.id] = node.name;
-            nodeColors[node.id] = colorMap[node.type] || currentPalette.primary;
         });
 
-        // Convert links to QuickChart format {from, to, flow} with colors
+        // Build per-link color arrays for colorFrom/colorTo
         const sankeyData = chartData.links.map(link => {
             const sourceNode = chartData.nodes.find(n => n.id === link.source);
             const targetNode = chartData.nodes.find(n => n.id === link.target);
             return {
                 from: link.source,
                 to: link.target,
-                flow: link.value,
-                colorFrom: colorMap[sourceNode?.type || 'resource'],
-                colorTo: colorMap[targetNode?.type || 'resource'],
+                flow: Math.round(link.value * 10) / 10,
+                _cFrom: colorMap[sourceNode?.type || 'resource'],
+                _cTo: colorMap[targetNode?.type || 'resource'],
             };
         });
 
-        // Build Chart.js config for chartjs-chart-sankey using JavaScript string for callbacks
+        // Use JS string (not JSON) so QuickChart evaluates the callback functions server-side
         const chartConfigJS = `{
-            type: 'sankey',
-            data: {
-                datasets: [{
-                    data: ${JSON.stringify(sankeyData)},
-                    labels: ${JSON.stringify(labels)},
-                    colorFrom: (c) => c.dataset.data[c.dataIndex].colorFrom,
-                    colorTo: (c) => c.dataset.data[c.dataIndex].colorTo,
-                    colorMode: 'gradient',
-                    size: 'max',
-                }]
-            },
-            options: {
-                plugins: {
-                    legend: { display: false },
-                    title: {
-                        display: true,
-                        text: 'Flusso Risorse → Progetti → Clienti → Contratti',
-                        color: '${currentPalette.onSurface}',
-                        font: { size: 16, weight: 'bold' }
-                    }
-                },
-                layout: {
-                    padding: 20
-                }
-            }
-        }`;
+  type: 'sankey',
+  data: {
+    datasets: [{
+      data: ${JSON.stringify(sankeyData)},
+      labels: ${JSON.stringify(labels)},
+      colorFrom: (c) => c.dataset.data[c.dataIndex]._cFrom,
+      colorTo: (c) => c.dataset.data[c.dataIndex]._cTo,
+      colorMode: 'gradient',
+      size: 'max'
+    }]
+  },
+  options: {
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Flusso Risorse \\u2192 Progetti \\u2192 Clienti \\u2192 Contratti',
+        color: '${currentPalette.onSurface}',
+        font: { size: 16, weight: 'bold' }
+      }
+    },
+    layout: { padding: 20 }
+  }
+}`;
 
-        // Encode and build QuickChart URL
-        const encodedConfig = encodeURIComponent(chartConfigJS);
-        const width = 1200;
-        const height = 1600;
-        const backgroundColor = encodeURIComponent(currentPalette.background);
-
-        return `https://quickchart.io/chart?c=${encodedConfig}&width=${width}&height=${height}&backgroundColor=${backgroundColor}&version=3&devicePixelRatio=1.5`;
+        return {
+            chart: chartConfigJS,
+            width: 1200,
+            height: Math.max(600, chartData.nodes.length * 25),
+            backgroundColor: currentPalette.background,
+            version: '3',
+            devicePixelRatio: 1.5,
+        };
     }, [chartData, theme.dark, theme.light]);
 
+    // Fetch Sankey image from QuickChart POST API
     useEffect(() => {
-        // Sankey uses QuickChart (img), so only render Network view with D3
-        if (view === 'sankey') {
+        if (view !== 'sankey') return;
+
+        const config = buildSankeyConfig();
+        if (!config) {
             setIsLoading(false);
             return;
         }
+
+        let cancelled = false;
+        setIsLoading(true);
+
+        (async () => {
+            try {
+                const resp = await fetch('https://quickchart.io/chart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config),
+                });
+
+                if (!resp.ok) throw new Error(`QuickChart returned ${resp.status}`);
+
+                const blob = await resp.blob();
+                if (cancelled) return;
+
+                // Revoke previous blob URL to avoid memory leaks
+                if (sankeyImgRef.current) URL.revokeObjectURL(sankeyImgRef.current);
+
+                const url = URL.createObjectURL(blob);
+                sankeyImgRef.current = url;
+                setSankeyBlobUrl(url);
+            } catch (err) {
+                if (!cancelled) {
+                    console.error('QuickChart Sankey error:', err);
+                }
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        })();
+
+        return () => { cancelled = true; };
+    }, [view, buildSankeyConfig]);
+
+    useEffect(() => {
+        // Sankey uses QuickChart (img), skip D3 rendering
+        if (view === 'sankey') return;
 
         setIsLoading(true);
 
@@ -382,13 +419,12 @@ const StaffingVisualizationPage: React.FC = () => {
     };
 
     const handleExportPNG = () => {
-        // For Sankey, download the QuickChart image directly
+        // For Sankey, download the blob image directly
         if (view === 'sankey') {
-            if (!sankeyChartUrl) return;
+            if (!sankeyBlobUrl) return;
             const link = document.createElement('a');
-            link.href = sankeyChartUrl;
+            link.href = sankeyBlobUrl;
             link.download = `staffing_sankey_${selectedMonth}.png`;
-            link.target = '_blank'; // QuickChart requires cross-origin fetch
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -459,19 +495,17 @@ const StaffingVisualizationPage: React.FC = () => {
 
                 {view === 'sankey' ? (
                     <>
-                        {sankeyChartUrl && chartData.nodes.length > 0 ? (
+                        {sankeyBlobUrl ? (
                             <img
-                                src={sankeyChartUrl}
+                                src={sankeyBlobUrl}
                                 alt="Sankey Diagram"
                                 className="w-full h-auto"
-                                onLoad={() => setIsLoading(false)}
-                                onError={() => setIsLoading(false)}
                             />
-                        ) : (
+                        ) : !isLoading ? (
                             <div className="absolute inset-0 flex items-center justify-center text-on-surface-variant">
                                 Nessun dato disponibile per il periodo selezionato.
                             </div>
-                        )}
+                        ) : null}
                     </>
                 ) : (
                     <svg ref={svgRef} width="100%" height="100%" className="min-w-[800px] min-h-[600px]"></svg>
