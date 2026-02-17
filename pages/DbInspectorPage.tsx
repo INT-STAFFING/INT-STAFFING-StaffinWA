@@ -58,7 +58,6 @@ const DbInspectorPage: React.FC = () => {
     const getAuthToken = () => localStorage.getItem('authToken');
 
     const handleApiError = (error: Error, responseStatus?: number) => {
-        console.error(error);
         if (responseStatus === 401 || responseStatus === 403) {
             addToast('Sessione scaduta o permessi insufficienti. Effettua nuovamente il login.', 'error');
         } else {

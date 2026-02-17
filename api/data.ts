@@ -4,8 +4,8 @@
  * @description Endpoint API Dispatcher per recuperare i dati.
  */
 
-import { db } from './db.js';
-import { ensureDbTablesExist } from './schema.js';
+import { db } from './_lib/db.js';
+import { ensureDbTablesExist } from './_lib/schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { CalendarEvent, Allocation } from '../types';
 

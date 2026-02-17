@@ -1,6 +1,7 @@
 
-import { db } from './db.js';
-import { ensureDbTablesExist } from './schema.js';
+import { db } from './_lib/db.js';
+import { env } from './_lib/env.js';
+import { ensureDbTablesExist } from './_lib/schema.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -8,7 +9,7 @@ import jwt from 'jsonwebtoken';
 import { z } from '../libs/zod.js';
 import { notify } from '../utils/webhookNotifier.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = env.JWT_SECRET;
 
 const OPERATIONAL_ROLES = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
 
@@ -18,7 +19,7 @@ const verifyAdmin = (req: VercelRequest): boolean => {
     const token = authHeader.split(' ')[1];
     if (!token) return false;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET!) as any;
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
         return decoded.role === 'ADMIN';
     } catch (e) { return false; }
 };
@@ -29,7 +30,7 @@ const getUserFromRequest = (req: VercelRequest) => {
     const token = authHeader.split(' ')[1];
     if (!token) return null;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET!) as any;
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
         return { id: decoded.userId, username: decoded.username, role: decoded.role };
     } catch (e) { return null; }
 };

@@ -57,10 +57,8 @@ export const apiFetch = async <T = unknown>(url: string, options: RequestInit = 
     // LOGICA DI INTERCETTAZIONE MOCK (PREVIEW)
     if (isLocalPreview()) {
         try {
-            console.log(`[Preview Mode] Intercepting: ${url}`);
             return await mockFetch(url, options) as T;
         } catch (e) {
-            console.error(`[Mock Engine Error] ${url}:`, e);
             // Fallback d'emergenza: restituiamo dati coerenti per non bloccare l'UI
             if (url.includes('/api/data')) return INITIAL_MOCK_DATA as unknown as T;
             if (url.includes('notifications') || Array.isArray(INITIAL_MOCK_DATA)) return [] as unknown as T;

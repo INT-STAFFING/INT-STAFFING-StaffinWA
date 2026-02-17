@@ -11,8 +11,6 @@ import SearchableSelect from '../components/SearchableSelect';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import ExportButton from '../components/ExportButton';
-// Added missing imports for DataTable and ColumnDef
-import { DataTable, ColumnDef } from '../components/DataTable';
 
 type ViewMode = 'day' | 'week' | 'month';
 type WorkloadFilterStatus = 'ALL' | 'UNDER' | 'OVER' | 'ISSUES';
@@ -383,17 +381,12 @@ const WorkloadPage: React.FC = () => {
         setCurrentPage(1);
     };
 
-    // Corrected columns type to use ColumnDef to fix line 383 error
-    const columns: ColumnDef<Resource>[] = [
-        { header: 'Risorsa', sortKey: 'name', cell: r => <Link to={`/staffing?resourceId=${r.id}`} className="text-primary hover:underline font-medium">{r.name}</Link> },
-    ];
-
     const renderMobileCard = (resource: Resource) => {
         const firstCol = timeColumns[0];
         const lastCol = timeColumns[timeColumns.length - 1];
         const { avg, allocated, available } = calculateAvgLoadForPeriod(resource, firstCol.startDate, lastCol.endDate);
         const max = resource.maxStaffingPercentage;
-        
+
         let colorClass = 'border-primary';
         let barColor = 'bg-primary';
         if (Math.round(avg) > max) { colorClass = 'border-error'; barColor = 'bg-error'; }
@@ -414,8 +407,8 @@ const WorkloadPage: React.FC = () => {
                 </div>
 
                 <div className="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden">
-                    <div 
-                        className={`h-full ${barColor} transition-all duration-500`} 
+                    <div
+                        className={`h-full ${barColor} transition-all duration-500`}
                         style={{ width: `${Math.min(avg, 100)}%` }}
                     />
                 </div>
@@ -468,55 +461,97 @@ const WorkloadPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-grow mt-4">
-                 {/* Using DataTable to fix line 468 error */}
-                 <DataTable<Resource>
-                    title="Analisi Carico di Lavoro"
-                    addNewButtonLabel=""
-                    data={paginatedData}
-                    columns={columns}
-                    filtersNode={null}
-                    onAddNew={() => {}}
-                    renderRow={(resource) => {
-                        const resourceAssignments = assignmentsMap.get(resource.id!) || [];
-                        return (
-                            <tr key={resource.id} className="hover:bg-surface-container-low transition-colors">
-                                <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9 border-r border-outline-variant">
-                                    <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
-                                </td>
-                                {timeColumns.map((col, index) => {
-                                    if (viewMode === 'day') {
-                                        const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso));
-                                        return (
-                                            <ReadonlyDailyTotalCell 
-                                                key={index} 
-                                                resource={resource} 
-                                                date={col.dateIso} 
-                                                isNonWorkingDay={col.isNonWorkingDay} 
-                                                resourceAssignments={resourceAssignments}
-                                                leaveInfo={leaveInfo}
-                                            />
-                                        );
-                                    }
-                                    return (
-                                        <ReadonlyAggregatedTotalCell 
-                                            key={index} 
-                                            resource={resource} 
-                                            startDate={col.startDate} 
-                                            endDate={col.endDate} 
-                                            resourceAssignments={resourceAssignments}
-                                        />
-                                    );
-                                })}
+            {/* Desktop view */}
+            <div className="hidden md:block flex-grow mt-4 bg-surface rounded-2xl shadow overflow-x-auto">
+                <div className="max-h-[660px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-outline-variant">
+                        <thead className="bg-surface-container-low sticky top-0 z-10">
+                            <tr>
+                                <th className="sticky left-0 bg-surface-container-low px-3 py-3.5 text-left text-sm font-semibold text-on-surface z-20" style={{ minWidth: '200px' }}>Risorsa</th>
+                                {timeColumns.map((col, index) => (
+                                    <th key={index} className={`px-2 py-3.5 text-center text-sm font-semibold w-24 ${col.isNonWorkingDay ? 'bg-surface-container' : ''}`}>
+                                        <div className="flex flex-col items-center">
+                                            <span className={col.isNonWorkingDay ? 'text-on-surface-variant' : 'text-on-surface'}>{col.label}</span>
+                                            {col.subLabel && <span className="text-xs text-on-surface-variant">{col.subLabel}</span>}
+                                        </div>
+                                    </th>
+                                ))}
                             </tr>
-                        );
-                    }}
-                    renderMobileCard={renderMobileCard}
-                    isLoading={loading}
-                    initialSortKey="name"
-                    tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
+                        </thead>
+                        <tbody className="divide-y divide-outline-variant">
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={`skeleton-${i}`} className="animate-pulse">
+                                        <td className="sticky left-0 bg-surface px-3 py-3"><div className="h-4 w-24 rounded bg-surface-variant" /></td>
+                                        {timeColumns.map((_, j) => (
+                                            <td key={j} className="px-2 py-3"><div className="h-4 w-8 rounded bg-surface-variant mx-auto" /></td>
+                                        ))}
+                                    </tr>
+                                ))
+                            ) : paginatedData.map(resource => {
+                                const resourceAssignments = assignmentsMap.get(resource.id!) || [];
+                                return (
+                                    <tr key={resource.id} className="hover:bg-surface-container-low">
+                                        <td className="sticky left-0 bg-surface px-3 py-3 text-left text-sm font-medium z-9">
+                                            <Link to={`/staffing?resourceId=${resource.id}`} className="text-primary hover:underline">{resource.name}</Link>
+                                        </td>
+                                        {timeColumns.map((col, index) => {
+                                            if (viewMode === 'day') {
+                                                const leaveInfo = leavesLookup.get(getLeaveKey(resource.id!, col.dateIso));
+                                                return (
+                                                    <ReadonlyDailyTotalCell
+                                                        key={index}
+                                                        resource={resource}
+                                                        date={col.dateIso}
+                                                        isNonWorkingDay={col.isNonWorkingDay}
+                                                        resourceAssignments={resourceAssignments}
+                                                        leaveInfo={leaveInfo}
+                                                    />
+                                                );
+                                            }
+                                            return (
+                                                <ReadonlyAggregatedTotalCell
+                                                    key={index}
+                                                    resource={resource}
+                                                    startDate={col.startDate}
+                                                    endDate={col.endDate}
+                                                    resourceAssignments={resourceAssignments}
+                                                />
+                                            );
+                                        })}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <Pagination
+                    currentPage={currentPage}
+                    totalItems={displayData.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                    onItemsPerPageChange={setItemsPerPage}
                 />
-                
+            </div>
+
+            {/* Mobile view */}
+            <div className="md:hidden flex-grow mt-4">
+                <h1 className="text-2xl font-bold text-on-surface mb-4">Analisi Carico di Lavoro</h1>
+                {loading ? (
+                    <div className="space-y-4">
+                        {Array.from({ length: 3 }).map((_, idx) => (
+                            <div key={`mobile-skeleton-${idx}`} className="p-4 rounded-2xl bg-surface-variant animate-pulse space-y-2">
+                                <div className="h-4 rounded bg-surface" />
+                                <div className="h-4 rounded bg-surface" />
+                                <div className="h-4 rounded bg-surface w-1/2" />
+                            </div>
+                        ))}
+                    </div>
+                ) : paginatedData.length > 0 ? (
+                    paginatedData.map(resource => renderMobileCard(resource))
+                ) : (
+                    <p className="text-center py-8 text-on-surface-variant">Nessun dato trovato.</p>
+                )}
                 <Pagination
                     currentPage={currentPage}
                     totalItems={displayData.length}

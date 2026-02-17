@@ -4,23 +4,19 @@
  * @description Endpoint API per la verifica delle credenziali di accesso tramite DB.
  */
 
-import { db } from './db.js';
+import { db } from './_lib/db.js';
+import { env } from './_lib/env.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { notify } from '../utils/webhookNotifier.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = env.JWT_SECRET;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
         return res.status(405).end(`Method ${req.method} Not Allowed`);
-    }
-
-    if (!JWT_SECRET) {
-        console.error('CRITICAL ERROR: JWT_SECRET environment variable is not set.');
-        return res.status(500).json({ error: "Errore di configurazione del server (JWT_SECRET mancante)." });
     }
 
     let { username, password } = req.body;

@@ -249,7 +249,7 @@ const ForcePasswordChange: React.FC = () => {
         if (newPassword.length < 8) { setError('La password deve essere di almeno 8 caratteri.'); return; }
         if (newPassword !== confirmPassword) { setError('Le password non coincidono.'); return; }
         setLoading(true);
-        try { await changePassword(newPassword); window.location.reload(); } catch (e) { setError('Errore durante il cambio password.'); } finally { setLoading(false); }
+        try { await changePassword(newPassword); } catch (e) { setError('Errore durante il cambio password.'); } finally { setLoading(false); }
     };
 
     return (

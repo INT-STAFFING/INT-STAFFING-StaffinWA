@@ -5,11 +5,12 @@
  * Rafforzato con controllo RBAC ADMIN.
  */
 
-import { db } from './db.js';
+import { db } from './_lib/db.js';
+import { env } from './_lib/env.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = env.JWT_SECRET;
 
 // --- SECURITY HELPER ---
 const verifyAdmin = (req: VercelRequest): boolean => {
@@ -18,7 +19,7 @@ const verifyAdmin = (req: VercelRequest): boolean => {
     const token = authHeader.split(' ')[1];
     if (!token) return false;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET!) as any;
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
         return decoded.role === 'ADMIN';
     } catch (e) {
         return false;

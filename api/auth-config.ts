@@ -3,12 +3,12 @@
  * @description Endpoint API per gestire la configurazione dell'autenticazione.
  */
 
-import { db } from './db.js';
+import { db } from './_lib/db.js';
+import { env } from './_lib/env.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 
 const CONFIG_KEY = 'login_protection_enabled';
-const JWT_SECRET = process.env.JWT_SECRET // || 'staffing-app-secret-key-change-in-prod';
 
 // Helper to verify JWT for admin actions
 const verifyAdmin = (req: VercelRequest): boolean => {
@@ -19,7 +19,7 @@ const verifyAdmin = (req: VercelRequest): boolean => {
     if (!token) return false;
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        const decoded = jwt.verify(token, env.JWT_SECRET) as any;
         return decoded.role === 'ADMIN';
     } catch (e) {
         return false;
