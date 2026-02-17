@@ -1,11 +1,11 @@
 
 import { db } from './db.js';
+import { env } from './env.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 
-// Fix: Explicitly cast JWT_SECRET to string | undefined to avoid unknown type issues in strict mode
-const JWT_SECRET = process.env.JWT_SECRET as string | undefined;
+const JWT_SECRET = env.JWT_SECRET;
 
 const verifyOperational = (req: VercelRequest): boolean => {
     const authHeader = req.headers.authorization;
@@ -13,9 +13,7 @@ const verifyOperational = (req: VercelRequest): boolean => {
     const token = authHeader.split(' ')[1];
     if (!token) return false;
     try {
-        // Fix: Ensure secret is passed as string to jwt.verify
-        const secret = (JWT_SECRET || '') as string;
-        const decoded = jwt.verify(token, secret) as any;
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
         return ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'].includes(decoded.role);
     } catch (e) { return false; }
 };
