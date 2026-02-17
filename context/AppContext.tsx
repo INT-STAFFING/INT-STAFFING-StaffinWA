@@ -118,6 +118,54 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
 
     const isActionLoading = useCallback((action: string) => !!actionLoadingState[action], [actionLoadingState]);
 
+    // --- CRUD Factory Helpers ---
+    // Generates standard add/update/delete functions for a given entity, reducing code duplication.
+    const makeCrud = <T extends { id?: string }>(
+        entity: string,
+        setter: React.Dispatch<React.SetStateAction<T[]>>,
+        label: string,
+        opts: { loadingPrefix?: string; baseUrl?: string } = {}
+    ) => {
+        const base = opts.baseUrl || `/api/resources?entity=${entity}`;
+        const sep = base.includes('?') ? '&' : '?';
+        return {
+            add: async (item: Omit<T, 'id'>): Promise<void> => {
+                if (opts.loadingPrefix) setActionLoading(`add${opts.loadingPrefix}`, true);
+                try {
+                    const created = await apiFetch<T>(base, { method: 'POST', body: JSON.stringify(item) });
+                    setter(prev => [...prev, created]);
+                } catch (e) { addToast(`Errore durante l'aggiunta: ${label}.`, 'error'); }
+                finally { if (opts.loadingPrefix) setActionLoading(`add${opts.loadingPrefix}`, false); }
+            },
+            update: async (item: T): Promise<void> => {
+                if (opts.loadingPrefix) setActionLoading(`update${opts.loadingPrefix}-${item.id}`, true);
+                try {
+                    const updated = await apiFetch<T>(`${base}${sep}id=${item.id}`, { method: 'PUT', body: JSON.stringify(item) });
+                    setter(prev => prev.map(x => x.id === item.id ? updated : x));
+                } catch (e) { addToast(`Errore durante l'aggiornamento: ${label}.`, 'error'); }
+                finally { if (opts.loadingPrefix) setActionLoading(`update${opts.loadingPrefix}-${item.id}`, false); }
+            },
+            del: async (id: string): Promise<void> => {
+                if (opts.loadingPrefix) setActionLoading(`delete${opts.loadingPrefix}-${id}`, true);
+                try {
+                    await apiFetch(`${base}${sep}id=${id}`, { method: 'DELETE' });
+                    setter(prev => prev.filter(x => x.id !== id));
+                } catch (e) { addToast(`Errore durante l'eliminazione: ${label}.`, 'error'); }
+                finally { if (opts.loadingPrefix) setActionLoading(`delete${opts.loadingPrefix}-${id}`, false); }
+            }
+        };
+    };
+
+    // Generates a config-batch update function for a single JSON config key.
+    const makeConfigUpdate = <T,>(key: string, setter: React.Dispatch<React.SetStateAction<T>>, label: string) => {
+        return async (value: T) => {
+            try {
+                await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key, value: JSON.stringify(value) }] }) });
+                setter(value);
+            } catch (e) { addToast(`Errore durante l'aggiornamento: ${label}.`, 'error'); }
+        };
+    };
+
     const fetchData = useCallback(async () => {
         setLoading(true);
         setFetchError(null);
@@ -371,67 +419,62 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         } 
     };
 
-    const addRateCard = async (rateCard: Omit<RateCard, 'id'>) => { setActionLoading('addRateCard', true); try { const newRateCard = await apiFetch<RateCard>('/api/resources?entity=rate_cards', { method: 'POST', body: JSON.stringify(rateCard) }); setRateCards(prev => [...prev, newRateCard]); } finally { setActionLoading('addRateCard', false); } };
-    const updateRateCard = async (rateCard: RateCard) => { setActionLoading(`updateRateCard-${rateCard.id}`, true); try { const updated = await apiFetch<RateCard>(`/api/resources?entity=rate_cards&id=${rateCard.id}`, { method: 'PUT', body: JSON.stringify(rateCard) }); setRateCards(prev => prev.map(rc => rc.id === rateCard.id ? updated : rc)); } finally { setActionLoading(`updateRateCard-${rateCard.id}`, false); } };
-    const deleteRateCard = async (id: string) => { setActionLoading(`deleteRateCard-${id}`, true); try { await apiFetch(`/api/resources?entity=rate_cards&id=${id}`, { method: 'DELETE' }); setRateCards(prev => prev.filter(rc => rc.id !== id)); } finally { setActionLoading(`deleteRateCard-${id}`, false); } };
+    // --- Entity CRUD via factory (with loading) ---
+    const rateCardCrud = makeCrud<RateCard>('rate_cards', setRateCards, 'rate card', { loadingPrefix: 'RateCard' });
+    const addRateCard = rateCardCrud.add; const updateRateCard = rateCardCrud.update; const deleteRateCard = rateCardCrud.del;
     const upsertRateCardEntries = async (entries: RateCardEntry[]) => { if (entries.length === 0) return; setActionLoading('upsertRateCardEntries', true); try { await apiFetch('/api/resources?entity=rate_card_entries', { method: 'POST', body: JSON.stringify({ entries }) }); const entriesRes = await apiFetch<RateCardEntry[]>('/api/resources?entity=rate_card_entries'); setRateCardEntries(entriesRes || []); } finally { setActionLoading('upsertRateCardEntries', false); } };
-    const addProjectExpense = async (expense: Omit<ProjectExpense, 'id'>) => { setActionLoading('addProjectExpense', true); try { const newExpense = await apiFetch<ProjectExpense>('/api/resources?entity=project_expenses', { method: 'POST', body: JSON.stringify(expense) }); setProjectExpenses(prev => [...prev, newExpense]); } finally { setActionLoading('addProjectExpense', false); } };
-    const updateProjectExpense = async (expense: ProjectExpense) => { setActionLoading(`updateProjectExpense-${expense.id}`, true); try { const updated = await apiFetch<ProjectExpense>(`/api/resources?entity=project_expenses&id=${expense.id}`, { method: 'PUT', body: JSON.stringify(expense) }); setProjectExpenses(prev => prev.map(e => e.id === expense.id ? updated : e)); } finally { setActionLoading(`updateProjectExpense-${expense.id}`, false); } };
-    const deleteProjectExpense = async (id: string) => { setActionLoading(`deleteProjectExpense-${id}`, true); try { await apiFetch(`/api/resources?entity=project_expenses&id=${id}`, { method: 'DELETE' }); setProjectExpenses(prev => prev.filter(e => e.id !== id)); } finally { setActionLoading(`deleteProjectExpense-${id}`, false); } };
-    const addBillingMilestone = async (milestone: Omit<BillingMilestone, 'id'>) => { try { const newMs = await apiFetch<BillingMilestone>('/api/resources?entity=billing_milestones', { method: 'POST', body: JSON.stringify(milestone) }); setBillingMilestones(prev => [...prev, newMs]); } catch (e) { addToast('Errore durante l\'aggiunta della milestone.', 'error'); } };
-    const updateBillingMilestone = async (milestone: BillingMilestone) => { try { const updated = await apiFetch<BillingMilestone>(`/api/resources?entity=billing_milestones&id=${milestone.id}`, { method: 'PUT', body: JSON.stringify(milestone) }); setBillingMilestones(prev => prev.map(m => m.id === milestone.id ? updated : m)); } catch (e) { addToast('Errore durante l\'aggiornamento della milestone.', 'error'); } };
-    const deleteBillingMilestone = async (id: string) => { try { await apiFetch(`/api/resources?entity=billing_milestones&id=${id}`, { method: 'DELETE' }); setBillingMilestones(prev => prev.filter(m => m.id !== id)); } catch (e) { addToast('Errore durante l\'eliminazione della milestone.', 'error'); } };
+    const projectExpenseCrud = makeCrud<ProjectExpense>('project_expenses', setProjectExpenses, 'spesa progetto', { loadingPrefix: 'ProjectExpense' });
+    const addProjectExpense = projectExpenseCrud.add; const updateProjectExpense = projectExpenseCrud.update; const deleteProjectExpense = projectExpenseCrud.del;
+    const calendarEventCrud = makeCrud<CalendarEvent>('company_calendar', setCompanyCalendar, 'evento calendario', { loadingPrefix: 'CalendarEvent' });
+    const addCalendarEvent = calendarEventCrud.add; const updateCalendarEvent = calendarEventCrud.update; const deleteCalendarEvent = calendarEventCrud.del;
+    const resourceRequestCrud = makeCrud<ResourceRequest>('resource-requests', setResourceRequests, 'richiesta risorsa', { loadingPrefix: 'ResourceRequest', baseUrl: '/api/resource-requests' });
+    const addResourceRequest = resourceRequestCrud.add; const updateResourceRequest = resourceRequestCrud.update; const deleteResourceRequest = resourceRequestCrud.del;
+    const interviewCrud = makeCrud<Interview>('interviews', setInterviews, 'colloquio', { loadingPrefix: 'Interview' });
+    const addInterview = interviewCrud.add; const updateInterview = interviewCrud.update; const deleteInterview = interviewCrud.del;
+
+    // --- Entity CRUD via factory (without loading) ---
+    const billingMilestoneCrud = makeCrud<BillingMilestone>('billing_milestones', setBillingMilestones, 'milestone');
+    const addBillingMilestone = billingMilestoneCrud.add; const updateBillingMilestone = billingMilestoneCrud.update; const deleteBillingMilestone = billingMilestoneCrud.del;
+    const skillCategoryCrud = makeCrud<SkillCategory>('skill_categories', setSkillCategories, 'categoria competenza');
+    const addSkillCategory = skillCategoryCrud.add; const updateSkillCategory = skillCategoryCrud.update; const deleteSkillCategory = skillCategoryCrud.del;
+    const notifConfigCrud = makeCrud<NotificationConfig>('notification_configs', setNotificationConfigs, 'configurazione notifica');
+    const addNotificationConfig = notifConfigCrud.add; const updateNotificationConfig = notifConfigCrud.update; const deleteNotificationConfig = notifConfigCrud.del;
+    const leaveTypeCrud = makeCrud<LeaveType>('leave_types', setLeaveTypes, 'tipo di assenza');
+    const addLeaveType = leaveTypeCrud.add; const updateLeaveType = leaveTypeCrud.update; const deleteLeaveType = leaveTypeCrud.del;
+    const leaveRequestCrud = makeCrud<LeaveRequest>('leaves', setLeaveRequests, 'richiesta di assenza');
+    const addLeaveRequest = leaveRequestCrud.add; const updateLeaveRequest = leaveRequestCrud.update; const deleteLeaveRequest = leaveRequestCrud.del;
+    const evaluationCrud = makeCrud<ResourceEvaluation>('resource_evaluations', setEvaluations, 'valutazione');
+    const addEvaluation = evaluationCrud.add; const updateEvaluation = evaluationCrud.update; const deleteEvaluation = evaluationCrud.del;
+
+    // --- Special cases (custom logic, composite keys, etc.) ---
     const addConfigOption = async (type: string, value: string) => { setActionLoading(`addConfig-${type}`, true); try { const newOpt = await apiFetch<ConfigOption>(`/api/config?type=${type}`, { method: 'POST', body: JSON.stringify({ value }) }); const setter = type === 'functions' ? setFunctions : type === 'industries' ? setIndustries : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations; setter(prev => [...prev, newOpt]); } finally { setActionLoading(`addConfig-${type}`, false); } };
     const updateConfigOption = async (type: string, option: ConfigOption) => { setActionLoading(`updateConfig-${type}-${option.id}`, true); try { await apiFetch(`/api/config?type=${type}&id=${option.id}`, { method: 'PUT', body: JSON.stringify({ value: option.value }) }); const setter = type === 'functions' ? setFunctions : type === 'industries' ? setIndustries : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations; setter(prev => prev.map(o => o.id === option.id ? option : o)); } finally { setActionLoading(`updateConfig-${type}-${option.id}`, false); } };
     const deleteConfigOption = async (type: string, id: string) => { setActionLoading(`deleteConfig-${type}-${id}`, true); try { await apiFetch(`/api/config?type=${type}&id=${id}`, { method: 'DELETE' }); const setter = type === 'functions' ? setFunctions : type === 'industries' ? setIndustries : type === 'seniorityLevels' ? setSeniorityLevels : type === 'projectStatuses' ? setProjectStatuses : type === 'clientSectors' ? setClientSectors : setLocations; setter(prev => prev.filter(o => o.id !== id)); addToast('Opzione eliminata con successo', 'success'); } catch (error) { addToast('Errore durante l\'eliminazione', 'error'); } finally { setActionLoading(`deleteConfig-${type}-${id}`, false); } };
-    const addCalendarEvent = async (event: Omit<CalendarEvent, 'id'>) => { setActionLoading('addCalendarEvent', true); try { const newEvent = await apiFetch<CalendarEvent>('/api/resources?entity=company_calendar', { method: 'POST', body: JSON.stringify(event) }); setCompanyCalendar(prev => [...prev, newEvent]); } finally { setActionLoading('addCalendarEvent', false); } };
-    const updateCalendarEvent = async (event: CalendarEvent) => { setActionLoading(`updateCalendarEvent-${event.id}`, true); try { const updated = await apiFetch<CalendarEvent>(`/api/resources?entity=company_calendar&id=${event.id}`, { method: 'PUT', body: JSON.stringify(event) }); setCompanyCalendar(prev => prev.map(e => e.id === event.id ? updated : e)); } finally { setActionLoading(`updateCalendarEvent-${event.id}`, false); } };
-    const deleteCalendarEvent = async (id: string) => { setActionLoading(`deleteCalendarEvent-${id}`, true); try { await apiFetch(`/api/resources?entity=company_calendar&id=${id}`, { method: 'DELETE' }); setCompanyCalendar(prev => prev.filter(e => e.id !== id)); } finally { setActionLoading(`deleteCalendarEvent-${id}`, false); } };
     const addMultipleAssignments = async (newAssignments: { resourceId: string; projectId: string }[]) => { try { const createdAssignments = await Promise.all(newAssignments.map(async (a) => { return await apiFetch<Assignment | { message: string }>('/api/assignments', { method: 'POST', body: JSON.stringify(a) }); })); setAssignments(prev => [...prev, ...createdAssignments.filter((a): a is Assignment => !('message' in a))]); } catch (error) { addToast('Errore durante la creazione delle assegnazioni.', 'error'); } };
     const deleteAssignment = async (id: string) => { setActionLoading(`deleteAssignment-${id}`, true); try { await apiFetch(`/api/assignments?id=${id}`, { method: 'DELETE' }); setAssignments(prev => prev.filter(a => a.id !== id)); } finally { setActionLoading(`deleteAssignment-${id}`, false); } };
-    const addResourceRequest = async (req: Omit<ResourceRequest, 'id'>) => { setActionLoading('addResourceRequest', true); try { const newReq = await apiFetch<ResourceRequest>('/api/resource-requests', { method: 'POST', body: JSON.stringify(req) }); setResourceRequests(prev => [...prev, newReq]); } finally { setActionLoading('addResourceRequest', false); } };
-    const updateResourceRequest = async (req: ResourceRequest) => { setActionLoading(`updateResourceRequest-${req.id}`, true); try { const updated = await apiFetch<ResourceRequest>(`/api/resource-requests?id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) }); setResourceRequests(prev => prev.map(r => r.id === req.id ? updated : r)); } finally { setActionLoading(`updateResourceRequest-${req.id}`, false); } };
-    const deleteResourceRequest = async (id: string) => { setActionLoading(`deleteResourceRequest-${id}`, true); try { await apiFetch(`/api/resource-requests?id=${id}`, { method: 'DELETE' }); setResourceRequests(prev => prev.filter(r => r.id !== id)); } finally { setActionLoading(`deleteResourceRequest-${id}`, false); } };
-    const addInterview = async (interview: Omit<Interview, 'id'>) => { setActionLoading('addInterview', true); try { const newInt = await apiFetch<Interview>('/api/resources?entity=interviews', { method: 'POST', body: JSON.stringify(interview) }); setInterviews(prev => [...prev, newInt]); } finally { setActionLoading('addInterview', false); } };
-    const updateInterview = async (interview: Interview) => { setActionLoading(`updateInterview-${interview.id}`, true); try { const updated = await apiFetch<Interview>(`/api/resources?entity=interviews&id=${interview.id}`, { method: 'PUT', body: JSON.stringify(interview) }); setInterviews(prev => prev.map(i => i.id === interview.id ? updated : i)); } finally { setActionLoading(`updateInterview-${interview.id}`, false); } };
-    const deleteInterview = async (id: string) => { setActionLoading(`deleteInterview-${id}`, true); try { await apiFetch(`/api/resources?entity=interviews&id=${id}`, { method: 'DELETE' }); setInterviews(prev => prev.filter(i => i.id !== id)); } finally { setActionLoading(`deleteInterview-${id}`, false); } };
-    
     const addResourceSkill = async (rs: ResourceSkill) => { setActionLoading(`addResourceSkill-${rs.resourceId}`, true); try { const savedSkill = await apiFetch<ResourceSkill>('/api/resources?entity=resource_skills', { method: 'POST', body: JSON.stringify(rs) }); setResourceSkills(prev => [...prev.filter(i => !(i.resourceId === rs.resourceId && i.skillId === rs.skillId)), savedSkill]); } finally { setActionLoading(`addResourceSkill-${rs.resourceId}`, false); } };
     const deleteResourceSkill = async (resourceId: string, skillId: string) => { try { await apiFetch(`/api/resources?entity=resource_skills&resourceId=${resourceId}&skillId=${skillId}`, { method: 'DELETE' }); setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId))); } catch (e) { addToast('Errore durante l\'eliminazione della competenza.', 'error'); } };
     const addProjectSkill = async (ps: ProjectSkill) => { try { const savedPs = await apiFetch<ProjectSkill>('/api/resources?entity=project_skills', { method: 'POST', body: JSON.stringify(ps) }); setProjectSkills(prev => [...prev, savedPs]); } catch (e) { addToast('Errore durante l\'aggiunta della competenza al progetto.', 'error'); } };
     const deleteProjectSkill = async (projectId: string, skillId: string) => { try { await apiFetch(`/api/resources?entity=project_skills&projectId=${projectId}&skillId=${skillId}`, { method: 'DELETE' }); setProjectSkills(prev => prev.filter(ps => !(ps.projectId === projectId && ps.skillId === skillId))); } catch (e) { addToast('Errore durante l\'eliminazione della competenza dal progetto.', 'error'); } };
     const updateSkillThresholds = async (thresholds: SkillThresholds) => { try { const updates = Object.entries(thresholds).map(([key, value]) => ({ key: `skill_threshold.${key}`, value: String(value) })); await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) }); setSkillThresholds(thresholds); } catch (e) { addToast('Errore durante l\'aggiornamento delle soglie competenze.', 'error'); } };
     const updatePlanningSettings = async (settings: { monthsBefore: number; monthsAfter: number }) => { try { const updates = [ { key: 'planning_range_months_before', value: String(settings.monthsBefore) }, { key: 'planning_range_months_after', value: String(settings.monthsAfter) } ]; await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) }); setPlanningSettings(settings); fetchData(); } catch (e) { addToast('Errore durante l\'aggiornamento delle impostazioni di planning.', 'error'); } };
-    const addSkillCategory = async (cat: Omit<SkillCategory, 'id'>) => { try { const newCat = await apiFetch<SkillCategory>('/api/resources?entity=skill_categories', { method: 'POST', body: JSON.stringify(cat) }); setSkillCategories(prev => [...prev, newCat]); } catch (e) { addToast('Errore durante l\'aggiunta della categoria competenza.', 'error'); } };
-    const updateSkillCategory = async (cat: SkillCategory) => { try { const updated = await apiFetch<SkillCategory>(`/api/resources?entity=skill_categories&id=${cat.id}`, { method: 'PUT', body: JSON.stringify(cat) }); setSkillCategories(prev => prev.map(c => c.id === cat.id ? updated : c)); } catch (e) { addToast('Errore durante l\'aggiornamento della categoria competenza.', 'error'); } };
-    const deleteSkillCategory = async (id: string) => { try { await apiFetch(`/api/resources?entity=skill_categories&id=${id}`, { method: 'DELETE' }); setSkillCategories(prev => prev.filter(c => c.id !== id)); } catch (e) { addToast('Errore durante l\'eliminazione della categoria competenza.', 'error'); } };
     const addSkillMacro = async (macro: { name: string }) => { try { const newMacro = await apiFetch<SkillMacroCategory>('/api/resources?entity=skill_macro_categories', { method: 'POST', body: JSON.stringify(macro) }); setSkillMacroCategories(prev => [...prev, newMacro]); } catch (e) { addToast('Errore durante l\'aggiunta della macro categoria.', 'error'); } };
     const updateSkillMacro = async (id: string, name: string) => { try { const updated = await apiFetch<SkillMacroCategory>(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'PUT', body: JSON.stringify({ name }) }); setSkillMacroCategories(prev => prev.map(m => m.id === id ? updated : m)); } catch (e) { addToast('Errore durante l\'aggiornamento della macro categoria.', 'error'); } };
     const deleteSkillMacro = async (id: string) => { try { await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'DELETE' }); setSkillMacroCategories(prev => prev.filter(m => m.id !== id)); } catch (e) { addToast('Errore durante l\'eliminazione della macro categoria.', 'error'); } };
-    const addNotificationConfig = async (config: Omit<NotificationConfig, 'id'>) => { try { const newConfig = await apiFetch<NotificationConfig>('/api/resources?entity=notification_configs', { method: 'POST', body: JSON.stringify(config) }); setNotificationConfigs(prev => [...prev, newConfig]); } catch (e) { addToast('Errore durante l\'aggiunta della configurazione notifica.', 'error'); } };
-    const updateNotificationConfig = async (config: NotificationConfig) => { try { const updated = await apiFetch<NotificationConfig>(`/api/resources?entity=notification_configs&id=${config.id}`, { method: 'PUT', body: JSON.stringify(config) }); setNotificationConfigs(prev => prev.map(c => c.id === config.id ? updated : c)); } catch (e) { addToast('Errore durante l\'aggiornamento della configurazione notifica.', 'error'); } };
-    const deleteNotificationConfig = async (id: string) => { try { await apiFetch(`/api/resources?entity=notification_configs&id=${id}`, { method: 'DELETE' }); setNotificationConfigs(prev => prev.filter(c => c.id !== id)); } catch (e) { addToast('Errore durante l\'eliminazione della configurazione notifica.', 'error'); } };
     const forceRecalculateAnalytics = async () => { try { const res = await apiFetch<{ data: Record<string, unknown> }>('/api/resources?entity=analytics_cache&action=recalc_all', { method: 'POST' }); setAnalyticsCache(res.data); } catch (e) { addToast('Errore durante il ricalcolo delle analytics.', 'error'); } };
     const getBestFitResources = useCallback(async (params: any) => { try { return await apiFetch<any[]>('/api/resources?entity=resources&action=best_fit', { method: 'POST', body: JSON.stringify(params) }); } catch (e) { return []; } }, []);
-    const addLeaveType = async (type: Omit<LeaveType, 'id'>) => { try { const newType = await apiFetch<LeaveType>('/api/resources?entity=leave_types', { method: 'POST', body: JSON.stringify(type) }); setLeaveTypes(prev => [...prev, newType]); } catch (e) { addToast('Errore durante l\'aggiunta del tipo di assenza.', 'error'); } };
-    const updateLeaveType = async (type: LeaveType) => { try { const updated = await apiFetch<LeaveType>(`/api/resources?entity=leave_types&id=${type.id}`, { method: 'PUT', body: JSON.stringify(type) }); setLeaveTypes(prev => prev.map(t => t.id === type.id ? updated : t)); } catch (e) { addToast('Errore durante l\'aggiornamento del tipo di assenza.', 'error'); } };
-    const deleteLeaveType = async (id: string) => { try { await apiFetch(`/api/resources?entity=leave_types&id=${id}`, { method: 'DELETE' }); setLeaveTypes(prev => prev.filter(t => t.id !== id)); } catch (e) { addToast('Errore durante l\'eliminazione del tipo di assenza.', 'error'); } };
-    const addLeaveRequest = async (req: Omit<LeaveRequest, 'id'>) => { try { const newReq = await apiFetch<LeaveRequest>('/api/resources?entity=leaves', { method: 'POST', body: JSON.stringify(req) }); setLeaveRequests(prev => [...prev, newReq]); } catch (e) { addToast('Errore durante l\'aggiunta della richiesta di assenza.', 'error'); } };
-    const updateLeaveRequest = async (req: LeaveRequest) => { try { const updated = await apiFetch<LeaveRequest>(`/api/resources?entity=leaves&id=${req.id}`, { method: 'PUT', body: JSON.stringify(req) }); setLeaveRequests(prev => prev.map(r => r.id === req.id ? updated : r)); } catch (e) { addToast('Errore durante l\'aggiornamento della richiesta di assenza.', 'error'); } };
-    const deleteLeaveRequest = async (id: string) => { try { await apiFetch(`/api/resources?entity=leaves&id=${id}`, { method: 'DELETE' }); setLeaveRequests(prev => prev.filter(r => r.id !== id)); } catch (e) { addToast('Errore durante l\'eliminazione della richiesta di assenza.', 'error'); } };
     const updatePageVisibility = async (visibility: PageVisibility) => { try { const updates = Object.entries(visibility).map(([path, onlyAdmin]) => ({ key: `page_vis.${path}`, value: String(onlyAdmin) })); await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates }) }); setPageVisibility(visibility); } catch (e) { addToast('Errore durante l\'aggiornamento della visibilità pagine.', 'error'); } };
-    const updateSidebarConfig = async (config: SidebarItem[]) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'sidebar_layout_v1', value: JSON.stringify(config) }] }) }); setSidebarConfig(config); } catch (e) { addToast('Errore durante l\'aggiornamento della configurazione sidebar.', 'error'); } };
-    const updateQuickActions = async (actions: QuickAction[]) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'quick_actions_v1', value: JSON.stringify(actions) }] }) }); setQuickActions(actions); } catch (e) { addToast('Errore durante l\'aggiornamento delle azioni rapide.', 'error'); } };
-    const updateSidebarSections = async (sections: string[]) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'sidebar_sections_v1', value: JSON.stringify(sections) }] }) }); setSidebarSections(sections); } catch (e) { addToast('Errore durante l\'aggiornamento delle sezioni sidebar.', 'error'); } };
-    const updateSidebarSectionColors = async (colors: SidebarSectionColors) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'sidebar_section_colors', value: JSON.stringify(colors) }] }) }); setSidebarSectionColors(colors); } catch (e) { addToast('Errore durante l\'aggiornamento dei colori sezioni.', 'error'); } };
-    const updateSidebarFooterActions = async (actions: SidebarFooterAction[]) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'sidebar_footer_actions_v1', value: JSON.stringify(actions) }] }) }); setSidebarFooterActions(actions); } catch (e) { addToast('Errore durante l\'aggiornamento delle azioni footer.', 'error'); } };
-    const updateDashboardLayout = async (layout: DashboardCategory[]) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'dashboard_layout_v2', value: JSON.stringify(layout) }] }) }); setDashboardLayout(layout); } catch (e) { addToast('Errore durante l\'aggiornamento del layout dashboard.', 'error'); } };
-    const updateRoleHomePages = async (config: Record<string, string>) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'role_home_pages_v1', value: JSON.stringify(config) }] }) }); setRoleHomePages(config); } catch (e) { addToast('Errore durante l\'aggiornamento delle home page per ruolo.', 'error'); } };
-    const updateBottomNavPaths = async (paths: string[]) => { try { await apiFetch('/api/resources?entity=app-config-batch', { method: 'POST', body: JSON.stringify({ updates: [{ key: 'bottom_nav_paths_v1', value: JSON.stringify(paths) }] }) }); setBottomNavPaths(paths); } catch (e) { addToast('Errore durante l\'aggiornamento dei percorsi bottom nav.', 'error'); } };
     const fetchEvaluations = useCallback(async (resourceId?: string) => { try { const url = resourceId ? `/api/resources?entity=resource_evaluations&resourceId=${resourceId}` : `/api/resources?entity=resource_evaluations`; const data = await apiFetch<ResourceEvaluation[]>(url); setEvaluations(prev => data); } catch(e) { addToast('Errore durante il caricamento delle valutazioni.', 'error'); } }, [addToast]);
-    const addEvaluation = async (evaluation: Omit<ResourceEvaluation, 'id'>) => { try { const saved = await apiFetch<ResourceEvaluation>('/api/resources?entity=resource_evaluations', { method: 'POST', body: JSON.stringify(evaluation) }); setEvaluations(prev => [...prev, saved]); } catch(e) { addToast('Errore durante l\'aggiunta della valutazione.', 'error'); } };
-    const updateEvaluation = async (evaluation: ResourceEvaluation) => { try { const saved = await apiFetch<ResourceEvaluation>(`/api/resources?entity=resource_evaluations&id=${evaluation.id}`, { method: 'PUT', body: JSON.stringify(evaluation) }); setEvaluations(prev => prev.map(e => e.id === evaluation.id ? saved : e)); } catch(e) { addToast('Errore durante l\'aggiornamento della valutazione.', 'error'); } };
-    const deleteEvaluation = async (id: string) => { try { await apiFetch(`/api/resources?entity=resource_evaluations&id=${id}`, { method: 'DELETE' }); setEvaluations(prev => prev.filter(e => e.id !== id)); } catch(e) { addToast('Errore durante l\'eliminazione della valutazione.', 'error'); } };
+
+    // --- Config batch updates via factory ---
+    const updateSidebarConfig = makeConfigUpdate<SidebarItem[]>('sidebar_layout_v1', setSidebarConfig, 'configurazione sidebar');
+    const updateQuickActions = makeConfigUpdate<QuickAction[]>('quick_actions_v1', setQuickActions, 'azioni rapide');
+    const updateSidebarSections = makeConfigUpdate<string[]>('sidebar_sections_v1', setSidebarSections, 'sezioni sidebar');
+    const updateSidebarSectionColors = makeConfigUpdate<SidebarSectionColors>('sidebar_section_colors', setSidebarSectionColors, 'colori sezioni');
+    const updateSidebarFooterActions = makeConfigUpdate<SidebarFooterAction[]>('sidebar_footer_actions_v1', setSidebarFooterActions, 'azioni footer');
+    const updateDashboardLayout = makeConfigUpdate<DashboardCategory[]>('dashboard_layout_v2', setDashboardLayout, 'layout dashboard');
+    const updateRoleHomePages = makeConfigUpdate<Record<string, string>>('role_home_pages_v1', setRoleHomePages, 'home page per ruolo');
+    const updateBottomNavPaths = makeConfigUpdate<string[]>('bottom_nav_paths_v1', setBottomNavPaths, 'percorsi bottom nav');
 
     const getRoleCost = (roleId: string, date: Date, resourceId?: string): number => { 
         if (resourceId) { const resource = resources.find(r => r.id === resourceId); if (resource && resource.dailyCost && Number(resource.dailyCost) > 0) return Number(resource.dailyCost); }
