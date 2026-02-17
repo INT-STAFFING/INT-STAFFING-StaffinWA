@@ -1,6 +1,6 @@
 
-import { db } from './db.js';
-import { env } from './env.js';
+import { db } from './_lib/db.js';
+import { env } from './_lib/env.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';

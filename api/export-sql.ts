@@ -5,8 +5,8 @@
  * Rafforzato con controllo RBAC ADMIN.
  */
 
-import { db } from './db.js';
-import { env } from './env.js';
+import { db } from './_lib/db.js';
+import { env } from './_lib/env.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import jwt from 'jsonwebtoken';
 

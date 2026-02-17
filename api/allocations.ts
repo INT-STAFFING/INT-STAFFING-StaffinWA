@@ -3,7 +3,7 @@
  * @description Endpoint API per la gestione delle operazioni di aggiornamento massivo sull'entità Allocazioni.
  */
 
-import { db } from './db.js';
+import { db } from './_lib/db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import { notify } from '../utils/webhookNotifier.js';
