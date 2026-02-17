@@ -22,6 +22,7 @@ const StaffingVisualizationPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const svgRef = useRef<SVGSVGElement>(null);
+    const [quickChartUrl, setQuickChartUrl] = useState<string>('');
 
     const monthOptions = useMemo(() => {
         const options = [];
@@ -138,17 +139,97 @@ const StaffingVisualizationPage: React.FC = () => {
         return { nodes: activeNodes, links };
 
     }, [selectedMonth, resources, projects, clients, contracts, assignments, allocations, contractProjects, companyCalendar]);
-    
+
     const chartDataString = useMemo(() => JSON.stringify(chartData), [chartData]);
 
+    // Generate QuickChart URL for Sankey diagram
+    const sankeyChartUrl = useMemo(() => {
+        if (chartData.nodes.length === 0) return '';
+
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        const currentPalette = isDarkMode ? theme.dark : theme.light;
+
+        // Color mapping by node type
+        const colorMap: Record<string, string> = {
+            resource: currentPalette.primary,
+            project: currentPalette.tertiary,
+            client: currentPalette.secondary,
+            contract: currentPalette.primaryContainer,
+        };
+
+        // Build labels map and color map by node ID
+        const labels: Record<string, string> = {};
+        const nodeColors: Record<string, string> = {};
+        chartData.nodes.forEach(node => {
+            labels[node.id] = node.name;
+            nodeColors[node.id] = colorMap[node.type] || currentPalette.primary;
+        });
+
+        // Convert links to QuickChart format {from, to, flow} with colors
+        const sankeyData = chartData.links.map(link => {
+            const sourceNode = chartData.nodes.find(n => n.id === link.source);
+            const targetNode = chartData.nodes.find(n => n.id === link.target);
+            return {
+                from: link.source,
+                to: link.target,
+                flow: link.value,
+                colorFrom: colorMap[sourceNode?.type || 'resource'],
+                colorTo: colorMap[targetNode?.type || 'resource'],
+            };
+        });
+
+        // Build Chart.js config for chartjs-chart-sankey using JavaScript string for callbacks
+        const chartConfigJS = `{
+            type: 'sankey',
+            data: {
+                datasets: [{
+                    data: ${JSON.stringify(sankeyData)},
+                    labels: ${JSON.stringify(labels)},
+                    colorFrom: (c) => c.dataset.data[c.dataIndex].colorFrom,
+                    colorTo: (c) => c.dataset.data[c.dataIndex].colorTo,
+                    colorMode: 'gradient',
+                    size: 'max',
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Flusso Risorse → Progetti → Clienti → Contratti',
+                        color: '${currentPalette.onSurface}',
+                        font: { size: 16, weight: 'bold' }
+                    }
+                },
+                layout: {
+                    padding: 20
+                }
+            }
+        }`;
+
+        // Encode and build QuickChart URL
+        const encodedConfig = encodeURIComponent(chartConfigJS);
+        const width = 1200;
+        const height = 1600;
+        const backgroundColor = encodeURIComponent(currentPalette.background);
+
+        return `https://quickchart.io/chart?c=${encodedConfig}&width=${width}&height=${height}&backgroundColor=${backgroundColor}&version=3&devicePixelRatio=1.5`;
+    }, [chartData, theme.dark, theme.light]);
+
     useEffect(() => {
+        // Sankey uses QuickChart (img), so only render Network view with D3
+        if (view === 'sankey') {
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
 
         if (!svgRef.current) {
             setIsLoading(false);
             return;
         }
-        
+
         const isDarkMode = document.documentElement.classList.contains('dark');
         const currentPalette = isDarkMode ? theme.dark : theme.light;
 
@@ -160,17 +241,16 @@ const StaffingVisualizationPage: React.FC = () => {
         }
 
         const width = 1200;
-        const height = view === 'sankey' ? 1600 : 800;
+        const height = 800;
 
         const draw = async () => {
-            // Dynamic Imports
+            // Dynamic Imports (no d3-sankey needed anymore)
             const [
-                d3Selection, 
-                d3Scale, 
-                d3Zoom, 
-                d3Force, 
-                d3Drag, 
-                d3Sankey,
+                d3Selection,
+                d3Scale,
+                d3Zoom,
+                d3Force,
+                d3Drag,
                 _d3Transition
             ] = await Promise.all([
                 import('d3-selection'),
@@ -178,14 +258,13 @@ const StaffingVisualizationPage: React.FC = () => {
                 import('d3-zoom'),
                 import('d3-force'),
                 import('d3-drag'),
-                import('d3-sankey'),
                 import('d3-transition')
             ]);
-            
+
             const svg = d3Selection.select(svgRef.current);
             svg.selectAll("*").remove();
             svg.attr("viewBox", `0 0 ${width} ${height}`);
-            
+
             const tooltip = d3Selection.select("body").append("div")
                 .attr("class", "d3-tooltip")
                 .style("position", "absolute")
@@ -197,162 +276,81 @@ const StaffingVisualizationPage: React.FC = () => {
                 .style("border-radius", "4px")
                 .style("font-size", "12px");
 
-            if (view === 'sankey') {
-                const { nodeWidth, nodePadding, linkOpacity } = theme.visualizationSettings.sankey;
+            // Network graph rendering
+            const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
 
-                const sankeyGenerator = d3Sankey.sankey()
-                    .nodeWidth(nodeWidth)
-                    .nodePadding(nodePadding)
-                    .extent([[1, 5], [width - 1, height - 5]]);
-                
-                const nodeById = new Map(data.nodes.map((d: any, i: number) => [d.id, i]));
-                const graph = {
-                    nodes: data.nodes,
-                    links: data.links.map((d: any) => ({
-                        source: nodeById.get(d.source),
-                        target: nodeById.get(d.target),
-                        value: d.value,
-                    }))
-                };
-
-                const { nodes, links } = sankeyGenerator(graph);
-                
-                const color = d3Scale.scaleOrdinal()
-                    .domain(['resource', 'project', 'client', 'contract'])
-                    .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
-
-                svg.append("g")
-                    .selectAll("rect")
-                    .data(nodes)
-                    .join("rect")
-                    .attr("x", (d: any) => d.x0)
-                    .attr("y", (d: any) => d.y0)
-                    .attr("height", (d: any) => d.y1 - d.y0)
-                    .attr("width", (d: any) => d.x1 - d.x0)
-                    .attr("fill", (d: any) => color(d.type) as string)
-                    .on("mouseover", (event: any, d: any) => {
-                        tooltip.style("visibility", "visible").text(`${d.name}`);
-                    })
-                    .on("mousemove", (event: any) => {
-                        tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
-                    })
-                    .on("mouseout", () => {
-                        tooltip.style("visibility", "hidden");
-                    });
-
-                const link = svg.append("g")
-                    .attr("fill", "none")
-                    .attr("stroke-opacity", linkOpacity)
-                    .selectAll("g")
-                    .data(links)
-                    .join("g")
-                    .style("mix-blend-mode", "multiply");
-
-                link.append("path")
-                    .attr("d", d3Sankey.sankeyLinkHorizontal())
-                    .attr("stroke", (d: any) => color(d.source.type) as string)
-                    .attr("stroke-width", (d: any) => Math.max(1, d.width));
-                    
-                link.on("mouseover", function(event: any, d: any) {
-                        d3Selection.select(this).attr("stroke-opacity", 0.8);
-                        tooltip.style("visibility", "visible").text(`${d.source.name} → ${d.target.name}: ${d.value.toFixed(1)} G/U`);
-                    })
-                    .on("mousemove", (event: any) => {
-                        tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
-                    })
-                    .on("mouseout", function() {
-                        d3Selection.select(this).attr("stroke-opacity", linkOpacity);
-                        tooltip.style("visibility", "hidden");
-                    });
-
-                svg.append("g")
-                    .selectAll("text")
-                    .data(nodes)
-                    .join("text")
-                    .attr("x", (d: any) => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
-                    .attr("y", (d: any) => (d.y1 + d.y0) / 2)
-                    .attr("dy", "0.35em")
-                    .attr("text-anchor", (d: any) => d.x0 < width / 2 ? "start" : "end")
-                    .attr("font-size", "10px")
-                    .attr("fill", currentPalette.onSurface)
-                    .text((d: any) => d.name);
-            
-            } else { // network
-                const { chargeStrength, linkDistance, centerStrength, nodeRadius } = theme.visualizationSettings.network;
-
-                const zoomBehavior = d3Zoom.zoom()
-                    .scaleExtent([0.1, 4])
-                    .on("zoom", (event: any) => {
-                        g.attr("transform", event.transform);
-                    });
-                
-                const g = svg.append("g");
-                svg.call(zoomBehavior as any);
-
-                 const color = d3Scale.scaleOrdinal()
-                    .domain(['resource', 'project', 'client', 'contract'])
-                    .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
-
-                const simulation = d3Force.forceSimulation(data.nodes)
-                    .force("link", d3Force.forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
-                    .force("charge", d3Force.forceManyBody().strength(chargeStrength))
-                    .force("center", d3Force.forceCenter(width / 2, height / 2))
-                    .force("x", d3Force.forceX(width / 2).strength(centerStrength))
-                    .force("y", d3Force.forceY(height / 2).strength(centerStrength));
-                    
-                const link = g.append("g")
-                    .attr("stroke", currentPalette.outline)
-                    .attr("stroke-opacity", 0.6)
-                    .selectAll("line")
-                    .data(data.links)
-                    .join("line")
-                    .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));  
-
-                const nodeGroup = g.append("g")
-                    .selectAll(".node-group")
-                    .data(data.nodes)
-                    .join("g")
-                    .attr("class", "node-group")
-                    .call(d3Drag.drag()
-                        .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-                        .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
-                        .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }) as any
-                    );
-
-                nodeGroup.append("circle")
-                    .attr("r", nodeRadius)
-                    .attr("fill", (d: any) => color(d.type) as string)
-                    .attr("stroke", currentPalette.surface)
-                    .attr("stroke-width", 1.5);
-
-                nodeGroup.append("text")
-                    .text((d: any) => d.name)
-                    .attr("x", 12)
-                    .attr("y", 3)
-                    .attr("font-size", "10px")
-                    .attr("fill", currentPalette.onSurface);
-                
-                nodeGroup.on("mouseover", (event: any, d: any) => {
-                        tooltip.style("visibility", "visible").text(`${d.name}`);
-                    })
-                    .on("mousemove", (event: any) => {
-                        tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
-                    })
-                    .on("mouseout", () => {
-                        tooltip.style("visibility", "hidden");
-                    });
-
-                simulation.on("tick", () => {
-                    link
-                        .attr("x1", (d: any) => d.source.x)
-                        .attr("y1", (d: any) => d.source.y)
-                        .attr("x2", (d: any) => d.target.x)
-                        .attr("y2", (d: any) => d.target.y);
-
-                    nodeGroup
-                        .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+            const zoomBehavior = d3Zoom.zoom()
+                .scaleExtent([0.1, 4])
+                .on("zoom", (event: any) => {
+                    g.attr("transform", event.transform);
                 });
-            }
+
+            const g = svg.append("g");
+            svg.call(zoomBehavior as any);
+
+            const color = d3Scale.scaleOrdinal()
+                .domain(['resource', 'project', 'client', 'contract'])
+                .range([currentPalette.primary, currentPalette.tertiary, currentPalette.secondary, currentPalette.primaryContainer]);
+
+            const simulation = d3Force.forceSimulation(data.nodes)
+                .force("link", d3Force.forceLink(data.links).id((d: any) => d.id).distance(linkDistance))
+                .force("charge", d3Force.forceManyBody().strength(chargeStrength))
+                .force("center", d3Force.forceCenter(width / 2, height / 2))
+                .force("x", d3Force.forceX(width / 2).strength(centerStrength))
+                .force("y", d3Force.forceY(height / 2).strength(centerStrength));
+
+            const link = g.append("g")
+                .attr("stroke", currentPalette.outline)
+                .attr("stroke-opacity", 0.6)
+                .selectAll("line")
+                .data(data.links)
+                .join("line")
+                .attr("stroke-width", (d: any) => Math.max(1, Math.sqrt(d.value)));
+
+            const nodeGroup = g.append("g")
+                .selectAll(".node-group")
+                .data(data.nodes)
+                .join("g")
+                .attr("class", "node-group")
+                .call(d3Drag.drag()
+                    .on("start", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                    .on("drag", (event: any, d: any) => { d.fx = event.x; d.fy = event.y; })
+                    .on("end", (event: any, d: any) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }) as any
+                );
+
+            nodeGroup.append("circle")
+                .attr("r", nodeRadius)
+                .attr("fill", (d: any) => color(d.type) as string)
+                .attr("stroke", currentPalette.surface)
+                .attr("stroke-width", 1.5);
+
+            nodeGroup.append("text")
+                .text((d: any) => d.name)
+                .attr("x", 12)
+                .attr("y", 3)
+                .attr("font-size", "10px")
+                .attr("fill", currentPalette.onSurface);
+
+            nodeGroup.on("mouseover", (event: any, d: any) => {
+                    tooltip.style("visibility", "visible").text(`${d.name}`);
+                })
+                .on("mousemove", (event: any) => {
+                    tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+                })
+                .on("mouseout", () => {
+                    tooltip.style("visibility", "hidden");
+                });
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", (d: any) => d.source.x)
+                    .attr("y1", (d: any) => d.source.y)
+                    .attr("x2", (d: any) => d.target.x)
+                    .attr("y2", (d: any) => d.target.y);
+
+                nodeGroup
+                    .attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+            });
             
             setIsLoading(false);
         };
@@ -366,6 +364,11 @@ const StaffingVisualizationPage: React.FC = () => {
     }, [chartDataString, view, theme.visualizationSettings, theme.dark, theme.light]);
 
     const handleExportSVG = () => {
+        // Sankey is now rendered via QuickChart (image), SVG export only works for Network
+        if (view === 'sankey') {
+            alert('L\'esportazione SVG è disponibile solo per la Mappa delle Connessioni. Per il Diagramma di Flusso, usa l\'esportazione PNG.');
+            return;
+        }
         if (!svgRef.current) return;
         const svgData = new XMLSerializer().serializeToString(svgRef.current);
         const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
@@ -379,10 +382,24 @@ const StaffingVisualizationPage: React.FC = () => {
     };
 
     const handleExportPNG = () => {
+        // For Sankey, download the QuickChart image directly
+        if (view === 'sankey') {
+            if (!sankeyChartUrl) return;
+            const link = document.createElement('a');
+            link.href = sankeyChartUrl;
+            link.download = `staffing_sankey_${selectedMonth}.png`;
+            link.target = '_blank'; // QuickChart requires cross-origin fetch
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+        }
+
+        // For Network, convert SVG to PNG
         if (!svgRef.current) return;
         const svg = svgRef.current;
         const { width, height } = svg.viewBox.baseVal;
-        
+
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
@@ -439,8 +456,27 @@ const StaffingVisualizationPage: React.FC = () => {
                         <SpinnerIcon className="w-10 h-10 text-primary" />
                     </div>
                 )}
-                <svg ref={svgRef} width="100%" height="100%" className="min-w-[800px] min-h-[600px]"></svg>
-                
+
+                {view === 'sankey' ? (
+                    <>
+                        {sankeyChartUrl && chartData.nodes.length > 0 ? (
+                            <img
+                                src={sankeyChartUrl}
+                                alt="Sankey Diagram"
+                                className="w-full h-auto"
+                                onLoad={() => setIsLoading(false)}
+                                onError={() => setIsLoading(false)}
+                            />
+                        ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-on-surface-variant">
+                                Nessun dato disponibile per il periodo selezionato.
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <svg ref={svgRef} width="100%" height="100%" className="min-w-[800px] min-h-[600px]"></svg>
+                )}
+
                 {chartData.nodes.length === 0 && !isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center text-on-surface-variant">
                         Nessun dato disponibile per il periodo selezionato.
