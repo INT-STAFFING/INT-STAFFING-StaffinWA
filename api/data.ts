@@ -66,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 sidebarFooterActionsRes, dashboardLayoutRes, roleHomePagesRes,
                 bottomNavPathsRes, analyticsRes, skillCatsRes, skillMacrosRes,
                 skillMapRes, catMacroMapRes, planningConfigRes,
-                rateCardsRes, rateCardEntriesRes, projectExpensesRes, notificationConfigsRes
+                rateCardsRes, rateCardEntriesRes, projectExpensesRes, notificationConfigsRes, notificationRulesRes
             ] = await Promise.all([
                 db.sql`SELECT * FROM clients;`,
                 db.sql`SELECT * FROM roles;`,
@@ -103,7 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 db.sql`SELECT * FROM rate_cards;`,
                 db.sql`SELECT * FROM rate_card_entries;`,
                 db.sql`SELECT * FROM project_expenses;`,
-                db.sql`SELECT * FROM notification_configs;`
+                db.sql`SELECT * FROM notification_configs;`,
+                db.sql`SELECT * FROM notification_rules;`
             ]);
 
             const companyCalendar = calendarRes.rows.map(toCamelCase) as CalendarEvent[];
@@ -199,6 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 rateCardEntries: rateCardEntriesRes.rows.map(toCamelCase),
                 projectExpenses: projectExpensesRes.rows.map(toCamelCase),
                 notificationConfigs: notificationConfigsRes.rows.map(toCamelCase),
+                notificationRules: notificationRulesRes.rows.map(toCamelCase),
             });
         }
 

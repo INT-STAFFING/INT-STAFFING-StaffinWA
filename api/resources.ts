@@ -48,6 +48,7 @@ const TABLE_MAPPING: Record<string, string> = {
     'audit_logs': 'action_logs',
     'analytics_cache': 'analytics_cache',
     'notification_configs': 'notification_configs',
+    'notification_rules': 'notification_rules',
     'resource_skills': 'resource_skills',
     'project_skills': 'project_skills',
     'contract_projects': 'contract_projects',
@@ -198,6 +199,28 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         webhookUrl: z.string(),
         description: z.string().optional().nullable(),
         isActive: z.boolean().optional()
+    }),
+    'notification_rules': z.object({
+        name: z.string(),
+        eventType: z.string(),
+        webhookUrl: z.string(),
+        description: z.string().optional().nullable(),
+        isActive: z.boolean().optional(),
+        templateBlocks: z.array(z.object({
+            id: z.string(),
+            type: z.string(),
+            config: z.object({
+                titleTemplate: z.string().optional().nullable(),
+                subtitleTemplate: z.string().optional().nullable(),
+                textTemplate: z.string().optional().nullable(),
+                facts: z.array(z.object({ nameTemplate: z.string(), valueTemplate: z.string() })).optional().nullable(),
+                imageUrlTemplate: z.string().optional().nullable(),
+                imageCaption: z.string().optional().nullable(),
+                tableTitle: z.string().optional().nullable(),
+                headers: z.array(z.string()).optional().nullable(),
+            })
+        })).optional(),
+        color: z.string().optional().nullable(),
     }),
     'interviews': z.object({
         resourceRequestId: z.string().optional().nullable(),
@@ -382,7 +405,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (method === 'GET') {
-            const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs'];
+            const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs', 'notification_rules'];
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
             
             if (tableName === 'resource_evaluations') {

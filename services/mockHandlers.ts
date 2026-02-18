@@ -52,6 +52,8 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     let dbKey = entity;
     if (entity === 'leaves') dbKey = 'leaveRequests';
     if (entity === 'app-users') dbKey = 'users';
+    if (entity === 'notification_rules') dbKey = 'notificationRules';
+    if (entity === 'notification_configs') dbKey = 'notificationConfigs';
     
     const list = db[dbKey] || [];
     

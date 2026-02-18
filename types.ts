@@ -404,6 +404,44 @@ export interface NotificationConfig {
     version?: number;
 }
 
+// --- Notification Rule Builder ---
+
+export type NotificationBlockType = 'header' | 'facts' | 'detailed_facts' | 'image' | 'table' | 'divider' | 'text';
+
+export interface NotificationBlock {
+    id: string;
+    type: NotificationBlockType;
+    config: {
+        /** 'header' block */
+        titleTemplate?: string;
+        subtitleTemplate?: string;
+        /** 'text' block */
+        textTemplate?: string;
+        /** 'facts' | 'detailed_facts' block */
+        facts?: { nameTemplate: string; valueTemplate: string }[];
+        /** 'image' block — supports {{context.xxx}} placeholders */
+        imageUrlTemplate?: string;
+        imageCaption?: string;
+        /** 'table' block title */
+        tableTitle?: string;
+        headers?: string[];
+    };
+}
+
+export interface NotificationRule {
+    id?: string;
+    name: string;
+    eventType: string;
+    webhookUrl: string;
+    description?: string;
+    isActive: boolean;
+    /** JSON array of NotificationBlock, stored as JSONB in DB */
+    templateBlocks: NotificationBlock[];
+    color?: string;
+    createdAt?: string;
+    version?: number;
+}
+
 export interface AuditLogEntry {
     id: string;
     userId: string | null;
@@ -496,6 +534,7 @@ export interface EntitiesState {
     bottomNavPaths: string[];
     notifications: Notification[];
     notificationConfigs: NotificationConfig[];
+    notificationRules: NotificationRule[];
     analyticsCache: Record<string, unknown>;
     loading: boolean;
     evaluations: ResourceEvaluation[];
@@ -581,6 +620,9 @@ export interface EntitiesActions {
     addNotificationConfig: (config: Omit<NotificationConfig, 'id'>) => Promise<void>;
     updateNotificationConfig: (config: NotificationConfig) => Promise<void>;
     deleteNotificationConfig: (id: string) => Promise<void>;
+    addNotificationRule: (rule: Omit<NotificationRule, 'id'>) => Promise<void>;
+    updateNotificationRule: (rule: NotificationRule) => Promise<void>;
+    deleteNotificationRule: (id: string) => Promise<void>;
     forceRecalculateAnalytics: () => Promise<void>;
     getBestFitResources: (params: { startDate: string; endDate: string; roleId: string; projectId: string; commitmentPercentage: number }) => Promise<any[]>;
     fetchEvaluations: (resourceId?: string) => Promise<void>;
