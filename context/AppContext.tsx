@@ -196,7 +196,10 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
             setRateCardEntries(metaData.rateCardEntries || []);
             setProjectExpenses(metaData.projectExpenses || []);
             setNotificationConfigs(metaData.notificationConfigs || []);
-            setNotificationRules(metaData.notificationRules || []);
+            setNotificationRules((metaData.notificationRules || []).map((r: any) => ({
+                ...r,
+                templateBlocks: Array.isArray(r.templateBlocks) ? r.templateBlocks : [],
+            })));
             
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             if (metaData.sidebarConfig) setSidebarConfig(metaData.sidebarConfig);
@@ -441,8 +444,20 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const addSkillCategory = skillCategoryCrud.add; const updateSkillCategory = skillCategoryCrud.update; const deleteSkillCategory = skillCategoryCrud.del;
     const notifConfigCrud = makeCrud<NotificationConfig>('notification_configs', setNotificationConfigs, 'configurazione notifica');
     const addNotificationConfig = notifConfigCrud.add; const updateNotificationConfig = notifConfigCrud.update; const deleteNotificationConfig = notifConfigCrud.del;
-    const notifRuleCrud = makeCrud<NotificationRule>('notification_rules', setNotificationRules, 'regola notifica');
-    const addNotificationRule = notifRuleCrud.add; const updateNotificationRule = notifRuleCrud.update; const deleteNotificationRule = notifRuleCrud.del;
+    // Funzioni CRUD per notification_rules con re-throw degli errori
+    // (a differenza di makeCrud, qui gli errori vengono propagati al chiamante)
+    const addNotificationRule = async (rule: Omit<NotificationRule, 'id'>): Promise<void> => {
+        const created = await apiFetch<NotificationRule>('/api/resources?entity=notification_rules', { method: 'POST', body: JSON.stringify(rule) });
+        setNotificationRules(prev => [...prev, created]);
+    };
+    const updateNotificationRule = async (rule: NotificationRule): Promise<void> => {
+        const updated = await apiFetch<NotificationRule>(`/api/resources?entity=notification_rules&id=${rule.id}`, { method: 'PUT', body: JSON.stringify(rule) });
+        setNotificationRules(prev => prev.map(r => r.id === rule.id ? updated : r));
+    };
+    const deleteNotificationRule = async (id: string): Promise<void> => {
+        await apiFetch(`/api/resources?entity=notification_rules&id=${id}`, { method: 'DELETE' });
+        setNotificationRules(prev => prev.filter(r => r.id !== id));
+    };
     const leaveTypeCrud = makeCrud<LeaveType>('leave_types', setLeaveTypes, 'tipo di assenza');
     const addLeaveType = leaveTypeCrud.add; const updateLeaveType = leaveTypeCrud.update; const deleteLeaveType = leaveTypeCrud.del;
     const leaveRequestCrud = makeCrud<LeaveRequest>('leaves', setLeaveRequests, 'richiesta di assenza');

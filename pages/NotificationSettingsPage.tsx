@@ -441,14 +441,14 @@ const BuilderTab: React.FC = () => {
     const patchBlock = useCallback((blockId: string, updated: NotificationBlock) => {
         setEditingRule(prev => {
             if (!prev) return prev;
-            return { ...prev, templateBlocks: prev.templateBlocks.map(b => b.id === blockId ? updated : b) };
+            return { ...prev, templateBlocks: (prev.templateBlocks ?? []).map(b => b.id === blockId ? updated : b) };
         });
     }, []);
 
     const removeBlock = (blockId: string) => {
         setEditingRule(prev => {
             if (!prev) return prev;
-            return { ...prev, templateBlocks: prev.templateBlocks.filter(b => b.id !== blockId) };
+            return { ...prev, templateBlocks: (prev.templateBlocks ?? []).filter(b => b.id !== blockId) };
         });
         if (selectedBlockId === blockId) setSelectedBlockId(null);
     };
@@ -477,13 +477,13 @@ const BuilderTab: React.FC = () => {
 
         if (src.from === 'palette') {
             const newBlock = makeBlock(src.blockType);
-            const blocks = [...editingRule.templateBlocks];
+            const blocks = [...(editingRule.templateBlocks ?? [])];
             blocks.splice(targetIndex, 0, newBlock);
             patchRule({ templateBlocks: blocks });
             setSelectedBlockId(newBlock.id);
         } else if (src.from === 'canvas') {
             if (src.blockIndex === targetIndex) return;
-            const blocks = [...editingRule.templateBlocks];
+            const blocks = [...(editingRule.templateBlocks ?? [])];
             const [moved] = blocks.splice(src.blockIndex, 1);
             const insertAt = src.blockIndex < targetIndex ? targetIndex - 1 : targetIndex;
             blocks.splice(insertAt, 0, moved);
@@ -500,7 +500,7 @@ const BuilderTab: React.FC = () => {
         if (!src || !editingRule) return;
         if (src.from === 'palette') {
             const newBlock = makeBlock(src.blockType);
-            patchRule({ templateBlocks: [...editingRule.templateBlocks, newBlock] });
+            patchRule({ templateBlocks: [...(editingRule.templateBlocks ?? []), newBlock] });
             setSelectedBlockId(newBlock.id);
         }
         dragSourceRef.current = null;
@@ -519,6 +519,8 @@ const BuilderTab: React.FC = () => {
             else await addNotificationRule(editingRule);
             setEditingRule(null);
             addToast('Regola salvata con successo.', 'success');
+        } catch (e) {
+            addToast('Errore durante il salvataggio della regola webhook.', 'error');
         } finally { setIsSaving(false); }
     };
 
@@ -529,6 +531,8 @@ const BuilderTab: React.FC = () => {
             await deleteNotificationRule(ruleToDelete.id);
             setRuleToDelete(null);
             if (editingRule?.id === ruleToDelete.id) setEditingRule(null);
+        } catch (e) {
+            addToast('Errore durante l\'eliminazione della regola webhook.', 'error');
         } finally { setIsSaving(false); }
     };
 
@@ -569,24 +573,24 @@ const BuilderTab: React.FC = () => {
                                 </div>
                                 {/* Mini anteprima blocchi */}
                                 <div className="flex flex-wrap gap-1.5">
-                                    {rule.templateBlocks.slice(0, 6).map(b => (
+                                    {(rule.templateBlocks ?? []).slice(0, 6).map(b => (
                                         <span key={b.id} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${blockColor(b.type)}`}>
                                             <span className="material-symbols-outlined text-xs">{blockIcon(b.type)}</span>
                                             {blockLabel(b.type)}
                                         </span>
                                     ))}
-                                    {rule.templateBlocks.length > 6 && (
+                                    {(rule.templateBlocks ?? []).length > 6 && (
                                         <span className="px-2 py-0.5 rounded-full text-[10px] bg-surface-container text-on-surface-variant">
-                                            +{rule.templateBlocks.length - 6}
+                                            +{(rule.templateBlocks ?? []).length - 6}
                                         </span>
                                     )}
-                                    {rule.templateBlocks.length === 0 && (
+                                    {(rule.templateBlocks ?? []).length === 0 && (
                                         <span className="text-xs text-on-surface-variant italic">Nessun blocco</span>
                                     )}
                                 </div>
                                 <p className="text-[10px] font-mono text-on-surface-variant truncate" title={rule.webhookUrl}>{rule.webhookUrl || '(nessun URL)'}</p>
                                 <div className="flex gap-2 pt-2 border-t border-outline-variant">
-                                    <button onClick={() => setEditingRule(rule)} className="flex-1 py-1.5 text-xs font-bold text-primary border border-primary rounded-full hover:bg-primary hover:text-on-primary transition-colors">
+                                    <button onClick={() => setEditingRule({ ...rule, templateBlocks: rule.templateBlocks ?? [] })} className="flex-1 py-1.5 text-xs font-bold text-primary border border-primary rounded-full hover:bg-primary hover:text-on-primary transition-colors">
                                         <span className="material-symbols-outlined text-sm align-middle mr-1">edit</span>Modifica
                                     </button>
                                     <button onClick={() => setRuleToDelete(rule)} className="py-1.5 px-3 text-xs font-bold text-error border border-error rounded-full hover:bg-error hover:text-on-error transition-colors">
@@ -682,17 +686,17 @@ const BuilderTab: React.FC = () => {
                 >
                     <div className="p-3">
                         <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wide mb-3">
-                            Canvas Template <span className="font-normal normal-case ml-1">({editingRule.templateBlocks.length} blocchi)</span>
+                            Canvas Template <span className="font-normal normal-case ml-1">({(editingRule.templateBlocks ?? []).length} blocchi)</span>
                         </p>
 
-                        {editingRule.templateBlocks.length === 0 && (
+                        {(editingRule.templateBlocks ?? []).length === 0 && (
                             <div className="flex flex-col items-center justify-center py-16 text-center text-on-surface-variant gap-2">
                                 <span className="material-symbols-outlined text-4xl">drag_indicator</span>
                                 <p className="text-sm">Trascina qui i blocchi dalla palette</p>
                             </div>
                         )}
 
-                        {editingRule.templateBlocks.map((block, idx) => (
+                        {(editingRule.templateBlocks ?? []).map((block, idx) => (
                             <React.Fragment key={block.id}>
                                 {/* Drop zone sopra ogni blocco */}
                                 <div
@@ -729,9 +733,9 @@ const BuilderTab: React.FC = () => {
 
                         {/* Drop zone in fondo */}
                         <div
-                            className={`h-2 rounded-full mx-2 mt-1 transition-all ${dragOverIndex === editingRule.templateBlocks.length ? 'bg-primary' : 'bg-transparent'}`}
-                            onDragOver={e => handleDragOver(e, editingRule.templateBlocks.length)}
-                            onDrop={e => handleDrop(e, editingRule.templateBlocks.length)}
+                            className={`h-2 rounded-full mx-2 mt-1 transition-all ${dragOverIndex === (editingRule.templateBlocks ?? []).length ? 'bg-primary' : 'bg-transparent'}`}
+                            onDragOver={e => handleDragOver(e, (editingRule.templateBlocks ?? []).length)}
+                            onDrop={e => handleDrop(e, (editingRule.templateBlocks ?? []).length)}
                         />
                     </div>
                 </section>
