@@ -4,16 +4,16 @@
  * Fornisce `buildQuickChartUrl` per costruire URL di grafici e `exportCardToPdf` per aprire
  * una finestra di stampa contenente tabella e grafico.
  */
- 
+
 const getNestedValue = (obj: any, key: string): any =>
     key.split('.').reduce((o: any, k: string) => (o != null ? o[k] : undefined), obj);
- 
+
 const PIE_COLORS = [
     '#006493', '#50606e', '#64597b', '#ba1a1a',
     '#006d2e', '#b97600', '#007580', '#7c4e7e',
     '#8b5000', '#3a6ea5',
 ];
- 
+
 /**
  * Costruisce un URL QuickChart.io per un grafico semplice a serie singola.
  * Supporta tipo bar, line e pie. Le chiavi xKey/yKey supportano la notazione punto
@@ -28,15 +28,15 @@ export const buildQuickChartUrl = (
     height = 400,
 ): string => {
     if (!data.length) return '';
- 
+
     const labels = data.map(d => String(getNestedValue(d, xKey) ?? ''));
     const values = data.map(d => {
         const v = getNestedValue(d, yKey);
         return typeof v === 'number' ? v : Number(v) || 0;
     });
- 
+
     let chartCfg: object;
- 
+
     if (type === 'pie') {
         chartCfg = {
             type: 'doughnut',
@@ -71,11 +71,11 @@ export const buildQuickChartUrl = (
             },
         };
     }
- 
+
     const encoded = encodeURIComponent(JSON.stringify(chartCfg));
     return `https://quickchart.io/chart?c=${encoded}&w=${width}&h=${height}&bkg=white`;
 };
- 
+
 /**
  * Apre una nuova finestra del browser contenente la tabella dei dati e il grafico
  * (se fornito l'URL QuickChart) e avvia la stampa come PDF.
@@ -89,22 +89,22 @@ export const exportCardToPdf = (
     const tableRows = tableData
         .map(row => `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`)
         .join('');
- 
+
     const now = new Date();
     const dateStr = now.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
- 
+
     const tableHtml = tableData.length > 0
         ? `<table>
     <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
     <tbody>${tableRows}</tbody>
   </table>`
         : `<p class="no-data">Nessun dato disponibile.</p>`;
- 
+
     const chartHtml = chartUrl
         ? `<div class="chart-container"><img src="${chartUrl}" alt="Grafico" /></div>`
         : '';
- 
+
     const html = `<!DOCTYPE html>
 <html lang="it">
 <head>
@@ -143,7 +143,7 @@ export const exportCardToPdf = (
   </script>
 </body>
 </html>`;
- 
+
     const w = window.open('', '_blank', 'width=1000,height=750');
     if (w) {
         w.document.write(html);
