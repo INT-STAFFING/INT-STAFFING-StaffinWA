@@ -27,6 +27,7 @@ import { format } from 'd3-format';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import ExportButton from '../components/ExportButton';
+import { exportCardToPdf, buildQuickChartUrl } from '../utils/pdfExport';
 import 'd3-transition'; // Import transition to avoid crashes
 
 // --- Colori Centralizzati per la Dashboard ---
@@ -229,6 +230,26 @@ const getAvgAllocationColor = (avg: number): string => {
 
 // --- Individual Card Components ---
 
+// --- Pulsante esportazione PDF ---
+interface PdfExportButtonProps {
+    title: string;
+    tableData: Record<string, any>[];
+    chartUrl?: string;
+}
+const PdfExportButton: React.FC<PdfExportButtonProps> = ({ title, tableData, chartUrl }) => (
+    <button
+        type="button"
+        onClick={() => exportCardToPdf(title, tableData, chartUrl)}
+        disabled={tableData.length === 0}
+        className="inline-flex items-center gap-2 rounded-full border border-outline-variant bg-surface px-3 py-2 text-sm font-medium text-on-surface shadow-sm transition hover:bg-surface-container focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60"
+        aria-label="Esporta PDF"
+        title="Esporta come PDF"
+    >
+        <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+        <span>PDF</span>
+    </button>
+);
+
 const ViewToggleButton: React.FC<{ view: 'table' | 'graph', setView: (v: 'table' | 'graph') => void }> = ({ view, setView }) => (
     <div className="flex items-center space-x-1 bg-surface-container p-1 rounded-full">
         <button
@@ -289,6 +310,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
                     <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Allocazione Media" />
+                    <PdfExportButton title="Allocazione Media" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'currentMonth')} />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -345,6 +367,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="FTE per Progetto" />
+                    <PdfExportButton title="FTE per Progetto" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'fte')} />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -404,6 +427,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Budget" />
+                    <PdfExportButton title="Analisi Budget" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -466,6 +490,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                         <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                         <ExportButton data={exportData} title="Analisi Budget Temporale" />
+                        <PdfExportButton title="Analisi Budget Temporale" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
                     </div>
                 </div>
             </div>
@@ -531,6 +556,7 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
                         <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                         <ExportButton data={exportData} title="Tariffa Media Giornaliera" />
+                        <PdfExportButton title="Tariffa Media Giornaliera" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'avgDailyRate')} />
                     </div>
                 </div>
             </div>
@@ -579,6 +605,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
                     <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Risorse Sottoutilizzate" />
+                    <PdfExportButton title="Risorse Sottoutilizzate" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'avgAllocation')} />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -623,6 +650,7 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
                  <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Costo Mensile per Cliente" />
+                    <PdfExportButton title="Costo Mensile per Cliente" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'cost')} />
                  </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -674,6 +702,7 @@ const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) => {
                  <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Sforzo per Function" />
+                    <PdfExportButton title="Analisi Sforzo per Function" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'totalPersonDays')} />
                  </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -726,6 +755,7 @@ const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) => {
                  <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Sforzo per Industry" />
+                    <PdfExportButton title="Analisi Sforzo per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'totalPersonDays')} />
                  </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -775,6 +805,7 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
                 <div className="flex items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi per Sede (Mese Corrente)" />
+                    <PdfExportButton title="Analisi per Sede (Mese Corrente)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'avgUtilization')} />
                 </div>
             </div>
             <div className="flex-grow h-[30rem]">
@@ -851,6 +882,14 @@ const SaturationTrendCard: React.FC<{
                 <div className="flex items-center gap-2">
                     <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
                     <ExportButton data={exportData} title="Trend Saturazione Risorsa" />
+                    <PdfExportButton
+                        title="Trend Saturazione Risorsa"
+                        tableData={exportData}
+                        chartUrl={buildQuickChartUrl(
+                            data.map(d => ({ label: d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }), value: d.value })),
+                            'line', 'label', 'value'
+                        )}
+                    />
                 </div>
             </div>
             <div className="flex-grow h-72">{ trendResource ? <svg ref={chartRef} className="w-full h-full"></svg> : <div className="flex items-center justify-center h-full text-on-surface-variant">Seleziona una risorsa per visualizzare il trend.</div> }</div>
@@ -903,7 +942,21 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
         <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
             <div className="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
-                <ExportButton data={exportData} title="Forecast Costo Mensile (Rolling 3 Mesi)" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Forecast Costo Mensile (Rolling 3 Mesi)" />
+                    <PdfExportButton
+                        title="Forecast Costo Mensile (Rolling 3 Mesi)"
+                        tableData={exportData}
+                        chartUrl={data.length > 0 ? (() => {
+                            const labels = data.map(d => d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }));
+                            const cfg = { type: 'line', data: { labels, datasets: [
+                                { label: 'Media Storica', data: data.map(d => Math.round(d.historic)), borderColor: '#50606e', borderDash: [4,4], fill: false, pointRadius: 3 },
+                                { label: 'Forecast', data: data.map(d => Math.round(d.forecast)), borderColor: '#006493', fill: false, pointRadius: 3 }
+                            ] }, options: { scales: { y: { beginAtZero: true } } } };
+                            return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(cfg))}&w=800&h=400&bkg=white`;
+                        })() : undefined}
+                    />
+                </div>
             </div>
             <div className="flex-grow h-72"><svg ref={chartRef} className="w-full h-full"></svg></div>
         </div>
@@ -951,7 +1004,10 @@ const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> = ({ dat
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary h-full">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Matrice Allocazione (FTE)</h2>
-                <ExportButton data={exportData} title="Matrice Allocazione" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Matrice Allocazione" />
+                    <PdfExportButton title="Matrice Allocazione (FTE)" tableData={exportData} />
+                </div>
             </div>
             <div className="flex-grow overflow-auto relative max-h-[500px]">
                 <table className="w-full text-sm border-collapse">
@@ -995,7 +1051,10 @@ const RevenueByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary h-full">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Top 5 Revenue per Industry</h2>
-                <ExportButton data={exportData} title="Revenue per Industry" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Revenue per Industry" />
+                    <PdfExportButton title="Top 5 Revenue per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(top5, 'bar', 'name', 'value')} />
+                </div>
             </div>
             <div className="flex-grow h-[300px]">
                 <GraphDataView 
@@ -1015,7 +1074,10 @@ const BenchByFunctionCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Bench % per Function</h2>
-                <ExportButton data={exportData} title="Bench per Function" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Bench per Function" />
+                    <PdfExportButton title="Bench % per Function" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'value')} />
+                </div>
             </div>
             <div className="flex-grow h-[300px]">
                 <GraphDataView 
@@ -1035,7 +1097,10 @@ const BenchByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Bench % per Industry</h2>
-                <ExportButton data={exportData} title="Bench per Industry" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Bench per Industry" />
+                    <PdfExportButton title="Bench % per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'value')} />
+                </div>
             </div>
             <div className="flex-grow h-[300px]">
                 <GraphDataView 
@@ -1060,7 +1125,10 @@ const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Saturazione WBS (Top Rischi)</h2>
-                <ExportButton data={exportData} title="Saturazione WBS" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Saturazione WBS" />
+                    <PdfExportButton title="Saturazione WBS (Top Rischi)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'consumed')} />
+                </div>
             </div>
             <div className="flex-grow h-[300px]">
                  {data.length === 0 ? (
@@ -1097,7 +1165,10 @@ const ContractExpirationsCard: React.FC<{ data: any[], isLoading: boolean }> = (
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-tertiary h-full">
              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Scadenzario Contratti (90gg)</h2>
-                <ExportButton data={exportData} title="Scadenzario Contratti" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Scadenzario Contratti" />
+                    <PdfExportButton title="Scadenzario Contratti (90gg)" tableData={exportData} />
+                </div>
             </div>
             <div className="flex-grow h-[300px] overflow-auto">
                  <DashboardDataTable
@@ -1177,7 +1248,22 @@ const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, i
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary h-full">
              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Revenue Mix (T&M vs Fixed)</h2>
-                <ExportButton data={exportData} title="Revenue Mix" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Revenue Mix" />
+                    <PdfExportButton
+                        title="Revenue Mix (T&M vs Fixed)"
+                        tableData={exportData}
+                        chartUrl={data.length > 0 ? (() => {
+                            const cfg = { type: 'bar', data: { labels: data.map(d => d.month.split('-')[1]),
+                                datasets: [
+                                    { label: 'T&M', data: data.map(d => Math.round(d.tm)), backgroundColor: '#5b9bd5', stack: 'r' },
+                                    { label: 'Fixed Price', data: data.map(d => Math.round(d.fixed)), backgroundColor: '#e67c73', stack: 'r' }
+                                ]
+                            }, options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } } };
+                            return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(cfg))}&w=800&h=400&bkg=white`;
+                        })() : undefined}
+                    />
+                </div>
             </div>
             <div className="flex-grow h-[300px]">
                  {data.length === 0 ? <div className="text-center p-4 text-on-surface-variant">Nessun dato.</div> : <svg ref={svgRef} className="w-full h-full" />}
@@ -1196,7 +1282,10 @@ const BillingPipelineCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary h-full">
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Pipeline Fatturazione (PLANNED)</h2>
-                <ExportButton data={exportData} title="Pipeline Fatturazione" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Pipeline Fatturazione" />
+                    <PdfExportButton title="Pipeline Fatturazione (PLANNED)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'month', 'amount')} />
+                </div>
             </div>
             <div className="flex-grow h-[300px]">
                 <GraphDataView 
@@ -1228,7 +1317,10 @@ const TopMarginProjectsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
         <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-tertiary h-full">
              <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Top Progetti per Margine (Mese Corrente)</h2>
-                <ExportButton data={exportData} title="Top Margine Progetti" />
+                <div className="flex items-center gap-2">
+                    <ExportButton data={exportData} title="Top Margine Progetti" />
+                    <PdfExportButton title="Top Progetti per Margine (Mese Corrente)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'margin')} />
+                </div>
             </div>
             <div className="flex-grow h-[300px] overflow-auto">
                  <DashboardDataTable
