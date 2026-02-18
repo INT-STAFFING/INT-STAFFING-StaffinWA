@@ -61,18 +61,21 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     
     if (method === 'POST') {
       const body = JSON.parse(options.body as string);
-      const newItem = { id: uuidv4(), ...body };
+      const newItem = { id: uuidv4(), version: 1, ...body };
       if (!db[dbKey]) db[dbKey] = [];
       db[dbKey].push(newItem);
       saveDb(db);
       return newItem;
     }
-    
+
     if (method === 'PUT') {
       const body = JSON.parse(options.body as string);
-      db[dbKey] = list.map((i: any) => i.id === params.id ? { ...i, ...body } : i);
+      const existing = list.find((i: any) => i.id === params.id);
+      const nextVersion = (existing?.version ?? 0) + 1;
+      const updated = { ...existing, ...body, id: params.id, version: nextVersion };
+      db[dbKey] = list.map((i: any) => i.id === params.id ? updated : i);
       saveDb(db);
-      return { id: params.id, ...body };
+      return updated;
     }
     
     if (method === 'DELETE') {

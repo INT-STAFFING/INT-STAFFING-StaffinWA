@@ -35,6 +35,12 @@ const getUserFromRequest = (req: VercelRequest) => {
     } catch (e) { return null; }
 };
 
+// Campi che devono essere serializzati come JSON prima di essere passati a PostgreSQL
+// (colonne di tipo JSONB — pg driver non serializza automaticamente gli array JS)
+const JSONB_FIELDS: Record<string, string[]> = {
+    'notification_rules': ['templateBlocks'],
+};
+
 const TABLE_MAPPING: Record<string, string> = {
     'leaves': 'leave_requests',
     'leave_types': 'leave_types',
@@ -458,7 +464,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              let validatedBody = parseResult.data as any;
              const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
              const columns = Object.keys(dbFields).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
-             const values = Object.values(dbFields);
+             const jsonbFields = JSONB_FIELDS[tableName as string] || [];
+             const values = Object.entries(dbFields).map(([k, v]) =>
+                 jsonbFields.includes(k) && typeof v !== 'string' ? JSON.stringify(v) : v
+             );
              const newId = uuidv4();
              const placeholders = values.map((_, i) => `$${i + 2}`);
              await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
@@ -477,7 +486,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let validatedBody = parseResult.data as any;
             const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
             const updates = Object.entries(dbFields).map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
-            const values = Object.values(dbFields);
+            const jsonbFieldsPut = JSONB_FIELDS[tableName as string] || [];
+            const values = Object.entries(dbFields).map(([k, v]) =>
+                jsonbFieldsPut.includes(k) && typeof v !== 'string' ? JSON.stringify(v) : v
+            );
             const result = await client.query(`UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, [...values, id, version]);
             if (result.rowCount === 0) return res.status(409).json({ error: "Conflict" });
             return res.status(200).json({ id, version: Number(version) + 1, ...validatedBody });

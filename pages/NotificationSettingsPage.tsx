@@ -429,6 +429,7 @@ const BuilderTab: React.FC = () => {
         name: 'Nuova Regola',
         eventType: EVENT_TYPES[0].value,
         webhookUrl: '',
+        description: '',
         isActive: true,
         templateBlocks: [],
         color: 'Default',
