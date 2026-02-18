@@ -32,7 +32,8 @@ const TABLE_WHITELIST = [
     'clients', 'roles', 'resources', 'contracts', 'projects', 'resource_requests', 'leave_requests',
     'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations',
     'skills', 'resource_skills', 'project_skills',
-    'app_users', 'role_permissions'
+    'app_users', 'role_permissions',
+    'notification_configs'
 ];
 
 const pgSchema = [
@@ -62,7 +63,9 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`,
     `CREATE TABLE IF NOT EXISTS skills ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, category VARCHAR(255) );`,
     `CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, PRIMARY KEY (resource_id, skill_id) );`,
-    `CREATE TABLE IF NOT EXISTS project_skills ( project_id UUID REFERENCES projects(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, PRIMARY KEY (project_id, skill_id) );`
+    `CREATE TABLE IF NOT EXISTS project_skills ( project_id UUID REFERENCES projects(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, PRIMARY KEY (project_id, skill_id) );`,
+    // In api/export-sql.ts, dentro l'array pgSchema:
+    `CREATE TABLE IF NOT EXISTS notification_configs ( id UUID PRIMARY KEY, event_type VARCHAR(255) NOT NULL, webhook_url TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`
 ];
 
 const translateToMysql = (pgStatement: string) => {
