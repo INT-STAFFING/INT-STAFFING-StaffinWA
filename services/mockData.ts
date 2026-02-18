@@ -47,6 +47,7 @@ export const INITIAL_MOCK_DATA: {
     roleHomePages: any;
     analyticsCache: any;
     notificationConfigs: any[];
+    notificationRules: any[];
     resourceEvaluations?: any[];
 } = {
   functions: [
@@ -201,5 +202,6 @@ export const INITIAL_MOCK_DATA: {
   dashboardLayout: [],
   roleHomePages: {},
   analyticsCache: {},
-  notificationConfigs: []
+  notificationConfigs: [],
+  notificationRules: []
 };

@@ -11,7 +11,7 @@ import {
     ResourceSkill, ProjectSkill, PageVisibility, SkillThresholds, RoleCostHistory,
     LeaveType, LeaveRequest, ContractManager, ContractProject, SidebarItem, SidebarSectionColors,
     Notification, DashboardCategory, SkillCategory, SkillMacroCategory, EntitiesContextType, AllocationsContextType, EntitiesState, SidebarFooterAction,
-    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig, ComputedSkill, QuickAction, ResourceEvaluation
+    RateCard, RateCardEntry, ProjectExpense, BillingMilestone, NotificationConfig, NotificationRule, ComputedSkill, QuickAction, ResourceEvaluation
 } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -108,6 +108,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const [bottomNavPaths, setBottomNavPaths] = useState<string[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [notificationConfigs, setNotificationConfigs] = useState<NotificationConfig[]>([]);
+    const [notificationRules, setNotificationRules] = useState<NotificationRule[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [evaluations, setEvaluations] = useState<ResourceEvaluation[]>([]);
@@ -195,6 +196,10 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
             setRateCardEntries(metaData.rateCardEntries || []);
             setProjectExpenses(metaData.projectExpenses || []);
             setNotificationConfigs(metaData.notificationConfigs || []);
+            setNotificationRules((metaData.notificationRules || []).map((r: any) => ({
+                ...r,
+                templateBlocks: Array.isArray(r.templateBlocks) ? r.templateBlocks : [],
+            })));
             
             if (metaData.skillThresholds) setSkillThresholds(prev => ({ ...prev, ...metaData.skillThresholds }));
             if (metaData.sidebarConfig) setSidebarConfig(metaData.sidebarConfig);
@@ -439,6 +444,20 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
     const addSkillCategory = skillCategoryCrud.add; const updateSkillCategory = skillCategoryCrud.update; const deleteSkillCategory = skillCategoryCrud.del;
     const notifConfigCrud = makeCrud<NotificationConfig>('notification_configs', setNotificationConfigs, 'configurazione notifica');
     const addNotificationConfig = notifConfigCrud.add; const updateNotificationConfig = notifConfigCrud.update; const deleteNotificationConfig = notifConfigCrud.del;
+    // Funzioni CRUD per notification_rules con re-throw degli errori
+    // (a differenza di makeCrud, qui gli errori vengono propagati al chiamante)
+    const addNotificationRule = async (rule: Omit<NotificationRule, 'id'>): Promise<void> => {
+        const created = await apiFetch<NotificationRule>('/api/resources?entity=notification_rules', { method: 'POST', body: JSON.stringify(rule) });
+        setNotificationRules(prev => [...prev, created]);
+    };
+    const updateNotificationRule = async (rule: NotificationRule): Promise<void> => {
+        const updated = await apiFetch<NotificationRule>(`/api/resources?entity=notification_rules&id=${rule.id}`, { method: 'PUT', body: JSON.stringify(rule) });
+        setNotificationRules(prev => prev.map(r => r.id === rule.id ? updated : r));
+    };
+    const deleteNotificationRule = async (id: string): Promise<void> => {
+        await apiFetch(`/api/resources?entity=notification_rules&id=${id}`, { method: 'DELETE' });
+        setNotificationRules(prev => prev.filter(r => r.id !== id));
+    };
     const leaveTypeCrud = makeCrud<LeaveType>('leave_types', setLeaveTypes, 'tipo di assenza');
     const addLeaveType = leaveTypeCrud.add; const updateLeaveType = leaveTypeCrud.update; const deleteLeaveType = leaveTypeCrud.del;
     const leaveRequestCrud = makeCrud<LeaveRequest>('leaves', setLeaveRequests, 'richiesta di assenza');
@@ -515,7 +534,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         assignments, functions, industries, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, billingMilestones, notificationConfigs, evaluations,
+        notifications, analyticsCache, loading, isActionLoading, billingMilestones, notificationConfigs, notificationRules, evaluations,
         fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject,
         addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
         addProjectExpense, updateProjectExpense, deleteProjectExpense, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
@@ -524,7 +543,9 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill,
         updateSkillThresholds, updatePlanningSettings, getResourceComputedSkills, addSkillCategory, updateSkillCategory, deleteSkillCategory,
         addSkillMacro, updateSkillMacro, deleteSkillMacro, addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, getBestFitResources,
-        addNotificationConfig, updateNotificationConfig, deleteNotificationConfig, forceRecalculateAnalytics, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updatePageVisibility,
+        addNotificationConfig, updateNotificationConfig, deleteNotificationConfig,
+        addNotificationRule, updateNotificationRule, deleteNotificationRule,
+        forceRecalculateAnalytics, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updatePageVisibility,
         updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
         fetchEvaluations, addEvaluation, updateEvaluation, deleteEvaluation
     }), [
@@ -532,7 +553,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         assignments, functions, industries, seniorityLevels, projectStatuses, clientSectors, locations, companyCalendar,
         wbsTasks, resourceRequests, interviews, skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, pageVisibility, skillThresholds,
         planningSettings, leaveTypes, leaveRequests, managerResourceIds, sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions, dashboardLayout, roleHomePages, bottomNavPaths,
-        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones, notificationConfigs, getResourceComputedSkills, evaluations,
+        notifications, analyticsCache, loading, isActionLoading, getBestFitResources, billingMilestones, notificationConfigs, notificationRules, getResourceComputedSkills, evaluations,
         fetchData, fetchNotifications, markNotificationAsRead, addResource, updateResource, deleteResource, addProject, updateProject, deleteProject,
         addClient, updateClient, deleteClient, addRole, updateRole, deleteRole, addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
         addProjectExpense, updateProjectExpense, deleteProjectExpense, addConfigOption, updateConfigOption, deleteConfigOption, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
@@ -540,6 +561,7 @@ export const AppProviders: React.FC<any> = ({ children, planningWindow, configKe
         addContract, updateContract, deleteContract, recalculateContractBacklog, addSkill, updateSkill, deleteSkill, addResourceSkill, deleteResourceSkill, addProjectSkill, deleteProjectSkill,
         updateSkillThresholds, updatePlanningSettings, addSkillCategory, updateSkillCategory, deleteSkillCategory, addSkillMacro, updateSkillMacro, deleteSkillMacro,
         addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig,
+        addNotificationRule, updateNotificationRule, deleteNotificationRule,
         forceRecalculateAnalytics, addLeaveType, updateLeaveType, deleteLeaveType, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, updatePageVisibility,
         updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors, updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
         fetchEvaluations, addEvaluation, updateEvaluation, deleteEvaluation

@@ -35,6 +35,12 @@ const getUserFromRequest = (req: VercelRequest) => {
     } catch (e) { return null; }
 };
 
+// Campi che devono essere serializzati come JSON prima di essere passati a PostgreSQL
+// (colonne di tipo JSONB — pg driver non serializza automaticamente gli array JS)
+const JSONB_FIELDS: Record<string, string[]> = {
+    'notification_rules': ['templateBlocks'],
+};
+
 const TABLE_MAPPING: Record<string, string> = {
     'leaves': 'leave_requests',
     'leave_types': 'leave_types',
@@ -48,6 +54,7 @@ const TABLE_MAPPING: Record<string, string> = {
     'audit_logs': 'action_logs',
     'analytics_cache': 'analytics_cache',
     'notification_configs': 'notification_configs',
+    'notification_rules': 'notification_rules',
     'resource_skills': 'resource_skills',
     'project_skills': 'project_skills',
     'contract_projects': 'contract_projects',
@@ -198,6 +205,28 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         webhookUrl: z.string(),
         description: z.string().optional().nullable(),
         isActive: z.boolean().optional()
+    }),
+    'notification_rules': z.object({
+        name: z.string(),
+        eventType: z.string(),
+        webhookUrl: z.string(),
+        description: z.string().optional().nullable(),
+        isActive: z.boolean().optional(),
+        templateBlocks: z.array(z.object({
+            id: z.string(),
+            type: z.string(),
+            config: z.object({
+                titleTemplate: z.string().optional().nullable(),
+                subtitleTemplate: z.string().optional().nullable(),
+                textTemplate: z.string().optional().nullable(),
+                facts: z.array(z.object({ nameTemplate: z.string(), valueTemplate: z.string() })).optional().nullable(),
+                imageUrlTemplate: z.string().optional().nullable(),
+                imageCaption: z.string().optional().nullable(),
+                tableTitle: z.string().optional().nullable(),
+                headers: z.array(z.string()).optional().nullable(),
+            })
+        })).optional(),
+        color: z.string().optional().nullable(),
     }),
     'interviews': z.object({
         resourceRequestId: z.string().optional().nullable(),
@@ -382,7 +411,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (method === 'GET') {
-            const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs'];
+            const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs', 'notification_rules'];
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
             
             if (tableName === 'resource_evaluations') {
@@ -435,7 +464,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              let validatedBody = parseResult.data as any;
              const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
              const columns = Object.keys(dbFields).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
-             const values = Object.values(dbFields);
+             const jsonbFields = JSONB_FIELDS[tableName as string] || [];
+             const values = Object.entries(dbFields).map(([k, v]) =>
+                 jsonbFields.includes(k) && typeof v !== 'string' ? JSON.stringify(v) : v
+             );
              const newId = uuidv4();
              const placeholders = values.map((_, i) => `$${i + 2}`);
              await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
@@ -454,7 +486,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             let validatedBody = parseResult.data as any;
             const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
             const updates = Object.entries(dbFields).map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
-            const values = Object.values(dbFields);
+            const jsonbFieldsPut = JSONB_FIELDS[tableName as string] || [];
+            const values = Object.entries(dbFields).map(([k, v]) =>
+                jsonbFieldsPut.includes(k) && typeof v !== 'string' ? JSON.stringify(v) : v
+            );
             const result = await client.query(`UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, [...values, id, version]);
             if (result.rowCount === 0) return res.status(409).json({ error: "Conflict" });
             return res.status(200).json({ id, version: Number(version) + 1, ...validatedBody });
