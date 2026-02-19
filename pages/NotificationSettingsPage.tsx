@@ -10,7 +10,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useEntitiesContext } from '../context/AppContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useToast } from '../context/ToastContext';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -276,7 +276,7 @@ const BlockPreview: React.FC<{ block: NotificationBlock }> = ({ block }) => {
 // ---------------------------------------------------------------------------
 
 const WebhookSempliciTab: React.FC = () => {
-    const { notificationConfigs, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig } = useEntitiesContext();
+    const { notificationConfigs, addNotificationConfig, updateNotificationConfig, deleteNotificationConfig } = useUIConfigContext();
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingConfig, setEditingConfig] = useState<Partial<NotificationConfig> | null>(null);
@@ -439,7 +439,7 @@ type DragSource =
     | { from: 'canvas'; blockIndex: number };
 
 const BuilderTab: React.FC = () => {
-    const { notificationRules, addNotificationRule, updateNotificationRule, deleteNotificationRule } = useEntitiesContext();
+    const { notificationRules, addNotificationRule, updateNotificationRule, deleteNotificationRule } = useUIConfigContext();
     const { addToast } = useToast();
 
     // Vista: lista regole | editor regola

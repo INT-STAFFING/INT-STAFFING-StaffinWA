@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useNavigate } from 'react-router-dom';
 
 const formatDate = (dateString: string) => {
@@ -19,7 +19,7 @@ const formatDate = (dateString: string) => {
 };
 
 const NotificationsPage: React.FC = () => {
-    const { notifications, markNotificationAsRead } = useEntitiesContext();
+    const { notifications, markNotificationAsRead } = useUIConfigContext();
     const navigate = useNavigate();
     const [filter, setFilter] = useState<'all' | 'unread'>('unread');
 

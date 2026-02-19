@@ -5,7 +5,10 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useSkillsContext } from '../context/SkillsContext';
+import { useGetResourceComputedSkills } from '../hooks/useComputedSkills';
 import { Resource, ComputedSkill, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -44,11 +47,10 @@ type EnrichedSkillResource = Resource & {
 type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
 
 const SkillsMapPage: React.FC = () => {
-    const { 
-        resources, roles, skills, resourceSkills, addResourceSkill, deleteResourceSkill, 
-        getResourceComputedSkills, loading, isActionLoading,
-        skillCategories, skillMacroCategories
-    } = useEntitiesContext();
+    const { resources, roles } = useResourcesContext();
+    const { skills, resourceSkills, addResourceSkill, deleteResourceSkill, skillCategories, skillMacroCategories } = useSkillsContext();
+    const getResourceComputedSkills = useGetResourceComputedSkills();
+    const { loading, isActionLoading } = useAppState();
 
     // State
     const [view, setView] = useState<'table' | 'card'>('table');
