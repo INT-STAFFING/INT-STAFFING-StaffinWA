@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
@@ -7,6 +7,8 @@ import SearchableSelect from '../components/SearchableSelect';
 import { SpinnerIcon } from '../components/icons';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 import { useSearchParams } from 'react-router-dom';
 
 /**
@@ -115,6 +117,59 @@ const ClientsPage: React.FC = () => {
     const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateClient(inlineEditingData); handleCancelInlineEdit(); } };
     
     const sectorOptions = useMemo(() => clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [clientSectors]);
+
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const sectorCounts: Record<string, number> = {};
+      filteredClients.forEach(c => {
+        const sector = c.sector || 'Non definito';
+        sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+      });
+
+      const projectsPerClient = filteredClients.map(c => ({
+        name: c.name.length > 20 ? c.name.substring(0, 20) + '...' : c.name,
+        count: projects.filter(p => p.clientId === c.id).length,
+      })).sort((a, b) => b.count - a.count).slice(0, 10);
+
+      return {
+        title: 'Gestione Clienti',
+        subtitle: `${filteredClients.length} clienti`,
+        charts: [
+          {
+            title: 'Clienti per Settore',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(sectorCounts),
+                datasets: [{ data: Object.values(sectorCounts), backgroundColor: CHART_PALETTE }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Top 10 Clienti per Numero Progetti',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: projectsPerClient.map(c => c.name),
+                datasets: [{ label: 'Progetti', data: projectsPerClient.map(c => c.count), backgroundColor: CHART_PALETTE[1] }],
+              },
+              options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Clienti',
+            head: [['Nome Cliente', 'Settore', 'Email Contatto']],
+            body: exportData.map(row => [
+              String(row['Nome Cliente'] ?? ''),
+              String(row['Settore'] ?? ''),
+              String(row['Email Contatto'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [filteredClients, exportData, projects]);
 
     const columns: ColumnDef<Client>[] = [
         { header: 'Nome Cliente', sortKey: 'name', cell: (client) => <span className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{client.name}</span> },
@@ -235,7 +290,7 @@ const ClientsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={exportData} title="Gestione Clienti" />}
+                headerActions={<><ExportButton data={exportData} title="Gestione Clienti" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{

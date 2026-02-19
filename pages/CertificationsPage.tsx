@@ -4,7 +4,7 @@
  * @description Pagina dedicata alla gestione delle Certificazioni (Skills con isCertification=true).
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
@@ -16,6 +16,8 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { useSearchParams } from 'react-router-dom';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 // --- Types ---
 type EnrichedCertification = Skill & {
@@ -328,6 +330,56 @@ const CertificationsPage: React.FC = () => {
         </div>
     );
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const top10 = [...filteredData]
+        .sort((a, b) => b.resourceCount - a.resourceCount)
+        .slice(0, 10);
+      const expiringTotal = filteredData.reduce((sum, c) => sum + c.expiringCount, 0);
+      const validTotal = filteredData.reduce((sum, c) => sum + Math.max(0, c.resourceCount - c.expiringCount), 0);
+
+      return {
+        title: 'Gestione Certificazioni',
+        subtitle: `${filteredData.length} certificazioni`,
+        charts: [
+          {
+            title: 'Top 10 Certificazioni per Risorse',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10.map(c => c.name.length > 25 ? c.name.substring(0, 25) + '...' : c.name),
+                datasets: [{ label: 'Risorse Certificate', data: top10.map(c => c.resourceCount), backgroundColor: CHART_PALETTE[0] }],
+              },
+              options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+          {
+            title: 'Certificazioni: Valide vs In Scadenza',
+            chartJs: {
+              type: 'pie',
+              data: {
+                labels: ['Valide', 'In Scadenza (90gg)'],
+                datasets: [{ data: [validTotal, expiringTotal], backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[3]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Certificazioni',
+            head: [['Certificazione', 'Macro Area', 'Ambito', 'Risorse Certificate', 'In Scadenza (90gg)']],
+            body: exportData.map(row => [
+              String(row['Certificazione'] ?? ''),
+              String(row['Macro Area'] ?? ''),
+              String(row['Ambito Specifico'] ?? ''),
+              String(row['Risorse Certificate'] ?? ''),
+              String(row['In Scadenza (90gg)'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [filteredData, exportData]);
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -354,7 +406,7 @@ const CertificationsPage: React.FC = () => {
                 onAddNew={() => handleOpenModal()}
                 renderRow={renderRow}
                 renderMobileCard={renderCard}
-                headerActions={<ExportButton data={exportData} title="Gestione Certificazioni" />}
+                headerActions={<><ExportButton data={exportData} title="Gestione Certificazioni" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}

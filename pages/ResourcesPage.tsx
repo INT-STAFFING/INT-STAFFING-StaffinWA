@@ -10,6 +10,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
 import ExportButton from '../components/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 // --- Types ---
 type EnrichedResource = Resource & {
@@ -376,6 +378,61 @@ const ResourcesPage: React.FC = () => {
     const skillOptions = useMemo(() => skills.sort((a,b) => a.name.localeCompare(b.name)).map(s => ({ value: s.id!, label: s.name })), [skills]);
     const resourceOptions = useMemo(() => resources.filter(r => !r.resigned).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [resources]);
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const functionCounts: Record<string, number> = {};
+      const locationCounts: Record<string, number> = {};
+      dataForTable.forEach(r => {
+        const fn = r.function || 'Non definita';
+        functionCounts[fn] = (functionCounts[fn] || 0) + 1;
+        const loc = r.location || 'Non definita';
+        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+      });
+
+      return {
+        title: 'Gestione Risorse',
+        subtitle: `${dataForTable.length} risorse`,
+        charts: [
+          {
+            title: 'Risorse per Function',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(functionCounts),
+                datasets: [{ data: Object.values(functionCounts), backgroundColor: CHART_PALETTE }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Risorse per Sede',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: Object.keys(locationCounts),
+                datasets: [{ label: 'Risorse', data: Object.values(locationCounts), backgroundColor: CHART_PALETTE[1] }],
+              },
+              options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Risorse',
+            head: [['Nome', 'Ruolo', 'Function', 'Sede', 'Stato', 'Allocazione %', 'Progetti Attivi']],
+            body: exportData.map(row => [
+              String(row['Nome'] ?? ''),
+              String(row['Ruolo'] ?? ''),
+              String(row['Function'] ?? ''),
+              String(row['Sede'] ?? ''),
+              String(row['Stato'] ?? ''),
+              String(row['Allocazione Media %'] ?? ''),
+              String(row['Progetti Attivi'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [dataForTable, exportData]);
+
     const columns: ColumnDef<EnrichedResource>[] = [
         { header: 'Nome', sortKey: 'name', cell: r => <div className="font-medium text-on-surface sticky left-0 bg-inherit pl-6">{r.name}</div> },
         { header: 'Ruolo', sortKey: 'roleName', cell: r => <span className="text-sm text-on-surface-variant">{r.roleName}</span> },
@@ -529,7 +586,7 @@ const ResourcesPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={exportData} title="Gestione Risorse" />}
+                headerActions={<><ExportButton data={exportData} title="Gestione Risorse" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}

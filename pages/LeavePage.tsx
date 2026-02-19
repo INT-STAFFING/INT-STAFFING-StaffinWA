@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { LeaveRequest, LeaveStatus, LeaveType } from '../types';
@@ -11,6 +11,8 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { ExportButton } from '@/components/shared/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 /**
  * @file LeavePage.tsx
@@ -381,12 +383,69 @@ const LeavePage: React.FC = () => {
         );
     };
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const statusCounts: Record<string, number> = { 'Approvata': 0, 'In Attesa': 0, 'Rifiutata': 0 };
+      const typeCounts: Record<string, number> = {};
+
+      (exportData as Record<string, unknown>[]).forEach((row) => {
+        const status = String(row['Stato'] ?? '');
+        if (status in statusCounts) statusCounts[status] = (statusCounts[status] || 0) + 1;
+        const type = String(row['Tipologia'] ?? 'Non definita');
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+      });
+
+      return {
+        title: 'Richieste Assenza',
+        subtitle: `${exportData.length} richieste`,
+        charts: [
+          {
+            title: 'Richieste per Stato',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{ data: Object.values(statusCounts), backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[4], CHART_PALETTE[3]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Richieste per Tipologia',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: Object.keys(typeCounts),
+                datasets: [{ label: 'Richieste', data: Object.values(typeCounts), backgroundColor: CHART_PALETTE[1] }],
+              },
+              options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Richieste Assenza',
+            head: [['Risorsa', 'Tipologia', 'Data Inizio', 'Data Fine', 'Durata (gg)', 'Stato', 'Note']],
+            body: (exportData as Record<string, unknown>[]).map((row) => [
+              String(row['Risorsa'] ?? ''),
+              String(row['Tipologia'] ?? ''),
+              String(row['Data Inizio'] ?? ''),
+              String(row['Data Fine'] ?? ''),
+              String(row['Durata (gg)'] ?? ''),
+              String(row['Stato'] ?? ''),
+              String(row['Note'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [exportData]);
+
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <SearchableSelect name="resourceId" value={filters.resourceId} onChange={(_, v) => setFilters(f => ({...f, resourceId: v}))} options={resourceOptions} placeholder="Tutte le Risorse"/>
             <SearchableSelect name="typeId" value={filters.typeId} onChange={(_, v) => setFilters(f => ({...f, typeId: v}))} options={typeOptions} placeholder="Tutte le Tipologie"/>
             <div className="flex flex-wrap items-center gap-2 md:col-span-2">
                 <ExportButton data={exportData} title="Richieste Assenza" />
+                <PdfExportButton buildConfig={buildPdfConfig} />
                 <button onClick={() => setFilters({ resourceId: '', typeId: '', status: '' })} className="px-4 py-2 bg-secondary-container text-on-secondary-container rounded-full text-sm font-bold hover:opacity-90">Reset Filtri</button>
             </div>
         </div>

@@ -3,13 +3,15 @@
  * @description Pagina per la visualizzazione di report analitici su costi e utilizzo utilizzando il componente DataTable.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import ExportButton from '../components/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 // --- Tipi e Interfacce Locali ---
 type ReportTab = 'projectCosts' | 'resourceUtilization';
@@ -196,6 +198,59 @@ const ProjectCostsReport: React.FC = () => {
         </div>
     );
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const top10 = [...reportData].sort((a, b) => b.totalCost - a.totalCost).slice(0, 10);
+      const positiveMargin = reportData.filter(d => d.margin >= 0).length;
+      const negativeMargin = reportData.length - positiveMargin;
+      return {
+        title: 'Report Marginalità per Progetto',
+        subtitle: `${reportData.length} progetti analizzati`,
+        charts: [
+          {
+            title: 'Top 10 Progetti per Costo Totale',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10.map(d => d.projectName.length > 20 ? d.projectName.substring(0, 20) + '...' : d.projectName),
+                datasets: [
+                  { label: 'Budget', data: top10.map(d => Math.round(d.budget)), backgroundColor: CHART_PALETTE[0] + '99' },
+                  { label: 'Costo Totale', data: top10.map(d => Math.round(d.totalCost)), backgroundColor: CHART_PALETTE[3] + '99' },
+                ],
+              },
+              options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } },
+            },
+          },
+          {
+            title: 'Distribuzione Margine',
+            chartJs: {
+              type: 'pie',
+              data: {
+                labels: ['Margine Positivo', 'Margine Negativo'],
+                datasets: [{ data: [positiveMargin, negativeMargin], backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[3]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Dettaglio Costi per Progetto',
+            head: [['Progetto', 'Cliente', 'Budget', 'Costo Labor', 'Costo Totale', 'Margine', 'Margine %', 'G/U']],
+            body: exportData.map(row => [
+              String(row['Progetto'] ?? ''),
+              String(row['Cliente'] ?? ''),
+              String(row['Budget'] ?? ''),
+              String(row['Costo Labor'] ?? ''),
+              String(row['Costo Totale'] ?? ''),
+              String(row['Margine'] ?? ''),
+              String(row['Margine %'] ?? ''),
+              String(row['G/U Allocati'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [reportData, exportData]);
+
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <SearchableSelect name="clientId" value={filters.clientId} onChange={(_, v) => setFilters(f => ({...f, clientId: v}))} options={clientOptions} placeholder="Tutti i Clienti"/>
@@ -205,6 +260,7 @@ const ProjectCostsReport: React.FC = () => {
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                 </button>
                 <ExportButton data={exportData} title="Marginalità per Progetto" />
+                <PdfExportButton buildConfig={buildPdfConfig} />
             </div>
         </div>
     );
@@ -391,6 +447,55 @@ const ResourceUtilizationReport: React.FC = () => {
         )
     };
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const top10 = [...reportData].sort((a, b) => b.utilization - a.utilization).slice(0, 10);
+      const over = reportData.filter(d => d.utilization > 90).length;
+      const good = reportData.filter(d => d.utilization >= 60 && d.utilization <= 90).length;
+      const under = reportData.filter(d => d.utilization < 60).length;
+      return {
+        title: 'Report Utilizzo Risorse',
+        subtitle: `${reportData.length} risorse analizzate`,
+        charts: [
+          {
+            title: 'Top 10 Risorse per Utilizzo (%)',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10.map(d => d.resourceName.length > 20 ? d.resourceName.substring(0, 20) + '...' : d.resourceName),
+                datasets: [{ label: 'Utilizzo %', data: top10.map(d => Math.round(d.utilization)), backgroundColor: CHART_PALETTE[1] }],
+              },
+              options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 120 } } },
+            },
+          },
+          {
+            title: 'Distribuzione Utilizzo',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: ['Sovraccarico (>90%)', 'Ottimale (60-90%)', 'Sottoutilizzato (<60%)'],
+                datasets: [{ data: [over, good, under], backgroundColor: [CHART_PALETTE[3], CHART_PALETTE[2], CHART_PALETTE[4]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Dettaglio Utilizzo Risorse',
+            head: [['Risorsa', 'Ruolo', 'G/U Disponibili', 'G/U Allocati', 'Utilizzo %', 'Costo Allocato']],
+            body: exportData.map(row => [
+              String(row['Risorsa'] ?? ''),
+              String(row['Ruolo'] ?? ''),
+              String(row['G/U Disponibili'] ?? ''),
+              String(row['G/U Allocati'] ?? ''),
+              String(row['Utilizzo (%)'] ?? ''),
+              String(row['Costo Allocato'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [reportData, exportData]);
+
     const filtersNode = (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input"/>
@@ -401,6 +506,7 @@ const ResourceUtilizationReport: React.FC = () => {
                     <span className="material-symbols-outlined mr-2">download</span> Esporta CSV
                 </button>
                 <ExportButton data={exportData} title="Utilizzo Risorse" />
+                <PdfExportButton buildConfig={buildPdfConfig} />
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Project, ProjectExpense, BillingType, BillingMilestone, MilestoneStatus } from '../types';
 import Modal from '../components/Modal';
@@ -13,6 +13,8 @@ import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
 import { useToast } from '../context/ToastContext';
 import ConfirmationModal from '../components/ConfirmationModal';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 type EnrichedProject = Project & { 
     clientName: string; 
@@ -735,6 +737,62 @@ export const ProjectsPage: React.FC = () => {
         </div>
     );
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const statusCounts: Record<string, number> = {};
+      dataForTable.forEach(p => {
+        const st = p.status || 'Non definito';
+        statusCounts[st] = (statusCounts[st] || 0) + 1;
+      });
+      const top10Budget = [...dataForTable]
+        .sort((a, b) => Number(b.budget || 0) - Number(a.budget || 0))
+        .slice(0, 10);
+
+      return {
+        title: 'Gestione Progetti',
+        subtitle: `${dataForTable.length} progetti`,
+        charts: [
+          {
+            title: 'Progetti per Stato',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{ data: Object.values(statusCounts), backgroundColor: CHART_PALETTE }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Top 10 Progetti per Budget',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10Budget.map(p => p.name.length > 20 ? p.name.substring(0, 20) + '...' : p.name),
+                datasets: [{ label: 'Budget (€)', data: top10Budget.map(p => Math.round(Number(p.budget || 0))), backgroundColor: CHART_PALETTE[0] }],
+              },
+              options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Progetti',
+            head: [['Nome Progetto', 'Cliente', 'PM', 'Stato', 'Budget', 'Data Inizio', 'Data Fine', 'Risorse']],
+            body: exportData.map(row => [
+              String(row['Nome Progetto'] ?? ''),
+              String(row['Cliente'] ?? ''),
+              String(row['Project Manager'] ?? ''),
+              String(row['Stato'] ?? ''),
+              String(row['Budget'] ?? ''),
+              String(row['Data Inizio'] ?? ''),
+              String(row['Data Fine'] ?? ''),
+              String(row['Risorse Assegnate'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [dataForTable, exportData]);
+
     return (
         <div>
             {/* KPI Summary Cards */}
@@ -762,7 +820,7 @@ export const ProjectsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={exportData} title="Gestione Progetti" />}
+                headerActions={<><ExportButton data={exportData} title="Gestione Progetti" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}
