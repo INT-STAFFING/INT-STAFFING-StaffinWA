@@ -167,6 +167,11 @@ function buildActionsFromBlocks(blocks: NotificationBlock[], ctx: EventContext):
 // ---------------------------------------------------------------------------
 
 async function sendAdaptiveCard(webhookUrls: string[], body: any[], actions: any[]): Promise<void> {
+    // MS Teams rifiuta le card con body vuoto — fallback a un testo minimale
+    const safeBody = body.length > 0
+        ? body
+        : [{ type: 'TextBlock', text: '(Notifica senza contenuto configurato)', wrap: true, isSubtle: true }];
+
     const card = {
         type: 'message',
         attachments: [{
@@ -175,19 +180,33 @@ async function sendAdaptiveCard(webhookUrls: string[], body: any[], actions: any
                 $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
                 version: '1.2',
                 type: 'AdaptiveCard',
-                body,
+                body: safeBody,
                 actions: actions.length > 0 ? actions : undefined,
             },
         }],
     };
 
-    await Promise.allSettled(webhookUrls.map(url =>
-        fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(card),
+    const results = await Promise.allSettled(
+        webhookUrls.map(async (url) => {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(card),
+            });
+            if (!resp.ok) {
+                const errorText = await resp.text().catch(() => '(risposta non leggibile)');
+                console.error(`[sendAdaptiveCard] Teams ha rifiutato la richiesta: HTTP ${resp.status} — ${errorText} — URL: ${url.substring(0, 80)}...`);
+            } else {
+                console.log(`[sendAdaptiveCard] Notifica Teams inviata con successo (HTTP ${resp.status})`);
+            }
         })
-    ));
+    );
+
+    results.forEach((result, i) => {
+        if (result.status === 'rejected') {
+            console.error(`[sendAdaptiveCard] Errore di rete per webhook [${i}]:`, result.reason);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -215,17 +234,31 @@ export async function processEvent(
             [eventType]
         );
 
-        if (rules.length === 0) return;
+        if (rules.length === 0) {
+            console.log(`[processEvent] Nessuna regola attiva per evento: ${eventType}`);
+            return;
+        }
+
+        console.log(`[processEvent] Trovate ${rules.length} regola/e per evento: ${eventType}`);
 
         await Promise.allSettled(rules.map(async (rule: any) => {
-            const blocks: NotificationBlock[] = Array.isArray(rule.template_blocks)
-                ? rule.template_blocks
-                : JSON.parse(rule.template_blocks || '[]');
+            try {
+                const blocks: NotificationBlock[] = Array.isArray(rule.template_blocks)
+                    ? rule.template_blocks
+                    : JSON.parse(rule.template_blocks || '[]');
 
-            const body = buildBodyFromBlocks(blocks, ctx, rule.color);
-            const actions = buildActionsFromBlocks(blocks, ctx);
+                if (blocks.length === 0) {
+                    console.warn(`[processEvent] Regola "${rule.name}" (${rule.id}) non ha blocchi configurati — card inviata con body di fallback`);
+                }
 
-            await sendAdaptiveCard([rule.webhook_url], body, actions);
+                const body = buildBodyFromBlocks(blocks, ctx, rule.color);
+                const actions = buildActionsFromBlocks(blocks, ctx);
+
+                console.log(`[processEvent] Invio notifica Teams per regola "${rule.name}" — URL: ${rule.webhook_url?.substring(0, 60)}...`);
+                await sendAdaptiveCard([rule.webhook_url], body, actions);
+            } catch (ruleError) {
+                console.error(`[processEvent] Errore elaborazione regola "${rule.name}" (${rule.id}):`, ruleError);
+            }
         }));
     } catch (error) {
         console.error('[processEvent] Errore nel motore event-driven:', error);

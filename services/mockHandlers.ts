@@ -85,6 +85,11 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     }
   }
 
+  // Mock test webhook: simula sempre successo in modalità locale
+  if (path.endsWith('/api/webhook-test') && method === 'POST') {
+    return { success: true, statusCode: 200, responseBody: '(Simulato in modalità locale — nessuna richiesta reale inviata a Teams)' };
+  }
+
   if (path.includes('/api/config')) {
       const type = params.type;
       const list = db[type] || [];

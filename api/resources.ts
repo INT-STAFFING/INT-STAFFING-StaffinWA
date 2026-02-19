@@ -294,75 +294,189 @@ const triggerNotification = async (client: any, method: string, tableName: strin
     try {
         if (method === 'POST') {
             if (tableName === 'resources') {
+                // Recupera il nome del ruolo invece dell'ID
+                let roleName = 'N/A';
+                if (data.roleId) {
+                    const roleRes = await client.query('SELECT name FROM roles WHERE id = $1', [data.roleId]).catch(() => ({ rows: [] }));
+                    roleName = roleRes.rows[0]?.name || data.roleId;
+                }
                 await notify(client, 'RESOURCE_CREATED', {
                     title: 'Nuova Risorsa Inserita',
                     color: 'Good',
-                    facts: [{ name: 'Nome', value: data.name }, { name: 'Ruolo', value: data.roleId || 'N/A' }]
+                    facts: [
+                        { name: 'Nome', value: data.name },
+                        { name: 'Ruolo', value: roleName },
+                        { name: 'Funzione', value: data.function || 'N/A' },
+                        { name: 'Sede', value: data.location || 'N/A' },
+                    ]
                 });
             } else if (tableName === 'projects') {
                 await notify(client, 'PROJECT_CREATED', {
                     title: 'Nuovo Progetto Creato',
                     color: 'Good',
-                    facts: [{ name: 'Progetto', value: data.name }, { name: 'Budget', value: `${data.budget} €` }]
+                    facts: [
+                        { name: 'Progetto', value: data.name },
+                        { name: 'Budget', value: data.budget ? `${data.budget} €` : 'N/A' },
+                        { name: 'Stato', value: data.status || 'N/A' },
+                    ]
+                });
+            } else if (tableName === 'leave_requests') {
+                await notify(client, 'LEAVE_REQUEST_CREATED', {
+                    title: 'Nuova Richiesta di Assenza',
+                    color: 'Accent',
+                    facts: [
+                        { name: 'Tipo', value: data.leaveType || 'N/A' },
+                        { name: 'Dal', value: data.startDate || 'N/A' },
+                        { name: 'Al', value: data.endDate || 'N/A' },
+                        { name: 'Note', value: data.notes || '' },
+                    ]
+                });
+            } else if (tableName === 'contracts') {
+                await notify(client, 'CONTRACT_CREATED', {
+                    title: 'Nuovo Contratto Creato',
+                    color: 'Good',
+                    facts: [
+                        { name: 'Contratto', value: data.name },
+                        { name: 'CIG', value: data.cig || 'N/A' },
+                        { name: 'Capienza', value: data.capienza ? `${data.capienza} €` : 'N/A' },
+                    ]
+                });
+            } else if (tableName === 'resource_skills') {
+                await notify(client, 'SKILL_ADDED', {
+                    title: 'Nuova Competenza Acquisita',
+                    color: 'Good',
+                    facts: [
+                        { name: 'Livello', value: data.level ? `${data.level}/5` : 'N/A' },
+                        { name: 'Data Acquisizione', value: data.acquisitionDate || 'N/A' },
+                    ]
                 });
             }
-        } else if (method === 'PUT' && tableName === 'interviews') {
-            if (data.feedback && data.feedback !== oldData?.feedback) {
-                const ratingKeys = [
-                    'ratingTechnicalMastery', 'ratingProblemSolving', 'ratingMethodQuality',
-                    'ratingDomainKnowledge', 'ratingAutonomy', 'ratingCommunication',
-                    'ratingProactivity', 'ratingTeamFit'
-                ];
-                
-                let sum = 0;
-                let count = 0;
-                const detailedFacts: { name: string, value: string }[] = [];
-
-                ratingKeys.forEach(key => {
-                    if (data[key] && Number(data[key]) > 0) {
-                        sum += Number(data[key]);
-                        count++;
-                        const readableKey = key.replace('rating', '').replace(/([A-Z])/g, ' $1').trim();
-                        detailedFacts.push({ name: readableKey, value: `${Number(data[key])}/5` });
+        } else if (method === 'PUT') {
+            if (tableName === 'resources') {
+                if (data.resigned === true) {
+                    await notify(client, 'RESOURCE_RESIGNED', {
+                        title: 'Dimissioni Risorsa',
+                        color: 'Warning',
+                        facts: [
+                            { name: 'Nome', value: data.name || oldData?.name || 'N/A' },
+                            { name: 'Ultimo Giorno', value: data.lastDayOfWork || 'N/A' },
+                        ]
+                    });
+                } else {
+                    await notify(client, 'RESOURCE_UPDATED', {
+                        title: 'Anagrafica Risorsa Aggiornata',
+                        color: 'Accent',
+                        facts: [
+                            { name: 'Nome', value: data.name || oldData?.name || 'N/A' },
+                        ]
+                    });
+                }
+            } else if (tableName === 'projects') {
+                if (data.status && data.status !== oldData?.status) {
+                    await notify(client, 'PROJECT_STATUS_CHANGED', {
+                        title: 'Cambio Stato Progetto',
+                        color: 'Accent',
+                        facts: [
+                            { name: 'Progetto', value: data.name || oldData?.name || 'N/A' },
+                            { name: 'Precedente', value: oldData?.status || 'N/A' },
+                            { name: 'Nuovo Stato', value: data.status },
+                        ]
+                    });
+                } else if (data.budget !== undefined && data.budget !== oldData?.budget) {
+                    await notify(client, 'BUDGET_UPDATED', {
+                        title: 'Revisione Budget Progetto',
+                        color: 'Warning',
+                        facts: [
+                            { name: 'Progetto', value: data.name || oldData?.name || 'N/A' },
+                            { name: 'Budget Precedente', value: oldData?.budget ? `${oldData.budget} €` : 'N/A' },
+                            { name: 'Nuovo Budget', value: data.budget ? `${data.budget} €` : 'N/A' },
+                        ]
+                    });
+                }
+            } else if (tableName === 'leave_requests') {
+                const newStatus = data.status;
+                const oldStatus = oldData?.status;
+                if (newStatus && newStatus !== oldStatus) {
+                    if (newStatus === 'APPROVED') {
+                        await notify(client, 'LEAVE_APPROVED', {
+                            title: 'Assenza Approvata',
+                            color: 'Good',
+                            facts: [
+                                { name: 'Tipo', value: data.leaveType || oldData?.leaveType || 'N/A' },
+                                { name: 'Dal', value: data.startDate || oldData?.startDate || 'N/A' },
+                                { name: 'Al', value: data.endDate || oldData?.endDate || 'N/A' },
+                            ]
+                        });
+                    } else if (newStatus === 'REJECTED') {
+                        await notify(client, 'LEAVE_REJECTED', {
+                            title: 'Assenza Rifiutata',
+                            color: 'Attention',
+                            facts: [
+                                { name: 'Tipo', value: data.leaveType || oldData?.leaveType || 'N/A' },
+                                { name: 'Dal', value: data.startDate || oldData?.startDate || 'N/A' },
+                                { name: 'Al', value: data.endDate || oldData?.endDate || 'N/A' },
+                            ]
+                        });
                     }
-                });
+                }
+            } else if (tableName === 'interviews') {
+                if (data.feedback && data.feedback !== oldData?.feedback) {
+                    const ratingKeys = [
+                        'ratingTechnicalMastery', 'ratingProblemSolving', 'ratingMethodQuality',
+                        'ratingDomainKnowledge', 'ratingAutonomy', 'ratingCommunication',
+                        'ratingProactivity', 'ratingTeamFit'
+                    ];
 
-                const average = count > 0 ? sum / count : 0;
-                const stars = "⭐".repeat(Math.round(average)) + "☆".repeat(5 - Math.round(average));
-                const chartColor = average >= 4 ? '#4caf50' : average >= 3 ? '#ff9800' : '#f44336';
-                const chartConfig = {
-                    type: 'radialGauge',
-                    data: { datasets: [{ data: [average], backgroundColor: chartColor }] },
-                    options: { domain: [0, 5], trackColor: '#e0e0e0', centerPercentage: 80, centerArea: { text: average.toFixed(1), fontColor: chartColor, fontSize: 50, fontFamily: 'Arial', fontWeight: 'bold' } }
-                };
-                const encodedConfig = encodeURIComponent(JSON.stringify(chartConfig));
-                const imageUrl = `https://quickchart.io/chart?c=${encodedConfig}&w=300&h=300`;
+                    let sum = 0;
+                    let count = 0;
+                    const detailedFacts: { name: string, value: string }[] = [];
 
-                await notify(client, 'INTERVIEW_FEEDBACK', {
-                    title: `Feedback Inserito: ${data.candidateName} ${data.candidateSurname}`,
-                    color: average >= 3.5 ? 'Good' : average >= 2.5 ? 'Warning' : 'Attention',
-                    imageUrl: imageUrl,
-                    imageCaption: `Valutazione Media: ${average.toFixed(1)} su 5`,
-                    facts: [
-                        { name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` },
-                        { name: 'Esito', value: data.feedback },
-                        { name: 'Media Voto', value: `${stars} (${average.toFixed(1)})` },
-                        { name: 'Stato', value: data.status || 'N/A' }
-                    ],
-                    detailedFacts: detailedFacts
-                });
+                    ratingKeys.forEach(key => {
+                        if (data[key] && Number(data[key]) > 0) {
+                            sum += Number(data[key]);
+                            count++;
+                            const readableKey = key.replace('rating', '').replace(/([A-Z])/g, ' $1').trim();
+                            detailedFacts.push({ name: readableKey, value: `${Number(data[key])}/5` });
+                        }
+                    });
 
-                const rrId = data.resourceRequestId || oldData?.resourceRequestId;
-                if (rrId) {
-                    const reqRes = await client.query('SELECT requestor_id FROM resource_requests WHERE id = $1', [rrId]);
-                    const requestorId = reqRes.rows[0]?.requestor_id;
-                    if (requestorId) {
-                         const candidate = data.candidateName || oldData?.candidateName || 'Candidato';
-                         await client.query(
-                            `INSERT INTO notifications (id, recipient_resource_id, title, message, link, created_at) 
-                             VALUES ($1, $2, $3, $4, $5, NOW())`,
-                            [uuidv4(), requestorId, 'Feedback Colloquio', `Nuovo feedback inserito per ${candidate}: ${data.feedback}. Media: ${average.toFixed(1)}/5`, '/interviews']
-                        );
+                    const average = count > 0 ? sum / count : 0;
+                    const stars = "⭐".repeat(Math.round(average)) + "☆".repeat(5 - Math.round(average));
+                    const chartColor = average >= 4 ? '#4caf50' : average >= 3 ? '#ff9800' : '#f44336';
+                    const chartConfig = {
+                        type: 'radialGauge',
+                        data: { datasets: [{ data: [average], backgroundColor: chartColor }] },
+                        options: { domain: [0, 5], trackColor: '#e0e0e0', centerPercentage: 80, centerArea: { text: average.toFixed(1), fontColor: chartColor, fontSize: 50, fontFamily: 'Arial', fontWeight: 'bold' } }
+                    };
+                    const encodedConfig = encodeURIComponent(JSON.stringify(chartConfig));
+                    const imageUrl = `https://quickchart.io/chart?c=${encodedConfig}&w=300&h=300`;
+
+                    await notify(client, 'INTERVIEW_FEEDBACK', {
+                        title: `Feedback Inserito: ${data.candidateName} ${data.candidateSurname}`,
+                        color: average >= 3.5 ? 'Good' : average >= 2.5 ? 'Warning' : 'Attention',
+                        imageUrl: imageUrl,
+                        imageCaption: `Valutazione Media: ${average.toFixed(1)} su 5`,
+                        facts: [
+                            { name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` },
+                            { name: 'Esito', value: data.feedback },
+                            { name: 'Media Voto', value: `${stars} (${average.toFixed(1)})` },
+                            { name: 'Stato', value: data.status || 'N/A' }
+                        ],
+                        detailedFacts: detailedFacts
+                    });
+
+                    const rrId = data.resourceRequestId || oldData?.resourceRequestId;
+                    if (rrId) {
+                        const reqRes = await client.query('SELECT requestor_id FROM resource_requests WHERE id = $1', [rrId]);
+                        const requestorId = reqRes.rows[0]?.requestor_id;
+                        if (requestorId) {
+                             const candidate = data.candidateName || oldData?.candidateName || 'Candidato';
+                             await client.query(
+                                `INSERT INTO notifications (id, recipient_resource_id, title, message, link, created_at)
+                                 VALUES ($1, $2, $3, $4, $5, NOW())`,
+                                [uuidv4(), requestorId, 'Feedback Colloquio', `Nuovo feedback inserito per ${candidate}: ${data.feedback}. Media: ${average.toFixed(1)}/5`, '/interviews']
+                            );
+                        }
                     }
                 }
             }
@@ -456,6 +570,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                      `INSERT INTO app_users (id, username, password_hash, role, resource_id, is_active, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
                      [newId, validatedBody.username, hashedPassword, validatedBody.role, validatedBody.resourceId || null, validatedBody.isActive ?? true]
                  );
+                 await notify(client, 'USER_CREATED', {
+                     title: 'Nuovo Utente di Sistema Creato',
+                     color: 'Accent',
+                     facts: [{ name: 'Username', value: validatedBody.username }, { name: 'Ruolo', value: validatedBody.role }]
+                 });
                  return res.status(201).json({ id: newId, ...validatedBody });
              }
 
@@ -480,7 +599,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const { version } = req.body;
             const schema = VALIDATION_SCHEMAS[tableName as string];
             const dataToValidate = { ...req.body };
-            delete dataToValidate.version; 
+            delete dataToValidate.version;
             const parseResult = schema.safeParse(dataToValidate);
             if (!parseResult.success) return res.status(400).json({ error: "Invalid data" });
             let validatedBody = parseResult.data as any;
@@ -490,8 +609,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const values = Object.entries(dbFields).map(([k, v]) =>
                 jsonbFieldsPut.includes(k) && typeof v !== 'string' ? JSON.stringify(v) : v
             );
+
+            // Recupera dati precedenti per confronto nei trigger evento (status change, resigned, ecc.)
+            const notifiableTables = ['resources', 'projects', 'leave_requests', 'interviews'];
+            let oldData: any = null;
+            if (id && notifiableTables.includes(tableName as string)) {
+                const oldRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+                if (oldRes.rows[0]) oldData = toCamelAndNormalize(oldRes.rows[0]);
+            }
+
             const result = await client.query(`UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, [...values, id, version]);
             if (result.rowCount === 0) return res.status(409).json({ error: "Conflict" });
+
+            await triggerNotification(client, 'PUT', tableName as string, id as string, validatedBody, oldData);
+
             return res.status(200).json({ id, version: Number(version) + 1, ...validatedBody });
         }
 
