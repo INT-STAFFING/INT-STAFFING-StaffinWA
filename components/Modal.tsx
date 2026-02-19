@@ -86,7 +86,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
                     </button>
                 </div>
                 {/* Area del contenuto: diventa scorrevole se il contenuto è troppo alto. */}
-                <div id={descriptionId} className="p-6 overflow-y-auto">
+                <div id={descriptionId} className="p-4 sm:p-6 overflow-y-auto">
                     {children}
                 </div>
             </div>

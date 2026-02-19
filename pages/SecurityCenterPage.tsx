@@ -505,12 +505,12 @@ const NavigationPillar: React.FC = () => {
             </section>
 
             <section>
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                     <div>
                         <h3 className="text-2xl font-bold text-on-surface">Struttura Sidebar</h3>
                         <p className="text-sm text-on-surface-variant">Ordina le voci e assegna le categorie per il menu principale.</p>
                     </div>
-                    <button onClick={handleSaveMenu} className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg">Salva Struttura</button>
+                    <button onClick={handleSaveMenu} className="w-full sm:w-auto px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg">Salva Struttura</button>
                 </div>
                 <div className="bg-surface-container-lowest border border-outline-variant rounded-[2rem] shadow-inner max-h-[600px] overflow-y-auto">
                     {localSidebar.map((item, idx) => (

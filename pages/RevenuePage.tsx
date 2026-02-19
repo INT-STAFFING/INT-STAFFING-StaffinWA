@@ -393,8 +393,8 @@ export const RevenuePage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-on-surface">Revenue Recognition</h1>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-bold text-on-surface">Revenue Recognition</h1>
                 <div className="flex items-center gap-2">
                     <button onClick={() => setYear(year - 1)} className="p-2 rounded hover:bg-surface-container"><span className="material-symbols-outlined">chevron_left</span></button>
                     <span className="font-bold text-xl">{year}</span>

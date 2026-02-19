@@ -33,16 +33,16 @@ const DataLoadSection: React.FC = () => {
 
     return (
         <div className="bg-surface rounded-3xl shadow-sm p-8 border border-outline-variant">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-on-surface">Caricamento Dati & Performance</h2>
                     <p className="text-sm text-on-surface-variant">Configura l'orizzonte temporale del caricamento delle allocazioni (Salvataggio su Database Globale).</p>
                 </div>
                 {hasChanges && (
-                    <button 
-                        onClick={handleSave} 
+                    <button
+                        onClick={handleSave}
                         disabled={isActionLoading('updatePlanningSettings')}
-                        className="px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95"
+                        className="w-full sm:w-auto px-6 py-2 bg-primary text-on-primary rounded-full text-sm font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
                     >
                         {isActionLoading('updatePlanningSettings') ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-sm">save</span> Salva su DB & Ricarica</>}
                     </button>
@@ -148,16 +148,16 @@ const TalentConfigSection: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center bg-surface p-4 rounded-2xl border border-outline-variant shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-surface p-4 rounded-2xl border border-outline-variant shadow-sm gap-4">
                 <div>
                     <h3 className="text-xl font-bold text-on-surface">Gestione Massiva Talent & Growth</h3>
                     <p className="text-sm text-on-surface-variant">Modifica rapidamente i flag talent e i codici di seniority per le risorse.</p>
                 </div>
                 {hasChanges && (
-                    <button 
-                        onClick={handleBulkSave} 
+                    <button
+                        onClick={handleBulkSave}
                         disabled={isActionLoading('updateResource')}
-                        className="px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center gap-2"
+                        className="w-full sm:w-auto px-6 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center justify-center gap-2"
                     >
                         {isActionLoading('updateResource') ? <SpinnerIcon className="w-4 h-4"/> : 'Salva Modifiche'}
                     </button>
@@ -175,7 +175,7 @@ const TalentConfigSection: React.FC = () => {
                         placeholder="Cerca risorsa..." 
                         value={searchTerm} 
                         onChange={e => setSearchTerm(e.target.value)} 
-                        className="form-input w-64"
+                        className="form-input w-full sm:w-64"
                     />
                 }
                 onAddNew={() => {}}

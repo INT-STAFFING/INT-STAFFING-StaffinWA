@@ -1073,7 +1073,7 @@ const SimulationPage: React.FC = () => {
                     <div className="h-full overflow-y-auto space-y-6 p-1">
                         {/* Resource Config */}
                         <div className="bg-surface p-6 rounded-2xl shadow border border-outline-variant">
-                            <div className="flex justify-between items-center mb-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                                 <h3 className="text-lg font-bold">Configurazione Risorse e Costi</h3>
                                 <button onClick={() => setIsGhostModalOpen(true)} className="px-3 py-1.5 bg-tertiary-container text-on-tertiary-container rounded-full text-xs font-bold flex items-center gap-1">
                                     <span className="material-symbols-outlined text-sm">add_ghost</span> Aggiungi Risorsa Simulata
@@ -1301,7 +1301,7 @@ const SimulationPage: React.FC = () => {
 
                 {activeTab === 'analysis' && (
                     <div className="h-full bg-surface rounded-2xl shadow border border-outline-variant p-6 overflow-hidden flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
                             <h3 className="text-xl font-bold">Analisi Finanziaria (Simulazione)</h3>
                             <ExportButton data={analysisData} title={`Report Simulazione ${state.name}`} />
                         </div>
