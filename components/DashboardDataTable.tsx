@@ -67,7 +67,7 @@ export function DashboardDataTable<T extends { id?: string }>({
     initialSortKey,
     isLoading,
     footerNode,
-    maxVisibleRows,
+    maxVisibleRows: _maxVisibleRows, // l'altezza è ora gestita dal contenitore CSS (h-full)
 }: DashboardDataTableProps<T>) {
     const { items: sortedDataRaw, requestSort, sortConfig } = useSortableData(data, initialSortKey);
 
@@ -90,11 +90,8 @@ export function DashboardDataTable<T extends { id?: string }>({
 
     const sortedData = filteredData;
 
-    // Altezza max (circa 2.75rem = 44px per riga)
-    const maxHeightStyle = maxVisibleRows ? { maxHeight: `${maxVisibleRows * 2.75}rem` } : {};
-
     return (
-        <div className="overflow-y-auto" style={maxHeightStyle}>
+        <div className="h-full overflow-y-auto">
             <table className="min-w-full text-sm">
                 <thead className="sticky top-0 z-10 bg-surface-container dark:bg-dark-card">
                     {/* Header principale */}
