@@ -474,7 +474,7 @@ const ResourcesPage: React.FC = () => {
     };
 
     const filtersNode = (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 items-end">
             <input type="text" name="name" value={filters.name} onChange={handleFilterChange} className="w-full form-input" placeholder="Cerca per nome..." />
             <SearchableSelect name="roleId" value={filters.roleId} onChange={handleFilterSelectChange} options={roleOptions} placeholder="Tutti i ruoli" />
             <SearchableSelect name="function" value={filters.function} onChange={handleFilterSelectChange} options={functionOptions} placeholder="Tutte le Function" />

@@ -229,9 +229,9 @@ const GanttPage: React.FC = () => {
         <div className="h-full flex flex-col space-y-4">
             {/* Header & Controls */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface p-4 rounded-2xl shadow border border-outline-variant">
-                <h1 className="text-3xl font-bold text-on-surface">Gantt di Progetto</h1>
-                
-                <div className="flex items-center gap-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-on-surface">Gantt di Progetto</h1>
+
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-start md:justify-end">
                     <div className="flex items-center bg-surface-container p-1 rounded-full">
                         {(['month', 'quarter', 'year'] as ZoomLevel[]).map((level) => (
                             <button

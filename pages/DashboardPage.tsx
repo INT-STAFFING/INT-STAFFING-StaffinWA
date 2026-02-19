@@ -303,17 +303,17 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
     }, [data]);
     
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Allocazione Media</h2>
-                <div className="flex items-center gap-4">
-                    <div className="w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <div className="w-full sm:w-48"><SearchableSelect name="resourceId" value={filter.resourceId} onChange={(_, v) => setFilter({ resourceId: v })} options={resourceOptions} placeholder="Tutte le risorse" /></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Allocazione Media" />
                     <PdfExportButton title="Allocazione Media" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'currentMonth')} />
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -360,8 +360,8 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">FTE per Progetto</h2>
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
@@ -370,7 +370,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                     <PdfExportButton title="FTE per Progetto" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'fte')} />
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                      <DashboardDataTable
                         columns={columns}
@@ -420,8 +420,8 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Analisi Budget</h2>
                 <div className="flex items-center gap-4">
                     <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
@@ -430,7 +430,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                     <PdfExportButton title="Analisi Budget" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -480,21 +480,21 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
-                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h2 className="text-lg font-semibold">Analisi Budget Temporale</h2>
-                    <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-start xl:justify-end items-center">
-                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
-                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
-                        <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end items-center">
+                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
+                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
+                        <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                         <ExportButton data={exportData} title="Analisi Budget Temporale" />
                         <PdfExportButton title="Analisi Budget Temporale" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
                     </div>
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -546,21 +546,21 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4">
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <h2 className="text-lg font-semibold">Tariffa Media Giornaliera</h2>
-                    <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-start xl:justify-end items-center">
-                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
-                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-32"/>
-                        <div className="w-full sm:w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end items-center">
+                        <input type="date" value={filter.startDate} onChange={(e) => setFilter({ ...filter, startDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
+                        <input type="date" value={filter.endDate} onChange={(e) => setFilter({ ...filter, endDate: e.target.value })} className="form-input text-sm p-1.5 w-full sm:w-32"/>
+                        <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ ...filter, clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                         <ViewToggleButton view={view} setView={setView} />
                         <ExportButton data={exportData} title="Tariffa Media Giornaliera" />
                         <PdfExportButton title="Tariffa Media Giornaliera" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'avgDailyRate')} />
                     </div>
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                  {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -598,17 +598,17 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Risorse Sottoutilizzate</h2>
-                <div className="flex items-center gap-4">
-                    <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-48"/>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="form-input w-full sm:w-48"/>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Risorse Sottoutilizzate" />
                     <PdfExportButton title="Risorse Sottoutilizzate" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'avgAllocation')} />
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -644,16 +644,16 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                  <h2 className="text-lg font-semibold">Costo Mensile per Cliente</h2>
-                 <div className="flex items-center gap-2">
+                 <div className="flex flex-wrap items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Costo Mensile per Cliente" />
                     <PdfExportButton title="Costo Mensile per Cliente" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'cost')} />
                  </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -696,16 +696,16 @@ const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) => {
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Function</h2>
-                 <div className="flex items-center gap-2">
+                 <div className="flex flex-wrap items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Sforzo per Function" />
                     <PdfExportButton title="Analisi Sforzo per Function" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'totalPersonDays')} />
                  </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -749,16 +749,16 @@ const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) => {
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-secondary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                  <h2 className="text-lg font-semibold">Analisi Sforzo per Industry</h2>
-                 <div className="flex items-center gap-2">
+                 <div className="flex flex-wrap items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Sforzo per Industry" />
                     <PdfExportButton title="Analisi Sforzo per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'totalPersonDays')} />
                  </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -799,16 +799,16 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     }, [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary">
-            <div className="flex-shrink-0 mb-4 flex justify-between items-center">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
+            <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Analisi per Sede (Mese Corrente)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi per Sede (Mese Corrente)" />
                     <PdfExportButton title="Analisi per Sede (Mese Corrente)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'avgUtilization')} />
                 </div>
             </div>
-            <div className="flex-grow h-[30rem]">
+            <div className="flex-grow h-64 sm:h-[30rem]">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -876,11 +876,11 @@ const SaturationTrendCard: React.FC<{
     }, [data, trendResource]);
 
     return (
-        <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
-            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+        <div className="h-full bg-surface-container rounded-2xl shadow p-4 sm:p-6 border-l-4 border-primary flex flex-col">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Trend Saturazione Risorsa</h2>
                 <div className="flex items-center gap-2">
-                    <div className="w-64"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
+                    <div className="w-full sm:w-56"><SearchableSelect name="trendResource" value={trendResource} onChange={(_, v) => setTrendResource(v)} options={resourceOptions} placeholder="Seleziona una risorsa"/></div>
                     <ExportButton data={exportData} title="Trend Saturazione Risorsa" />
                     <PdfExportButton
                         title="Trend Saturazione Risorsa"
@@ -939,10 +939,10 @@ const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
     }, [data]);
 
     return (
-        <div className="h-full bg-surface-container rounded-2xl shadow p-6 border-l-4 border-primary flex flex-col">
-            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+        <div className="h-full bg-surface-container rounded-2xl shadow p-4 sm:p-6 border-l-4 border-primary flex flex-col">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 flex-shrink-0">
                 <h2 className="text-lg font-semibold">Forecast Costo Mensile (Rolling 3 Mesi)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Forecast Costo Mensile (Rolling 3 Mesi)" />
                     <PdfExportButton
                         title="Forecast Costo Mensile (Rolling 3 Mesi)"
@@ -1001,10 +1001,10 @@ const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> = ({ dat
     }, [matrix, sortedFunctions, sortedIndustries]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary h-full">
-            <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Matrice Allocazione (FTE)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Matrice Allocazione" />
                     <PdfExportButton title="Matrice Allocazione (FTE)" tableData={exportData} />
                 </div>
@@ -1048,10 +1048,10 @@ const RevenueByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
     const exportData = useMemo(() => data.map(d => ({ Industry: d.name, Revenue: formatCurrency(d.value) })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary h-full">
-            <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-secondary h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Top 5 Revenue per Industry</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Revenue per Industry" />
                     <PdfExportButton title="Top 5 Revenue per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(top5, 'bar', 'name', 'value')} />
                 </div>
@@ -1071,10 +1071,10 @@ const BenchByFunctionCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
      const exportData = useMemo(() => data.map(d => ({ Function: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
-            <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-error h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Bench % per Function</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Bench per Function" />
                     <PdfExportButton title="Bench % per Function" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'value')} />
                 </div>
@@ -1094,10 +1094,10 @@ const BenchByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
     const exportData = useMemo(() => data.map(d => ({ Industry: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
-             <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-error h-full">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Bench % per Industry</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Bench per Industry" />
                     <PdfExportButton title="Bench % per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'value')} />
                 </div>
@@ -1122,10 +1122,10 @@ const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-error h-full">
-             <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-error h-full">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Saturazione WBS (Top Rischi)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Saturazione WBS" />
                     <PdfExportButton title="Saturazione WBS (Top Rischi)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'consumed')} />
                 </div>
@@ -1162,10 +1162,10 @@ const ContractExpirationsCard: React.FC<{ data: any[], isLoading: boolean }> = (
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-tertiary h-full">
-             <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-tertiary h-full">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Scadenzario Contratti (90gg)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Scadenzario Contratti" />
                     <PdfExportButton title="Scadenzario Contratti (90gg)" tableData={exportData} />
                 </div>
@@ -1245,10 +1245,10 @@ const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, i
     }, [data, isLoading]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-primary h-full">
-             <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary h-full">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Revenue Mix (T&M vs Fixed)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Revenue Mix" />
                     <PdfExportButton
                         title="Revenue Mix (T&M vs Fixed)"
@@ -1279,10 +1279,10 @@ const BillingPipelineCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-secondary h-full">
-            <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-secondary h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Pipeline Fatturazione (PLANNED)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Pipeline Fatturazione" />
                     <PdfExportButton title="Pipeline Fatturazione (PLANNED)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'month', 'amount')} />
                 </div>
@@ -1314,10 +1314,10 @@ const TopMarginProjectsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
     })), [data]);
 
     return (
-        <div className="bg-surface-container rounded-2xl shadow p-6 flex flex-col border-l-4 border-tertiary h-full">
-             <div className="flex justify-between items-center mb-4">
+        <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-tertiary h-full">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                 <h2 className="text-lg font-semibold">Top Progetti per Margine (Mese Corrente)</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <ExportButton data={exportData} title="Top Margine Progetti" />
                     <PdfExportButton title="Top Progetti per Margine (Mese Corrente)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'margin')} />
                 </div>
@@ -2300,7 +2300,7 @@ const DashboardPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-on-surface">Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-on-surface">Dashboard</h1>
             
             {/* Tabs */}
             <div className="flex border-b border-outline-variant overflow-x-auto">
@@ -2308,7 +2308,7 @@ const DashboardPage: React.FC = () => {
                     <button
                         key={cat.id}
                         onClick={() => setActiveTab(cat.id)}
-                        className={`flex items-center px-6 py-3 font-medium text-sm whitespace-nowrap transition-colors ${
+                        className={`flex items-center px-3 sm:px-5 py-3 font-medium text-sm whitespace-nowrap transition-colors ${
                             activeTab === cat.id || (!activeTab && cat.id === dashboardLayout[0].id)
                                 ? 'border-b-2 border-primary text-primary' 
                                 : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low'
