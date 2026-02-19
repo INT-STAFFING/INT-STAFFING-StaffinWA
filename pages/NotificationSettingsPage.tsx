@@ -18,6 +18,7 @@ import { SpinnerIcon } from '../components/icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { NotificationConfig, NotificationRule, NotificationBlock, NotificationBlockType } from '../types';
 import { formatDateFull } from '../utils/dateUtils';
+import { apiFetch } from '../services/apiClient';
 
 // ---------------------------------------------------------------------------
 // Costanti condivise
@@ -281,6 +282,27 @@ const WebhookSempliciTab: React.FC = () => {
     const [editingConfig, setEditingConfig] = useState<Partial<NotificationConfig> | null>(null);
     const [configToDelete, setConfigToDelete] = useState<NotificationConfig | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [testingId, setTestingId] = useState<string | null>(null);
+
+    const handleTestWebhook = async (config: NotificationConfig) => {
+        if (!config.webhookUrl) { addToast('Nessun URL webhook configurato.', 'warning'); return; }
+        setTestingId(config.id!);
+        try {
+            const result = await apiFetch<{ success: boolean; statusCode: number; responseBody: string }>(
+                '/api/webhook-test',
+                { method: 'POST', body: JSON.stringify({ webhookUrl: config.webhookUrl, eventType: config.eventType }) }
+            );
+            if (result.success) {
+                addToast(`Test inviato con successo (HTTP ${result.statusCode}). Controlla Teams!`, 'success');
+            } else {
+                addToast(`Teams ha rifiutato la richiesta: HTTP ${result.statusCode} — ${result.responseBody}`, 'error');
+            }
+        } catch (e: any) {
+            addToast(`Errore durante il test: ${e?.message || 'Errore di rete'}`, 'error');
+        } finally {
+            setTestingId(null);
+        }
+    };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -326,6 +348,9 @@ const WebhookSempliciTab: React.FC = () => {
             {columns.map((col, i) => <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">{col.cell(config)}</td>)}
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
                 <div className="flex items-center justify-end space-x-2">
+                    <button onClick={() => handleTestWebhook(config)} disabled={testingId === config.id} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary transition-colors" title="Invia notifica di test a Teams">
+                        {testingId === config.id ? <SpinnerIcon className="w-5 h-5" /> : <span className="material-symbols-outlined">send</span>}
+                    </button>
                     <button onClick={() => { setEditingConfig(config); setIsModalOpen(true); }} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Modifica"><span className="material-symbols-outlined">edit</span></button>
                     <button onClick={() => setConfigToDelete(config)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-error transition-colors" title="Elimina"><span className="material-symbols-outlined">delete</span></button>
                 </div>
@@ -344,6 +369,9 @@ const WebhookSempliciTab: React.FC = () => {
             </div>
             <p className="text-xs text-on-surface-variant mb-2">{c.description}</p>
             <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant">
+                <button onClick={() => handleTestWebhook(c)} disabled={testingId === c.id} className="text-tertiary text-xs font-bold uppercase flex items-center gap-1">
+                    {testingId === c.id ? <SpinnerIcon className="w-3 h-3" /> : <span className="material-symbols-outlined text-xs">send</span>} Test
+                </button>
                 <button onClick={() => { setEditingConfig(c); setIsModalOpen(true); }} className="text-primary text-xs font-bold uppercase">Modifica</button>
                 <button onClick={() => setConfigToDelete(c)} className="text-error text-xs font-bold uppercase">Elimina</button>
             </div>
@@ -418,6 +446,27 @@ const BuilderTab: React.FC = () => {
     const [editingRule, setEditingRule] = useState<NotificationRule | null>(null);
     const [ruleToDelete, setRuleToDelete] = useState<NotificationRule | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [testingRuleId, setTestingRuleId] = useState<string | null>(null);
+
+    const handleTestRule = async (rule: NotificationRule) => {
+        if (!rule.webhookUrl) { addToast('Nessun URL webhook configurato in questa regola.', 'warning'); return; }
+        setTestingRuleId(rule.id!);
+        try {
+            const result = await apiFetch<{ success: boolean; statusCode: number; responseBody: string }>(
+                '/api/webhook-test',
+                { method: 'POST', body: JSON.stringify({ webhookUrl: rule.webhookUrl, eventType: rule.eventType, blocks: rule.templateBlocks, color: rule.color }) }
+            );
+            if (result.success) {
+                addToast(`Test inviato con successo (HTTP ${result.statusCode}). Controlla il canale Teams!`, 'success');
+            } else {
+                addToast(`Teams ha rifiutato la richiesta: HTTP ${result.statusCode} — ${result.responseBody}`, 'error');
+            }
+        } catch (e: any) {
+            addToast(`Errore durante il test: ${e?.message || 'Errore di rete'}`, 'error');
+        } finally {
+            setTestingRuleId(null);
+        }
+    };
 
     // Stato DnD
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -590,6 +639,9 @@ const BuilderTab: React.FC = () => {
                                 </div>
                                 <p className="text-[10px] font-mono text-on-surface-variant truncate" title={rule.webhookUrl}>{rule.webhookUrl || '(nessun URL)'}</p>
                                 <div className="flex gap-2 pt-2 border-t border-outline-variant">
+                                    <button onClick={() => handleTestRule(rule)} disabled={testingRuleId === rule.id} className="py-1.5 px-3 text-xs font-bold text-tertiary border border-tertiary rounded-full hover:bg-tertiary hover:text-on-tertiary transition-colors flex items-center gap-1" title="Invia notifica di test a Teams con dati di esempio">
+                                        {testingRuleId === rule.id ? <SpinnerIcon className="w-3 h-3" /> : <span className="material-symbols-outlined text-sm">send</span>}
+                                    </button>
                                     <button onClick={() => setEditingRule({ ...rule, templateBlocks: rule.templateBlocks ?? [] })} className="flex-1 py-1.5 text-xs font-bold text-primary border border-primary rounded-full hover:bg-primary hover:text-on-primary transition-colors">
                                         <span className="material-symbols-outlined text-sm align-middle mr-1">edit</span>Modifica
                                     </button>
@@ -643,6 +695,10 @@ const BuilderTab: React.FC = () => {
                         <input type="checkbox" id="rule-active" checked={editingRule.isActive} onChange={e => patchRule({ isActive: e.target.checked })} className="form-checkbox h-4 w-4 text-primary rounded" />
                         <label htmlFor="rule-active" className="text-xs font-bold text-on-surface cursor-pointer select-none whitespace-nowrap">Attiva</label>
                     </div>
+                    <button onClick={() => handleTestRule(editingRule)} disabled={testingRuleId === editingRule.id} title="Invia notifica di test a Teams con i blocchi correnti"
+                        className="h-[42px] px-4 border border-tertiary text-tertiary rounded-full text-sm font-bold hover:bg-tertiary hover:text-on-tertiary transition-colors flex items-center gap-2 whitespace-nowrap">
+                        {testingRuleId === editingRule.id ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-base">send</span> Test</>}
+                    </button>
                     <button onClick={() => setEditingRule(null)} className="h-[42px] px-4 border border-outline rounded-full text-sm font-bold hover:bg-surface-container whitespace-nowrap">Annulla</button>
                     <button onClick={handleSave} disabled={isSaving} className="h-[42px] px-5 bg-primary text-on-primary rounded-full text-sm font-bold shadow flex items-center gap-2 whitespace-nowrap">
                         {isSaving ? <SpinnerIcon className="w-4 h-4" /> : <><span className="material-symbols-outlined text-base">save</span> Salva</>}
