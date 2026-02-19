@@ -365,7 +365,7 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                 } else {
                     await notify(client, 'RESOURCE_UPDATED', {
                         title: 'Anagrafica Risorsa Aggiornata',
-                        color: 'Default',
+                        color: 'Accent',
                         facts: [
                             { name: 'Nome', value: data.name || oldData?.name || 'N/A' },
                         ]
