@@ -313,7 +313,7 @@ const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourc
                     <PdfExportButton title="Allocazione Media" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'currentMonth')} />
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -370,7 +370,7 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
                     <PdfExportButton title="FTE per Progetto" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'fte')} />
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                      <DashboardDataTable
                         columns={columns}
@@ -430,7 +430,7 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
                     <PdfExportButton title="Analisi Budget" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -494,7 +494,7 @@ const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cl
                     </div>
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -560,7 +560,7 @@ const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOp
                     </div>
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                  {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -608,7 +608,7 @@ const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLo
                     <PdfExportButton title="Risorse Sottoutilizzate" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'resource.name', 'avgAllocation')} />
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -653,7 +653,7 @@ const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => 
                     <PdfExportButton title="Costo Mensile per Cliente" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'cost')} />
                  </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -705,7 +705,7 @@ const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) => {
                     <PdfExportButton title="Analisi Sforzo per Function" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'totalPersonDays')} />
                  </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -758,7 +758,7 @@ const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) => {
                     <PdfExportButton title="Analisi Sforzo per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'totalPersonDays')} />
                  </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -808,7 +808,7 @@ const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
                     <PdfExportButton title="Analisi per Sede (Mese Corrente)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'avgUtilization')} />
                 </div>
             </div>
-            <div className="flex-grow h-64 sm:h-[30rem]">
+            <div className="flex-grow min-h-0 h-64 sm:h-[30rem] overflow-hidden">
                 {view === 'table' ? (
                     <DashboardDataTable
                         columns={columns}
@@ -1056,7 +1056,7 @@ const RevenueByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
                     <PdfExportButton title="Top 5 Revenue per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(top5, 'bar', 'name', 'value')} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px]">
+            <div className="flex-grow min-h-0 h-[300px] overflow-hidden">
                 <GraphDataView 
                     data={top5} 
                     type="bar" 
@@ -1079,7 +1079,7 @@ const BenchByFunctionCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
                     <PdfExportButton title="Bench % per Function" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'value')} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px]">
+            <div className="flex-grow min-h-0 h-[300px] overflow-hidden">
                 <GraphDataView 
                     data={data} 
                     type="bar" 
@@ -1102,7 +1102,7 @@ const BenchByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
                     <PdfExportButton title="Bench % per Industry" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'value')} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px]">
+            <div className="flex-grow min-h-0 h-[300px] overflow-hidden">
                 <GraphDataView 
                     data={data} 
                     type="bar" 
@@ -1130,7 +1130,7 @@ const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data
                     <PdfExportButton title="Saturazione WBS (Top Rischi)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'consumed')} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px]">
+            <div className="flex-grow min-h-0 h-[300px] overflow-hidden">
                  {data.length === 0 ? (
                      <div className="flex items-center justify-center h-full text-on-surface-variant">Nessun contratto a rischio.</div>
                  ) : (
@@ -1170,7 +1170,7 @@ const ContractExpirationsCard: React.FC<{ data: any[], isLoading: boolean }> = (
                     <PdfExportButton title="Scadenzario Contratti (90gg)" tableData={exportData} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px] overflow-auto">
+            <div className="flex-grow min-h-0 h-[300px] overflow-auto">
                  <DashboardDataTable
                     columns={columns}
                     data={data}
@@ -1265,7 +1265,7 @@ const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, i
                     />
                 </div>
             </div>
-            <div className="flex-grow h-[300px]">
+            <div className="flex-grow min-h-0 h-[300px] overflow-hidden">
                  {data.length === 0 ? <div className="text-center p-4 text-on-surface-variant">Nessun dato.</div> : <svg ref={svgRef} className="w-full h-full" />}
             </div>
         </div>
@@ -1287,7 +1287,7 @@ const BillingPipelineCard: React.FC<{ data: any[], isLoading: boolean }> = ({ da
                     <PdfExportButton title="Pipeline Fatturazione (PLANNED)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'month', 'amount')} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px]">
+            <div className="flex-grow min-h-0 h-[300px] overflow-hidden">
                 <GraphDataView 
                     data={data} 
                     type="bar" 
@@ -1322,7 +1322,7 @@ const TopMarginProjectsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
                     <PdfExportButton title="Top Progetti per Margine (Mese Corrente)" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'margin')} />
                 </div>
             </div>
-            <div className="flex-grow h-[300px] overflow-auto">
+            <div className="flex-grow min-h-0 h-[300px] overflow-auto">
                  <DashboardDataTable
                     columns={columns}
                     data={data}
@@ -2326,9 +2326,20 @@ const DashboardPage: React.FC = () => {
                     // Check if card is full-width by config
                     const config = DASHBOARD_CARDS_CONFIG.find(c => c.id === cardId);
                     const isFullWidth = config?.group === 'full-width';
-                    
+
+                    // kpiHeader e attentionCards ritornano fragment con più figli:
+                    // li rendiamo full-width e usiamo una sub-grid per la spaziatura.
+                    let wrapperClass = "";
+                    if (isFullWidth) {
+                        wrapperClass = "col-span-1 lg:col-span-2";
+                    } else if (cardId === 'kpiHeader') {
+                        wrapperClass = "col-span-1 lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4";
+                    } else if (cardId === 'attentionCards') {
+                        wrapperClass = "col-span-1 lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4";
+                    }
+
                     return (
-                        <div key={cardId} className={isFullWidth ? "col-span-1 lg:col-span-2" : ""}>
+                        <div key={cardId} className={wrapperClass}>
                             {renderCard(cardId)}
                         </div>
                     );
