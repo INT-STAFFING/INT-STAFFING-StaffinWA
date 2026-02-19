@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus, Resource } from '../types';
 import Modal from '../components/Modal';
@@ -10,6 +10,8 @@ import { useToast } from '../context/ToastContext';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
@@ -273,6 +275,61 @@ const InterviewsPage: React.FC = () => {
         </div>
     );
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const feedbackCounts: Record<string, number> = {};
+      const statusCounts: Record<string, number> = {};
+      dataForTable.forEach(i => {
+        const fb = i.feedback || 'Non definito';
+        feedbackCounts[fb] = (feedbackCounts[fb] || 0) + 1;
+        const st = i.status || 'Non definito';
+        statusCounts[st] = (statusCounts[st] || 0) + 1;
+      });
+
+      return {
+        title: 'Report Colloqui',
+        subtitle: `Totale: ${dataForTable.length} colloqui`,
+        charts: [
+          {
+            title: 'Distribuzione Esito Colloquio',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(feedbackCounts),
+                datasets: [{ data: Object.values(feedbackCounts), backgroundColor: CHART_PALETTE }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Distribuzione Stato Processo',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{ label: 'Colloqui', data: Object.values(statusCounts), backgroundColor: CHART_PALETTE[1] }],
+              },
+              options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Colloqui',
+            head: [['Candidato', 'Ruolo', 'Function', 'Stato', 'Esito', 'Data', 'Valutazione']],
+            body: exportData.map(row => [
+              String(row['Candidato'] ?? ''),
+              String(row['Ruolo Proposto'] ?? ''),
+              String(row['Function'] ?? ''),
+              String(row['Stato Processo'] ?? ''),
+              String(row['Esito Colloquio'] ?? ''),
+              String(row['Data Colloquio'] ?? ''),
+              String(row['Valutazione'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [dataForTable, exportData]);
+
     return (
         <div className="space-y-6">
             {/* KPI Section */}
@@ -312,7 +369,7 @@ const InterviewsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 data={dataForTable}
                 columns={columns}
-                headerActions={<ExportButton data={exportData} title="Report Colloqui" icon="content_copy" label="Esporta" />}
+                headerActions={<><ExportButton data={exportData} title="Report Colloqui" icon="content_copy" label="Esporta" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                 filtersNode={
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                         <div className="md:col-span-1">

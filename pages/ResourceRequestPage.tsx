@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { z } from '../libs/zod';
 // Fixed import: usePlanningContext does not exist, everything is in useEntitiesContext
 import { useEntitiesContext } from '../context/AppContext';
@@ -12,6 +12,8 @@ import { formatDateFull } from '../utils/dateUtils';
 import { useToast } from '../context/ToastContext';
 import { FormFieldFeedback } from '../components/forms';
 import ExportButton from '../components/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 import { useSearchParams } from 'react-router-dom';
 
 // --- Types ---
@@ -485,6 +487,61 @@ export const ResourceRequestPage: React.FC = () => {
         </div>
     );
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const statusCounts: Record<string, number> = {};
+      const roleCounts: Record<string, number> = {};
+      dataForTable.forEach(r => {
+        statusCounts[r.status] = (statusCounts[r.status] || 0) + 1;
+        roleCounts[r.roleName] = (roleCounts[r.roleName] || 0) + 1;
+      });
+      const urgentCount = dataForTable.filter(r => r.isUrgent).length;
+      const normalCount = dataForTable.length - urgentCount;
+
+      return {
+        title: 'Richieste Risorse',
+        subtitle: `Totale: ${dataForTable.length} richieste`,
+        charts: [
+          {
+            title: 'Richieste per Stato',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{ data: Object.values(statusCounts), backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[4], CHART_PALETTE[6]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Urgenti vs Normali',
+            chartJs: {
+              type: 'pie',
+              data: {
+                labels: ['Urgenti', 'Normali'],
+                datasets: [{ data: [urgentCount, normalCount], backgroundColor: [CHART_PALETTE[3], CHART_PALETTE[0]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Richieste',
+            head: [['Progetto', 'Ruolo', 'Stato', 'Inizio', 'Fine', 'Impegno %', 'Urgente']],
+            body: exportData.map(row => [
+              String(row['Progetto'] ?? ''),
+              String(row['Ruolo Richiesto'] ?? ''),
+              String(row['Stato'] ?? ''),
+              String(row['Data Inizio'] ?? ''),
+              String(row['Data Fine'] ?? ''),
+              String(row['Impegno %'] ?? ''),
+              String(row['Urgente'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [dataForTable, exportData]);
+
     return (
         <div className="space-y-6">
             {/* KPI Summary Section */}
@@ -551,7 +608,7 @@ export const ResourceRequestPage: React.FC = () => {
                 tableLayout={{ dense: true, striped: true, headerSticky: true }}
                 numActions={3}
                 actionsWidth={160}
-                headerActions={<ExportButton data={exportData} title="Richieste Risorse" />}
+                headerActions={<><ExportButton data={exportData} title="Richieste Risorse" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
             />
 
             {editingRequest && (

@@ -4,7 +4,7 @@
  * @description Pagina per la gestione delle Competenze (Skills) - CRUD, Dashboard e Visualizzazione.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEntitiesContext } from '../context/AppContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
@@ -16,6 +16,8 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { useSearchParams } from 'react-router-dom';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 // --- Types ---
 type EnrichedSkill = Skill & {
@@ -378,6 +380,57 @@ const SkillsPage: React.FC = () => {
         </div>
     );
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const top10ByResource = [...filteredSkills]
+        .sort((a, b) => b.resourceCount - a.resourceCount)
+        .slice(0, 10);
+      const top10ByUsage = [...filteredSkills]
+        .sort((a, b) => b.totalUsage - a.totalUsage)
+        .slice(0, 10);
+
+      return {
+        title: 'Gestione Competenze',
+        subtitle: `${filteredSkills.length} competenze`,
+        charts: [
+          {
+            title: 'Top 10 Competenze per Numero Risorse',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10ByResource.map(s => s.name.length > 25 ? s.name.substring(0, 25) + '...' : s.name),
+                datasets: [{ label: 'Risorse', data: top10ByResource.map(s => s.resourceCount), backgroundColor: CHART_PALETTE[0] }],
+              },
+              options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+          {
+            title: 'Top 10 Competenze per Utilizzo Totale',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10ByUsage.map(s => s.name.length > 25 ? s.name.substring(0, 25) + '...' : s.name),
+                datasets: [{ label: 'Utilizzo', data: top10ByUsage.map(s => s.totalUsage), backgroundColor: CHART_PALETTE[1] }],
+              },
+              options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Competenze',
+            head: [['Competenza', 'Ambito', 'Macro Ambito', 'Risorse', 'Progetti']],
+            body: exportData.map(row => [
+              String(row['Competenza'] ?? ''),
+              String(row['Ambito'] ?? ''),
+              String(row['Macro Ambito'] ?? ''),
+              String(row['Utilizzo Risorse'] ?? ''),
+              String(row['Utilizzo Progetti'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [filteredSkills, exportData]);
+
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -410,7 +463,7 @@ const SkillsPage: React.FC = () => {
                     onAddNew={() => handleOpenModal()}
                     renderRow={renderRow}
                     renderMobileCard={renderCard}
-                    headerActions={<ExportButton data={exportData} title="Gestione Competenze" />}
+                    headerActions={<><ExportButton data={exportData} title="Gestione Competenze" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                     initialSortKey="name"
                     isLoading={loading}
                     tableLayout={{ dense: true, striped: true, headerSticky: true }}
@@ -423,6 +476,7 @@ const SkillsPage: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                             <button onClick={() => handleOpenModal()} className="flex-grow md:flex-grow-0 px-4 py-2 bg-primary text-on-primary font-semibold rounded-full shadow-sm hover:opacity-90">Nuova Competenza</button>
                             <ExportButton data={exportData} title="Gestione Competenze" />
+                            <PdfExportButton buildConfig={buildPdfConfig} />
                         </div>
                     </div>
                     <div className="bg-surface rounded-2xl shadow p-4">{filtersNode}</div>

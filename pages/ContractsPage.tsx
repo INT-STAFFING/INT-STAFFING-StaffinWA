@@ -12,6 +12,8 @@ import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
 import { useSearchParams } from 'react-router-dom';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 // --- Types ---
 type EnrichedContract = Contract & {
@@ -306,6 +308,64 @@ export const ContractsPage: React.FC = () => {
         </div>
     );
     
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const typeCounts: Record<string, number> = {};
+      dataForTable.forEach(c => {
+        const t = c.billingType === 'FIXED_PRICE' ? 'Fixed Price' : 'Time & Material';
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+      });
+      const top10Capienza = [...dataForTable]
+        .sort((a, b) => Number(b.capienza || 0) - Number(a.capienza || 0))
+        .slice(0, 10);
+
+      return {
+        title: 'Gestione Contratti',
+        subtitle: `${dataForTable.length} contratti`,
+        charts: [
+          {
+            title: 'Contratti per Tipo Fatturazione',
+            chartJs: {
+              type: 'pie',
+              data: {
+                labels: Object.keys(typeCounts),
+                datasets: [{ data: Object.values(typeCounts), backgroundColor: [CHART_PALETTE[0], CHART_PALETTE[1]] }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+          {
+            title: 'Top 10 Contratti per Capienza',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: top10Capienza.map(c => c.name.length > 20 ? c.name.substring(0, 20) + '...' : c.name),
+                datasets: [
+                  { label: 'Capienza (€)', data: top10Capienza.map(c => Math.round(Number(c.capienza || 0))), backgroundColor: CHART_PALETTE[0] + '99' },
+                  { label: 'Backlog (€)', data: top10Capienza.map(c => Math.round(Number(c.backlog || 0))), backgroundColor: CHART_PALETTE[2] + '99' },
+                ],
+              },
+              options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Elenco Contratti',
+            head: [['Nome', 'CIG', 'WBS', 'Tipo', 'Capienza', 'Backlog', 'Progetti']],
+            body: exportData.map(row => [
+              String(row['Nome Contratto'] ?? ''),
+              String(row['CIG'] ?? ''),
+              String(row['WBS'] ?? ''),
+              String(row['Tipo Fatturazione'] ?? ''),
+              String(row['Capienza'] ?? ''),
+              String(row['Backlog'] ?? ''),
+              String(row['Progetti Collegati'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [dataForTable, exportData]);
+
     return (
         <div>
             {/* KPI Summary Cards */}
@@ -333,7 +393,7 @@ export const ContractsPage: React.FC = () => {
                 onAddNew={openModalForNew}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
-                headerActions={<ExportButton data={exportData} title="Gestione Contratti" />}
+                headerActions={<><ExportButton data={exportData} title="Gestione Contratti" /><PdfExportButton buildConfig={buildPdfConfig} /></>}
                 initialSortKey="name"
                 isLoading={loading}
                 tableLayout={{ dense: true, striped: true, headerSticky: true, headerBackground: true, headerBorder: true }}

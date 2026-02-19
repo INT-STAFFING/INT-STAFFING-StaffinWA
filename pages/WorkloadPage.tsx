@@ -11,6 +11,8 @@ import SearchableSelect from '../components/SearchableSelect';
 import { Link } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import ExportButton from '../components/ExportButton';
+import PdfExportButton from '../components/PdfExportButton';
+import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
 type ViewMode = 'day' | 'week' | 'month';
 type WorkloadFilterStatus = 'ALL' | 'UNDER' | 'OVER' | 'ISSUES';
@@ -311,7 +313,7 @@ const WorkloadPage: React.FC = () => {
     const exportData = useMemo(() => {
         const firstCol = timeColumns[0];
         const lastCol = timeColumns[timeColumns.length - 1];
-        return paginatedData.map(r => ({
+        return displayData.map(r => ({
             Risorsa: r.name,
             Ruolo: rolesById.get(r.roleId)?.name || 'N/A',
             Sede: r.location,
@@ -319,7 +321,7 @@ const WorkloadPage: React.FC = () => {
             'Carico Medio (%)': calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg.toFixed(0),
             'Max Staffing %': r.maxStaffingPercentage
         }));
-    }, [paginatedData, rolesById, timeColumns, calculateAvgLoadForPeriod]);
+    }, [displayData, rolesById, timeColumns, calculateAvgLoadForPeriod]);
 
     const assignmentsMap = useMemo(() => {
         const map = new Map<string, Assignment[]>();
@@ -427,6 +429,85 @@ const WorkloadPage: React.FC = () => {
         );
     };
 
+    const buildPdfConfig = useCallback((): PdfExportConfig => {
+      const topResources = [...displayData]
+        .map(r => {
+          const firstCol = timeColumns[0];
+          const lastCol = timeColumns[timeColumns.length - 1];
+          const avg = firstCol && lastCol ? calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg : 0;
+          return { name: r.name, avg };
+        })
+        .sort((a, b) => b.avg - a.avg)
+        .slice(0, 10);
+
+      const overCount = displayData.filter(r => {
+        const firstCol = timeColumns[0];
+        const lastCol = timeColumns[timeColumns.length - 1];
+        if (!firstCol || !lastCol) return false;
+        const avg = calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg;
+        return avg > (r.maxStaffingPercentage ?? 100);
+      }).length;
+      const atCount = displayData.filter(r => {
+        const firstCol = timeColumns[0];
+        const lastCol = timeColumns[timeColumns.length - 1];
+        if (!firstCol || !lastCol) return false;
+        const avg = calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg;
+        const max = r.maxStaffingPercentage ?? 100;
+        return avg >= max * 0.8 && avg <= max;
+      }).length;
+      const underCount = displayData.length - overCount - atCount;
+
+      return {
+        title: 'Carico Risorse',
+        subtitle: `Periodo visualizzato - ${displayData.length} risorse`,
+        charts: [
+          {
+            title: 'Top 10 Risorse per Carico Medio (%)',
+            chartJs: {
+              type: 'bar',
+              data: {
+                labels: topResources.map(r => r.name),
+                datasets: [{
+                  label: 'Carico Medio %',
+                  data: topResources.map(r => Math.round(r.avg)),
+                  backgroundColor: CHART_PALETTE[0],
+                }],
+              },
+              options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 120 } } },
+            },
+          },
+          {
+            title: 'Distribuzione Carico',
+            chartJs: {
+              type: 'doughnut',
+              data: {
+                labels: ['Sotto capacità', 'In target', 'Sovraccarico'],
+                datasets: [{
+                  data: [underCount, atCount, overCount],
+                  backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[0], CHART_PALETTE[3]],
+                }],
+              },
+              options: { plugins: { legend: { position: 'bottom' } } },
+            },
+          },
+        ],
+        tables: [
+          {
+            title: 'Dettaglio Carico Risorse',
+            head: [['Risorsa', 'Ruolo', 'Sede', 'Function', 'Carico Medio %', 'Max Staffing %']],
+            body: exportData.map(row => [
+              String(row['Risorsa'] ?? ''),
+              String(row['Ruolo'] ?? ''),
+              String(row['Sede'] ?? ''),
+              String(row['Function'] ?? ''),
+              String(row['Carico Medio (%)'] ?? ''),
+              String(row['Max Staffing %'] ?? ''),
+            ]),
+          },
+        ],
+      };
+    }, [displayData, timeColumns, calculateAvgLoadForPeriod, exportData]);
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex-shrink-0 space-y-4">
@@ -442,6 +523,7 @@ const WorkloadPage: React.FC = () => {
                         ))}
                     </div>
                     <ExportButton data={exportData} title="Carico Risorse" />
+                    <PdfExportButton buildConfig={buildPdfConfig} />
                 </div>
 
                 <div className="p-4 bg-surface rounded-2xl shadow flex flex-col gap-4">
