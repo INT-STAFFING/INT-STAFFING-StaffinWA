@@ -313,7 +313,7 @@ const WorkloadPage: React.FC = () => {
     const exportData = useMemo(() => {
         const firstCol = timeColumns[0];
         const lastCol = timeColumns[timeColumns.length - 1];
-        return paginatedData.map(r => ({
+        return displayData.map(r => ({
             Risorsa: r.name,
             Ruolo: rolesById.get(r.roleId)?.name || 'N/A',
             Sede: r.location,
@@ -321,7 +321,7 @@ const WorkloadPage: React.FC = () => {
             'Carico Medio (%)': calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg.toFixed(0),
             'Max Staffing %': r.maxStaffingPercentage
         }));
-    }, [paginatedData, rolesById, timeColumns, calculateAvgLoadForPeriod]);
+    }, [displayData, rolesById, timeColumns, calculateAvgLoadForPeriod]);
 
     const assignmentsMap = useMemo(() => {
         const map = new Map<string, Assignment[]>();
@@ -430,7 +430,7 @@ const WorkloadPage: React.FC = () => {
     };
 
     const buildPdfConfig = useCallback((): PdfExportConfig => {
-      const topResources = [...paginatedData]
+      const topResources = [...displayData]
         .map(r => {
           const firstCol = timeColumns[0];
           const lastCol = timeColumns[timeColumns.length - 1];
@@ -440,14 +440,14 @@ const WorkloadPage: React.FC = () => {
         .sort((a, b) => b.avg - a.avg)
         .slice(0, 10);
 
-      const overCount = paginatedData.filter(r => {
+      const overCount = displayData.filter(r => {
         const firstCol = timeColumns[0];
         const lastCol = timeColumns[timeColumns.length - 1];
         if (!firstCol || !lastCol) return false;
         const avg = calculateAvgLoadForPeriod(r, firstCol.startDate, lastCol.endDate).avg;
         return avg > (r.maxStaffingPercentage ?? 100);
       }).length;
-      const atCount = paginatedData.filter(r => {
+      const atCount = displayData.filter(r => {
         const firstCol = timeColumns[0];
         const lastCol = timeColumns[timeColumns.length - 1];
         if (!firstCol || !lastCol) return false;
@@ -455,11 +455,11 @@ const WorkloadPage: React.FC = () => {
         const max = r.maxStaffingPercentage ?? 100;
         return avg >= max * 0.8 && avg <= max;
       }).length;
-      const underCount = paginatedData.length - overCount - atCount;
+      const underCount = displayData.length - overCount - atCount;
 
       return {
         title: 'Carico Risorse',
-        subtitle: `Periodo visualizzato - ${paginatedData.length} risorse`,
+        subtitle: `Periodo visualizzato - ${displayData.length} risorse`,
         charts: [
           {
             title: 'Top 10 Risorse per Carico Medio (%)',
@@ -506,7 +506,7 @@ const WorkloadPage: React.FC = () => {
           },
         ],
       };
-    }, [paginatedData, timeColumns, calculateAvgLoadForPeriod, exportData]);
+    }, [displayData, timeColumns, calculateAvgLoadForPeriod, exportData]);
 
     return (
         <div className="flex flex-col h-full">
