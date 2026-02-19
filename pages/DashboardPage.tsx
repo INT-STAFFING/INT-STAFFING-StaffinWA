@@ -363,8 +363,8 @@ const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptio
         <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">FTE per Progetto</h2>
-                <div className="flex items-center gap-4">
-                    <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="FTE per Progetto" />
                     <PdfExportButton title="FTE per Progetto" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'fte')} />
@@ -423,8 +423,8 @@ const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOpti
         <div className="bg-surface-container rounded-2xl shadow p-4 sm:p-6 flex flex-col border-l-4 border-primary">
             <div className="flex-shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg font-semibold">Analisi Budget</h2>
-                <div className="flex items-center gap-4">
-                    <div className="w-48"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <div className="w-full sm:w-40"><SearchableSelect name="clientId" value={filter.clientId} onChange={(_, v) => setFilter({ clientId: v })} options={clientOptions} placeholder="Tutti i clienti"/></div>
                     <ViewToggleButton view={view} setView={setView} />
                     <ExportButton data={exportData} title="Analisi Budget" />
                     <PdfExportButton title="Analisi Budget" tableData={exportData} chartUrl={buildQuickChartUrl(data, 'bar', 'name', 'variance')} />
