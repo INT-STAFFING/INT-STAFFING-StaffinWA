@@ -15,10 +15,21 @@ import { DataTable, ColumnDef } from '../components/DataTable';
 
 // --- PILASTRO 1: GESTIONE IDENTITÀ ---
 const IdentityPillar: React.FC = () => {
-    const { data: users, loading, updateCache } = useAuthorizedResource<AppUser[]>(
+    const { data: users, loading, error, updateCache } = useAuthorizedResource<AppUser[]>(
         'security-users',
         createAuthorizedFetcher<AppUser[]>('/api/resources?entity=app-users')
     );
+
+    if (error) {
+        return (
+            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+                <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
+                <p className="text-on-surface font-bold">Errore nel caricamento degli utenti</p>
+                <p className="text-xs text-on-surface-variant mt-1">{error}</p>
+            </div>
+        );
+    }
+
     const { resources } = useResourcesContext();
     const { addToast } = useToast();
     const { impersonate } = useAuth();
@@ -299,10 +310,21 @@ const IdentityPillar: React.FC = () => {
 
 // --- PILASTRO 2: MATRICE RBAC UNIFICATA ---
 const RBACPillar: React.FC = () => {
-    const { data: permissionsData, loading, updateCache } = useAuthorizedResource<RolePermission[]>(
+    const { data: permissionsData, loading, error, updateCache } = useAuthorizedResource<RolePermission[]>(
         'security-rbac',
         createAuthorizedFetcher<RolePermission[]>('/api/resources?entity=role-permissions')
     );
+
+    if (error) {
+        return (
+            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+                <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
+                <p className="text-on-surface font-bold">Errore nel caricamento dei permessi</p>
+                <p className="text-xs text-on-surface-variant mt-1">{error}</p>
+            </div>
+        );
+    }
+
     const { pageVisibility, updatePageVisibility } = useUIConfigContext();
     const { addToast } = useToast();
     
@@ -651,6 +673,7 @@ const AuditTimelineItem: React.FC<{ log: AuditLogEntry; isLast: boolean }> = ({ 
 const AuditPillar: React.FC = () => {
     const [logs, setLogs] = useState<AuditLogEntry[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const { isLoginProtectionEnabled, toggleLoginProtection } = useAuth();
 
     // Filters state
@@ -663,8 +686,11 @@ const AuditPillar: React.FC = () => {
         endDate: ''
     });
 
+    const { addToast } = useToast();
+
     const fetchLogs = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const params = new URLSearchParams();
             params.append('entity', 'audit_logs');
@@ -673,8 +699,6 @@ const AuditPillar: React.FC = () => {
             if (filters.actionType) params.append('actionType', filters.actionType);
             
             // FIX: Map frontend filter 'entity' to API expected 'targetEntity'
-            // or modify API to accept 'entity' as filter when entity='audit_logs'.
-            // Here we use 'targetEntity' to match API expectation from step 2
             if (filters.entity) params.append('targetEntity', filters.entity); 
             
             if (filters.entityId) params.append('entityId', filters.entityId);
@@ -682,9 +706,16 @@ const AuditPillar: React.FC = () => {
             if (filters.endDate) params.append('endDate', filters.endDate);
 
             const data = await authorizedJsonFetch<AuditLogEntry[]>(`/api/resources?${params.toString()}`);
-            setLogs(data);
-        } catch(e) {} finally { setLoading(false); }
-    }, [filters]);
+            setLogs(data || []);
+        } catch(e: any) {
+            console.error(e);
+            setError(e.message || 'Errore durante il recupero dei log');
+            addToast('Errore caricamento audit log', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [filters, addToast]);
+
 
     // Initial load and updates when fetchLogs changes (i.e. filters change)
     useEffect(() => {
@@ -755,6 +786,16 @@ const AuditPillar: React.FC = () => {
                         />
                     </div>
                     <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Azione</label>
+                        <input 
+                            type="text" 
+                            className="form-input py-2 text-sm" 
+                            placeholder="es. LOGIN" 
+                            value={filters.actionType}
+                            onChange={e => setFilters(prev => ({...prev, actionType: e.target.value}))}
+                        />
+                    </div>
+                    <div className="md:col-span-2">
                         <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">Entità</label>
                         <input 
                             type="text" 
@@ -783,6 +824,15 @@ const AuditPillar: React.FC = () => {
                             onChange={e => setFilters(prev => ({...prev, startDate: e.target.value}))}
                         />
                     </div>
+                    <div className="md:col-span-2">
+                        <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider ml-1 mb-1 block">A</label>
+                        <input 
+                            type="date" 
+                            className="form-input py-2 text-sm" 
+                            value={filters.endDate}
+                            onChange={e => setFilters(prev => ({...prev, endDate: e.target.value}))}
+                        />
+                    </div>
                     <div className="md:col-span-2 flex gap-2">
                         <button 
                             onClick={fetchLogs} 
@@ -805,7 +855,15 @@ const AuditPillar: React.FC = () => {
                 <div className="pl-4">
                     {loading ? (
                         <div className="p-12 text-center"><SpinnerIcon className="w-8 h-8 mx-auto text-primary" /></div>
+                    ) : error ? (
+                        <div className="p-12 text-center bg-error-container/10 rounded-2xl border border-error/20">
+                            <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
+                            <p className="text-on-surface font-bold">Impossibile caricare i log</p>
+                            <p className="text-xs text-on-surface-variant mt-1">{error}</p>
+                            <button onClick={fetchLogs} className="mt-4 px-4 py-2 bg-primary text-on-primary rounded-full text-xs font-bold">Riprova</button>
+                        </div>
                     ) : logs.length === 0 ? (
+
                         <div className="p-12 text-center text-on-surface-variant font-bold italic bg-surface-container-low rounded-2xl border border-dashed border-outline-variant">
                             Nessuna attività trovata con i filtri correnti.
                         </div>

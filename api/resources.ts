@@ -158,6 +158,11 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         contractId: z.string(),
         resourceId: z.string()
     }),
+    'role_permissions': z.object({
+        role: z.string(),
+        pagePath: z.string(),
+        isAllowed: z.boolean().optional()
+    }),
     'leave_types': z.object({
         name: z.string(),
         color: z.string().optional().nullable(),
@@ -274,8 +279,8 @@ const toCamelAndNormalize = (o: any) => {
     for (const k in o) {
         const camelKey = k.replace(/(_\w)/g, m => m[1].toUpperCase());
         const value = o[k];
-        if (value instanceof Date && (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork' || camelKey === 'updatedAt')) {
-            if (camelKey === 'updatedAt') {
+        if (value instanceof Date && (camelKey.endsWith('Date') || camelKey === 'date' || camelKey === 'lastDayOfWork' || camelKey === 'updatedAt' || camelKey === 'createdAt')) {
+            if (camelKey === 'updatedAt' || camelKey === 'createdAt') {
                  n[camelKey] = value.toISOString();
             } else {
                  const y = value.getFullYear();
@@ -488,7 +493,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
     const { entity, id, action, resourceId, skillId, projectId, contractId, table } = req.query;
     await ensureDbTablesExist(db);
-    const client = await db.connect();
+    
+    let client;
+    try {
+        client = await db.connect();
+    } catch (error) {
+        console.error('DB Connection Error:', error);
+        return res.status(500).json({ error: 'Database connection failed' });
+    }
+
     const currentUser = getUserFromRequest(req);
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
@@ -545,6 +558,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return res.status(200).json(evaluations);
             }
 
+            if (tableName === 'action_logs') {
+                let queryStr = `SELECT * FROM action_logs WHERE 1=1`;
+                const params: any[] = [];
+                let paramIdx = 1;
+                
+                const { username, actionType, targetEntity, entityId, startDate, endDate, limit } = req.query;
+                
+                if (username) { queryStr += ` AND username ILIKE $${paramIdx++}`; params.push(`%${username}%`); }
+                if (actionType) { queryStr += ` AND action = $${paramIdx++}`; params.push(actionType); }
+                if (targetEntity) { queryStr += ` AND entity = $${paramIdx++}`; params.push(targetEntity); }
+                if (entityId) { queryStr += ` AND entity_id = $${paramIdx++}`; params.push(entityId); }
+                if (startDate) { queryStr += ` AND created_at >= $${paramIdx++}`; params.push(`${startDate} 00:00:00`); }
+                if (endDate) { queryStr += ` AND created_at <= $${paramIdx++}`; params.push(`${endDate} 23:59:59`); }
+                
+                queryStr += ` ORDER BY created_at DESC LIMIT $${paramIdx}`;
+                params.push(limit ? parseInt(limit as string, 10) : 100);
+                
+                const { rows } = await client.query(queryStr, params);
+                return res.status(200).json(rows.map(toCamelAndNormalize));
+            }
+
             let queryStr = `SELECT * FROM ${tableName}`;
             const params = [];
             if (id) { queryStr += ` WHERE id = $1`; params.push(id); }
@@ -555,6 +589,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+             
+             if (entity === 'app-users' && action === 'impersonate') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+                 const { rows } = await client.query(`SELECT * FROM app_users WHERE id = $1`, [id]);
+                 const targetUser = rows[0];
+                 if (!targetUser) return res.status(404).json({ error: 'User not found' });
+                 
+                 const token = jwt.sign(
+                     { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
+                     JWT_SECRET,
+                     { expiresIn: '8h' }
+                 );
+                 
+                 const permRes = await client.query(`SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE`, [targetUser.role]);
+                 const permissions = permRes.rows.map(r => r.page_path);
+                 
+                 return res.status(200).json({
+                     success: true,
+                     token,
+                     user: {
+                         id: targetUser.id,
+                         username: targetUser.username,
+                         role: targetUser.role,
+                         resourceId: targetUser.resource_id,
+                         permissions,
+                         mustChangePassword: false
+                     }
+                 });
+             }
+
+             if (entity === 'role-permissions') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+                 const { permissions } = req.body;
+                 await client.query('BEGIN');
+                 await client.query('DELETE FROM role_permissions');
+                 for (const p of permissions) {
+                     await client.query(
+                         `INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`,
+                         [p.role, p.pagePath, p.isAllowed ? true : false]
+                     );
+                 }
+                 await client.query('COMMIT');
+                 return res.status(200).json({ success: true });
+             }
+
              const schema = VALIDATION_SCHEMAS[tableName as string];
              if (!schema) return res.status(400).json({ error: `Not supported: ${entity}` });
              
@@ -595,6 +674,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (method === 'PUT') {
+            if (entity === 'app-users' && action === 'change_password') {
+                if (!verifyAdmin(req) && currentUser?.id !== id) return res.status(403).json({ error: 'Forbidden' });
+                const { newPassword } = req.body;
+                if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Invalid password' });
+                const salt = await bcrypt.genSalt(10);
+                const hashedPassword = await bcrypt.hash(newPassword, salt);
+                await client.query(`UPDATE app_users SET password_hash = $1, must_change_password = FALSE WHERE id = $2`, [hashedPassword, id]);
+                return res.status(200).json({ success: true });
+            }
+
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
             const { version } = req.body;
             const schema = VALIDATION_SCHEMAS[tableName as string];
@@ -636,5 +725,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (error) {
         console.error('API Error:', error);
         return res.status(500).json({ error: (error as Error).message });
-    } finally { client.release(); }
+    } finally { 
+        if (client) client.release(); 
+    }
 }
