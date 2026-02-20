@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useEntitiesContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
@@ -18,7 +19,7 @@ const IdentityPillar: React.FC = () => {
         'security-users',
         createAuthorizedFetcher<AppUser[]>('/api/resources?entity=app-users')
     );
-    const { resources } = useEntitiesContext();
+    const { resources } = useResourcesContext();
     const { addToast } = useToast();
     const { impersonate } = useAuth();
     
@@ -302,7 +303,7 @@ const RBACPillar: React.FC = () => {
         'security-rbac',
         createAuthorizedFetcher<RolePermission[]>('/api/resources?entity=role-permissions')
     );
-    const { pageVisibility, updatePageVisibility } = useEntitiesContext();
+    const { pageVisibility, updatePageVisibility } = useUIConfigContext();
     const { addToast } = useToast();
     
     // Manage visibility changes locally first to match "Save" button UX
@@ -428,7 +429,7 @@ const RBACPillar: React.FC = () => {
 
 // --- PILASTRO 3: NAVIGAZIONE E ARCHITETTURA ---
 const NavigationPillar: React.FC = () => {
-    const { sidebarConfig, updateSidebarConfig, roleHomePages, updateRoleHomePages, sidebarSections } = useEntitiesContext();
+    const { sidebarConfig, updateSidebarConfig, roleHomePages, updateRoleHomePages, sidebarSections } = useUIConfigContext();
     const { addToast } = useToast();
     const [localSidebar, setLocalSidebar] = useState(sidebarConfig);
     

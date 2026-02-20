@@ -1,6 +1,9 @@
 import React, { useState, useReducer, useEffect, useMemo, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import { useToast } from '../context/ToastContext';
 import { apiFetch } from '../services/apiClient';
 import { 
@@ -419,10 +422,14 @@ const SimulationBillingModal: React.FC<{
 
 const SimulationPage: React.FC = () => {
     const { 
-        resources: realResources, projects: realProjects, assignments: realAssignments, contracts: realContracts, 
-        rateCards, rateCardEntries, roles, functions, locations, companyCalendar, clients,
-        projectExpenses: realExpenses, billingMilestones: realMilestones
-    } = useEntitiesContext();
+        resources: realResources, roles,
+    } = useResourcesContext();
+    const {
+        projects: realProjects, assignments: realAssignments, contracts: realContracts,
+        rateCards, rateCardEntries, clients,
+        projectExpenses: realExpenses, billingMilestones: realMilestones,
+    } = useProjectsContext();
+    const { functions, locations, companyCalendar } = useLookupContext();
     const { allocations: realAllocations } = useAllocationsContext();
     const { addToast } = useToast();
 

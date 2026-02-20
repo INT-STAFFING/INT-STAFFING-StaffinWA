@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useLookupContext } from '../context/LookupContext';
 import { Role } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -17,7 +19,9 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 
 const RolesPage: React.FC = () => {
-    const { roles, seniorityLevels, addRole, updateRole, deleteRole, isActionLoading, loading } = useEntitiesContext();
+    const { roles, addRole, updateRole, deleteRole } = useResourcesContext();
+    const { seniorityLevels } = useLookupContext();
+    const { isActionLoading, loading } = useAppState();
     const { addToast } = useToast();
     
     const [isModalOpen, setIsModalOpen] = useState(false);

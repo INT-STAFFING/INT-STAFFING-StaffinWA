@@ -5,7 +5,10 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import { getWorkingDaysBetween, isHoliday, formatDate, formatDateFull } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import SearchableSelect from '../components/SearchableSelect';
@@ -176,9 +179,11 @@ const ResourceRow: React.FC<{
 
 export const WbsAllocationPage: React.FC = () => {
     const { 
-        assignments, projects, contracts, resources, clients, roles, 
-        companyCalendar, getRoleCost, loading 
-    } = useEntitiesContext();
+        assignments, projects, contracts, clients,
+    } = useProjectsContext();
+    const { resources, roles, getRoleCost } = useResourcesContext();
+    const { companyCalendar } = useLookupContext();
+    const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
 
     // Filters

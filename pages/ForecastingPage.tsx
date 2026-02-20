@@ -4,7 +4,11 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useHRContext } from '../context/HRContext';
 import { LeaveRequest, Project, Assignment } from '../types';
 import { getWorkingDaysBetween, getLeaveDurationInWorkingDays, parseISODate, isHoliday } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -16,7 +20,10 @@ import SearchableSelect from '../components/SearchableSelect';
  */
 const ForecastingPage: React.FC = () => {
     // Corrected destructuring using functions instead of horizontals
-    const { resources, assignments, functions, clients, projects, companyCalendar, leaveRequests, leaveTypes } = useEntitiesContext();
+    const { resources } = useResourcesContext();
+    const { assignments, clients, projects } = useProjectsContext();
+    const { functions, companyCalendar } = useLookupContext();
+    const { leaveRequests, leaveTypes } = useHRContext();
     const { allocations } = useAllocationsContext();
     const [forecastHorizon] = useState(12); // Orizzonte temporale in mesi
     // Updated filters state horizontal -> function

@@ -4,7 +4,10 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import SearchableSelect from '../components/SearchableSelect';
 import { getWorkingDaysBetween, isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
@@ -34,7 +37,10 @@ const downloadCSV = (csvContent: string, fileName: string) => {
 // --- Componenti Principali dei Report ---
 
 const ProjectCostsReport: React.FC = () => {
-    const { projects, clients, assignments, resources, contracts, projectStatuses, companyCalendar, getRoleCost, getSellRate, loading, projectExpenses } = useEntitiesContext();
+    const { projects, clients, assignments, contracts, getSellRate, projectExpenses } = useProjectsContext();
+    const { resources, getRoleCost } = useResourcesContext();
+    const { projectStatuses, companyCalendar } = useLookupContext();
+    const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
     const [filters, setFilters] = useState({ clientId: '', status: '' });
 
@@ -285,7 +291,10 @@ const ProjectCostsReport: React.FC = () => {
 
 const ResourceUtilizationReport: React.FC = () => {
     // Corrected destructuring using functions instead of horizontals
-    const { resources, roles, assignments, companyCalendar, functions, getRoleCost, loading } = useEntitiesContext();
+    const { resources, roles, getRoleCost } = useResourcesContext();
+    const { assignments } = useProjectsContext();
+    const { functions, companyCalendar } = useLookupContext();
+    const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
     // Updated filters state horizontal -> function

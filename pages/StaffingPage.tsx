@@ -5,7 +5,11 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useHRContext } from '../context/HRContext';
 import { Resource, Assignment, LeaveRequest, LeaveType, Project, Client, Role } from '../types';
 import {
   getCalendarDays,
@@ -168,7 +172,8 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
   startDate: Date;
   endDate: Date;
 }> = React.memo(({ assignment, startDate, endDate }) => {
-  const { companyCalendar, resources } = useEntitiesContext();
+  const { companyCalendar } = useLookupContext();
+  const { resources } = useResourcesContext();
   const { allocations } = useAllocationsContext();
   const resource = resources.find((r) => r.id === assignment.resourceId);
 
@@ -331,7 +336,8 @@ const ReadonlyAggregatedTotalCell: React.FC<{
   startDate: Date;
   endDate: Date;
 }> = React.memo(({ resource, startDate, endDate }) => {
-  const { assignments, companyCalendar } = useEntitiesContext();
+  const { assignments } = useProjectsContext();
+  const { companyCalendar } = useLookupContext();
   const { allocations } = useAllocationsContext();
 
   const averageAllocation = useMemo(() => {
@@ -562,19 +568,11 @@ export const StaffingPage: React.FC = () => {
       return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const {
-    resources,
-    projects,
-    assignments,
-    roles,
-    clients,
-    addMultipleAssignments,
-    deleteAssignment,
-    companyCalendar,
-    leaveRequests,
-    leaveTypes,
-    isActionLoading,
-  } = useEntitiesContext();
+  const { resources, roles } = useResourcesContext();
+  const { projects, assignments, clients, addMultipleAssignments, deleteAssignment } = useProjectsContext();
+  const { companyCalendar } = useLookupContext();
+  const { leaveRequests, leaveTypes } = useHRContext();
+  const { isActionLoading } = useAppState();
   const { allocations, bulkUpdateAllocations } = useAllocationsContext();
 
   // Modali Desktop

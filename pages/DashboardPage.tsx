@@ -5,7 +5,12 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
+import { useHRContext } from '../context/HRContext';
 import { getWorkingDaysBetween, isHoliday, formatDate, formatDateFull } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
 import { useNavigate } from 'react-router-dom';
@@ -163,7 +168,8 @@ const NoWbsLeakageCard: React.FC<{ leakageAmount: number, navigate: (path: strin
 );
 
 const LeavesOverviewCard: React.FC<{ navigate: (path: string) => void }> = ({ navigate }) => {
-    const { leaveRequests, resources, leaveTypes } = useEntitiesContext();
+    const { leaveRequests, leaveTypes } = useHRContext();
+    const { resources } = useResourcesContext();
     const { isAdmin } = useAuth();
     
     const today = new Date().toISOString().split('T')[0];
@@ -1340,7 +1346,11 @@ const TopMarginProjectsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
  * Mostra una serie di "card" con analisi dei dati, ora renderizzate dinamicamente in base a una configurazione.
  */
 const DashboardPage: React.FC = () => {
-    const { resources, roles, projects, clients, assignments, functions, industries, locations, companyCalendar, loading, getRoleCost, getSellRate, contracts, rateCards, dashboardLayout, billingMilestones, projectExpenses } = useEntitiesContext();
+    const { resources, roles, getRoleCost } = useResourcesContext();
+    const { projects, clients, assignments, getSellRate, contracts, rateCards, billingMilestones, projectExpenses } = useProjectsContext();
+    const { functions, industries, locations, companyCalendar } = useLookupContext();
+    const { dashboardLayout } = useUIConfigContext();
+    const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
     const navigate = useNavigate();
 

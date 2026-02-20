@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useHRContext } from '../context/HRContext';
+import { useLookupContext } from '../context/LookupContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus, Resource } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -87,10 +91,11 @@ const RatingStarsDisplay: React.FC<{ value: number }> = ({ value }) => (
 );
 
 const InterviewsPage: React.FC = () => {
-    const { 
-        interviews, resourceRequests, roles, resources, projects, functions,
-        addInterview, updateInterview, deleteInterview, isActionLoading, loading 
-    } = useEntitiesContext();
+    const { interviews, resourceRequests, addInterview, updateInterview, deleteInterview } = useHRContext();
+    const { roles, resources } = useResourcesContext();
+    const { projects } = useProjectsContext();
+    const { functions } = useLookupContext();
+    const { loading, isActionLoading } = useAppState();
     
     const { addToast } = useToast();
     const [searchParams, setSearchParams] = useSearchParams();

@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useSkillsContext } from '../context/SkillsContext';
 import { ConfigOption, LeaveType, SkillCategory, SkillMacroCategory } from '../types';
 import Modal from '../components/Modal';
 import { SpinnerIcon } from '../components/icons';
@@ -21,7 +23,8 @@ interface ConfigSectionProps {
 }
 
 const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, options }) => {
-    const { addConfigOption, updateConfigOption, deleteConfigOption, isActionLoading } = useEntitiesContext();
+    const { addConfigOption, updateConfigOption, deleteConfigOption } = useLookupContext();
+    const { isActionLoading } = useAppState();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOption, setEditingOption] = useState<ConfigOption | { value: string } | null>(null);
 
@@ -105,10 +108,10 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
 };
 
 const SkillConfigSection: React.FC = () => {
-    const { 
+    const {
         skillCategories, addSkillCategory, updateSkillCategory, deleteSkillCategory,
-        skillMacroCategories, addSkillMacro, updateSkillMacro, deleteSkillMacro 
-    } = useEntitiesContext();
+        skillMacroCategories, addSkillMacro, updateSkillMacro, deleteSkillMacro
+    } = useSkillsContext();
     const [modalMode, setModalMode] = useState<'cat' | 'macro' | null>(null);
     const [editingItem, setEditingItem] = useState<any>(null);
 
@@ -181,7 +184,7 @@ const SkillConfigSection: React.FC = () => {
 };
 
 const ConfigPage: React.FC = () => {
-    const { functions, industries, seniorityLevels, projectStatuses, clientSectors, locations } = useEntitiesContext();
+    const { functions, industries, seniorityLevels, projectStatuses, clientSectors, locations } = useLookupContext();
 
     return (
         <div>

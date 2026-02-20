@@ -1,6 +1,9 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useHRContext } from '../context/HRContext';
+import { useLookupContext } from '../context/LookupContext';
 import { useAuth } from '../context/AuthContext';
 import { LeaveRequest, LeaveStatus, LeaveType } from '../types';
 import { isHoliday, getWorkingDaysBetween, formatDateFull, formatDate } from '../utils/dateUtils';
@@ -45,11 +48,10 @@ const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id
 };
 
 const LeavePage: React.FC = () => {
-    const { 
-        leaveRequests, resources, leaveTypes, companyCalendar, 
-        addLeaveRequest, updateLeaveRequest, deleteLeaveRequest, 
-        isActionLoading, managerResourceIds, loading 
-    } = useEntitiesContext();
+    const { leaveRequests, leaveTypes, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest } = useHRContext();
+    const { resources, managerResourceIds } = useResourcesContext();
+    const { companyCalendar } = useLookupContext();
+    const { loading, isActionLoading } = useAppState();
     const { user, isAdmin } = useAuth();
 
     // View State

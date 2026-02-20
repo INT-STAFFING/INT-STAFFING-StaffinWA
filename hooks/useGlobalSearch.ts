@@ -1,6 +1,9 @@
 
 import { useMemo } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useSkillsContext } from '../context/SkillsContext';
+import { useHRContext } from '../context/HRContext';
 import { normalizePath } from '../utils/paths';
 
 export interface SearchResult {
@@ -14,16 +17,10 @@ export interface SearchResult {
 }
 
 export const useGlobalSearch = (query: string) => {
-    const { 
-        resources, 
-        projects, 
-        clients, 
-        contracts, 
-        skills, 
-        resourceRequests, 
-        interviews,
-        roles
-    } = useEntitiesContext();
+    const { resources, roles } = useResourcesContext();
+    const { projects, clients, contracts } = useProjectsContext();
+    const { skills } = useSkillsContext();
+    const { resourceRequests, interviews } = useHRContext();
 
     const results = useMemo<SearchResult[]>(() => {
         if (!query || query.length < 2) return [];

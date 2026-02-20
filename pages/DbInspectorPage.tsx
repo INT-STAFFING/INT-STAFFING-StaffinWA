@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { apiFetch } from '../services/apiClient';
-import { useEntitiesContext } from '../context/AppContext';
+import { useFetchData } from '../context/AppContext';
 import { DataTable, ColumnDef } from '../components/DataTable';
 
 interface Column {
@@ -30,7 +30,7 @@ interface QueryResult {
 type ViewMode = 'inspector' | 'query' | 'bulk_password';
 
 const DbInspectorPage: React.FC = () => {
-    const { fetchData } = useEntitiesContext();
+    const fetchData = useFetchData();
     const [mode, setMode] = useState<ViewMode>('inspector');
     const [tables, setTables] = useState<string[]>([]);
     const [selectedTable, setSelectedTable] = useState<string>('');

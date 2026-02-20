@@ -1,5 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState, useCascadeOps } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useSkillsContext } from '../context/SkillsContext';
 import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -26,12 +30,14 @@ type EnrichedResource = Resource & {
 
 // --- Component ---
 const ResourcesPage: React.FC = () => {
-    const { 
-        resources, roles, addResource, updateResource, deleteResource, 
-        functions, industries, assignments, locations, companyCalendar, 
-        isActionLoading, loading, skills, resourceSkills, 
-        addResourceSkill, deleteResourceSkill 
-    } = useEntitiesContext();
+    const {
+        resources, roles, addResource, updateResource,
+    } = useResourcesContext();
+    const { deleteResource } = useCascadeOps();
+    const { functions, industries, locations, companyCalendar } = useLookupContext();
+    const { assignments } = useProjectsContext();
+    const { skills, resourceSkills, addResourceSkill, deleteResourceSkill } = useSkillsContext();
+    const { isActionLoading, loading } = useAppState();
     
     const { allocations } = useAllocationsContext();
     const { addToast } = useToast();

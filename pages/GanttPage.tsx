@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
 import { Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
 import ExportButton from '../components/ExportButton';
@@ -25,7 +26,8 @@ interface TimeScaleSegment {
 }
 
 const GanttPage: React.FC = () => {
-    const { projects, assignments, resources, clients } = useEntitiesContext();
+    const { projects, assignments, clients } = useProjectsContext();
+    const { resources } = useResourcesContext();
     const [zoom, setZoom] = useState<ZoomLevel>('month');
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
     const [filters, setFilters] = useState({ name: '', clientId: '' });
