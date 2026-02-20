@@ -8,7 +8,7 @@
 import React, { useState, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
-import { AppProviders, useEntitiesContext, useAppState } from './context/AppContext';
+import { AppProviders, useFetchData, useAppState } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ExportProvider } from './context/ExportContext';
 import { ToastProvider } from './context/ToastContext';
@@ -167,7 +167,7 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
   const { loading, fetchError } = useAppState();
-  const { fetchData } = useEntitiesContext();
+  const fetchData = useFetchData();
 
   if (loading) {
     return <LoadingSkeleton />;

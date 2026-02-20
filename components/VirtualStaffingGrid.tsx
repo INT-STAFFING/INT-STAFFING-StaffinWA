@@ -2,7 +2,8 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Resource, Assignment, LeaveRequest, LeaveType } from '../types';
-import { useAllocationsContext, useEntitiesContext } from '../context/AppContext';
+import { useAllocationsContext } from '../context/AppContext';
+import { useLookupContext } from '../context/LookupContext';
 import { isHoliday, formatDate } from '../utils/dateUtils';
 import { Link } from 'react-router-dom';
 
@@ -127,7 +128,7 @@ const VirtualStaffingGrid: React.FC<VirtualStaffingGridProps> = ({
     onDeleteAssignment
 }) => {
     const parentRef = useRef<HTMLDivElement>(null);
-    const { companyCalendar } = useEntitiesContext();
+    const { companyCalendar } = useLookupContext();
 
     // 1. Flatten Data Structure for Virtualization
     const { flatRows, assignmentsByResource } = useMemo(() => {

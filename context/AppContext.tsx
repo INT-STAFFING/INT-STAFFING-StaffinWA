@@ -42,6 +42,16 @@ export interface AppState {
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 export const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
 const AppStateContext = createContext<AppState | undefined>(undefined);
+const FetchDataContext = createContext<() => Promise<void>>(() => Promise.resolve());
+const UpdatePlanningContext = createContext<(settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>>(() => Promise.resolve());
+interface CascadeOpsContextType {
+    deleteProject: (id: string) => Promise<void>;
+    deleteResource: (id: string) => Promise<void>;
+}
+const CascadeOpsContext = createContext<CascadeOpsContextType>({
+    deleteProject: async () => {},
+    deleteResource: async () => {},
+});
 
 // --- Coordinator interno: aggrega tutti i sub-context e fornisce operazioni cross-domain ---
 interface AppCoordinatorProps {
@@ -407,10 +417,21 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
         fetchData, appState,
     ]);
 
+    const cascadeOpsValue = useMemo<CascadeOpsContextType>(() => ({
+        deleteProject,
+        deleteResource,
+    }), [deleteProject, deleteResource]);
+
     return (
-        <EntitiesContext.Provider value={entitiesValue}>
-            {children}
-        </EntitiesContext.Provider>
+        <FetchDataContext.Provider value={fetchData}>
+            <UpdatePlanningContext.Provider value={updatePlanningSettings}>
+                <CascadeOpsContext.Provider value={cascadeOpsValue}>
+                    <EntitiesContext.Provider value={entitiesValue}>
+                        {children}
+                    </EntitiesContext.Provider>
+                </CascadeOpsContext.Provider>
+            </UpdatePlanningContext.Provider>
+        </FetchDataContext.Provider>
     );
 };
 
@@ -584,4 +605,16 @@ export const useAppState = (): AppState => {
     const ctx = useContext(AppStateContext);
     if (!ctx) throw new Error('useAppState must be used within AppProviders');
     return ctx;
+};
+
+export const useFetchData = (): (() => Promise<void>) => {
+    return useContext(FetchDataContext);
+};
+
+export const useUpdatePlanningSettings = (): ((settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>) => {
+    return useContext(UpdatePlanningContext);
+};
+
+export const useCascadeOps = (): CascadeOpsContextType => {
+    return useContext(CascadeOpsContext);
 };

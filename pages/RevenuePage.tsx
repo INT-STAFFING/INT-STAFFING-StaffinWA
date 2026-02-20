@@ -7,7 +7,10 @@
  */
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import { isHoliday } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import { SpinnerIcon } from '../components/icons';
@@ -42,7 +45,10 @@ type BreakdownData = {
 type ViewTab = 'overview' | 'wbs' | 'client' | 'project';
 
 export const RevenuePage: React.FC = () => {
-    const { projects, assignments, resources, contracts, rateCards, billingMilestones, getRoleCost, getSellRate, companyCalendar, clients, loading } = useEntitiesContext();
+    const { projects, assignments, contracts, rateCards, billingMilestones, getSellRate, clients } = useProjectsContext();
+    const { resources, getRoleCost } = useResourcesContext();
+    const { companyCalendar } = useLookupContext();
+    const { loading } = useAppState();
     const { allocations } = useAllocationsContext();
     const { theme } = useTheme();
 

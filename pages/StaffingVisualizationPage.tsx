@@ -5,7 +5,10 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import { isHoliday } from '../utils/dateUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useTheme } from '../context/ThemeContext';
@@ -13,7 +16,9 @@ import { useTheme } from '../context/ThemeContext';
 type ViewMode = 'sankey' | 'network';
 
 const StaffingVisualizationPage: React.FC = () => {
-    const { resources, projects, clients, contracts, assignments, contractProjects, companyCalendar } = useEntitiesContext();
+    const { projects, clients, contracts, assignments, contractProjects } = useProjectsContext();
+    const { resources } = useResourcesContext();
+    const { companyCalendar } = useLookupContext();
     const { allocations } = useAllocationsContext();
     const { theme } = useTheme();
 

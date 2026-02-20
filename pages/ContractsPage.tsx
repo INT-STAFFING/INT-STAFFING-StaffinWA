@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
 import { Contract, BillingType } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -56,9 +58,11 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
 // --- Component ---
 export const ContractsPage: React.FC = () => {
     const {
-        contracts, projects, resources, contractProjects, contractManagers, rateCards,
-        addContract, updateContract, deleteContract, recalculateContractBacklog, isActionLoading, loading
-    } = useEntitiesContext();
+        contracts, projects, contractProjects, contractManagers, rateCards,
+        addContract, updateContract, deleteContract, recalculateContractBacklog,
+    } = useProjectsContext();
+    const { resources } = useResourcesContext();
+    const { isActionLoading, loading } = useAppState();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingContract, setEditingContract] = useState<Contract | Omit<Contract, 'id'> | null>(null);

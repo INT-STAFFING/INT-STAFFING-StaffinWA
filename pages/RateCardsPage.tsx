@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
 import { RateCard, RateCardEntry, Resource } from '../types';
 import Modal from '../components/Modal';
 import { SpinnerIcon } from '../components/icons';
@@ -14,11 +16,9 @@ import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
 
 export default function RateCardsPage() {
-    const { 
-        rateCards, rateCardEntries, roles, resources, 
-        addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
-        isActionLoading, loading 
-    } = useEntitiesContext();
+    const { rateCards, rateCardEntries, addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries } = useProjectsContext();
+    const { roles, resources } = useResourcesContext();
+    const { isActionLoading, loading } = useAppState();
     const { addToast } = useToast();
 
     // Selection State

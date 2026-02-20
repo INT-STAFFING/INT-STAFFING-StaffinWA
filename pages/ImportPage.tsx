@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useFetchData } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
@@ -27,7 +27,7 @@ const ImportPage: React.FC = () => {
         message: string;
         details?: string[];
     } | null>(null);
-    const { fetchData } = useEntitiesContext(); 
+    const fetchData = useFetchData();
     const { isAdmin } = useAuth();
     
     // Ref per l'input file

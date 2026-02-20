@@ -1,6 +1,10 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState, useCascadeOps } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useSkillsContext } from '../context/SkillsContext';
 import { Project, ProjectExpense, BillingType, BillingMilestone, MilestoneStatus } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -54,7 +58,8 @@ const BillingPlanModal: React.FC<{
     isOpen: boolean; 
     onClose: () => void; 
 }> = ({ project, isOpen, onClose }) => {
-    const { billingMilestones, addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, updateProject, contracts, rateCards, isActionLoading } = useEntitiesContext();
+    const { billingMilestones, addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, updateProject, contracts, rateCards } = useProjectsContext();
+    const { isActionLoading } = useAppState();
     const { addToast } = useToast();
 
     const [billingType, setBillingType] = useState<BillingType>(project.billingType || 'TIME_MATERIAL');
@@ -234,7 +239,8 @@ const ProjectExpensesModal: React.FC<{
     isOpen: boolean; 
     onClose: () => void; 
 }> = ({ project, isOpen, onClose }) => {
-    const { projectExpenses, addProjectExpense, updateProjectExpense, deleteProjectExpense, isActionLoading } = useEntitiesContext();
+    const { projectExpenses, addProjectExpense, updateProjectExpense, deleteProjectExpense } = useProjectsContext();
+    const { isActionLoading } = useAppState();
     const { addToast } = useToast();
     
     // Local state for the new expense form
@@ -404,7 +410,12 @@ const ProjectExpensesModal: React.FC<{
 };
 
 export const ProjectsPage: React.FC = () => {
-    const { projects, clients, resources, projectStatuses, contracts, addProject, updateProject, deleteProject, isActionLoading, assignments, loading, skills, projectSkills, addProjectSkill, deleteProjectSkill } = useEntitiesContext();
+    const { projects, clients, contracts, addProject, updateProject, assignments } = useProjectsContext();
+    const { resources } = useResourcesContext();
+    const { projectStatuses } = useLookupContext();
+    const { skills, projectSkills, addProjectSkill, deleteProjectSkill } = useSkillsContext();
+    const { deleteProject } = useCascadeOps();
+    const { isActionLoading, loading } = useAppState();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });

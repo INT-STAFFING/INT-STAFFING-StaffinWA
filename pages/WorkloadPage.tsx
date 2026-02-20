@@ -4,7 +4,11 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useHRContext } from '../context/HRContext';
 import { Resource, Assignment, LeaveRequest, LeaveType, Role } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -85,7 +89,7 @@ const ReadonlyDailyTotalCell: React.FC<DailyTotalCellProps> = React.memo(({ reso
 });
 
 const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Date; endDate: Date; resourceAssignments: Assignment[] }> = React.memo(({ resource, startDate, endDate, resourceAssignments }) => {
-  const { companyCalendar } = useEntitiesContext();
+  const { companyCalendar } = useLookupContext();
   const { allocations } = useAllocationsContext();
 
   const averageAllocation = useMemo(() => {
@@ -152,7 +156,13 @@ const WorkloadPage: React.FC = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
     // Destructured loading from useEntitiesContext to fix line 510 error
-    const { resources, roles, companyCalendar, assignments, leaveRequests, leaveTypes, loading } = useEntitiesContext();
+    const { resources, roles } = useResourcesContext();
+    const { companyCalendar: companyCalendar2 } = useLookupContext();
+    const { assignments } = useProjectsContext();
+    const { leaveRequests, leaveTypes } = useHRContext();
+    const { loading } = useAppState();
+    // Alias to avoid duplicate variable name
+    const companyCalendar = companyCalendar2;
     const { allocations } = useAllocationsContext();
     
     const [filters, setFilters] = useState({ resourceId: '', roleId: '', function: '' });

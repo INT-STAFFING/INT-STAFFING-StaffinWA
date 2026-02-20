@@ -3,7 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme, Theme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState, useUpdatePlanningSettings } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import { DASHBOARD_CARDS_CONFIG } from '../config/dashboardLayout';
 import { DashboardCategory, SidebarSectionColors, SidebarItem, QuickAction, Resource } from '../types';
@@ -12,7 +15,9 @@ import SearchableSelect from '../components/SearchableSelect';
 import { DataTable, ColumnDef } from '../components/DataTable';
 
 const DataLoadSection: React.FC = () => {
-    const { planningSettings, updatePlanningSettings, isActionLoading } = useEntitiesContext();
+    const { planningSettings } = useLookupContext();
+    const updatePlanningSettings = useUpdatePlanningSettings();
+    const { isActionLoading } = useAppState();
     const [localSettings, setLocalSettings] = useState(planningSettings);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -76,7 +81,8 @@ const DataLoadSection: React.FC = () => {
 };
 
 const TalentConfigSection: React.FC = () => {
-    const { resources, updateResource, isActionLoading } = useEntitiesContext();
+    const { resources, updateResource } = useResourcesContext();
+    const { isActionLoading } = useAppState();
     const { addToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     
@@ -194,7 +200,8 @@ const TalentConfigSection: React.FC = () => {
 };
 
 const SearchConfigSection: React.FC = () => {
-    const { quickActions, updateQuickActions, isActionLoading, sidebarSections } = useEntitiesContext();
+    const { quickActions, updateQuickActions, sidebarSections } = useUIConfigContext();
+    const { isActionLoading } = useAppState();
     const { navigationRoutes } = useRoutesManifest();
     const { addToast } = useToast();
     

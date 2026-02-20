@@ -7,12 +7,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useGlobalSearch, SearchResult } from '../hooks/useGlobalSearch';
 
 const SearchWidget: React.FC = () => {
     const { isSearchOpen, setSearchOpen } = useAppState();
-    const { quickActions } = useEntitiesContext();
+    const { quickActions } = useUIConfigContext();
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const results = useGlobalSearch(query);

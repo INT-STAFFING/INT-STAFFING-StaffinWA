@@ -6,7 +6,10 @@
  */
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
+import { useSkillsContext } from '../context/SkillsContext';
 import { useTheme } from '../context/ThemeContext';
 import { select } from 'd3-selection';
 import { zoom as d3Zoom, zoomIdentity, zoomTransform } from 'd3-zoom';
@@ -695,10 +698,10 @@ const SkillBubbleChart: React.FC<{
 // --- Main Page Component ---
 
 const SkillAnalysisPage: React.FC = () => {
-    const { 
-        resources, skills, projectSkills, resourceSkills, assignments, roles, locations, 
-        skillCategories, skillMacroCategories 
-    } = useEntitiesContext();
+    const { resources, roles } = useResourcesContext();
+    const { assignments } = useProjectsContext();
+    const { locations } = useLookupContext();
+    const { skills, projectSkills, resourceSkills, skillCategories, skillMacroCategories } = useSkillsContext();
     const { theme, mode } = useTheme(); 
     
     const [view, setView] = useState<ViewMode>('network');

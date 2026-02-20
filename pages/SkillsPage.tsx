@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useSkillsContext } from '../context/SkillsContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -27,19 +29,9 @@ type EnrichedSkill = Skill & {
 };
 
 const SkillsPage: React.FC = () => {
-    const { 
-        skills, 
-        resources,
-        resourceSkills, 
-        projectSkills, 
-        skillCategories,
-        addSkill, 
-        updateSkill, 
-        deleteSkill, 
-        addResourceSkill,
-        isActionLoading, 
-        loading 
-    } = useEntitiesContext();
+    const { skills, resourceSkills, projectSkills, skillCategories, addSkill, updateSkill, deleteSkill, addResourceSkill } = useSkillsContext();
+    const { resources } = useResourcesContext();
+    const { isActionLoading, loading } = useAppState();
 
     const { addToast } = useToast();
 

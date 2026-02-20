@@ -7,7 +7,10 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useEntitiesContext, useAllocationsContext } from '../context/AppContext';
+import { useAllocationsContext, useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import { Resource, Assignment, Project, Client, Role } from '../types';
 import { getCalendarDays, formatDate, addDays } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -187,16 +190,13 @@ const TestStaffingPage: React.FC = () => {
   }, []);
 
   const {
-    resources,
-    projects,
-    assignments,
-    roles,
-    clients,
-    addMultipleAssignments,
-    deleteAssignment,
-    companyCalendar,
-    isActionLoading,
-  } = useEntitiesContext();
+    resources, roles,
+  } = useResourcesContext();
+  const {
+    projects, assignments, clients, addMultipleAssignments, deleteAssignment,
+  } = useProjectsContext();
+  const { companyCalendar } = useLookupContext();
+  const { isActionLoading } = useAppState();
   const { allocations, bulkUpdateAllocations } = useAllocationsContext();
 
   // Modali Desktop

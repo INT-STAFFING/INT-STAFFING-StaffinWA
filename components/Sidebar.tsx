@@ -2,7 +2,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useEntitiesContext, useAppState } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useRoutesManifest } from '../context/RoutesContext';
 import type { AppRoute } from '../routes';
 import type { SidebarFooterAction } from '../types';
@@ -22,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const user = useAuth().user;
     const changePassword = useAuth().changePassword;
     const hasPermission = useAuth().hasPermission;
-    const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useEntitiesContext();
+    const { sidebarSections, sidebarSectionColors, notifications, sidebarFooterActions } = useUIConfigContext();
     const { navigationRoutes, homePath } = useRoutesManifest();
     const { setSearchOpen } = useAppState();
 

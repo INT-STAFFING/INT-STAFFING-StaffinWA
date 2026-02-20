@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useResourcesContext } from '../context/ResourcesContext';
 import { useAuth } from '../context/AuthContext';
 import { ResourceEvaluation, EvaluationMetric, EvaluationStatus, Resource } from '../types';
 import SearchableSelect from '../components/SearchableSelect';
@@ -110,14 +111,10 @@ const TimelineItem: React.FC<{
 
 export const PerformanceTimelinePage: React.FC = () => {
     const { 
-        resources, 
-        evaluations, 
-        fetchEvaluations, 
-        addEvaluation, 
-        updateEvaluation, 
-        deleteEvaluation,
-        isActionLoading 
-    } = useEntitiesContext();
+        resources, evaluations, fetchEvaluations,
+        addEvaluation, updateEvaluation, deleteEvaluation,
+    } = useResourcesContext();
+    const { isActionLoading } = useAppState();
     const { user, isAdmin } = useAuth();
     const { addToast } = useToast();
 

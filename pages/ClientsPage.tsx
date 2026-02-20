@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useEntitiesContext } from '../context/AppContext';
+import { useAppState } from '../context/AppContext';
+import { useProjectsContext } from '../context/ProjectsContext';
+import { useLookupContext } from '../context/LookupContext';
 import { Client } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -17,7 +19,9 @@ import { useSearchParams } from 'react-router-dom';
  * @returns {React.ReactElement} La pagina di gestione dei clienti.
  */
 const ClientsPage: React.FC = () => {
-    const { clients, clientSectors, addClient, updateClient, deleteClient, isActionLoading, loading, projects } = useEntitiesContext();
+    const { clients, addClient, updateClient, deleteClient, projects } = useProjectsContext();
+    const { clientSectors } = useLookupContext();
+    const { isActionLoading, loading } = useAppState();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | Omit<Client, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', sector: '' });
