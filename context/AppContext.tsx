@@ -80,6 +80,17 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
     const lookupCtx = useLookupContext();
     const uiCtx = useUIConfigContext();
 
+    // Estrai SOLO le funzioni initialize stabili (useCallback con deps vuote nei sub-context).
+    // NON includere i context object interi nelle deps di fetchData: quando fetchData carica
+    // i dati e chiama initialize(), i context cambiano → fetchData verrebbe ricreata →
+    // useEffect([fetchData]) ri-eseguirebbe → loop infinito con loading=true per sempre.
+    const initResources = resourcesCtx.initialize;
+    const initProjects = projectsCtx.initialize;
+    const initSkills = skillsCtx.initialize;
+    const initHR = hrCtx.initialize;
+    const initLookup = lookupCtx.initialize;
+    const initUIConfig = uiCtx.initialize;
+
     // --- fetchData: carica tutti i dati e li distribuisce ai sub-context ---
     const fetchData = useCallback(async (): Promise<void> => {
         setLoading(true);
@@ -87,14 +98,14 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
         try {
             const metaData = await apiFetch<any>('/api/data?scope=metadata');
 
-            resourcesCtx.initialize({
+            initResources({
                 resources: metaData.resources || [],
                 roles: metaData.roles || [],
                 roleCostHistory: metaData.roleCostHistory || [],
                 managerResourceIds: metaData.managerResourceIds || [],
             });
 
-            projectsCtx.initialize({
+            initProjects({
                 clients: metaData.clients || [],
                 projects: metaData.projects || [],
                 rateCards: metaData.rateCards || [],
@@ -102,7 +113,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 projectExpenses: metaData.projectExpenses || [],
             });
 
-            skillsCtx.initialize({
+            initSkills({
                 skills: metaData.skills || [],
                 skillCategories: metaData.skillCategories || [],
                 skillMacroCategories: metaData.skillMacroCategories || [],
@@ -110,11 +121,11 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 skillThresholds: metaData.skillThresholds,
             });
 
-            hrCtx.initialize({
+            initHR({
                 leaveTypes: metaData.leaveTypes || [],
             });
 
-            uiCtx.initialize({
+            initUIConfig({
                 pageVisibility: metaData.pageVisibility || {},
                 analyticsCache: metaData.analyticsCache || {},
                 notificationConfigs: metaData.notificationConfigs || [],
@@ -138,7 +149,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 if (metaData.planningSettings.monthsBefore) monthsBefore = metaData.planningSettings.monthsBefore;
                 if (metaData.planningSettings.monthsAfter) monthsAfter = metaData.planningSettings.monthsAfter;
             }
-            lookupCtx.initialize({
+            initLookup({
                 functions: metaData.functions || [],
                 industries: metaData.industries || [],
                 seniorityLevels: metaData.seniorityLevels || [],
@@ -159,7 +170,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
 
             const planningData = await apiFetch<any>(`/api/data?scope=planning&start=${startStr}&end=${endStr}`);
 
-            projectsCtx.initialize({
+            initProjects({
                 assignments: planningData.assignments || [],
                 wbsTasks: planningData.wbsTasks || [],
                 contracts: planningData.contracts || [],
@@ -168,11 +179,11 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 billingMilestones: planningData.billingMilestones || [],
             });
 
-            skillsCtx.initialize({
+            initSkills({
                 projectSkills: planningData.projectSkills || [],
             });
 
-            hrCtx.initialize({
+            initHR({
                 leaveRequests: planningData.leaveRequests || [],
                 resourceRequests: planningData.resourceRequests || [],
                 interviews: planningData.interviews || [],
@@ -189,7 +200,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
     }, [
         planningMonthsBefore, planningMonthsAfter,
         setLoading, setFetchError, setAllocations,
-        resourcesCtx, projectsCtx, skillsCtx, hrCtx, lookupCtx, uiCtx,
+        initResources, initProjects, initSkills, initHR, initLookup, initUIConfig,
     ]);
 
     // Carica i dati al montaggio
@@ -197,31 +208,40 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
         fetchData();
     }, [fetchData]);
 
+    // Estrai funzioni _remove* stabili per cascade delete (evitano ricreazione inutile)
+    const removeResource = resourcesCtx._removeResource;
+    const removeAssignmentsByResource = projectsCtx._removeAssignmentsByResource;
+    const removeResourceSkillsByResource = skillsCtx._removeResourceSkillsByResource;
+    const removeLeaveRequestsByResource = hrCtx._removeLeaveRequestsByResource;
+    const removeProject = projectsCtx._removeProject;
+    const removeProjectSkillsByProject = skillsCtx._removeProjectSkillsByProject;
+    const setPlanningSettings = lookupCtx._setPlanningSettings;
+
     // --- Operazioni cross-domain: cascade delete ---
 
     const deleteResource = useCallback(async (id: string): Promise<void> => {
         setActionLoading(`deleteResource-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=resources&id=${id}`, { method: 'DELETE' });
-            resourcesCtx._removeResource(id);
-            projectsCtx._removeAssignmentsByResource(id);
-            skillsCtx._removeResourceSkillsByResource(id);
-            hrCtx._removeLeaveRequestsByResource(id);
+            removeResource(id);
+            removeAssignmentsByResource(id);
+            removeResourceSkillsByResource(id);
+            removeLeaveRequestsByResource(id);
         } finally {
             setActionLoading(`deleteResource-${id}`, false);
         }
-    }, [setActionLoading, resourcesCtx, projectsCtx, skillsCtx, hrCtx]);
+    }, [setActionLoading, removeResource, removeAssignmentsByResource, removeResourceSkillsByResource, removeLeaveRequestsByResource]);
 
     const deleteProject = useCallback(async (id: string): Promise<void> => {
         setActionLoading(`deleteProject-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=projects&id=${id}`, { method: 'DELETE' });
-            projectsCtx._removeProject(id);
-            skillsCtx._removeProjectSkillsByProject(id);
+            removeProject(id);
+            removeProjectSkillsByProject(id);
         } finally {
             setActionLoading(`deleteProject-${id}`, false);
         }
-    }, [setActionLoading, projectsCtx, skillsCtx]);
+    }, [setActionLoading, removeProject, removeProjectSkillsByProject]);
 
     // --- getResourceComputedSkills: cross-domain (skills + assignments) ---
     const getResourceComputedSkills = useCallback((resourceId: string): ComputedSkill[] => {
@@ -260,10 +280,10 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
             await apiFetch('/api/resources?entity=app-config-batch', {
                 method: 'POST', body: JSON.stringify({ updates })
             });
-            lookupCtx._setPlanningSettings(settings);
+            setPlanningSettings(settings);
             fetchData();
         } catch (e) { addToast('Errore durante l\'aggiornamento delle impostazioni di planning.', 'error'); }
-    }, [addToast, lookupCtx, fetchData]);
+    }, [addToast, setPlanningSettings, fetchData]);
 
     // --- Valore combinato per compatibilità backward con useEntitiesContext() ---
     const entitiesValue = useMemo<EntitiesContextType>(() => ({
