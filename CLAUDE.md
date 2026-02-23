@@ -33,18 +33,16 @@ This is **not** a monorepo. Most source files live at the repository root rather
 │   ├── _lib/                # Shared server-side utilities (NOT serverless endpoints)
 │   │   ├── db.ts            # PostgreSQL connection pool (@vercel/postgres)
 │   │   ├── env.ts           # Centralized env var validation (throws on startup if missing)
+│   │   ├── auth.ts          # JWT verification & RBAC authorization helpers
 │   │   └── schema.ts        # Full database schema DDL + initialization
 │   ├── data.ts              # Aggregated data fetch endpoint (/api/data)
-│   ├── login.ts             # JWT authentication endpoint
-│   ├── auth-config.ts       # Auth configuration endpoint
+│   ├── auth.ts              # Unified auth: login (JWT), login-protection config
 │   ├── resources.ts         # Generic CRUD dispatcher for all entities (largest API file)
 │   ├── config.ts            # Config/lookup value CRUD
-│   ├── allocations.ts       # Allocation management
-│   ├── assignments.ts       # Assignment management
-│   ├── resource-requests.ts # Resource request CRUD
+│   ├── staffing.ts          # Allocations & assignments management
+│   ├── admin.ts             # Admin utilities (webhook testing, integrations)
 │   ├── import.ts            # Excel/data import
-│   ├── export-sql.ts        # Data export
-│   └── webhook-test.ts      # Webhook testing endpoint
+│   └── export.ts            # SQL dump export (postgres/mysql dialects)
 │
 ├── components/              # Reusable React components
 │   ├── forms/               # Form components (FormDialog, FormFieldFeedback, configs, types)
@@ -235,14 +233,14 @@ import { useEntitiesContext } from '@/context/AppContext';
 
 **There are only a handful of actual API files.** Most entity CRUD is routed through `api/resources.ts`, not separate per-entity files:
 
-- **`/api/data`** — Bulk read: fetches all entities for initial load. Accepts `?scope=all|metadata`.
-- **`/api/resources?entity=<type>`** — Generic CRUD dispatcher. Handles `resources`, `projects`, `clients`, `roles`, `skills`, `skill_categories`, `leaves`, `app-users`, `rate_cards`, `billing_milestones`, and many more via the `TABLE_MAPPING` and `VALIDATION_SCHEMAS` maps inside `resources.ts`.
+- **`/api/data`** — Bulk read: fetches all entities for initial load. Accepts `?scope=all|metadata|planning`.
+- **`/api/auth`** — Unified authentication endpoint: `POST` for login (username/password → JWT); `GET ?action=config` reads login-protection flag; `POST ?action=config` (ADMIN) toggles login protection.
+- **`/api/resources?entity=<type>`** — Generic CRUD dispatcher (31 entity types). Handles `resources`, `projects`, `clients`, `roles`, `skills`, `skill_categories`, `leaves`, `app_users`, `rate_cards`, `billing_milestones`, `resource_requests`, `interviews`, `contracts`, `assignments`, `allocations`, and more via the `TABLE_MAPPING` and `VALIDATION_SCHEMAS` maps inside `resources.ts`.
 - **`/api/config?type=<type>`** — CRUD for lookup/config values (functions, seniority levels, locations, etc.).
-- **`/api/allocations`**, **`/api/assignments`** — Dedicated endpoints for allocation and assignment data.
-- **`/api/resource-requests`** — Recruitment requisition endpoint.
-- **`/api/login`**, **`/api/auth-config`** — Authentication.
-- **`/api/import`**, **`/api/export-sql`** — Data import/export.
-- **`/api/webhook-test`** — Webhook testing/debugging endpoint.
+- **`/api/staffing`** — Dedicated endpoint for allocations and assignments: `POST ?action=allocation` for bulk upsert/delete; `POST ?action=assignment` to create/get an assignment; `DELETE ?action=assignment&id=<uuid>` to delete an assignment (cascades to allocations).
+- **`/api/admin`** — Admin utilities: `POST ?action=webhook-test` sends a test Adaptive Card (Teams format) to a webhook URL.
+- **`/api/import`** — Bulk data import from Excel/JSON. Requires operational role (ADMIN/MANAGER/SENIOR MANAGER/MANAGING DIRECTOR).
+- **`/api/export`** — Full SQL dump export: `GET ?dialect=postgres|mysql` (ADMIN only).
 
 #### API shared library (`api/_lib/`)
 
@@ -250,6 +248,7 @@ Server-side utilities shared across Vercel functions live in `api/_lib/`. Files 
 
 - **`api/_lib/db.ts`** — PostgreSQL connection pool (`@vercel/postgres`). Import `db` from here in all API handlers.
 - **`api/_lib/env.ts`** — Validates required env vars (`JWT_SECRET`, `POSTGRES_URL`) at startup and throws if missing. Import typed `env` object from here instead of raw `process.env`.
+- **`api/_lib/auth.ts`** — Shared JWT verification helpers: `verifyAdmin(req)` asserts ADMIN role; `getUserFromRequest(req)` extracts user `{ id, username, role }` from Bearer token. Exports `OPERATIONAL_ROLES` (`['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR']`).
 - **`api/_lib/schema.ts`** — Full database schema DDL. `ensureDbTablesExist()` is called lazily on first request.
 
 **Local/Preview Mode:** `apiClient.ts` detects non-production environments by checking the hostname/port and intercepts all `/api/*` calls, routing them to the in-memory mock engine (`mockHandlers.ts` + `mockData.ts`).
@@ -298,7 +297,7 @@ API calls use `apiFetch()` from `services/apiClient.ts` which handles auth heade
 - JWT secret stored in `JWT_SECRET` environment variable (required in production; validated at startup in `api/_lib/env.ts`).
 - Auth token stored in `localStorage` as `authToken`.
 - Auth state in `AuthContext.tsx` — provides `login`, `logout`, `changePassword`, `hasPermission`.
-- RBAC roles: `SIMPLE`, `MANAGER`, `ADMIN` with path-level permissions stored in `role_permissions` table.
+- RBAC roles: `SIMPLE`, `MANAGER`, `SENIOR MANAGER`, `MANAGING DIRECTOR`, `ADMIN` with path-level permissions stored in `role_permissions` table.
 - Force password change on first login (`mustChangePassword` flag on user object).
 - `utils/auth.ts` exports `getStoredAuthToken()`. `utils/api.ts` exports `authorizedFetch`/`authorizedJsonFetch` as lower-level alternatives to `apiFetch()`.
 
