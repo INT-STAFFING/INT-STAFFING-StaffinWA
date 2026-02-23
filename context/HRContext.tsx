@@ -130,7 +130,7 @@ export const HRProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // --- CRUD Resource Requests ---
     const addResourceRequest = useCallback(async (req: Omit<ResourceRequest, 'id'>): Promise<void> => {
         try {
-            const created = await apiFetch<ResourceRequest>('/api/resource-requests', {
+            const created = await apiFetch<ResourceRequest>('/api/resources?entity=resource_requests', {
                 method: 'POST', body: JSON.stringify(req)
             });
             setResourceRequests(prev => [...prev, created]);
@@ -140,7 +140,7 @@ export const HRProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const updateResourceRequest = useCallback(async (req: ResourceRequest): Promise<void> => {
         try {
             const updated = await apiFetch<ResourceRequest>(
-                `/api/resource-requests?id=${req.id}`,
+                `/api/resources?entity=resource_requests&id=${req.id}`,
                 { method: 'PUT', body: JSON.stringify(req) }
             );
             setResourceRequests(prev => prev.map(r => r.id === req.id ? updated : r));
@@ -149,7 +149,7 @@ export const HRProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
     const deleteResourceRequest = useCallback(async (id: string): Promise<void> => {
         try {
-            await apiFetch(`/api/resource-requests?id=${id}`, { method: 'DELETE' });
+            await apiFetch(`/api/resources?entity=resource_requests&id=${id}`, { method: 'DELETE' });
             setResourceRequests(prev => prev.filter(r => r.id !== id));
         } catch (e) { addToast('Errore durante l\'eliminazione della richiesta risorsa.', 'error'); }
     }, [addToast]);

@@ -1,39 +1,14 @@
 
 import { db } from './_lib/db.js';
-import { env } from './_lib/env.js';
 import { ensureDbTablesExist } from './_lib/schema.js';
+import { verifyAdmin, getUserFromRequest, OPERATIONAL_ROLES } from './_lib/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { env } from './_lib/env.js';
 import { z } from '../libs/zod.js';
 import { notify } from '../utils/webhookNotifier.js';
-
-const JWT_SECRET = env.JWT_SECRET;
-
-const OPERATIONAL_ROLES = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
-
-const verifyAdmin = (req: VercelRequest): boolean => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return false;
-    const token = authHeader.split(' ')[1];
-    if (!token) return false;
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
-        return decoded.role === 'ADMIN';
-    } catch (e) { return false; }
-};
-
-const getUserFromRequest = (req: VercelRequest) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return null;
-    const token = authHeader.split(' ')[1];
-    if (!token) return null;
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
-        return { id: decoded.userId, username: decoded.username, role: decoded.role };
-    } catch (e) { return null; }
-};
 
 // Campi che devono essere serializzati come JSON prima di essere passati a PostgreSQL
 // (colonne di tipo JSONB — pg driver non serializza automaticamente gli array JS)
@@ -64,7 +39,8 @@ const TABLE_MAPPING: Record<string, string> = {
     'skill_categories': 'skill_categories',
     'skill_macro_categories': 'skill_macro_categories',
     'resource_evaluations': 'resource_evaluations',
-    'evaluation_metrics': 'evaluation_metrics'
+    'evaluation_metrics': 'evaluation_metrics',
+    'resource_requests': 'resource_requests',
 };
 
 const VALIDATION_SCHEMAS: Record<string, any> = {
@@ -298,7 +274,22 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
              metricValue: z.string().optional().nullable(),
              score: z.number().optional().nullable()
         })).optional()
-    })
+    }),
+    'resource_requests': z.object({
+        projectId: z.string(),
+        roleId: z.string(),
+        requestorId: z.string().optional().nullable(),
+        startDate: z.string(),
+        endDate: z.string(),
+        commitmentPercentage: z.number(),
+        isUrgent: z.boolean().optional(),
+        isLongTerm: z.boolean().optional(),
+        isTechRequest: z.boolean().optional(),
+        isOsrOpen: z.boolean().optional(),
+        osrNumber: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        status: z.string(),
+    }),
 };
 
 const toCamelAndNormalize = (o: any) => {
@@ -383,6 +374,16 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                         { name: 'Data Acquisizione', value: data.acquisitionDate || 'N/A' },
                     ]
                 });
+            } else if (tableName === 'resource_requests') {
+                const requestCode = data.requestCode || '?';
+                await notify(client, 'RESOURCE_REQUEST_CREATED', {
+                    title: 'Nuova Richiesta Risorsa',
+                    color: 'Accent',
+                    facts: [
+                        { name: 'Codice', value: requestCode },
+                        { name: 'Urgenza', value: data.isUrgent ? 'SI' : 'NO' },
+                    ]
+                });
             }
         } else if (method === 'PUT') {
             if (tableName === 'resources') {
@@ -450,6 +451,21 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                                 { name: 'Al', value: data.endDate || oldData?.endDate || 'N/A' },
                             ]
                         });
+                    }
+                }
+            } else if (tableName === 'resource_requests') {
+                if (data.status && data.status !== oldData?.status) {
+                    const code = oldData?.requestCode || '?';
+                    await notify(client, 'RESOURCE_REQUEST_STATUS_CHANGED', {
+                        title: 'Stato Richiesta Variato',
+                        color: 'Accent',
+                        facts: [{ name: 'Codice', value: code }, { name: 'Nuovo Stato', value: data.status }]
+                    });
+                    if (data.requestorId) {
+                        await client.query(
+                            'INSERT INTO notifications (id, recipient_resource_id, title, message, link) VALUES ($1, $2, $3, $4, $5)',
+                            [uuidv4(), data.requestorId, 'Aggiornamento Richiesta', `La tua richiesta ${code} è passata allo stato ${data.status}.`, '/resource-requests']
+                        );
                     }
                 }
             } else if (tableName === 'interviews') {
@@ -626,7 +642,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  
                  const token = jwt.sign(
                      { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
-                     JWT_SECRET,
+                     env.JWT_SECRET,
                      { expiresIn: '8h' }
                  );
                  
@@ -680,6 +696,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  }
                  await client.query('COMMIT');
                  return res.status(200).json({ success: true });
+             }
+
+             // Gestione speciale resource_requests: genera automaticamente il codice HCR
+             if (tableName === 'resource_requests') {
+                 const { projectId, roleId, requestorId, startDate, endDate, commitmentPercentage, isUrgent, isLongTerm, isTechRequest, isOsrOpen, osrNumber, notes, status } = req.body;
+                 const codeRes = await client.query("SELECT request_code FROM resource_requests WHERE request_code LIKE 'HCR%' ORDER BY LENGTH(request_code) DESC, request_code DESC LIMIT 1");
+                 const lastNum = codeRes.rows[0]?.request_code ? parseInt(codeRes.rows[0].request_code.match(/\d+/)?.[0] || '0') : 0;
+                 const requestCode = `HCR${String(lastNum + 1).padStart(5, '0')}`;
+                 const newId = uuidv4();
+                 await client.query(
+                     `INSERT INTO resource_requests (id, version, request_code, project_id, role_id, requestor_id, start_date, end_date, commitment_percentage, is_urgent, is_long_term, is_tech_request, is_osr_open, osr_number, notes, status) VALUES ($1, 1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+                     [newId, requestCode, projectId, roleId, requestorId || null, startDate, endDate, commitmentPercentage, isUrgent ?? false, isLongTerm ?? false, isTechRequest ?? false, isOsrOpen ?? false, osrNumber || null, notes, status]
+                 );
+                 await triggerNotification(client, 'POST', 'resource_requests', newId, { ...req.body, requestCode });
+                 return res.status(201).json({ id: newId, version: 1, requestCode, ...req.body });
              }
 
              const schema = VALIDATION_SCHEMAS[tableName as string];
@@ -748,7 +779,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             );
 
             // Recupera dati precedenti per confronto nei trigger evento (status change, resigned, ecc.)
-            const notifiableTables = ['resources', 'projects', 'leave_requests', 'interviews'];
+            const notifiableTables = ['resources', 'projects', 'leave_requests', 'interviews', 'resource_requests'];
             let oldData: any = null;
             if (id && notifiableTables.includes(tableName as string)) {
                 const oldRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]).catch(() => ({ rows: [] }));

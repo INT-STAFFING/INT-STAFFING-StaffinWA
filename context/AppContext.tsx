@@ -471,7 +471,7 @@ const AllocationsInternalProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     const updateAllocation = useCallback(async (assignmentId: string, date: string, percentage: number): Promise<void> => {
         try {
-            await apiFetch('/api/allocations', {
+            await apiFetch('/api/staffing?action=allocation', {
                 method: 'POST',
                 body: JSON.stringify({ updates: [{ assignmentId, date, percentage }] })
             });
@@ -502,7 +502,7 @@ const AllocationsInternalProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
         if (updates.length === 0) return;
         try {
-            await apiFetch('/api/allocations', {
+            await apiFetch('/api/staffing?action=allocation', {
                 method: 'POST', body: JSON.stringify({ updates })
             });
             setAllocations(prev => {

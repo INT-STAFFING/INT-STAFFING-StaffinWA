@@ -170,7 +170,7 @@ const DbInspectorPage: React.FC = () => {
     
         try {
             // NOTE: apiFetch is for JSON. Using raw fetch for BLOB response.
-            const response = await fetch(`/api/export-sql?dialect=${dialect}`, {
+            const response = await fetch(`/api/export?dialect=${dialect}`, {
                 headers: { 'Authorization': `Bearer ${getAuthToken()}` }
             });
             
