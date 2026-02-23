@@ -294,7 +294,14 @@ class ZodArray<TSchema extends BaseSchema<any>> extends BaseSchema<Infer<TSchema
     }
 }
 
+class ZodAny extends BaseSchema<any> {
+    protected parseInternal(data: unknown, path: (string | number)[]): any {
+        return data;
+    }
+}
+
 export const z = {
+    any: () => new ZodAny(),
     string: () => new ZodString(),
     number: () => new ZodNumber(),
     boolean: () => new ZodBoolean(),

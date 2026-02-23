@@ -112,7 +112,7 @@ const makeConfigUpdate = <T,>(
                 body: JSON.stringify({ updates: [{ key, value: JSON.stringify(value) }] })
             });
             setter(value);
-        } catch (e) { addToast('Errore durante l\'aggiornamento della configurazione.', 'error'); }
+        } catch (e: any) { addToast(`Errore durante l'aggiornamento della configurazione: ${e.message}`, 'error'); }
     };
 };
 

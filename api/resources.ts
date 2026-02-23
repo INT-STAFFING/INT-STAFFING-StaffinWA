@@ -158,6 +158,34 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         contractId: z.string(),
         resourceId: z.string()
     }),
+    'rate_card_entries': z.object({
+        rateCardId: z.string(),
+        resourceId: z.string(),
+        dailyRate: z.number()
+    }),
+    'evaluation_metrics': z.object({
+        evaluationId: z.string(),
+        category: z.string(),
+        metricKey: z.string(),
+        metricValue: z.string().optional().nullable(),
+        score: z.number().optional().nullable()
+    }),
+    'app_config': z.object({
+        key: z.string(),
+        value: z.string()
+    }),
+    'analytics_cache': z.object({
+        key: z.string(),
+        data: z.any(),
+        scope: z.string().optional().nullable()
+    }),
+    'notifications': z.object({
+        recipientResourceId: z.string(),
+        title: z.string(),
+        message: z.string(),
+        link: z.string().optional().nullable(),
+        isRead: z.boolean().optional()
+    }),
     'role_permissions': z.object({
         role: z.string(),
         pagePath: z.string(),
@@ -622,12 +650,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              if (entity === 'role-permissions') {
                  if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
                  const { permissions } = req.body;
+                 if (!Array.isArray(permissions)) return res.status(400).json({ error: 'Invalid permissions data' });
+                 
                  await client.query('BEGIN');
                  await client.query('DELETE FROM role_permissions');
                  for (const p of permissions) {
                      await client.query(
                          `INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`,
                          [p.role, p.pagePath, p.isAllowed ? true : false]
+                     );
+                 }
+                 await client.query('COMMIT');
+                 return res.status(200).json({ success: true });
+             }
+
+             if (entity === 'rate_card_entries') {
+                 if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+                 const { entries } = req.body;
+                 if (!Array.isArray(entries)) return res.status(400).json({ error: 'Invalid entries data' });
+
+                 await client.query('BEGIN');
+                 for (const entry of entries) {
+                     await client.query(
+                         `INSERT INTO rate_card_entries (rate_card_id, resource_id, daily_rate) 
+                          VALUES ($1, $2, $3) 
+                          ON CONFLICT (rate_card_id, resource_id) DO UPDATE SET daily_rate = $3`,
+                         [entry.rateCardId, entry.resourceId, entry.dailyRate]
                      );
                  }
                  await client.query('COMMIT');

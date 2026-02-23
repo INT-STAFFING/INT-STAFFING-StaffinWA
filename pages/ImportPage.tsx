@@ -4,6 +4,7 @@ import { useFetchData } from '../context/AppContext';
 import { exportTemplate } from '../utils/exportUtils';
 import { SpinnerIcon } from '../components/icons';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../services/apiClient';
 
 type ImportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping';
 
@@ -107,18 +108,11 @@ const ImportPage: React.FC = () => {
                             break;
                     }
 
-                    const response = await fetch(`/api/import?type=${importType}`, {
+                    const result = await apiFetch<any>(`/api/import?type=${importType}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(body),
                     });
 
-                    const result = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(result.error || 'Errore sconosciuto dal server.');
-                    }
-                    
                     setImportResult({ success: true, message: result.message, details: result.warnings });
                     fetchData(); // Refresh all app data
                 } catch (error) {

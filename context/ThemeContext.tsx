@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useState, useEffect, useContext, ReactNode, useMemo, useCallback } from 'react';
+import { apiFetch } from '../services/apiClient';
 
 // --- Types ---
 
@@ -276,16 +277,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             // Assuming authorized access is required for full config reading.
             if (!token) return;
 
-            const response = await fetch('/api/resources?entity=theme', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (!response.ok) {
-                console.warn(`Theme fetch failed with status: ${response.status}`);
-                return;
-            }
-
-            const dbConfig: { key: string; value: string }[] = await response.json();
+            const dbConfig: { key: string; value: string }[] = await apiFetch('/api/resources?entity=theme');
             const enabledEntry = dbConfig.find(c => c.key === 'theme.db.enabled');
             const enabled = enabledEntry ? enabledEntry.value === 'true' : true; // Default to true if not set
             setIsDbThemeEnabled(enabled);
@@ -345,10 +337,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         updates['theme.viz.network.nodeRadius'] = String(newTheme.visualizationSettings.network.nodeRadius);
 
         try {
-            const token = localStorage.getItem('authToken');
-            await fetch('/api/resources?entity=theme', {
+            await apiFetch('/api/resources?entity=theme', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ updates }),
             });
             await loadAndApplyTheme(); // Reload to confirm DB persistence

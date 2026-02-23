@@ -1,4 +1,5 @@
 import { getStoredAuthToken } from './auth';
+import { apiFetch } from '../services/apiClient';
 
 const buildAuthHeaders = (init?: RequestInit): HeadersInit => {
     const token = getStoredAuthToken();
@@ -19,6 +20,5 @@ export const authorizedFetch = async (input: RequestInfo | URL, init: RequestIni
 };
 
 export const authorizedJsonFetch = async <T>(input: RequestInfo | URL, init: RequestInit = {}): Promise<T> => {
-    const response = await authorizedFetch(input, init);
-    return response.status === 204 ? (null as T) : await response.json();
+    return apiFetch<T>(input.toString(), init);
 };

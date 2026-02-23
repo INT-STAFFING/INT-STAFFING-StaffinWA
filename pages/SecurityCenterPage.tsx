@@ -60,7 +60,9 @@ const IdentityPillar: React.FC = () => {
             updateCache(prev => isNew ? [...(prev || []), saved as any] : (prev || []).map(u => u.id === saved.id ? saved as any : u));
             addToast('Utente salvato con successo', 'success');
             setIsModalOpen(false);
-        } catch (e) { addToast('Errore durante il salvataggio utente', 'error'); }
+        } catch (e: any) { 
+            addToast(`Errore durante il salvataggio utente: ${e.message}`, 'error'); 
+        }
     };
 
     const handlePasswordReset = async (e: React.FormEvent) => {
@@ -357,6 +359,11 @@ const RBACPillar: React.FC = () => {
     };
 
     const handleSave = async () => {
+        if (!permissionsData) {
+            addToast('Dati dei permessi non pronti', 'warning');
+            return;
+        }
+
         try {
             // 1. Save Permissions Matrix
             await authorizedJsonFetch('/api/resources?entity=role-permissions', {
@@ -368,7 +375,9 @@ const RBACPillar: React.FC = () => {
             await updatePageVisibility(localVisibility);
 
             addToast('Configurazione salvata con successo', 'success');
-        } catch (e) { addToast('Errore nel salvataggio della configurazione', 'error'); }
+        } catch (e: any) { 
+            addToast(`Errore nel salvataggio della configurazione: ${e.message}`, 'error'); 
+        }
     };
 
     return (

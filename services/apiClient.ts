@@ -27,7 +27,7 @@ const resolveAuthHeaders = (strategy: ApiClientOptions['authStrategy'], token: s
  * Rileva se l'applicazione sta girando in un ambiente di Preview o di sviluppo.
  * Esteso per coprire le sandbox di Google AI Studio e Vercel.
  */
-const isLocalPreview = () => {
+export const isLocalPreview = () => {
   if (typeof window === 'undefined') return false;
   
   const h = window.location.hostname;
@@ -42,6 +42,8 @@ const isLocalPreview = () => {
     h.includes('stackblitz') || 
     h.includes('vercel-preview') ||
     h.includes('google-ai-studio') ||
+    h.includes('ais-dev-') ||
+    h.includes('ais-pre-') ||
     h.includes('usercontent.goog') || // Sandbox Google
     h.includes('googleusercontent.com') ||
     h.includes('internal') ||
