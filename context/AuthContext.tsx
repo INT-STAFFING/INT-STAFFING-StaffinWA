@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const checkAuthState = async () => {
             try {
                 try {
-                    const config = await apiFetch<AuthConfigResponse>('/api/auth-config');
+                    const config = await apiFetch<AuthConfigResponse>('/api/auth?action=config');
                     setIsLoginProtectionEnabled(config.isEnabled);
                 } catch (e) { setIsLoginProtectionEnabled(true); }
 
@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const login = useCallback(async (password: string, username: string = 'admin') => {
         try {
-            const data = await apiFetch<LoginResponse>('/api/login', {
+            const data = await apiFetch<LoginResponse>('/api/auth', {
                 method: 'POST',
                 body: JSON.stringify({ username, password }),
             });
@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const toggleLoginProtection = useCallback(async (enable: boolean) => {
         try {
-            await apiFetch('/api/auth-config', {
+            await apiFetch('/api/auth?action=config', {
                 method: 'POST',
                 body: JSON.stringify({ isEnabled: enable }),
             });

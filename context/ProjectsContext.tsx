@@ -239,7 +239,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     ): Promise<void> => {
         try {
             const created = await Promise.all(
-                newAssignments.map(a => apiFetch<Assignment | { message: string }>('/api/assignments', {
+                newAssignments.map(a => apiFetch<Assignment | { message: string }>('/api/staffing?action=assignment', {
                     method: 'POST',
                     body: JSON.stringify(a)
                 }))
@@ -252,7 +252,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const deleteAssignment = useCallback(async (id: string): Promise<void> => {
         try {
-            await apiFetch(`/api/assignments?id=${id}`, { method: 'DELETE' });
+            await apiFetch(`/api/staffing?action=assignment&id=${id}`, { method: 'DELETE' });
             setAssignments(prev => prev.filter(a => a.id !== id));
         } catch (e) {
             addToast('Errore durante l\'eliminazione dell\'assegnazione.', 'error');

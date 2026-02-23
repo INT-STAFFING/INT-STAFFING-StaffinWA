@@ -47,6 +47,35 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     return db;
   }
 
+  // ─── Auth: login + config protezione ────────────────────────────────────────
+  if (path.endsWith('/api/auth')) {
+    if (params.action === 'config') {
+      if (method === 'GET') return { isEnabled: false };
+      if (method === 'POST') {
+        const { isEnabled } = JSON.parse(options.body as string);
+        return { success: true, isEnabled };
+      }
+    }
+    // Login
+    if (method === 'POST') {
+      const { username } = JSON.parse(options.body as string);
+      const mockUser = (db as any).users?.find((u: any) => u.username === username);
+      return {
+        success: true,
+        token: 'mock-jwt-token',
+        user: {
+          id: mockUser?.id || 'mock-admin-id',
+          username: mockUser?.username || username || 'admin',
+          role: mockUser?.role || 'ADMIN',
+          resourceId: mockUser?.resourceId || null,
+          permissions: [],
+          mustChangePassword: false,
+        },
+        isAdmin: true,
+      };
+    }
+  }
+
   if (path.endsWith('/api/resources')) {
     const entity = params.entity;
     let dbKey = entity;
@@ -54,16 +83,31 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (entity === 'app-users') dbKey = 'users';
     if (entity === 'notification_rules') dbKey = 'notificationRules';
     if (entity === 'notification_configs') dbKey = 'notificationConfigs';
-    
-    const list = db[dbKey] || [];
-    
+    if (entity === 'resource_requests') dbKey = 'resourceRequests';
+
+    const list = (db as any)[dbKey] || [];
+
     if (method === 'GET') return list;
-    
+
     if (method === 'POST') {
       const body = JSON.parse(options.body as string);
+      // Auto-codice HCR per resource_requests
+      if (entity === 'resource_requests') {
+        const existing: any[] = (db as any).resourceRequests || [];
+        const maxNum = existing.reduce((max: number, r: any) => {
+          const match = r.requestCode?.match(/\d+/);
+          return match ? Math.max(max, parseInt(match[0])) : max;
+        }, 0);
+        const requestCode = `HCR${String(maxNum + 1).padStart(5, '0')}`;
+        const newItem = { id: uuidv4(), version: 1, requestCode, ...body };
+        if (!(db as any).resourceRequests) (db as any).resourceRequests = [];
+        (db as any).resourceRequests.push(newItem);
+        saveDb(db);
+        return newItem;
+      }
       const newItem = { id: uuidv4(), version: 1, ...body };
-      if (!db[dbKey]) db[dbKey] = [];
-      db[dbKey].push(newItem);
+      if (!(db as any)[dbKey]) (db as any)[dbKey] = [];
+      (db as any)[dbKey].push(newItem);
       saveDb(db);
       return newItem;
     }
@@ -73,42 +117,81 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       const existing = list.find((i: any) => i.id === params.id);
       const nextVersion = (existing?.version ?? 0) + 1;
       const updated = { ...existing, ...body, id: params.id, version: nextVersion };
-      db[dbKey] = list.map((i: any) => i.id === params.id ? updated : i);
+      (db as any)[dbKey] = list.map((i: any) => i.id === params.id ? updated : i);
       saveDb(db);
       return updated;
     }
-    
+
     if (method === 'DELETE') {
-      db[dbKey] = list.filter((i: any) => i.id !== params.id);
+      (db as any)[dbKey] = list.filter((i: any) => i.id !== params.id);
       saveDb(db);
       return null;
     }
   }
 
-  // Mock test webhook: simula sempre successo in modalità locale
-  if (path.endsWith('/api/webhook-test') && method === 'POST') {
+  // ─── Staffing: allocazioni + assegnazioni ────────────────────────────────────
+  if (path.endsWith('/api/staffing')) {
+    if (params.action === 'allocation' && method === 'POST') {
+      const { updates } = JSON.parse(options.body as string);
+      if (Array.isArray(updates)) {
+        if (!(db as any).allocations) (db as any).allocations = {};
+        for (const { assignmentId, date, percentage } of updates) {
+          if (!(db as any).allocations[assignmentId]) (db as any).allocations[assignmentId] = {};
+          if (percentage === 0) {
+            delete (db as any).allocations[assignmentId][date];
+          } else {
+            (db as any).allocations[assignmentId][date] = percentage;
+          }
+        }
+        saveDb(db);
+      }
+      return { success: true };
+    }
+    if (params.action === 'assignment') {
+      if (method === 'POST') {
+        const body = JSON.parse(options.body as string);
+        const { resourceId, projectId } = body;
+        const existing = ((db as any).assignments || []).find((a: any) => a.resourceId === resourceId && a.projectId === projectId);
+        if (existing) return { message: 'Exists', assignment: existing };
+        const newItem = { id: uuidv4(), resourceId, projectId };
+        if (!(db as any).assignments) (db as any).assignments = [];
+        (db as any).assignments.push(newItem);
+        saveDb(db);
+        return newItem;
+      }
+      if (method === 'DELETE') {
+        (db as any).assignments = ((db as any).assignments || []).filter((a: any) => a.id !== params.id);
+        if ((db as any).allocations) delete (db as any).allocations[params.id];
+        saveDb(db);
+        return null;
+      }
+    }
+  }
+
+  // ─── Admin: test webhook ─────────────────────────────────────────────────────
+  if (path.endsWith('/api/admin') && params.action === 'webhook-test' && method === 'POST') {
     return { success: true, statusCode: 200, responseBody: '(Simulato in modalità locale — nessuna richiesta reale inviata a Teams)' };
   }
 
   if (path.includes('/api/config')) {
       const type = params.type;
-      const list = db[type] || [];
+      const list = (db as any)[type] || [];
       if (method === 'POST') {
           const body = JSON.parse(options.body as string);
           const newItem = { id: uuidv4(), ...body };
-          if (!db[type]) db[type] = [];
-          db[type].push(newItem);
+          if (!(db as any)[type]) (db as any)[type] = [];
+          (db as any)[type].push(newItem);
           saveDb(db);
           return newItem;
       }
       if (method === 'PUT') {
           const body = JSON.parse(options.body as string);
-          db[type] = list.map((i: any) => i.id === params.id ? { ...i, ...body } : i);
+          (db as any)[type] = list.map((i: any) => i.id === params.id ? { ...i, ...body } : i);
           saveDb(db);
           return { id: params.id, ...body };
       }
       if (method === 'DELETE') {
-          db[type] = list.filter((i: any) => i.id !== params.id);
+          (db as any)[type] = list.filter((i: any) => i.id !== params.id);
           saveDb(db);
           return null;
       }

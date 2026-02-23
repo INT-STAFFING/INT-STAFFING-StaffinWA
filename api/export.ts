@@ -1,30 +1,16 @@
-
 /**
- * @file api/export-sql.ts
- * @description Endpoint API to generate a full SQL dump (schema + data) for the entire database.
- * Rafforzato con controllo RBAC ADMIN.
+ * @file api/export.ts
+ * @description Endpoint API per generare un dump SQL completo (schema + dati) del database.
+ * Accesso riservato al ruolo ADMIN.
+ *
+ * Route:
+ *   GET /api/export?dialect=postgres  → dump PostgreSQL
+ *   GET /api/export?dialect=mysql     → dump MySQL (schema convertito automaticamente)
  */
 
 import { db } from './_lib/db.js';
-import { env } from './_lib/env.js';
+import { verifyAdmin } from './_lib/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = env.JWT_SECRET;
-
-// --- SECURITY HELPER ---
-const verifyAdmin = (req: VercelRequest): boolean => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return false;
-    const token = authHeader.split(' ')[1];
-    if (!token) return false;
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
-        return decoded.role === 'ADMIN';
-    } catch (e) {
-        return false;
-    }
-};
 
 const TABLE_WHITELIST = [
     'horizontals', 'seniority_levels', 'project_statuses', 'client_sectors', 'locations', 'app_config',
@@ -33,7 +19,7 @@ const TABLE_WHITELIST = [
     'interviews', 'wbs_tasks', 'company_calendar', 'assignments', 'contract_projects', 'contract_managers', 'allocations',
     'skills', 'resource_skills', 'project_skills',
     'app_users', 'role_permissions',
-    'notification_configs'
+    'notification_configs',
 ];
 
 const pgSchema = [
@@ -64,20 +50,17 @@ const pgSchema = [
     `CREATE TABLE IF NOT EXISTS skills ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, category VARCHAR(255) );`,
     `CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, PRIMARY KEY (resource_id, skill_id) );`,
     `CREATE TABLE IF NOT EXISTS project_skills ( project_id UUID REFERENCES projects(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, PRIMARY KEY (project_id, skill_id) );`,
-    // In api/export-sql.ts, dentro l'array pgSchema:
-    `CREATE TABLE IF NOT EXISTS notification_configs ( id UUID PRIMARY KEY, event_type VARCHAR(255) NOT NULL, webhook_url TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`
+    `CREATE TABLE IF NOT EXISTS notification_configs ( id UUID PRIMARY KEY, event_type VARCHAR(255) NOT NULL, webhook_url TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP );`,
 ];
 
-const translateToMysql = (pgStatement: string) => {
-    return pgStatement
+const translateToMysql = (pgStatement: string) =>
+    pgStatement
         .replace(/CREATE EXTENSION IF NOT EXISTS "uuid-ossp";/g, '-- UUID extension is not used in MySQL. IDs are CHAR(36).')
         .replace(/UUID/g, 'CHAR(36)')
         .replace(/NUMERIC/g, 'DECIMAL')
         .replace(/TIMESTAMP WITH TIME ZONE/g, 'TIMESTAMP')
         .replace(/BOOLEAN/g, 'TINYINT(1)')
-        .replace(/CHAR\(36\)\[\]/g, 'TEXT') 
-        .replace(/CREATE TABLE IF NOT EXISTS/g, 'CREATE TABLE IF NOT EXISTS');
-};
+        .replace(/CHAR\(36\)\[\]/g, 'TEXT');
 
 const escapeSqlValue = (value: any, dialect: 'postgres' | 'mysql'): string => {
     if (value === null || value === undefined) return 'NULL';
@@ -87,27 +70,29 @@ const escapeSqlValue = (value: any, dialect: 'postgres' | 'mysql'): string => {
     if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
     if (Array.isArray(value)) {
         if (dialect === 'mysql') return `'${JSON.stringify(value)}'`;
-        else return `ARRAY[${value.map(v => `'${String(v).replace(/'/g, "''")}'`).join(',')}]::UUID[]`;
+        return `ARRAY[${value.map(v => `'${String(v).replace(/'/g, "''")}'`).join(',')}]::UUID[]`;
     }
     if (typeof value === 'object') return `'${JSON.stringify(value).replace(/'/g, "''")}'`;
     return `'${String(value).replace(/'/g, "''")}'`;
 };
 
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    if (req.method !== 'GET') {
+        res.setHeader('Allow', ['GET']);
+        return res.status(405).end(`Method ${req.method} Not Allowed`);
+    }
+
     if (!verifyAdmin(req)) {
         return res.status(403).json({ error: 'Access denied: Admin role required for SQL Export.' });
     }
 
     const { dialect } = req.query;
-
     if (dialect !== 'postgres' && dialect !== 'mysql') {
-        return res.status(400).json({ error: 'Invalid dialect specified. Use "postgres" or "mysql".' });
+        return res.status(400).json({ error: 'Invalid dialect. Use "postgres" or "mysql".' });
     }
 
     try {
         let sqlScript = `--- Database dump for ${dialect} ---\n\n`;
-        
         const schemaStatements = dialect === 'postgres' ? pgSchema : pgSchema.map(translateToMysql);
         sqlScript += schemaStatements.join('\n\n');
         sqlScript += '\n\n';
@@ -117,7 +102,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (rows.length > 0) {
                 const columns = Object.keys(rows[0]);
                 const columnsList = dialect === 'mysql' ? columns.map(c => `\`${c}\``).join(', ') : columns.join(', ');
-                
                 sqlScript += `-- Data for table ${table}\n`;
                 for (const row of rows) {
                     if (table === 'app_users' && 'password_hash' in row) {
@@ -133,7 +117,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Content-Type', 'application/sql');
         res.setHeader('Content-Disposition', `attachment; filename="db_export_${dialect}.sql"`);
         return res.status(200).send(sqlScript);
-
     } catch (error) {
         console.error(`Error exporting ${dialect} SQL:`, error);
         return res.status(500).json({ error: (error as Error).message });

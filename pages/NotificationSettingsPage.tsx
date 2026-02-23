@@ -289,7 +289,7 @@ const WebhookSempliciTab: React.FC = () => {
         setTestingId(config.id!);
         try {
             const result = await apiFetch<{ success: boolean; statusCode: number; responseBody: string }>(
-                '/api/webhook-test',
+                '/api/admin?action=webhook-test',
                 { method: 'POST', body: JSON.stringify({ webhookUrl: config.webhookUrl, eventType: config.eventType }) }
             );
             if (result.success) {
@@ -453,7 +453,7 @@ const BuilderTab: React.FC = () => {
         setTestingRuleId(rule.id!);
         try {
             const result = await apiFetch<{ success: boolean; statusCode: number; responseBody: string }>(
-                '/api/webhook-test',
+                '/api/admin?action=webhook-test',
                 { method: 'POST', body: JSON.stringify({ webhookUrl: rule.webhookUrl, eventType: rule.eventType, blocks: rule.templateBlocks, color: rule.color }) }
             );
             if (result.success) {
