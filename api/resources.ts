@@ -642,7 +642,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  
                  const token = jwt.sign(
                      { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
-                     JWT_SECRET,
+                     env.JWT_SECRET,
                      { expiresIn: '8h' }
                  );
                  

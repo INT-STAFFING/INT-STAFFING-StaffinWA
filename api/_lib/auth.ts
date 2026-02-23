@@ -8,7 +8,7 @@ import { env } from './env.js';
 import jwt from 'jsonwebtoken';
 import type { VercelRequest } from '@vercel/node';
 
-export const OPERATIONAL_ROLES = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'] as const;
+export const OPERATIONAL_ROLES: string[] = ['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
 
 /**
  * Verifica che la richiesta provenga da un utente con ruolo ADMIN.
