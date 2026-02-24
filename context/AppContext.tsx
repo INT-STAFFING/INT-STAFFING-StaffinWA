@@ -227,10 +227,12 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
             removeAssignmentsByResource(id);
             removeResourceSkillsByResource(id);
             removeLeaveRequestsByResource(id);
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della risorsa.', 'error');
         } finally {
             setActionLoading(`deleteResource-${id}`, false);
         }
-    }, [setActionLoading, removeResource, removeAssignmentsByResource, removeResourceSkillsByResource, removeLeaveRequestsByResource]);
+    }, [setActionLoading, removeResource, removeAssignmentsByResource, removeResourceSkillsByResource, removeLeaveRequestsByResource, addToast]);
 
     const deleteProject = useCallback(async (id: string): Promise<void> => {
         setActionLoading(`deleteProject-${id}`, true);

@@ -48,6 +48,16 @@ export async function ensureDbTablesExist(db: VercelPool) {
         await db.sql`ALTER TABLE resources RENAME COLUMN horizontal TO function;`;
     } catch(e) { /* Column might already be renamed */ }
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS industry VARCHAR(255);`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
+    try {
+        await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
+    } catch(e) { /* Self-referencing FK may fail on some DB versions */ }
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS daily_cost NUMERIC(10, 2) DEFAULT 0;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS is_talent BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS seniority_code VARCHAR(50);`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
 
     // 5. Skills Associations
     await db.sql`CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, acquisition_date DATE, expiration_date DATE, PRIMARY KEY (resource_id, skill_id) );`;

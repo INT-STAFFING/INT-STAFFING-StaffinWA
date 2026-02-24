@@ -71,13 +71,19 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // --- CRUD Risorse ---
     const addResource = useCallback(async (resource: Omit<Resource, 'id'>): Promise<Resource> => {
-        const newResource = await apiFetch<Resource>('/api/resources?entity=resources', {
-            method: 'POST',
-            body: JSON.stringify(resource)
-        });
-        setResources(prev => [...prev, newResource]);
-        return newResource;
-    }, []);
+        try {
+            const newResource = await apiFetch<Resource>('/api/resources?entity=resources', {
+                method: 'POST',
+                body: JSON.stringify(resource)
+            });
+            setResources(prev => [...prev, newResource]);
+            addToast('Risorsa aggiunta con successo', 'success');
+            return newResource;
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della risorsa.', 'error');
+            throw e;
+        }
+    }, [addToast]);
 
     const updateResource = useCallback(async (resource: Resource): Promise<void> => {
         try {
@@ -88,7 +94,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             setResources(prev => prev.map(r => r.id === resource.id ? updated : r));
             addToast('Risorsa aggiornata', 'success');
         } catch (e: any) {
-            addToast(e.message, 'error');
+            addToast(e.message || 'Errore durante l\'aggiornamento della risorsa.', 'error');
+            throw e;
         }
     }, [addToast]);
 
