@@ -1,6 +1,6 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { AppUser, Assignment, Allocation, CalendarEvent, Client, ConfigOption, Contract, Interview, LeaveRequest, LeaveType, Notification, Project, ProjectExpense, RateCard, Resource, ResourceRequest, Role, RoleCostHistory, Skill, SkillCategory, SkillMacroCategory, BillingMilestone, ResourceSkill, ProjectSkill } from '../types';
+import { AppUser, Assignment, Allocation, CalendarEvent, Client, ConfigOption, Contract, ContractProject, ContractManager, Interview, LeaveRequest, LeaveType, Notification, Project, ProjectExpense, RateCard, Resource, ResourceRequest, Role, RoleCostHistory, Skill, SkillCategory, SkillMacroCategory, BillingMilestone, ResourceSkill, ProjectSkill } from '../types';
 
 export const INITIAL_MOCK_DATA: {
     functions: ConfigOption[];
@@ -23,6 +23,8 @@ export const INITIAL_MOCK_DATA: {
     resourceRequests: ResourceRequest[];
     interviews: Interview[];
     contracts: Contract[];
+    contractProjects: ContractProject[];
+    contractManagers: ContractManager[];
     roleCostHistory: RoleCostHistory[];
     skillCategories: SkillCategory[];
     skillMacroCategories: SkillMacroCategory[];
@@ -177,6 +179,8 @@ export const INITIAL_MOCK_DATA: {
 
   // Financials
   contracts: [],
+  contractProjects: [],
+  contractManagers: [],
   rateCards: [],
   rateCardEntries: [],
   projectExpenses: [],

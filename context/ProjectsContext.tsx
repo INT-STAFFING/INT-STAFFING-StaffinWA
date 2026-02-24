@@ -186,36 +186,93 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         projectIds: string[],
         managerIds: string[]
     ): Promise<void> => {
-        const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', {
-            method: 'POST',
-            body: JSON.stringify(contract)
-        });
-        await Promise.all([
-            ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', {
+        try {
+            const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', {
                 method: 'POST',
-                body: JSON.stringify({ contractId: newContract.id, projectId: pid })
-            })),
-            ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', {
-                method: 'POST',
-                body: JSON.stringify({ contractId: newContract.id, resourceId: mid })
-            }))
-        ]);
-        setContracts(prev => [...prev, newContract]);
-        setContractProjects(prev => [...prev, ...projectIds.map(pid => ({ contractId: newContract.id!, projectId: pid }))]);
-        setContractManagers(prev => [...prev, ...managerIds.map(mid => ({ contractId: newContract.id!, resourceId: mid }))]);
-    }, []);
+                body: JSON.stringify(contract)
+            });
+            await Promise.all([
+                ...projectIds.map(pid => apiFetch('/api/resources?entity=contract_projects', {
+                    method: 'POST',
+                    body: JSON.stringify({ contractId: newContract.id, projectId: pid })
+                })),
+                ...managerIds.map(mid => apiFetch('/api/resources?entity=contract_managers', {
+                    method: 'POST',
+                    body: JSON.stringify({ contractId: newContract.id, resourceId: mid })
+                }))
+            ]);
+            setContracts(prev => [...prev, newContract]);
+            setContractProjects(prev => [...prev, ...projectIds.map(pid => ({ contractId: newContract.id!, projectId: pid }))]);
+            setContractManagers(prev => [...prev, ...managerIds.map(mid => ({ contractId: newContract.id!, resourceId: mid }))]);
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta del contratto.', 'error');
+            throw e;
+        }
+    }, [addToast]);
 
     const updateContract = useCallback(async (
         contract: Contract,
         projectIds: string[],
         managerIds: string[]
     ): Promise<void> => {
-        const updated = await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, {
-            method: 'PUT',
-            body: JSON.stringify(contract)
-        });
-        setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
-    }, []);
+        try {
+            const updated = await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, {
+                method: 'PUT',
+                body: JSON.stringify(contract)
+            });
+
+            // Sync project associations
+            const existingProjectIds = contractProjects
+                .filter(cp => cp.contractId === contract.id)
+                .map(cp => cp.projectId);
+            const toAddProjects = projectIds.filter(pid => !existingProjectIds.includes(pid));
+            const toRemoveProjects = existingProjectIds.filter(pid => !projectIds.includes(pid));
+
+            // Sync manager associations
+            const existingManagerIds = contractManagers
+                .filter(cm => cm.contractId === contract.id)
+                .map(cm => cm.resourceId);
+            const toAddManagers = managerIds.filter(mid => !existingManagerIds.includes(mid));
+            const toRemoveManagers = existingManagerIds.filter(mid => !managerIds.includes(mid));
+
+            await Promise.all([
+                ...toAddProjects.map(pid => apiFetch('/api/resources?entity=contract_projects', {
+                    method: 'POST',
+                    body: JSON.stringify({ contractId: contract.id, projectId: pid })
+                })),
+                ...toRemoveProjects.map(pid => apiFetch(
+                    `/api/resources?entity=contract_projects&contractId=${contract.id}&projectId=${pid}`,
+                    { method: 'DELETE' }
+                )),
+                ...toAddManagers.map(mid => apiFetch('/api/resources?entity=contract_managers', {
+                    method: 'POST',
+                    body: JSON.stringify({ contractId: contract.id, resourceId: mid })
+                })),
+                ...toRemoveManagers.map(mid => apiFetch(
+                    `/api/resources?entity=contract_managers&contractId=${contract.id}&resourceId=${mid}`,
+                    { method: 'DELETE' }
+                )),
+            ]);
+
+            setContracts(prev => prev.map(c => c.id === contract.id ? updated : c));
+            setContractProjects(prev => {
+                const withoutRemoved = prev.filter(cp =>
+                    !(cp.contractId === contract.id && toRemoveProjects.includes(cp.projectId))
+                );
+                return [...withoutRemoved, ...toAddProjects.map(pid => ({ contractId: contract.id!, projectId: pid }))];
+            });
+            setContractManagers(prev => {
+                const withoutRemoved = prev.filter(cm =>
+                    !(cm.contractId === contract.id && toRemoveManagers.includes(cm.resourceId))
+                );
+                return [...withoutRemoved, ...toAddManagers.map(mid => ({ contractId: contract.id!, resourceId: mid }))];
+            });
+            addToast('Contratto aggiornato', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiornamento del contratto.', 'error');
+            throw e;
+        }
+    }, [contractProjects, contractManagers, addToast]);
 
     const deleteContract = useCallback(async (id: string): Promise<void> => {
         await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' });
@@ -228,10 +285,11 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         const contract = contracts.find(c => c.id === id);
         if (!contract) return;
         const linkedProjects = contractProjects.filter(cp => cp.contractId === id).map(cp => cp.projectId);
+        const linkedManagers = contractManagers.filter(cm => cm.contractId === id).map(cm => cm.resourceId);
         const usedBudget = projects.filter(p => linkedProjects.includes(p.id!)).reduce((sum, p) => sum + Number(p.budget || 0), 0);
         const newBacklog = Number(contract.capienza) - usedBudget;
-        await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, []);
-    }, [contracts, contractProjects, projects, updateContract]);
+        await updateContract({ ...contract, backlog: newBacklog }, linkedProjects, linkedManagers);
+    }, [contracts, contractProjects, contractManagers, projects, updateContract]);
 
     // --- Assegnazioni ---
     const addMultipleAssignments = useCallback(async (

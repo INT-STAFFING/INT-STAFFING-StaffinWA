@@ -796,6 +796,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (method === 'DELETE') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+
+             // Composite-key delete for join tables (no id column)
+             if (tableName === 'contract_projects' && req.query.contractId && req.query.projectId) {
+                 await client.query(`DELETE FROM contract_projects WHERE contract_id = $1 AND project_id = $2`, [req.query.contractId, req.query.projectId]);
+                 return res.status(204).end();
+             }
+             if (tableName === 'contract_managers' && req.query.contractId && req.query.resourceId) {
+                 await client.query(`DELETE FROM contract_managers WHERE contract_id = $1 AND resource_id = $2`, [req.query.contractId, req.query.resourceId]);
+                 return res.status(204).end();
+             }
+
              await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
              return res.status(204).end();
         }
