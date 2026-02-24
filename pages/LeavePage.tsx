@@ -4,6 +4,7 @@ import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useHRContext } from '../context/HRContext';
 import { useLookupContext } from '../context/LookupContext';
+import { useUIConfigContext } from '../context/UIConfigContext';
 import { useAuth } from '../context/AuthContext';
 import { LeaveRequest, LeaveStatus, LeaveType } from '../types';
 import { isHoliday, getWorkingDaysBetween, formatDateFull, formatDate } from '../utils/dateUtils';
@@ -51,6 +52,7 @@ const LeavePage: React.FC = () => {
     const { leaveRequests, leaveTypes, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest } = useHRContext();
     const { resources, managerResourceIds } = useResourcesContext();
     const { companyCalendar } = useLookupContext();
+    const { createNotification } = useUIConfigContext();
     const { loading, isActionLoading } = useAppState();
     const { user, isAdmin } = useAuth();
 
@@ -223,13 +225,34 @@ const LeavePage: React.FC = () => {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingRequest) return;
-        
+
         try {
             const requestPayload = buildLeaveRequestPayload(editingRequest);
             if ('id' in requestPayload) {
                 await updateLeaveRequest(requestPayload as LeaveRequest);
             } else {
                 await addLeaveRequest(requestPayload as Omit<LeaveRequest, 'id'>);
+                // Invia notifiche agli approvatori selezionati
+                const approverIds = editingRequest.approverIds ?? [];
+                if (approverIds.length > 0) {
+                    const requester = resources.find(r => r.id === editingRequest.resourceId);
+                    const leaveType = leaveTypes.find(t => t.id === editingRequest.typeId);
+                    const requesterName = requester?.name || 'Una risorsa';
+                    const typeName = leaveType?.name || 'assenza';
+                    const createdAt = new Date().toISOString();
+                    await Promise.all(
+                        approverIds.map(approverId =>
+                            createNotification({
+                                recipientResourceId: approverId,
+                                title: 'Nuova richiesta di assenza',
+                                message: `${requesterName} ha richiesto ${typeName} dal ${formatDateFull(editingRequest.startDate)} al ${formatDateFull(editingRequest.endDate)}. È necessaria la tua approvazione.`,
+                                link: '/#/leaves',
+                                isRead: false,
+                                createdAt,
+                            })
+                        )
+                    );
+                }
             }
             setIsModalOpen(false);
             setEditingRequest(null);
@@ -264,6 +287,13 @@ const LeavePage: React.FC = () => {
         } catch (e) {
             // Error is handled by the context/API layer
         }
+    };
+
+    const handleModalStatusAction = async (newStatus: LeaveStatus) => {
+        if (!editingRequest || !('id' in editingRequest)) return;
+        await handleQuickAction(editingRequest, newStatus);
+        setIsModalOpen(false);
+        setEditingRequest(null);
     };
 
     const handleCalendarItemClick = (req: any) => {
@@ -321,7 +351,11 @@ const LeavePage: React.FC = () => {
     ];
 
     const renderRow = (req: any) => {
-        const canApprove = !isAdmin && req.status === 'PENDING' && req.approverIds?.includes(user?.resourceId || '');
+        const isApprover = req.approverIds?.includes(user?.resourceId || '');
+        const canApprove = req.status === 'PENDING' && (
+            isAdmin ||
+            (req.resourceId !== user?.resourceId && (user?.role !== 'SIMPLE' || isApprover))
+        );
         const canEdit = isAdmin || (req.resourceId === user?.resourceId && req.status === 'PENDING');
         const isSaving = isActionLoading(`updateLeaveRequest-${req.id}`);
 
@@ -349,7 +383,11 @@ const LeavePage: React.FC = () => {
     };
 
     const renderMobileCard = (req: any) => {
-        const canApprove = !isAdmin && req.status === 'PENDING' && req.approverIds?.includes(user?.resourceId || '');
+        const isApprover = req.approverIds?.includes(user?.resourceId || '');
+        const canApprove = req.status === 'PENDING' && (
+            isAdmin ||
+            (req.resourceId !== user?.resourceId && (user?.role !== 'SIMPLE' || isApprover))
+        );
         const canEdit = isAdmin || (req.resourceId === user?.resourceId && req.status === 'PENDING');
 
         return (
@@ -543,15 +581,19 @@ const LeavePage: React.FC = () => {
                     renderMobileCard={renderMobileCard}
                     isLoading={loading}
                     initialSortKey="startDate"
-                    // FIX: Type error boolean vs string. Using condition to match expected number type.
-                    numActions={isAdmin ? 3 : 2}
+                    numActions={isAdmin ? 4 : 2}
                 />
             )}
 
             {/* Request Modal */}
-            {isModalOpen && editingRequest && (
+            {isModalOpen && editingRequest && (() => {
+                const isExistingRequest = 'id' in editingRequest;
+                const canApproveInModal = isExistingRequest &&
+                    editingRequest.status === 'PENDING' &&
+                    (isAdmin || (user?.role !== 'SIMPLE' && editingRequest.resourceId !== user?.resourceId));
+                return (
                 // FIX: Check for 'id' property existence using 'in' operator to handle union type correctly
-                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={'id' in editingRequest ? "Modifica Richiesta" : "Nuova Richiesta Assenza"}>
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={isExistingRequest ? "Modifica Richiesta" : "Nuova Richiesta Assenza"}>
                     <form onSubmit={handleSave} className="space-y-6">
                         <div className="bg-surface-container-low p-4 rounded-3xl border border-outline-variant space-y-4">
                             <div>
@@ -610,15 +652,38 @@ const LeavePage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant">
+                        <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-outline-variant">
                             <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-full font-bold text-on-surface-variant hover:bg-surface-container">Annulla</button>
+                            {canApproveInModal && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModalStatusAction('REJECTED')}
+                                        disabled={isActionLoading(`updateLeaveRequest-${'id' in editingRequest ? editingRequest.id : ''}`)}
+                                        className="px-6 py-2 bg-error-container text-on-error-container rounded-full font-bold hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <span className="material-symbols-outlined text-base">cancel</span>
+                                        Rifiuta
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModalStatusAction('APPROVED')}
+                                        disabled={isActionLoading(`updateLeaveRequest-${'id' in editingRequest ? editingRequest.id : ''}`)}
+                                        className="px-6 py-2 bg-tertiary-container text-on-tertiary-container rounded-full font-bold hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <span className="material-symbols-outlined text-base">check_circle</span>
+                                        Approva
+                                    </button>
+                                </>
+                            )}
                             <button type="submit" disabled={isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest')} className="px-8 py-2 bg-primary text-on-primary rounded-full font-bold shadow-lg flex items-center gap-2">
                                 {isActionLoading('addLeaveRequest') || isActionLoading('updateLeaveRequest') ? <SpinnerIcon className="w-4 h-4"/> : 'Invia Richiesta'}
                             </button>
                         </div>
                     </form>
                 </Modal>
-            )}
+                );
+            })()}
 
             {/* Delete Modal */}
             {requestToDelete && (
