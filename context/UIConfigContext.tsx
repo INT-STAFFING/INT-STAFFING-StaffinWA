@@ -83,6 +83,8 @@ export interface UIConfigContextValue {
     // Notifiche
     fetchNotifications: () => Promise<void>;
     markNotificationAsRead: (id?: string) => Promise<void>;
+    // Notifiche - creazione
+    createNotification: (notification: Omit<Notification, 'id'>) => Promise<void>;
     // CRUD NotificationConfig
     addNotificationConfig: (config: Omit<NotificationConfig, 'id'>) => Promise<void>;
     updateNotificationConfig: (config: NotificationConfig) => Promise<void>;
@@ -190,6 +192,16 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e) { console.error('Errore durante la lettura della notifica', e); }
     }, []);
 
+    // --- Creazione notifica ---
+    const createNotification = useCallback(async (notification: Omit<Notification, 'id'>): Promise<void> => {
+        try {
+            const created = await apiFetch<Notification>('/api/resources?entity=notifications', {
+                method: 'POST', body: JSON.stringify(notification)
+            });
+            setNotifications(prev => [...prev, created]);
+        } catch (e) { /* Non critico */ }
+    }, []);
+
     // --- CRUD NotificationConfig ---
     const addNotificationConfig = useCallback(async (config: Omit<NotificationConfig, 'id'>): Promise<void> => {
         try {
@@ -256,6 +268,7 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors,
         updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
         updatePageVisibility, fetchNotifications, markNotificationAsRead,
+        createNotification,
         addNotificationConfig, updateNotificationConfig, deleteNotificationConfig,
         addNotificationRule, updateNotificationRule, deleteNotificationRule,
         forceRecalculateAnalytics,
@@ -267,6 +280,7 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         updateSidebarConfig, updateQuickActions, updateSidebarSections, updateSidebarSectionColors,
         updateSidebarFooterActions, updateDashboardLayout, updateRoleHomePages, updateBottomNavPaths,
         updatePageVisibility, fetchNotifications, markNotificationAsRead,
+        createNotification,
         addNotificationConfig, updateNotificationConfig, deleteNotificationConfig,
         addNotificationRule, updateNotificationRule, deleteNotificationRule,
         forceRecalculateAnalytics,
