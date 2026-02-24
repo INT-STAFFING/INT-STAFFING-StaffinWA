@@ -124,13 +124,18 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- CRUD Progetti ---
     const addProject = useCallback(async (project: Omit<Project, 'id'>): Promise<Project | null> => {
-        const newProject = await apiFetch<Project | null>('/api/resources?entity=projects', {
-            method: 'POST',
-            body: JSON.stringify(project)
-        });
-        setProjects(prev => [...prev, newProject!]);
-        return newProject;
-    }, []);
+        try {
+            const newProject = await apiFetch<Project | null>('/api/resources?entity=projects', {
+                method: 'POST',
+                body: JSON.stringify(project)
+            });
+            setProjects(prev => [...prev, newProject!]);
+            return newProject;
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta del progetto.', 'error');
+            throw e;
+        }
+    }, [addToast]);
 
     const updateProject = useCallback(async (project: Project): Promise<void> => {
         try {

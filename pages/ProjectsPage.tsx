@@ -416,6 +416,7 @@ export const ProjectsPage: React.FC = () => {
     const { skills, projectSkills, addProjectSkill, deleteProjectSkill } = useSkillsContext();
     const { deleteProject } = useCascadeOps();
     const { isActionLoading, loading } = useAppState();
+    const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
@@ -577,7 +578,9 @@ export const ProjectsPage: React.FC = () => {
                     }
                 }
                 handleCloseModal();
-            } catch (e) {}
+            } catch (e: any) {
+                addToast(e.message || 'Errore durante il salvataggio del progetto.', 'error');
+            }
         }
     };
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -607,12 +610,16 @@ export const ProjectsPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = async () => { 
-        if (inlineEditingData) { 
-            const projectPayload = buildProjectPayload(inlineEditingData);
-            await updateProject(projectPayload as Project); 
-            handleCancelInlineEdit(); 
-        } 
+    const handleSaveInlineEdit = async () => {
+        if (inlineEditingData) {
+            try {
+                const projectPayload = buildProjectPayload(inlineEditingData);
+                await updateProject(projectPayload as Project);
+                handleCancelInlineEdit();
+            } catch (e: any) {
+                addToast(e.message || 'Errore durante il salvataggio.', 'error');
+            }
+        }
     };
 
     const getStatusBadgeClass = (status: string | null): string => {

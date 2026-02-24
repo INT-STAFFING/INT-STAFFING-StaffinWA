@@ -806,6 +806,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  await client.query(`DELETE FROM contract_managers WHERE contract_id = $1 AND resource_id = $2`, [req.query.contractId, req.query.resourceId]);
                  return res.status(204).end();
              }
+             if (tableName === 'project_skills' && req.query.projectId && req.query.skillId) {
+                 await client.query(`DELETE FROM project_skills WHERE project_id = $1 AND skill_id = $2`, [req.query.projectId, req.query.skillId]);
+                 return res.status(204).end();
+             }
+             if (tableName === 'resource_skills' && req.query.resourceId && req.query.skillId) {
+                 await client.query(`DELETE FROM resource_skills WHERE resource_id = $1 AND skill_id = $2`, [req.query.resourceId, req.query.skillId]);
+                 return res.status(204).end();
+             }
 
              await client.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
              return res.status(204).end();

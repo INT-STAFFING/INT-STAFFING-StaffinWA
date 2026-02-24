@@ -86,6 +86,8 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (entity === 'resource_requests') dbKey = 'resourceRequests';
     if (entity === 'contract_projects') dbKey = 'contractProjects';
     if (entity === 'contract_managers') dbKey = 'contractManagers';
+    if (entity === 'project_skills') dbKey = 'projectSkills';
+    if (entity === 'resource_skills') dbKey = 'resourceSkills';
 
     const list = (db as any)[dbKey] || [];
 
@@ -136,6 +138,20 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       if (entity === 'contract_managers' && params.contractId && params.resourceId) {
         (db as any).contractManagers = ((db as any).contractManagers || []).filter(
           (cm: any) => !(cm.contractId === params.contractId && cm.resourceId === params.resourceId)
+        );
+        saveDb(db);
+        return null;
+      }
+      if (entity === 'project_skills' && params.projectId && params.skillId) {
+        (db as any).projectSkills = ((db as any).projectSkills || []).filter(
+          (ps: any) => !(ps.projectId === params.projectId && ps.skillId === params.skillId)
+        );
+        saveDb(db);
+        return null;
+      }
+      if (entity === 'resource_skills' && params.resourceId && params.skillId) {
+        (db as any).resourceSkills = ((db as any).resourceSkills || []).filter(
+          (rs: any) => !(rs.resourceId === params.resourceId && rs.skillId === params.skillId)
         );
         saveDb(db);
         return null;
