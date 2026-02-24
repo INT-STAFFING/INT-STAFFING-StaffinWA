@@ -33,7 +33,7 @@ const IdentityPillar: React.FC = () => {
     const { resources } = useResourcesContext();
     const { addToast } = useToast();
     const { impersonate } = useAuth();
-    
+
     // User Edit Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<Partial<AppUser>>({});
@@ -45,8 +45,14 @@ const IdentityPillar: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [pwdLoading, setPwdLoading] = useState(false);
 
-    // Search Filter
+    // Filters
     const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+
+    // Bulk selection state
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [bulkLoading, setBulkLoading] = useState(false);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,8 +66,8 @@ const IdentityPillar: React.FC = () => {
             updateCache(prev => isNew ? [...(prev || []), saved as any] : (prev || []).map(u => u.id === saved.id ? saved as any : u));
             addToast('Utente salvato con successo', 'success');
             setIsModalOpen(false);
-        } catch (e: any) { 
-            addToast(`Errore durante il salvataggio utente: ${e.message}`, 'error'); 
+        } catch (e: any) {
+            addToast(`Errore durante il salvataggio utente: ${e.message}`, 'error');
         }
     };
 
@@ -98,16 +104,69 @@ const IdentityPillar: React.FC = () => {
 
     const filteredUsers = useMemo(() => {
         if (!users) return [];
-        if (!searchTerm) return users;
-        return users.filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()));
-    }, [users, searchTerm]);
+        return users.filter(u => {
+            const matchSearch = !searchTerm || u.username.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchRole = !roleFilter || u.role === roleFilter;
+            const matchStatus = statusFilter === '' || (statusFilter === 'active' ? u.isActive : !u.isActive);
+            return matchSearch && matchRole && matchStatus;
+        });
+    }, [users, searchTerm, roleFilter, statusFilter]);
+
+    // Derived selection state
+    const allFilteredSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedIds.has(u.id));
+    const someFilteredSelected = filteredUsers.some(u => selectedIds.has(u.id));
+
+    const toggleSelectAll = useCallback(() => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allFilteredSelected) {
+                filteredUsers.forEach(u => next.delete(u.id));
+            } else {
+                filteredUsers.forEach(u => next.add(u.id));
+            }
+            return next;
+        });
+    }, [allFilteredSelected, filteredUsers]);
+
+    const toggleSelectUser = useCallback((id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const handleBulkToggle = useCallback(async (enable: boolean) => {
+        if (selectedIds.size === 0) return;
+        setBulkLoading(true);
+        try {
+            const selectedUsers = (users || []).filter(u => selectedIds.has(u.id));
+            await Promise.all(
+                selectedUsers.map(u =>
+                    authorizedJsonFetch<AppUser>(`/api/resources?entity=app-users&id=${u.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ ...u, isActive: enable })
+                    })
+                )
+            );
+            updateCache(prev => (prev || []).map(u => selectedIds.has(u.id) ? { ...u, isActive: enable } : u));
+            const count = selectedIds.size;
+            addToast(`${count} ${count === 1 ? 'utente' : 'utenti'} ${enable ? 'abilitati' : 'disabilitati'} con successo`, 'success');
+            setSelectedIds(new Set());
+        } catch (e: any) {
+            addToast(`Errore durante l'operazione bulk: ${e.message}`, 'error');
+        } finally {
+            setBulkLoading(false);
+        }
+    }, [selectedIds, users, updateCache, addToast]);
 
     const resourceOptions = useMemo(() => resources.map(r => ({ value: r.id!, label: r.name })), [resources]);
 
     const columns: ColumnDef<AppUser>[] = [
-        { 
-            header: 'Utente', 
-            sortKey: 'username', 
+        {
+            header: 'Utente',
+            sortKey: 'username',
             cell: u => (
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
@@ -115,38 +174,46 @@ const IdentityPillar: React.FC = () => {
                     </div>
                     <span className="font-bold text-on-surface">{u.username}</span>
                 </div>
-            ) 
+            )
         },
-        { 
-            header: 'Ruolo', 
-            sortKey: 'role', 
-            cell: u => <span className="text-xs font-bold text-primary uppercase tracking-widest">{u.role}</span> 
+        {
+            header: 'Ruolo',
+            sortKey: 'role',
+            cell: u => <span className="text-xs font-bold text-primary uppercase tracking-widest">{u.role}</span>
         },
-        { 
-            header: 'Stato', 
-            sortKey: 'isActive', 
+        {
+            header: 'Stato',
+            sortKey: 'isActive',
             cell: u => (
                 <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-tighter ${u.isActive ? 'bg-tertiary-container text-on-tertiary-container' : 'bg-error-container text-on-error-container'}`}>
                     {u.isActive ? 'ATTIVO' : 'DISABILITATO'}
                 </span>
-            ) 
+            )
         },
     ];
 
     const renderRow = (u: AppUser) => (
-        <tr key={u.id} className="group hover:bg-surface-container-low transition-colors">
+        <tr key={u.id} className={`group hover:bg-surface-container-low transition-colors ${selectedIds.has(u.id) ? 'bg-primary/5' : ''}`}>
             {columns.map((col, i) => (
                 <td key={i} className="px-6 py-4 whitespace-nowrap bg-inherit">
                     {col.cell(u)}
                 </td>
             ))}
-            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
-                <div className="flex items-center justify-end gap-2">
+            <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium bg-inherit">
+                <div className="flex items-center justify-end gap-1.5">
+                    <input
+                        type="checkbox"
+                        checked={selectedIds.has(u.id)}
+                        onChange={() => toggleSelectUser(u.id)}
+                        onClick={e => e.stopPropagation()}
+                        className="form-checkbox h-4 w-4 rounded cursor-pointer shrink-0 mr-1"
+                        title="Seleziona utente"
+                    />
                     <button onClick={() => impersonate(u.id)} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Impersonifica">
                         <span className="material-symbols-outlined text-xl">visibility</span>
                     </button>
-                    <button 
-                        onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }} 
+                    <button
+                        onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }}
                         className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary transition-colors"
                         title="Reset Password"
                     >
@@ -161,9 +228,15 @@ const IdentityPillar: React.FC = () => {
     );
 
     const renderMobileCard = (u: AppUser) => (
-        <div key={u.id} className="bg-surface-container-low p-5 rounded-3xl border border-outline-variant shadow-sm hover:shadow-md transition-all group mb-4">
+        <div key={u.id} className={`p-5 rounded-3xl border shadow-sm hover:shadow-md transition-all group mb-4 ${selectedIds.has(u.id) ? 'bg-primary/5 border-primary/30' : 'bg-surface-container-low border-outline-variant'}`}>
             <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <input
+                        type="checkbox"
+                        checked={selectedIds.has(u.id)}
+                        onChange={() => toggleSelectUser(u.id)}
+                        className="form-checkbox h-5 w-5 rounded cursor-pointer shrink-0 mt-0.5"
+                    />
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
                         {u.username.charAt(0).toUpperCase()}
                     </div>
@@ -181,8 +254,8 @@ const IdentityPillar: React.FC = () => {
                     <span className="material-symbols-outlined text-sm">visibility</span> Impersonifica
                     </button>
                     <div className="flex gap-2">
-                    <button 
-                        onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }} 
+                    <button
+                        onClick={() => { setUserForPwd(u); setNewPassword(''); setConfirmPassword(''); setIsPwdModalOpen(true); }}
                         className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-tertiary"
                         title="Reset Password"
                     >
@@ -196,17 +269,99 @@ const IdentityPillar: React.FC = () => {
         </div>
     );
 
+    const selectAllRef = useCallback((el: HTMLInputElement | null) => {
+        if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected;
+    }, [someFilteredSelected, allFilteredSelected]);
+
     const filtersNode = (
-        <div className="w-full md:w-64">
-            <input 
-                type="text" 
-                className="form-input" 
-                placeholder="Cerca utente..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-            />
+        <div className="flex flex-wrap items-center gap-3">
+            <div className="w-full md:w-52">
+                <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Cerca utente..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <div className="w-full md:w-44">
+                <select
+                    value={roleFilter}
+                    onChange={e => setRoleFilter(e.target.value)}
+                    className="form-select"
+                    aria-label="Filtra per ruolo"
+                >
+                    <option value="">Tutti i ruoli</option>
+                    <option value="SIMPLE">Simple User</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="SENIOR MANAGER">Senior Manager</option>
+                    <option value="MANAGING DIRECTOR">Managing Director</option>
+                    <option value="ADMIN">Administrator</option>
+                </select>
+            </div>
+            <div className="w-full md:w-40">
+                <select
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value)}
+                    className="form-select"
+                    aria-label="Filtra per stato"
+                >
+                    <option value="">Tutti gli stati</option>
+                    <option value="active">Attivi</option>
+                    <option value="inactive">Disabilitati</option>
+                </select>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none text-on-surface-variant ml-auto shrink-0">
+                <input
+                    type="checkbox"
+                    ref={selectAllRef}
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAll}
+                    className="form-checkbox h-4 w-4 rounded"
+                />
+                <span>Seleziona tutti ({filteredUsers.length})</span>
+            </label>
         </div>
     );
+
+    // Bulk action bar shown next to "Nuovo Utente" button when users are selected
+    const bulkActionsBar = selectedIds.size > 0 ? (
+        <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-1.5">
+            <span className="text-xs font-bold text-primary whitespace-nowrap">{selectedIds.size} {selectedIds.size === 1 ? 'utente' : 'utenti'} selezionati</span>
+            <div className="h-4 w-px bg-primary/30" />
+            <button
+                onClick={() => handleBulkToggle(true)}
+                disabled={bulkLoading}
+                title="Abilita selezionati"
+                className="flex items-center gap-1 text-xs font-bold text-tertiary hover:underline disabled:opacity-50 whitespace-nowrap"
+            >
+                {bulkLoading
+                    ? <SpinnerIcon className="w-3 h-3" />
+                    : <span className="material-symbols-outlined text-sm">check_circle</span>
+                }
+                Abilita
+            </button>
+            <button
+                onClick={() => handleBulkToggle(false)}
+                disabled={bulkLoading}
+                title="Disabilita selezionati"
+                className="flex items-center gap-1 text-xs font-bold text-error hover:underline disabled:opacity-50 whitespace-nowrap"
+            >
+                {bulkLoading
+                    ? <SpinnerIcon className="w-3 h-3" />
+                    : <span className="material-symbols-outlined text-sm">block</span>
+                }
+                Disabilita
+            </button>
+            <button
+                onClick={() => setSelectedIds(new Set())}
+                title="Deseleziona tutti"
+                className="p-0.5 text-on-surface-variant hover:text-on-surface"
+            >
+                <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+        </div>
+    ) : null;
 
     return (
         <div className="space-y-6">
@@ -217,11 +372,12 @@ const IdentityPillar: React.FC = () => {
                 data={filteredUsers}
                 columns={columns}
                 filtersNode={filtersNode}
+                headerActions={bulkActionsBar}
                 renderRow={renderRow}
                 renderMobileCard={renderMobileCard}
                 isLoading={loading}
                 initialSortKey="username"
-                numActions={3}
+                numActions={4}
             />
 
             {/* Edit User Modal */}
