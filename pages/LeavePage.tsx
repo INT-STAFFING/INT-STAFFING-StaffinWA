@@ -581,8 +581,7 @@ const LeavePage: React.FC = () => {
                     renderMobileCard={renderMobileCard}
                     isLoading={loading}
                     initialSortKey="startDate"
-                    // FIX: Type error boolean vs string. Using condition to match expected number type.
-                    numActions={isAdmin ? 3 : 2}
+                    numActions={isAdmin ? 4 : 2}
                 />
             )}
 
