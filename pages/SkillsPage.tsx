@@ -206,14 +206,12 @@ const SkillsPage: React.FC = () => {
                     payload.version = (editingSkill as any).version;
                 }
                 await updateSkill(payload as Skill);
-                addToast('Competenza aggiornata.', 'success');
             } else {
                 await addSkill(payload as Omit<Skill, 'id'>);
-                addToast('Competenza creata.', 'success');
             }
             handleCloseModal();
         } catch (error) {
-            addToast('Errore durante il salvataggio.', 'error');
+            // Il context ha già mostrato il toast di errore
         }
     };
 

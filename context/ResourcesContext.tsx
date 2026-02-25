@@ -71,13 +71,19 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // --- CRUD Risorse ---
     const addResource = useCallback(async (resource: Omit<Resource, 'id'>): Promise<Resource> => {
-        const newResource = await apiFetch<Resource>('/api/resources?entity=resources', {
-            method: 'POST',
-            body: JSON.stringify(resource)
-        });
-        setResources(prev => [...prev, newResource]);
-        return newResource;
-    }, []);
+        try {
+            const newResource = await apiFetch<Resource>('/api/resources?entity=resources', {
+                method: 'POST',
+                body: JSON.stringify(resource)
+            });
+            setResources(prev => [...prev, newResource]);
+            addToast('Risorsa aggiunta con successo', 'success');
+            return newResource;
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della risorsa.', 'error');
+            throw e;
+        }
+    }, [addToast]);
 
     const updateResource = useCallback(async (resource: Resource): Promise<void> => {
         try {
@@ -88,7 +94,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             setResources(prev => prev.map(r => r.id === resource.id ? updated : r));
             addToast('Risorsa aggiornata', 'success');
         } catch (e: any) {
-            addToast(e.message, 'error');
+            addToast(e.message || 'Errore durante l\'aggiornamento della risorsa.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -100,8 +107,10 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
                 body: JSON.stringify(role)
             });
             setRoles(prev => [...prev, newRole]);
-        } catch (e) {
-            addToast('Errore durante l\'aggiunta del ruolo.', 'error');
+            addToast('Ruolo aggiunto con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta del ruolo.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -116,7 +125,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             setRoleCostHistory(historyRes);
             addToast('Ruolo aggiornato', 'success');
         } catch (e: any) {
-            addToast(e.message, 'error');
+            addToast(e.message || 'Errore durante l\'aggiornamento del ruolo.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -124,8 +134,9 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
             await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' });
             setRoles(prev => prev.filter(r => r.id !== id));
-        } catch (e) {
-            addToast('Errore durante l\'eliminazione del ruolo.', 'error');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione del ruolo.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -167,8 +178,10 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
                 body: JSON.stringify(evaluation)
             });
             setEvaluations(prev => [...prev, created]);
-        } catch (e) {
-            addToast('Errore durante l\'aggiunta della valutazione.', 'error');
+            addToast('Valutazione aggiunta con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della valutazione.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -179,8 +192,10 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
                 { method: 'PUT', body: JSON.stringify(evaluation) }
             );
             setEvaluations(prev => prev.map(e => e.id === evaluation.id ? updated : e));
-        } catch (e) {
-            addToast('Errore durante l\'aggiornamento della valutazione.', 'error');
+            addToast('Valutazione aggiornata', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiornamento della valutazione.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -188,8 +203,9 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
             await apiFetch(`/api/resources?entity=resource_evaluations&id=${id}`, { method: 'DELETE' });
             setEvaluations(prev => prev.filter(e => e.id !== id));
-        } catch (e) {
-            addToast('Errore durante l\'eliminazione della valutazione.', 'error');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della valutazione.', 'error');
+            throw e;
         }
     }, [addToast]);
 

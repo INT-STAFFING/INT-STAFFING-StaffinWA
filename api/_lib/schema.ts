@@ -48,6 +48,16 @@ export async function ensureDbTablesExist(db: VercelPool) {
         await db.sql`ALTER TABLE resources RENAME COLUMN horizontal TO function;`;
     } catch(e) { /* Column might already be renamed */ }
     await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS industry VARCHAR(255);`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS max_staffing_percentage INT DEFAULT 100;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS resigned BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS last_day_of_work DATE;`;
+    try {
+        await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS tutor_id UUID REFERENCES resources(id) ON DELETE SET NULL;`;
+    } catch(e) { /* Self-referencing FK may fail on some DB versions */ }
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS daily_cost NUMERIC(10, 2) DEFAULT 0;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS is_talent BOOLEAN DEFAULT FALSE;`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS seniority_code VARCHAR(50);`;
+    await db.sql`ALTER TABLE resources ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
 
     // 5. Skills Associations
     await db.sql`CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, acquisition_date DATE, expiration_date DATE, PRIMARY KEY (resource_id, skill_id) );`;
@@ -67,7 +77,22 @@ export async function ensureDbTablesExist(db: VercelPool) {
     } catch(e) {}
 
     await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0, rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL, billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL', version INT DEFAULT 1 );`;
+    // Column migrations for contracts table (in case table existed before these columns were added)
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS cig_derivato VARCHAR(255);`;
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS wbs VARCHAR(255);`;
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS backlog NUMERIC(15, 2) DEFAULT 0;`;
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL';`;
+    await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
+    try {
+        await db.sql`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL;`;
+    } catch(e) { /* FK constraint may fail if rate_cards doesn't exist yet */ }
     await db.sql`CREATE TABLE IF NOT EXISTS projects ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL, client_id UUID REFERENCES clients(id), start_date DATE, end_date DATE, budget NUMERIC(12, 2), realization_percentage INT DEFAULT 100, project_manager VARCHAR(255), status VARCHAR(100), notes TEXT, contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL, billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL', version INT DEFAULT 1, UNIQUE(name, client_id) );`;
+    // Column migrations for projects table (in case table existed before these columns were added)
+    await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS version INT DEFAULT 1;`;
+    await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL';`;
+    try {
+        await db.sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL;`;
+    } catch(e) { /* FK constraint may fail if contracts doesn't exist yet */ }
     await db.sql`CREATE TABLE IF NOT EXISTS assignments ( id UUID PRIMARY KEY, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, UNIQUE(resource_id, project_id) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS allocations ( assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE, allocation_date DATE, percentage INT, PRIMARY KEY(assignment_id, allocation_date) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS contract_projects ( contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE, project_id UUID REFERENCES projects(id) ON DELETE CASCADE, PRIMARY KEY (contract_id, project_id) );`;

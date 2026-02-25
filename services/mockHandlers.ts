@@ -84,6 +84,19 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (entity === 'notification_rules') dbKey = 'notificationRules';
     if (entity === 'notification_configs') dbKey = 'notificationConfigs';
     if (entity === 'resource_requests') dbKey = 'resourceRequests';
+    if (entity === 'contract_projects') dbKey = 'contractProjects';
+    if (entity === 'contract_managers') dbKey = 'contractManagers';
+    if (entity === 'project_skills') dbKey = 'projectSkills';
+    if (entity === 'resource_skills') dbKey = 'resourceSkills';
+    if (entity === 'role_cost_history') dbKey = 'roleCostHistory';
+    if (entity === 'skill_categories') dbKey = 'skillCategories';
+    if (entity === 'skill_macro_categories') dbKey = 'skillMacroCategories';
+    if (entity === 'rate_cards') dbKey = 'rateCards';
+    if (entity === 'rate_card_entries') dbKey = 'rateCardEntries';
+    if (entity === 'billing_milestones') dbKey = 'billingMilestones';
+    if (entity === 'wbs_tasks') dbKey = 'wbsTasks';
+    if (entity === 'project_expenses') dbKey = 'projectExpenses';
+    if (entity === 'leave_types') dbKey = 'leaveTypes';
 
     const list = (db as any)[dbKey] || [];
 
@@ -123,6 +136,35 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     }
 
     if (method === 'DELETE') {
+      // Composite-key delete for contract_projects and contract_managers
+      if (entity === 'contract_projects' && params.contractId && params.projectId) {
+        (db as any).contractProjects = ((db as any).contractProjects || []).filter(
+          (cp: any) => !(cp.contractId === params.contractId && cp.projectId === params.projectId)
+        );
+        saveDb(db);
+        return null;
+      }
+      if (entity === 'contract_managers' && params.contractId && params.resourceId) {
+        (db as any).contractManagers = ((db as any).contractManagers || []).filter(
+          (cm: any) => !(cm.contractId === params.contractId && cm.resourceId === params.resourceId)
+        );
+        saveDb(db);
+        return null;
+      }
+      if (entity === 'project_skills' && params.projectId && params.skillId) {
+        (db as any).projectSkills = ((db as any).projectSkills || []).filter(
+          (ps: any) => !(ps.projectId === params.projectId && ps.skillId === params.skillId)
+        );
+        saveDb(db);
+        return null;
+      }
+      if (entity === 'resource_skills' && params.resourceId && params.skillId) {
+        (db as any).resourceSkills = ((db as any).resourceSkills || []).filter(
+          (rs: any) => !(rs.resourceId === params.resourceId && rs.skillId === params.skillId)
+        );
+        saveDb(db);
+        return null;
+      }
       (db as any)[dbKey] = list.filter((i: any) => i.id !== params.id);
       saveDb(db);
       return null;

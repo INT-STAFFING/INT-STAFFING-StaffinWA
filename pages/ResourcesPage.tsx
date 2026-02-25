@@ -303,10 +303,9 @@ const ResourcesPage: React.FC = () => {
                 ...toRemove.map(skillId => deleteResourceSkill(resourceId, skillId))
             ]);
 
-            addToast('Risorsa salvata con successo!', 'success');
             handleCloseModal();
         } catch (e) {
-            addToast('Errore durante il salvataggio della risorsa.', 'error');
+            // Il context ha già mostrato il toast di errore
         }
     };
 
@@ -364,16 +363,15 @@ const ResourcesPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
     
-    const handleSaveInlineEdit = async () => { 
-        if (inlineEditingData) { 
+    const handleSaveInlineEdit = async () => {
+        if (inlineEditingData) {
             try {
-                await updateResource(inlineEditingData); 
-                addToast('Risorsa aggiornata.', 'success');
-                handleCancelInlineEdit(); 
+                await updateResource(inlineEditingData);
+                handleCancelInlineEdit();
             } catch (e) {
-                addToast('Errore aggiornamento rapido.', 'error');
+                // Il context ha già mostrato il toast di errore
             }
-        } 
+        }
     };
     
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);

@@ -106,14 +106,12 @@ const RolesPage: React.FC = () => {
             try {
                 if ('id' in editingRole) {
                     await updateRole(editingRole);
-                    addToast('Ruolo aggiornato con successo', 'success');
                 } else {
                     await addRole(editingRole);
-                    addToast('Nuovo ruolo creato', 'success');
                 }
                 handleCloseModal();
             } catch (e: any) {
-                // Error handled by context toast usually, but explicit here for safety
+                // Il context ha già mostrato il toast di errore
             }
         }
     };
@@ -125,7 +123,7 @@ const RolesPage: React.FC = () => {
             addToast(`Ruolo "${roleToDelete.name}" eliminato.`, 'success');
             setRoleToDelete(null);
         } catch (e: any) {
-            addToast(`Impossibile eliminare il ruolo. Potrebbe essere assegnato a delle risorse.`, 'error');
+            // Il context ha già mostrato il toast di errore
         }
     };
 
@@ -156,16 +154,15 @@ const RolesPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = async () => { 
-        if (inlineEditingData) { 
+    const handleSaveInlineEdit = async () => {
+        if (inlineEditingData) {
             try {
-                await updateRole(inlineEditingData); 
-                addToast('Ruolo aggiornato.', 'success');
-                handleCancelInlineEdit(); 
+                await updateRole(inlineEditingData);
+                handleCancelInlineEdit();
             } catch (e) {
-                // Error handled by context
+                // Il context ha già mostrato il toast di errore
             }
-        } 
+        }
     };
 
     const seniorityOptions = useMemo(() => seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [seniorityLevels]);
