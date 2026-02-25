@@ -37,8 +37,7 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
         cig: contract.cig,
         cigDerivato: contract.cigDerivato || null,
         wbs: contract.wbs || null,
-        capienza: contract.capienza,
-        backlog: contract.backlog,
+        capienza: Number(contract.capienza),
         rateCardId: contract.rateCardId || null,
         billingType: contract.billingType || 'TIME_MATERIAL'
     };
