@@ -218,8 +218,12 @@ export const PerformanceTimelinePage: React.FC = () => {
 
     const handleDelete = async () => {
         if (deleteId) {
-            await deleteEvaluation(deleteId);
-            setDeleteId(null);
+            try {
+                await deleteEvaluation(deleteId);
+                setDeleteId(null);
+            } catch (e) {
+                // Il context ha già mostrato il toast di errore
+            }
         }
     };
 

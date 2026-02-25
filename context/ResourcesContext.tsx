@@ -178,8 +178,10 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
                 body: JSON.stringify(evaluation)
             });
             setEvaluations(prev => [...prev, created]);
-        } catch (e) {
-            addToast('Errore durante l\'aggiunta della valutazione.', 'error');
+            addToast('Valutazione aggiunta con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della valutazione.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -190,8 +192,10 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
                 { method: 'PUT', body: JSON.stringify(evaluation) }
             );
             setEvaluations(prev => prev.map(e => e.id === evaluation.id ? updated : e));
-        } catch (e) {
-            addToast('Errore durante l\'aggiornamento della valutazione.', 'error');
+            addToast('Valutazione aggiornata', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiornamento della valutazione.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -199,8 +203,9 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
             await apiFetch(`/api/resources?entity=resource_evaluations&id=${id}`, { method: 'DELETE' });
             setEvaluations(prev => prev.filter(e => e.id !== id));
-        } catch (e) {
-            addToast('Errore durante l\'eliminazione della valutazione.', 'error');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della valutazione.', 'error');
+            throw e;
         }
     }, [addToast]);
 
