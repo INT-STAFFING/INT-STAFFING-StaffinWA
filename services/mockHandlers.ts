@@ -89,6 +89,14 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (entity === 'project_skills') dbKey = 'projectSkills';
     if (entity === 'resource_skills') dbKey = 'resourceSkills';
     if (entity === 'role_cost_history') dbKey = 'roleCostHistory';
+    if (entity === 'skill_categories') dbKey = 'skillCategories';
+    if (entity === 'skill_macro_categories') dbKey = 'skillMacroCategories';
+    if (entity === 'rate_cards') dbKey = 'rateCards';
+    if (entity === 'rate_card_entries') dbKey = 'rateCardEntries';
+    if (entity === 'billing_milestones') dbKey = 'billingMilestones';
+    if (entity === 'wbs_tasks') dbKey = 'wbsTasks';
+    if (entity === 'project_expenses') dbKey = 'projectExpenses';
+    if (entity === 'leave_types') dbKey = 'leaveTypes';
 
     const list = (db as any)[dbKey] || [];
 

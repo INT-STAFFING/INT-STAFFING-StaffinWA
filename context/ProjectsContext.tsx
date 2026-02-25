@@ -158,8 +158,10 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 body: JSON.stringify(client)
             });
             setClients(prev => [...prev, newClient]);
-        } catch (e) {
-            addToast('Errore durante l\'aggiunta del cliente.', 'error');
+            addToast('Cliente aggiunto con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta del cliente.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -172,7 +174,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setClients(prev => prev.map(c => c.id === client.id ? updated : c));
             addToast('Cliente aggiornato', 'success');
         } catch (e: any) {
-            addToast(e.message, 'error');
+            addToast(e.message || 'Errore durante l\'aggiornamento del cliente.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -180,8 +183,9 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         try {
             await apiFetch(`/api/resources?entity=clients&id=${id}`, { method: 'DELETE' });
             setClients(prev => prev.filter(c => c.id !== id));
-        } catch (e) {
-            addToast('Errore durante l\'eliminazione del cliente.', 'error');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione del cliente.', 'error');
+            throw e;
         }
     }, [addToast]);
 

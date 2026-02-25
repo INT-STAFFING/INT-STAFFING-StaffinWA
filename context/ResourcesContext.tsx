@@ -107,8 +107,10 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
                 body: JSON.stringify(role)
             });
             setRoles(prev => [...prev, newRole]);
-        } catch (e) {
-            addToast('Errore durante l\'aggiunta del ruolo.', 'error');
+            addToast('Ruolo aggiunto con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta del ruolo.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -123,7 +125,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             setRoleCostHistory(historyRes);
             addToast('Ruolo aggiornato', 'success');
         } catch (e: any) {
-            addToast(e.message, 'error');
+            addToast(e.message || 'Errore durante l\'aggiornamento del ruolo.', 'error');
+            throw e;
         }
     }, [addToast]);
 
@@ -131,8 +134,9 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
             await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' });
             setRoles(prev => prev.filter(r => r.id !== id));
-        } catch (e) {
-            addToast('Errore durante l\'eliminazione del ruolo.', 'error');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione del ruolo.', 'error');
+            throw e;
         }
     }, [addToast]);
 

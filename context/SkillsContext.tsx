@@ -99,7 +99,11 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'POST', body: JSON.stringify(skill)
             });
             setSkills(prev => [...prev, newSkill]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della competenza.', 'error'); }
+            addToast('Competenza aggiunta con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della competenza.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const updateSkill = useCallback(async (skill: Skill): Promise<void> => {
@@ -108,7 +112,11 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'PUT', body: JSON.stringify(skill)
             });
             setSkills(prev => prev.map(s => s.id === skill.id ? updated : s));
-        } catch (e) { addToast('Errore durante l\'aggiornamento della competenza.', 'error'); }
+            addToast('Competenza aggiornata', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiornamento della competenza.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteSkill = useCallback(async (id: string): Promise<void> => {
@@ -118,7 +126,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             // Cascade interna: rimuove skill anche da resourceSkills e projectSkills
             setResourceSkills(prev => prev.filter(rs => rs.skillId !== id));
             setProjectSkills(prev => prev.filter(ps => ps.skillId !== id));
-        } catch (e) { addToast('Errore durante l\'eliminazione della competenza.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della competenza.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     // --- Resource Skills ---
@@ -131,7 +142,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 ...prev.filter(i => !(i.resourceId === rs.resourceId && i.skillId === rs.skillId)),
                 savedSkill
             ]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della competenza alla risorsa.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della competenza alla risorsa.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteResourceSkill = useCallback(async (resourceId: string, skillId: string): Promise<void> => {
@@ -140,7 +154,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'DELETE'
             });
             setResourceSkills(prev => prev.filter(rs => !(rs.resourceId === resourceId && rs.skillId === skillId)));
-        } catch (e) { addToast('Errore durante l\'eliminazione della competenza.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della competenza.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     // --- Project Skills ---
@@ -150,7 +167,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'POST', body: JSON.stringify(ps)
             });
             setProjectSkills(prev => [...prev, savedPs]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della competenza al progetto.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della competenza al progetto.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteProjectSkill = useCallback(async (projectId: string, skillId: string): Promise<void> => {
@@ -159,7 +179,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'DELETE'
             });
             setProjectSkills(prev => prev.filter(ps => !(ps.projectId === projectId && ps.skillId === skillId)));
-        } catch (e) { addToast('Errore durante l\'eliminazione della competenza dal progetto.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della competenza dal progetto.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     // --- CRUD Categorie ---
@@ -169,7 +192,11 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'POST', body: JSON.stringify(cat)
             });
             setSkillCategories(prev => [...prev, created]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della categoria.', 'error'); }
+            addToast('Categoria aggiunta con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della categoria.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const updateSkillCategory = useCallback(async (cat: SkillCategory): Promise<void> => {
@@ -179,14 +206,21 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 { method: 'PUT', body: JSON.stringify(cat) }
             );
             setSkillCategories(prev => prev.map(c => c.id === cat.id ? updated : c));
-        } catch (e) { addToast('Errore durante l\'aggiornamento della categoria.', 'error'); }
+            addToast('Categoria aggiornata', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiornamento della categoria.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteSkillCategory = useCallback(async (id: string): Promise<void> => {
         try {
             await apiFetch(`/api/resources?entity=skill_categories&id=${id}`, { method: 'DELETE' });
             setSkillCategories(prev => prev.filter(c => c.id !== id));
-        } catch (e) { addToast('Errore durante l\'eliminazione della categoria.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della categoria.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     // --- CRUD Macro Categorie ---
@@ -196,7 +230,11 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 method: 'POST', body: JSON.stringify(macro)
             });
             setSkillMacroCategories(prev => [...prev, newMacro]);
-        } catch (e) { addToast('Errore durante l\'aggiunta della macro categoria.', 'error'); }
+            addToast('Macro categoria aggiunta con successo', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiunta della macro categoria.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const updateSkillMacro = useCallback(async (id: string, name: string): Promise<void> => {
@@ -206,14 +244,21 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 { method: 'PUT', body: JSON.stringify({ name }) }
             );
             setSkillMacroCategories(prev => prev.map(m => m.id === id ? updated : m));
-        } catch (e) { addToast('Errore durante l\'aggiornamento della macro categoria.', 'error'); }
+            addToast('Macro categoria aggiornata', 'success');
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'aggiornamento della macro categoria.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     const deleteSkillMacro = useCallback(async (id: string): Promise<void> => {
         try {
             await apiFetch(`/api/resources?entity=skill_macro_categories&id=${id}`, { method: 'DELETE' });
             setSkillMacroCategories(prev => prev.filter(m => m.id !== id));
-        } catch (e) { addToast('Errore durante l\'eliminazione della macro categoria.', 'error'); }
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione della macro categoria.', 'error');
+            throw e;
+        }
     }, [addToast]);
 
     // --- Soglie ---

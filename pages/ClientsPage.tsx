@@ -118,7 +118,16 @@ const ClientsPage: React.FC = () => {
         }
     };
 
-    const handleSaveInlineEdit = async () => { if (inlineEditingData) { await updateClient(inlineEditingData); handleCancelInlineEdit(); } };
+    const handleSaveInlineEdit = async () => {
+        if (inlineEditingData) {
+            try {
+                await updateClient(inlineEditingData);
+                handleCancelInlineEdit();
+            } catch (e) {
+                // Il context ha già mostrato il toast di errore
+            }
+        }
+    };
     
     const sectorOptions = useMemo(() => clientSectors.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [clientSectors]);
 
