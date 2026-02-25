@@ -364,16 +364,21 @@ const ResourcesPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
     
-    const handleSaveInlineEdit = async () => { 
-        if (inlineEditingData) { 
+    const handleSaveInlineEdit = async () => {
+        if (inlineEditingData) {
             try {
-                await updateResource(inlineEditingData); 
+                await updateResource({
+                    ...inlineEditingData,
+                    workSeniority: Number(inlineEditingData.workSeniority) || 0,
+                    maxStaffingPercentage: Number(inlineEditingData.maxStaffingPercentage) || 100,
+                    dailyCost: Number(inlineEditingData.dailyCost) || 0,
+                });
                 addToast('Risorsa aggiornata.', 'success');
-                handleCancelInlineEdit(); 
+                handleCancelInlineEdit();
             } catch (e) {
                 addToast('Errore aggiornamento rapido.', 'error');
             }
-        } 
+        }
     };
     
     const roleOptions = useMemo(() => roles.sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ value: r.id!, label: r.name })), [roles]);

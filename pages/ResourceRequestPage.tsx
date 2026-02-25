@@ -73,7 +73,7 @@ const buildResourceRequestPayload = (
         requestorId: request.requestorId ?? null,
         startDate: request.startDate,
         endDate: request.endDate,
-        commitmentPercentage: request.commitmentPercentage,
+        commitmentPercentage: Number(request.commitmentPercentage),
         isUrgent: request.isUrgent,
         isLongTerm: request.isLongTerm,
         isTechRequest: request.isTechRequest,

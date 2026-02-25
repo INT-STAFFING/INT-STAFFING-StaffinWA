@@ -18,6 +18,23 @@ import ExportButton from '../components/ExportButton';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 
+const buildRolePayload = (role: Role | Omit<Role, 'id'>): any => {
+    const payload: any = {
+        name: role.name,
+        seniorityLevel: role.seniorityLevel,
+        dailyCost: Number(role.dailyCost) || 0,
+        standardCost: Number(role.standardCost) || 0,
+        dailyExpenses: Number(role.dailyExpenses) || 0,
+        overheadPct: Number(role.overheadPct) || 0,
+        chargeablePct: Number(role.chargeablePct) || 0,
+        trainingPct: Number(role.trainingPct) || 0,
+        bdPct: Number(role.bdPct) || 0,
+    };
+    if (role.version !== undefined) payload.version = role.version;
+    if ('id' in role) payload.id = role.id;
+    return payload;
+};
+
 const RolesPage: React.FC = () => {
     const { roles, addRole, updateRole, deleteRole } = useResourcesContext();
     const { seniorityLevels } = useLookupContext();
@@ -105,10 +122,10 @@ const RolesPage: React.FC = () => {
         if (editingRole && !pctError) {
             try {
                 if ('id' in editingRole) {
-                    await updateRole(editingRole);
+                    await updateRole(buildRolePayload(editingRole));
                     addToast('Ruolo aggiornato con successo', 'success');
                 } else {
-                    await addRole(editingRole);
+                    await addRole(buildRolePayload(editingRole));
                     addToast('Nuovo ruolo creato', 'success');
                 }
                 handleCloseModal();
@@ -156,16 +173,16 @@ const RolesPage: React.FC = () => {
         if (inlineEditingData) setInlineEditingData({ ...inlineEditingData, [name]: value });
     };
 
-    const handleSaveInlineEdit = async () => { 
-        if (inlineEditingData) { 
+    const handleSaveInlineEdit = async () => {
+        if (inlineEditingData) {
             try {
-                await updateRole(inlineEditingData); 
+                await updateRole(buildRolePayload(inlineEditingData));
                 addToast('Ruolo aggiornato.', 'success');
-                handleCancelInlineEdit(); 
+                handleCancelInlineEdit();
             } catch (e) {
                 // Error handled by context
             }
-        } 
+        }
     };
 
     const seniorityOptions = useMemo(() => seniorityLevels.sort((a,b)=>a.value.localeCompare(b.value)).map(s => ({ value: s.value, label: s.value })), [seniorityLevels]);

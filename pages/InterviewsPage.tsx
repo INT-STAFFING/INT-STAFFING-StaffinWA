@@ -59,14 +59,14 @@ const buildInterviewPayload = (interview: Interview | Omit<Interview, 'id'>): In
     entryDate: interview.entryDate || null,
     status: interview.status,
     
-    ratingTechnicalMastery: interview.ratingTechnicalMastery || null,
-    ratingProblemSolving: interview.ratingProblemSolving || null,
-    ratingMethodQuality: interview.ratingMethodQuality || null,
-    ratingDomainKnowledge: interview.ratingDomainKnowledge || null,
-    ratingAutonomy: interview.ratingAutonomy || null,
-    ratingCommunication: interview.ratingCommunication || null,
-    ratingProactivity: interview.ratingProactivity || null,
-    ratingTeamFit: interview.ratingTeamFit || null,
+    ratingTechnicalMastery: interview.ratingTechnicalMastery != null ? Number(interview.ratingTechnicalMastery) : null,
+    ratingProblemSolving: interview.ratingProblemSolving != null ? Number(interview.ratingProblemSolving) : null,
+    ratingMethodQuality: interview.ratingMethodQuality != null ? Number(interview.ratingMethodQuality) : null,
+    ratingDomainKnowledge: interview.ratingDomainKnowledge != null ? Number(interview.ratingDomainKnowledge) : null,
+    ratingAutonomy: interview.ratingAutonomy != null ? Number(interview.ratingAutonomy) : null,
+    ratingCommunication: interview.ratingCommunication != null ? Number(interview.ratingCommunication) : null,
+    ratingProactivity: interview.ratingProactivity != null ? Number(interview.ratingProactivity) : null,
+    ratingTeamFit: interview.ratingTeamFit != null ? Number(interview.ratingTeamFit) : null,
   };
 
   if (interview.version !== undefined) {
