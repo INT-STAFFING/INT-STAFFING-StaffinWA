@@ -582,10 +582,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 if (!rawQuery || typeof rawQuery !== 'string') return res.status(400).json({ error: 'Query mancante' });
                 const result = await client.query(rawQuery);
                 return res.status(200).json({
-                    rows: result.rows,
-                    fields: result.fields.map((f: any) => ({ name: f.name, dataTypeID: f.dataTypeID })),
-                    rowCount: result.rowCount ?? result.rows.length,
-                    command: result.command,
+                    rows: result.rows ?? [],
+                    fields: (result.fields ?? []).map((f: any) => ({ name: f.name, dataTypeID: f.dataTypeID })),
+                    rowCount: result.rowCount ?? result.rows?.length ?? 0,
+                    command: result.command ?? 'OK',
                 });
             }
 
