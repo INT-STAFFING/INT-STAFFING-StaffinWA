@@ -574,13 +574,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 );
                 const columns = colTypesRes.rows.map((r: any) => ({ column_name: r.column_name, data_type: r.data_type }));
                 const result = await client.query(`SELECT * FROM ${table} LIMIT 100`);
-                return res.status(200).json({ columns, rows: result.rows });
+                // Rimuovi il campo password_hash dai risultati per sicurezza
+                const rows = result.rows.map((r: any) => { const row = { ...r }; delete row.password_hash; return row; });
+                return res.status(200).json({ columns: columns.filter((c: any) => c.column_name !== 'password_hash'), rows });
             }
 
             if (action === 'run_raw_query' && method === 'POST') {
                 const { query: rawQuery } = req.body;
                 if (!rawQuery || typeof rawQuery !== 'string') return res.status(400).json({ error: 'Query mancante' });
-                const result = await client.query(rawQuery);
+                // Supporta multi-statement separati da punto e virgola
+                const statements = rawQuery.split(';').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+                if (statements.length === 0) return res.status(400).json({ error: 'Nessuna istruzione SQL valida' });
+                let lastResult: any = null;
+                for (const stmt of statements) {
+                    lastResult = await client.query(stmt);
+                }
+                const result = lastResult;
+                // Audit log per comandi distruttivi
+                const cmdUpper = (result.command ?? '').toUpperCase();
+                if (['INSERT', 'UPDATE', 'DELETE', 'DROP', 'TRUNCATE', 'ALTER', 'CREATE'].includes(cmdUpper)) {
+                    await client.query(
+                        `INSERT INTO action_logs (id, username, action, entity, details, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+                        [uuidv4(), currentUser?.username ?? 'admin', 'RAW_SQL', 'db_inspector', JSON.stringify({ command: result.command, rowCount: result.rowCount, queryPreview: rawQuery.substring(0, 300) })]
+                    ).catch(() => {});
+                }
                 return res.status(200).json({
                     rows: result.rows ?? [],
                     fields: (result.fields ?? []).map((f: any) => ({ name: f.name, dataTypeID: f.dataTypeID })),
@@ -592,19 +609,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (action === 'update_row' && method === 'PUT' && table && id) {
                 const validTables = await getValidTables();
                 if (!validTables.includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
-                const updates = req.body as Record<string, any>;
-                if (!updates || Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nessun campo da aggiornare' });
+                const rawUpdates = req.body as Record<string, any>;
+                if (!rawUpdates || Object.keys(rawUpdates).length === 0) return res.status(400).json({ error: 'Nessun campo da aggiornare' });
+                // Proteggi colonne sensibili che non devono essere modificate direttamente
+                const PROTECTED_COLUMNS = ['password_hash', 'id'];
+                const updates = Object.fromEntries(Object.entries(rawUpdates).filter(([k]) => !PROTECTED_COLUMNS.includes(k)));
+                if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nessun campo modificabile specificato' });
                 const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`);
                 const values = Object.values(updates);
-                await client.query(`UPDATE ${table} SET ${setClauses.join(', ')} WHERE id = $${values.length + 1}`, [...values, id]);
-                return res.status(200).json({ success: true });
+                const result = await client.query(`UPDATE ${table} SET ${setClauses.join(', ')} WHERE id = $${values.length + 1}`, [...values, id]);
+                if ((result.rowCount ?? 0) === 0) return res.status(404).json({ error: 'Riga non trovata o nessuna modifica applicata' });
+                await client.query(
+                    `INSERT INTO action_logs (id, username, action, entity, entity_id, details, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+                    [uuidv4(), currentUser?.username ?? 'admin', 'UPDATE', table as string, id as string, JSON.stringify({ updatedFields: Object.keys(updates) })]
+                ).catch(() => {});
+                return res.status(200).json({ success: true, rowCount: result.rowCount });
             }
 
             if (action === 'delete_all_rows' && method === 'DELETE' && table) {
                 const validTables = await getValidTables();
                 if (!validTables.includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
-                await client.query(`DELETE FROM ${table}`);
-                return res.status(200).json({ success: true });
+                const result = await client.query(`DELETE FROM ${table}`);
+                await client.query(
+                    `INSERT INTO action_logs (id, username, action, entity, details, created_at) VALUES ($1, $2, $3, $4, $5, NOW())`,
+                    [uuidv4(), currentUser?.username ?? 'admin', 'DELETE_ALL', table as string, JSON.stringify({ rowsDeleted: result.rowCount })]
+                ).catch(() => {});
+                return res.status(200).json({ success: true, rowCount: result.rowCount });
             }
         }
 
@@ -681,19 +711,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  if (!Array.isArray(users) || users.length === 0) return res.status(400).json({ error: 'Lista utenti mancante' });
                  let successCount = 0;
                  let failCount = 0;
+                 const failures: string[] = [];
                  for (const { username, password } of users) {
                      try {
-                         if (!username || !password || password.length < 8) { failCount++; continue; }
+                         if (!username || !password || password.length < 8) {
+                             failCount++;
+                             failures.push(`${username ?? '?'}: password non valida (min 8 caratteri)`);
+                             continue;
+                         }
                          const salt = await bcrypt.genSalt(10);
                          const hashedPassword = await bcrypt.hash(password, salt);
                          const result = await client.query(
                              `UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2`,
                              [hashedPassword, username]
                          );
-                         if ((result.rowCount ?? 0) > 0) { successCount++; } else { failCount++; }
-                     } catch { failCount++; }
+                         if ((result.rowCount ?? 0) > 0) {
+                             successCount++;
+                         } else {
+                             failCount++;
+                             failures.push(`${username}: utente non trovato`);
+                         }
+                     } catch (e: any) {
+                         console.error(`bulk_password_reset error for ${username}:`, e?.message);
+                         failCount++;
+                         failures.push(`${username}: errore interno`);
+                     }
                  }
-                 return res.status(200).json({ successCount, failCount });
+                 return res.status(200).json({ successCount, failCount, failures });
              }
 
              if (entity === 'app-users' && action === 'impersonate') {

@@ -218,7 +218,7 @@ const DbInspectorPage: React.FC = () => {
 
     const handleBulkPasswordUpdate = async () => {
         if (!bulkPasswordsInput.trim()) return;
-        
+
         const lines = bulkPasswordsInput.split('\n').filter(l => l.trim().length > 0);
         const users = lines.map(line => {
             const [username, password] = line.split(',').map(s => s.trim());
@@ -230,17 +230,28 @@ const DbInspectorPage: React.FC = () => {
             return;
         }
 
+        // Validazione client-side: password minimo 8 caratteri
+        const shortPwds = users.filter(u => u.password.length < 8);
+        if (shortPwds.length > 0) {
+            addToast(`Password troppo corta (min 8 caratteri) per: ${shortPwds.map(u => u.username).join(', ')}`, 'error');
+            return;
+        }
+
         if (!confirm(`Stai per reimpostare la password per ${users.length} utenti. Confermi?`)) return;
 
         setBulkPassLoading(true);
         try {
-            const data = await apiFetch<{successCount: number, failCount: number}>('/api/resources?entity=app-users&action=bulk_password_reset', {
+            const data = await apiFetch<{successCount: number, failCount: number, failures: string[]}>('/api/resources?entity=app-users&action=bulk_password_reset', {
                 method: 'POST',
                 body: JSON.stringify({ users })
             });
 
-            addToast(`Operazione completata: ${data.successCount} successi, ${data.failCount} errori.`, 'success');
-            setBulkPasswordsInput('');
+            if (data.failCount > 0) {
+                addToast(`Completato: ${data.successCount} successi, ${data.failCount} errori. Dettagli: ${(data.failures ?? []).join(' | ')}`, 'warning');
+            } else {
+                addToast(`Password aggiornate con successo per ${data.successCount} utenti.`, 'success');
+            }
+            if (data.successCount > 0) setBulkPasswordsInput('');
         } catch (e) {
             addToast((e as Error).message, 'error');
         } finally {
@@ -562,37 +573,46 @@ const DbInspectorPage: React.FC = () => {
                                         <span className="text-[10px] font-bold text-on-surface-variant bg-surface px-2 py-1 rounded border border-outline-variant">Cmd: {queryResult.command}</span>
                                     </div>
                                 </div>
-                                <div className="overflow-x-auto max-h-[500px]">
-                                    <table className="min-w-full divide-y divide-outline-variant text-sm">
-                                        <thead className="bg-surface-container-low sticky top-0">
-                                            <tr>
-                                                {queryResult.fields.map((field: any) => (
-                                                    <th key={field.name} className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap border-b border-outline-variant bg-surface-container-low">
-                                                        {field.name}
-                                                        <span className="ml-1 text-[9px] opacity-50 normal-case font-mono bg-surface-variant px-1 rounded">{field.dataTypeID}</span>
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-outline-variant bg-surface">
-                                            {queryResult.rows.map((row, i) => (
-                                                <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                                {/* Pannello successo per comandi non-SELECT (INSERT/UPDATE/DELETE/CREATE/DROP) */}
+                                {queryResult.fields.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-10 gap-2">
+                                        <span className="material-symbols-outlined text-5xl text-primary">check_circle</span>
+                                        <p className="text-sm font-bold text-on-surface">Comando eseguito con successo</p>
+                                        <p className="text-xs text-on-surface-variant">{queryResult.rowCount} {queryResult.rowCount === 1 ? 'riga interessata' : 'righe interessate'}</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto max-h-[500px]">
+                                        <table className="min-w-full divide-y divide-outline-variant text-sm">
+                                            <thead className="bg-surface-container-low sticky top-0">
+                                                <tr>
                                                     {queryResult.fields.map((field: any) => (
-                                                        <td key={field.name} className="px-4 py-2 whitespace-nowrap text-on-surface font-mono text-xs">
-                                                            {renderCellContent(row[field.name])}
-                                                        </td>
+                                                        <th key={field.name} className="px-4 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap border-b border-outline-variant bg-surface-container-low">
+                                                            {field.name}
+                                                            <span className="ml-1 text-[9px] opacity-50 normal-case font-mono bg-surface-variant px-1 rounded">{field.dataTypeID}</span>
+                                                        </th>
                                                     ))}
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                    {queryResult.rows.length === 0 && (
-                                        <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant opacity-60">
-                                            <span className="material-symbols-outlined text-4xl mb-2">data_object</span>
-                                            <p className="text-sm font-medium">Nessun risultato restituito dalla query.</p>
-                                        </div>
-                                    )}
-                                </div>
+                                            </thead>
+                                            <tbody className="divide-y divide-outline-variant bg-surface">
+                                                {queryResult.rows.map((row, i) => (
+                                                    <tr key={i} className="hover:bg-surface-container-low transition-colors">
+                                                        {queryResult.fields.map((field: any) => (
+                                                            <td key={field.name} className="px-4 py-2 whitespace-nowrap text-on-surface font-mono text-xs">
+                                                                {renderCellContent(row[field.name])}
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                        {queryResult.rows.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant opacity-60">
+                                                <span className="material-symbols-outlined text-4xl mb-2">data_object</span>
+                                                <p className="text-sm font-medium">Nessun risultato restituito dalla query.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </ErrorBoundary>
                     )}

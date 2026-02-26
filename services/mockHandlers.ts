@@ -101,27 +101,49 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     // ── db_inspector: mock risposte per SQL editor, update/delete ────────────
     if (entity === 'db_inspector') {
       const action = params.action;
+      // Converte snake_case (nome tabella DB) in camelCase (chiave nel mock db)
+      const snakeToCamel = (s: string) => s.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase());
+
       if (action === 'list_tables') {
-        return Object.keys(db).map(k => k.replace(/([A-Z])/g, '_$1').toLowerCase());
+        // Restituisce i nomi delle "tabelle" disponibili nel mock (in camelCase come chiavi del db)
+        return Object.keys(db);
       }
       if (action === 'get_table_data') {
-        const tableKey = params.table;
-        const rows: any[] = (db as any)[tableKey] || [];
-        const columns = rows.length > 0
-          ? Object.keys(rows[0]).map(k => ({ column_name: k, data_type: 'character varying' }))
+        const tableParam = params.table as string;
+        // Prova prima la chiave diretta, poi la conversione snake→camel
+        const rows: any[] = (db as any)[tableParam] ?? (db as any)[snakeToCamel(tableParam)] ?? [];
+        // Rimuovi password_hash per sicurezza
+        const safeRows = rows.map((r: any) => { const row = { ...r }; delete row.password_hash; return row; });
+        const columns = safeRows.length > 0
+          ? Object.keys(safeRows[0]).map(k => ({ column_name: k, data_type: 'character varying' }))
           : [];
-        return { columns, rows: rows.slice(0, 100) };
+        return { columns, rows: safeRows.slice(0, 100) };
       }
       if (action === 'run_raw_query' && method === 'POST') {
-        return { rows: [], fields: [], rowCount: 0, command: 'SELECT (mock - non supportato in locale)' };
+        return { rows: [], fields: [], rowCount: 0, command: 'OK (mock - SQL non eseguito in locale)' };
       }
       if (action === 'update_row' && method === 'PUT') {
-        return { success: true };
+        const tableParam = params.table as string;
+        const rowId = params.id as string;
+        const updates = JSON.parse(options.body as string) as Record<string, any>;
+        const dbKey2 = (db as any)[tableParam] !== undefined ? tableParam : snakeToCamel(tableParam);
+        const list: any[] = (db as any)[dbKey2] ?? [];
+        const idx = list.findIndex((r: any) => r.id === rowId);
+        if (idx !== -1) {
+          const { password_hash: _ph, id: _id, ...safeUpdates } = updates;
+          list[idx] = { ...list[idx], ...safeUpdates };
+          (db as any)[dbKey2] = list;
+          saveDb(db);
+          return { success: true, rowCount: 1 };
+        }
+        return { success: false, rowCount: 0 };
       }
       if (action === 'delete_all_rows' && method === 'DELETE') {
-        const tableKey = params.table;
-        if (tableKey && (db as any)[tableKey]) { (db as any)[tableKey] = []; saveDb(db); }
-        return { success: true };
+        const tableParam = params.table as string;
+        const dbKey2 = (db as any)[tableParam] !== undefined ? tableParam : snakeToCamel(tableParam);
+        const prevLen = ((db as any)[dbKey2] ?? []).length;
+        if ((db as any)[dbKey2]) { (db as any)[dbKey2] = []; saveDb(db); }
+        return { success: true, rowCount: prevLen };
       }
       return { error: 'Azione db_inspector non supportata in mock' };
     }
