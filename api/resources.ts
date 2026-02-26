@@ -552,18 +552,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         if (entity === 'db_inspector') {
             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+
+            // Helper: verifica che la tabella esista nello schema pubblico
+            const getValidTables = async (): Promise<string[]> => {
+                const r = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
+                return r.rows.map((x: any) => x.table_name);
+            };
+
             if (action === 'list_tables') {
-                const result = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
-                return res.status(200).json(result.rows.map(r => r.table_name));
+                const validTables = await getValidTables();
+                return res.status(200).json(validTables);
             }
+
             if (action === 'get_table_data' && table) {
-                const limit = 100;
-                const validTablesRes = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`);
-                const validTables = validTablesRes.rows.map(r => r.table_name);
+                const validTables = await getValidTables();
                 if (!validTables.includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
-                const result = await client.query(`SELECT * FROM ${table} LIMIT $1`, [limit]);
-                const columns = result.fields.map(f => ({ column_name: f.name, data_type: f.dataTypeID }));
+                // Recupera i tipi delle colonne da information_schema per nomi leggibili (non OID)
+                const colTypesRes = await client.query(
+                    `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
+                    [table]
+                );
+                const columns = colTypesRes.rows.map((r: any) => ({ column_name: r.column_name, data_type: r.data_type }));
+                const result = await client.query(`SELECT * FROM ${table} LIMIT 100`);
                 return res.status(200).json({ columns, rows: result.rows });
+            }
+
+            if (action === 'run_raw_query' && method === 'POST') {
+                const { query: rawQuery } = req.body;
+                if (!rawQuery || typeof rawQuery !== 'string') return res.status(400).json({ error: 'Query mancante' });
+                const result = await client.query(rawQuery);
+                return res.status(200).json({
+                    rows: result.rows,
+                    fields: result.fields.map((f: any) => ({ name: f.name, dataTypeID: f.dataTypeID })),
+                    rowCount: result.rowCount ?? result.rows.length,
+                    command: result.command,
+                });
+            }
+
+            if (action === 'update_row' && method === 'PUT' && table && id) {
+                const validTables = await getValidTables();
+                if (!validTables.includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
+                const updates = req.body as Record<string, any>;
+                if (!updates || Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nessun campo da aggiornare' });
+                const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 1}`);
+                const values = Object.values(updates);
+                await client.query(`UPDATE ${table} SET ${setClauses.join(', ')} WHERE id = $${values.length + 1}`, [...values, id]);
+                return res.status(200).json({ success: true });
+            }
+
+            if (action === 'delete_all_rows' && method === 'DELETE' && table) {
+                const validTables = await getValidTables();
+                if (!validTables.includes(table as string)) return res.status(400).json({ error: 'Invalid table' });
+                await client.query(`DELETE FROM ${table}`);
+                return res.status(200).json({ success: true });
             }
         }
 
@@ -634,6 +675,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
              
+             if (entity === 'app-users' && action === 'bulk_password_reset') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+                 const { users } = req.body as { users: Array<{ username: string; password: string }> };
+                 if (!Array.isArray(users) || users.length === 0) return res.status(400).json({ error: 'Lista utenti mancante' });
+                 let successCount = 0;
+                 let failCount = 0;
+                 for (const { username, password } of users) {
+                     try {
+                         if (!username || !password || password.length < 8) { failCount++; continue; }
+                         const salt = await bcrypt.genSalt(10);
+                         const hashedPassword = await bcrypt.hash(password, salt);
+                         const result = await client.query(
+                             `UPDATE app_users SET password_hash = $1, must_change_password = TRUE WHERE username = $2`,
+                             [hashedPassword, username]
+                         );
+                         if ((result.rowCount ?? 0) > 0) { successCount++; } else { failCount++; }
+                     } catch { failCount++; }
+                 }
+                 return res.status(200).json({ successCount, failCount });
+             }
+
              if (entity === 'app-users' && action === 'impersonate') {
                  if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
                  const { rows } = await client.query(`SELECT * FROM app_users WHERE id = $1`, [id]);
