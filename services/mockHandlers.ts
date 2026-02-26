@@ -98,6 +98,51 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (entity === 'project_expenses') dbKey = 'projectExpenses';
     if (entity === 'leave_types') dbKey = 'leaveTypes';
 
+    // ── db_inspector: mock risposte per SQL editor, update/delete ────────────
+    if (entity === 'db_inspector') {
+      const action = params.action;
+      if (action === 'list_tables') {
+        return Object.keys(db).map(k => k.replace(/([A-Z])/g, '_$1').toLowerCase());
+      }
+      if (action === 'get_table_data') {
+        const tableKey = params.table;
+        const rows: any[] = (db as any)[tableKey] || [];
+        const columns = rows.length > 0
+          ? Object.keys(rows[0]).map(k => ({ column_name: k, data_type: 'character varying' }))
+          : [];
+        return { columns, rows: rows.slice(0, 100) };
+      }
+      if (action === 'run_raw_query' && method === 'POST') {
+        return { rows: [], fields: [], rowCount: 0, command: 'SELECT (mock - non supportato in locale)' };
+      }
+      if (action === 'update_row' && method === 'PUT') {
+        return { success: true };
+      }
+      if (action === 'delete_all_rows' && method === 'DELETE') {
+        const tableKey = params.table;
+        if (tableKey && (db as any)[tableKey]) { (db as any)[tableKey] = []; saveDb(db); }
+        return { success: true };
+      }
+      return { error: 'Azione db_inspector non supportata in mock' };
+    }
+
+    // ── app-users: bulk password reset ───────────────────────────────────────
+    if (entity === 'app-users' && params.action === 'bulk_password_reset' && method === 'POST') {
+      const { users: usersToUpdate } = JSON.parse(options.body as string);
+      let successCount = 0; let failCount = 0;
+      const usersList: any[] = (db as any).users || [];
+      for (const { username, password } of (usersToUpdate || [])) {
+        const idx = usersList.findIndex((u: any) => u.username === username);
+        if (idx !== -1 && password && password.length >= 8) {
+          usersList[idx] = { ...usersList[idx], mustChangePassword: true };
+          successCount++;
+        } else { failCount++; }
+      }
+      (db as any).users = usersList;
+      saveDb(db);
+      return { successCount, failCount };
+    }
+
     const list = (db as any)[dbKey] || [];
 
     if (method === 'GET') return list;
