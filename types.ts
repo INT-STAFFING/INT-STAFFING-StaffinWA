@@ -337,7 +337,18 @@ export interface PageVisibility {
     [path: string]: boolean;
 }
 
-export type UserRole = 'SIMPLE' | 'MANAGER' | 'SENIOR MANAGER' | 'MANAGING DIRECTOR' | 'ADMIN';
+export type UserRole =
+    | 'SIMPLE'
+    | 'SIMPLE_EXT'
+    | 'MANAGER'
+    | 'MANAGER_EXT'
+    | 'SENIOR MANAGER'
+    | 'SENIOR MANAGER_EXT'
+    | 'ASSOCIATE DIRECTOR'
+    | 'ASSOCIATE DIRECTOR_EXT'
+    | 'MANAGING DIRECTOR'
+    | 'MANAGING DIRECTOR_EXT'
+    | 'ADMIN';
 
 export interface AppUser {
     id: string;
