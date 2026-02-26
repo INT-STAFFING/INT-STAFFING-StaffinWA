@@ -126,6 +126,25 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       return { error: 'Azione db_inspector non supportata in mock' };
     }
 
+    // ── app-users: impersonificazione ────────────────────────────────────────
+    if (entity === 'app-users' && params.action === 'impersonate' && method === 'POST') {
+      const users: any[] = (db as any).users || [];
+      const targetUser = users.find((u: any) => u.id === params.id);
+      if (!targetUser) return { error: 'Utente non trovato' };
+      return {
+        success: true,
+        token: 'mock-jwt-token',
+        user: {
+          id: targetUser.id,
+          username: targetUser.username,
+          role: targetUser.role,
+          resourceId: targetUser.resourceId || null,
+          permissions: [],
+          mustChangePassword: false,
+        },
+      };
+    }
+
     // ── app-users: bulk password reset ───────────────────────────────────────
     if (entity === 'app-users' && params.action === 'bulk_password_reset' && method === 'POST') {
       const { users: usersToUpdate } = JSON.parse(options.body as string);
