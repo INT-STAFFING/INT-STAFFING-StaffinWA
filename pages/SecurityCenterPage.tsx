@@ -293,9 +293,15 @@ const IdentityPillar: React.FC = () => {
                 >
                     <option value="">Tutti i ruoli</option>
                     <option value="SIMPLE">Simple User</option>
+                    <option value="SIMPLE_EXT">Simple User (Ext)</option>
                     <option value="MANAGER">Manager</option>
+                    <option value="MANAGER_EXT">Manager (Ext)</option>
                     <option value="SENIOR MANAGER">Senior Manager</option>
+                    <option value="SENIOR MANAGER_EXT">Senior Manager (Ext)</option>
+                    <option value="ASSOCIATE DIRECTOR">Associate Director</option>
+                    <option value="ASSOCIATE DIRECTOR_EXT">Associate Director (Ext)</option>
                     <option value="MANAGING DIRECTOR">Managing Director</option>
+                    <option value="MANAGING DIRECTOR_EXT">Managing Director (Ext)</option>
                     <option value="ADMIN">Administrator</option>
                 </select>
             </div>
@@ -393,9 +399,15 @@ const IdentityPillar: React.FC = () => {
                                 <label className="block text-sm font-bold mb-1 text-on-surface-variant">Ruolo Sistema</label>
                                 <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})} className="form-select">
                                     <option value="SIMPLE">Simple User</option>
+                                    <option value="SIMPLE_EXT">Simple User (Ext)</option>
                                     <option value="MANAGER">Manager</option>
+                                    <option value="MANAGER_EXT">Manager (Ext)</option>
                                     <option value="SENIOR MANAGER">Senior Manager</option>
+                                    <option value="SENIOR MANAGER_EXT">Senior Manager (Ext)</option>
+                                    <option value="ASSOCIATE DIRECTOR">Associate Director</option>
+                                    <option value="ASSOCIATE DIRECTOR_EXT">Associate Director (Ext)</option>
                                     <option value="MANAGING DIRECTOR">Managing Director</option>
+                                    <option value="MANAGING DIRECTOR_EXT">Managing Director (Ext)</option>
                                     <option value="ADMIN">Administrator</option>
                                 </select>
                             </div>
@@ -466,6 +478,21 @@ const IdentityPillar: React.FC = () => {
     );
 };
 
+// Abbreviazioni etichette ruoli per l'intestazione della matrice RBAC
+const ROLE_ABBR: Record<string, string> = {
+    'SIMPLE':                 'SIMPLE',
+    'SIMPLE_EXT':             'SMP_EXT',
+    'MANAGER':                'MANAGER',
+    'MANAGER_EXT':            'MGR_EXT',
+    'SENIOR MANAGER':         'SR.MGR',
+    'SENIOR MANAGER_EXT':     'SR.M_EXT',
+    'ASSOCIATE DIRECTOR':     'ASSOC.D',
+    'ASSOCIATE DIRECTOR_EXT': 'ASC_EXT',
+    'MANAGING DIRECTOR':      'M.DIR',
+    'MANAGING DIRECTOR_EXT':  'M.D_EXT',
+    'ADMIN':                  'ADMIN',
+};
+
 // --- PILASTRO 2: MATRICE RBAC UNIFICATA ---
 const RBACPillar: React.FC = () => {
     const { data: permissionsData, loading, error, updateCache } = useAuthorizedResource<RolePermission[]>(
@@ -494,8 +521,14 @@ const RBACPillar: React.FC = () => {
         setLocalVisibility(pageVisibility);
     }, [pageVisibility]);
 
-    const ROLES: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR'];
-    const manageableRoutes = useMemo(() => 
+    const ROLES: UserRole[] = [
+        'SIMPLE', 'SIMPLE_EXT',
+        'MANAGER', 'MANAGER_EXT',
+        'SENIOR MANAGER', 'SENIOR MANAGER_EXT',
+        'ASSOCIATE DIRECTOR', 'ASSOCIATE DIRECTOR_EXT',
+        'MANAGING DIRECTOR', 'MANAGING DIRECTOR_EXT',
+    ];
+    const manageableRoutes = useMemo(() =>
         routesManifest.filter(r => r.requiresAuth !== false).sort((a,b) => a.label.localeCompare(b.label)),
     []);
 
@@ -556,8 +589,8 @@ const RBACPillar: React.FC = () => {
                                 <th className="px-6 py-5 text-left font-black uppercase text-[10px] tracking-widest text-on-surface-variant">Modulo / Percorso</th>
                                 <th className="px-2 py-5 text-center font-black uppercase text-[10px] tracking-widest text-error">Solo Admin</th>
                                 {ROLES.map(role => (
-                                    <th key={role} className="px-2 py-5 text-center font-black uppercase text-[10px] tracking-widest text-on-surface-variant w-24">
-                                        {role.replace('MANAGING ', 'M.').substring(0, 10)}
+                                    <th key={role} className="px-2 py-5 text-center font-black uppercase text-[10px] tracking-widest text-on-surface-variant w-20" title={role}>
+                                        {ROLE_ABBR[role] ?? role.substring(0, 8)}
                                     </th>
                                 ))}
                                 <th className="px-4 py-5 text-center font-black uppercase text-[10px] tracking-widest bg-primary/5 text-primary">Admin</th>
@@ -643,7 +676,14 @@ const NavigationPillar: React.FC = () => {
         }
     }, [sidebarConfig]);
     
-    const ROLES: UserRole[] = ['SIMPLE', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR', 'ADMIN'];
+    const ROLES: UserRole[] = [
+        'SIMPLE', 'SIMPLE_EXT',
+        'MANAGER', 'MANAGER_EXT',
+        'SENIOR MANAGER', 'SENIOR MANAGER_EXT',
+        'ASSOCIATE DIRECTOR', 'ASSOCIATE DIRECTOR_EXT',
+        'MANAGING DIRECTOR', 'MANAGING DIRECTOR_EXT',
+        'ADMIN',
+    ];
     const availablePages = useMemo(() => 
         routesManifest.filter(r => r.requiresAuth !== false).sort((a,b) => a.label.localeCompare(b.label)),
     []);
