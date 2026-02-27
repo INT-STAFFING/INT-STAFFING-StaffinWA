@@ -192,6 +192,32 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       return { success: true };
     }
 
+    // ── app-users: impersonificazione ────────────────────────────────────────
+    if (entity === 'app-users' && params.action === 'impersonate' && method === 'POST') {
+      const users: any[] = (db as any).users || [];
+      const targetUser = users.find((u: any) => u.id === params.id);
+      if (!targetUser) return { error: 'Utente non trovato' };
+      const impRole = targetUser.role || 'SIMPLE';
+      const allEntities = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
+      const visRulesImp: any[] = (db as any).roleEntityVisibility || [];
+      const entityVisibilityImp = impRole === 'ADMIN'
+        ? allEntities
+        : visRulesImp.filter((r: any) => r.role === impRole && r.isVisible).map((r: any) => r.entity);
+      return {
+        success: true,
+        token: 'mock-jwt-token',
+        user: {
+          id: targetUser.id,
+          username: targetUser.username,
+          role: impRole,
+          resourceId: targetUser.resourceId || null,
+          permissions: [],
+          entityVisibility: entityVisibilityImp,
+          mustChangePassword: false,
+        },
+      };
+    }
+
     // ── app-users: bulk password reset ───────────────────────────────────────
     if (entity === 'app-users' && params.action === 'bulk_password_reset' && method === 'POST') {
       const { users: usersToUpdate } = JSON.parse(options.body as string);
