@@ -49,12 +49,12 @@ const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id
 };
 
 const LeavePage: React.FC = () => {
+    const { user, isAdmin, hasEntityVisibility } = useAuth();
     const { leaveRequests, leaveTypes, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest } = useHRContext();
     const { resources, managerResourceIds } = useResourcesContext();
     const { companyCalendar } = useLookupContext();
     const { createNotification } = useUIConfigContext();
     const { loading, isActionLoading } = useAppState();
-    const { user, isAdmin } = useAuth();
 
     // View State
     const [view, setView] = useState<'table' | 'card' | 'calendar'>('table');
@@ -490,6 +490,16 @@ const LeavePage: React.FC = () => {
             </div>
         </div>
     );
+
+    if (!hasEntityVisibility('leaves')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Ferie e Permessi.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 pb-20 md:pb-0">

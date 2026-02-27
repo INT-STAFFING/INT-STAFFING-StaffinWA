@@ -6,6 +6,7 @@
 
 import { db } from './_lib/db.js';
 import { ensureDbTablesExist } from './_lib/schema.js';
+import { getUserFromRequest } from './_lib/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { CalendarEvent, Allocation } from '../types';
 
@@ -52,6 +53,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await ensureDbTablesExist(db);
             isSchemaInitialized = true;
         }
+
+        // Calcola visibilità entità per il ruolo corrente
+        const ALL_ENTITIES_DATA = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
+        const currentUser = getUserFromRequest(req);
+        const isAdmin = !currentUser || currentUser.role === 'ADMIN';
+        let visibleEntities: Set<string> | null = null;
+        if (!isAdmin) {
+            const visRes = await db.query(`SELECT entity FROM role_entity_visibility WHERE role = $1 AND is_visible = TRUE`, [currentUser!.role]);
+            visibleEntities = visRes.rows.length > 0
+                ? new Set(visRes.rows.map((r: any) => r.entity))
+                : new Set(ALL_ENTITIES_DATA);
+        }
+        // Ritorna true se l'entità è visibile per il ruolo corrente
+        const canSee = (entity: string): boolean => isAdmin || visibleEntities === null || visibleEntities.has(entity);
 
         const data: any = {};
 
@@ -166,11 +181,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }));
 
             Object.assign(data, {
-                clients: clientsRes.rows.map(toCamelCase),
-                roles: rolesRes.rows.map(toCamelCase),
+                clients: canSee('clients') ? clientsRes.rows.map(toCamelCase) : [],
+                roles: rolesRes.rows.map(toCamelCase), // metadato di sistema: sempre visibile
                 roleCostHistory: roleCostHistoryRes.rows.map(toCamelCase),
-                resources: resourcesRes.rows.map(toCamelCase),
-                projects: projectsRes.rows.map(toCamelCase),
+                resources: canSee('resources') ? resourcesRes.rows.map(toCamelCase) : [],
+                projects: canSee('projects') ? projectsRes.rows.map(toCamelCase) : [],
                 functions: functionsRes.rows, // Ridenominato
                 industries: industriesRes.rows, // Aggiunto
                 seniorityLevels: seniorityLevelsRes.rows,
@@ -178,10 +193,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 clientSectors: clientSectorsRes.rows,
                 locations: locationsRes.rows,
                 companyCalendar,
-                skills,
-                skillCategories: hydratedCategories,
-                skillMacroCategories: macros,
-                resourceSkills: resourceSkillsRes.rows.map(toCamelCase),
+                skills: canSee('skills') ? skills : [],
+                skillCategories: hydratedCategories, // metadato di sistema: sempre visibile
+                skillMacroCategories: macros,         // metadato di sistema: sempre visibile
+                resourceSkills: canSee('resources') ? resourceSkillsRes.rows.map(toCamelCase) : [],
                 pageVisibility,
                 skillThresholds,
                 planningSettings,
@@ -196,9 +211,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 roleHomePages: parseJsonConfig(roleHomePagesRes, null),
                 bottomNavPaths: parseJsonConfig(bottomNavPathsRes, []),
                 analyticsCache,
-                rateCards: rateCardsRes.rows.map(toCamelCase),
-                rateCardEntries: rateCardEntriesRes.rows.map(toCamelCase),
-                projectExpenses: projectExpensesRes.rows.map(toCamelCase),
+                rateCards: canSee('rate_cards') ? rateCardsRes.rows.map(toCamelCase) : [],
+                rateCardEntries: canSee('rate_cards') ? rateCardEntriesRes.rows.map(toCamelCase) : [],
+                projectExpenses: canSee('projects') ? projectExpensesRes.rows.map(toCamelCase) : [],
                 notificationConfigs: notificationConfigsRes.rows.map(toCamelCase),
                 notificationRules: notificationRulesRes.rows.map(toCamelCase),
             });
@@ -258,17 +273,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
 
             Object.assign(data, {
-                assignments: assignmentsRes.rows.map(toCamelCase),
-                allocations,
-                wbsTasks: wbsTasksRes.rows.map(toCamelCase),
-                resourceRequests: resourceRequestsRes.rows.map(toCamelCase),
-                interviews: interviewsRes.rows.map(toCamelCase),
-                contracts: contractsRes.rows.map(toCamelCase),
-                contractProjects: contractProjectsRes.rows.map(toCamelCase),
-                contractManagers: contractManagersRes.rows.map(toCamelCase),
-                projectSkills: projectSkillsRes.rows.map(toCamelCase),
-                leaveRequests: leaveRequestsRes.rows.map(toCamelCase),
-                billingMilestones: billingMilestonesRes.rows.map(toCamelCase)
+                assignments: canSee('assignments') ? assignmentsRes.rows.map(toCamelCase) : [],
+                allocations: canSee('allocations') ? allocations : {},
+                wbsTasks: canSee('wbs_tasks') ? wbsTasksRes.rows.map(toCamelCase) : [],
+                resourceRequests: canSee('resource_requests') ? resourceRequestsRes.rows.map(toCamelCase) : [],
+                interviews: canSee('interviews') ? interviewsRes.rows.map(toCamelCase) : [],
+                contracts: canSee('contracts') ? contractsRes.rows.map(toCamelCase) : [],
+                contractProjects: canSee('contracts') ? contractProjectsRes.rows.map(toCamelCase) : [],
+                contractManagers: canSee('contracts') ? contractManagersRes.rows.map(toCamelCase) : [],
+                projectSkills: canSee('projects') ? projectSkillsRes.rows.map(toCamelCase) : [],
+                leaveRequests: canSee('leaves') ? leaveRequestsRes.rows.map(toCamelCase) : [],
+                billingMilestones: canSee('billing_milestones') ? billingMilestonesRes.rows.map(toCamelCase) : []
             });
         }
 

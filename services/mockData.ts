@@ -1,6 +1,6 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { AppUser, Assignment, Allocation, CalendarEvent, Client, ConfigOption, Contract, ContractProject, ContractManager, Interview, LeaveRequest, LeaveType, Notification, Project, ProjectExpense, RateCard, Resource, ResourceRequest, Role, RoleCostHistory, Skill, SkillCategory, SkillMacroCategory, BillingMilestone, ResourceSkill, ProjectSkill } from '../types';
+import { AppUser, Assignment, Allocation, CalendarEvent, Client, ConfigOption, Contract, ContractProject, ContractManager, Interview, LeaveRequest, LeaveType, Notification, Project, ProjectExpense, RateCard, Resource, ResourceRequest, Role, RoleCostHistory, Skill, SkillCategory, SkillMacroCategory, BillingMilestone, ResourceSkill, ProjectSkill, RoleEntityVisibility } from '../types';
 
 export const INITIAL_MOCK_DATA: {
     functions: ConfigOption[];
@@ -51,6 +51,7 @@ export const INITIAL_MOCK_DATA: {
     notificationConfigs: any[];
     notificationRules: any[];
     resourceEvaluations?: any[];
+    roleEntityVisibility: RoleEntityVisibility[];
 } = {
   functions: [
     { id: 'h1', value: 'Software Engineering' }, 
@@ -207,5 +208,11 @@ export const INITIAL_MOCK_DATA: {
   roleHomePages: {},
   analyticsCache: {},
   notificationConfigs: [],
-  notificationRules: []
+  notificationRules: [],
+  // Seed visibilità entità: tutti i ruoli non-ADMIN vedono tutte le entità (default aperto)
+  roleEntityVisibility: (() => {
+    const ROLES = ['SIMPLE', 'SIMPLE_EXT', 'MANAGER', 'MANAGER_EXT', 'SENIOR MANAGER', 'SENIOR MANAGER_EXT', 'ASSOCIATE DIRECTOR', 'ASSOCIATE DIRECTOR_EXT', 'MANAGING DIRECTOR', 'MANAGING DIRECTOR_EXT'];
+    const ENTITIES = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
+    return ROLES.flatMap(role => ENTITIES.map(entity => ({ role: role as any, entity, isVisible: true })));
+  })()
 };

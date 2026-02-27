@@ -92,6 +92,10 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
     const initUIConfig = uiCtx.initialize;
 
     // --- fetchData: carica tutti i dati e li distribuisce ai sub-context ---
+    // Nota: il filtro di visibilità entità (role_entity_visibility) è applicato a livello API
+    // in api/data.ts: i dati ritornati qui sono già filtrati per ruolo.
+    // Non è possibile filtrare qui anche da AuthContext per evitare dipendenza circolare
+    // (AuthContext importa useEntitiesContext da questo file).
     const fetchData = useCallback(async (): Promise<void> => {
         setLoading(true);
         setFetchError(null);

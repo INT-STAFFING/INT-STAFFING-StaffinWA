@@ -5,6 +5,7 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useSkillsContext } from '../context/SkillsContext';
+import { useAuth } from '../context/AuthContext';
 import { Project, ProjectExpense, BillingType, BillingMilestone, MilestoneStatus } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -410,6 +411,7 @@ const ProjectExpensesModal: React.FC<{
 };
 
 export const ProjectsPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const { projects, clients, contracts, addProject, updateProject, assignments } = useProjectsContext();
     const { resources } = useResourcesContext();
     const { projectStatuses } = useLookupContext();
@@ -810,6 +812,16 @@ export const ProjectsPage: React.FC = () => {
         ],
       };
     }, [dataForTable, exportData]);
+
+    if (!hasEntityVisibility('projects')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare i Progetti.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div>

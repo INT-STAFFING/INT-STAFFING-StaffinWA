@@ -65,6 +65,25 @@ export async function ensureDbTablesExist(db: VercelPool) {
     // 6. Security & RBAC
     await db.sql`CREATE TABLE IF NOT EXISTS app_users ( id UUID PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role VARCHAR(50) NOT NULL DEFAULT 'SIMPLE', resource_id UUID REFERENCES resources(id) ON DELETE SET NULL, is_active BOOLEAN DEFAULT TRUE, must_change_password BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
     await db.sql`CREATE TABLE IF NOT EXISTS role_permissions ( role VARCHAR(50) NOT NULL, page_path VARCHAR(255) NOT NULL, is_allowed BOOLEAN DEFAULT FALSE, PRIMARY KEY (role, page_path) );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS role_entity_visibility ( role VARCHAR(50) NOT NULL, entity VARCHAR(100) NOT NULL, is_visible BOOLEAN NOT NULL DEFAULT TRUE, PRIMARY KEY (role, entity) );`;
+    // Seed iniziale: tutti i ruoli non-ADMIN vedono tutte le entità (backwards-compatible)
+    await db.sql`
+        INSERT INTO role_entity_visibility (role, entity, is_visible)
+        SELECT r.role, e.entity, TRUE
+        FROM (VALUES
+            ('SIMPLE'), ('SIMPLE_EXT'), ('MANAGER'), ('MANAGER_EXT'),
+            ('SENIOR MANAGER'), ('SENIOR MANAGER_EXT'),
+            ('ASSOCIATE DIRECTOR'), ('ASSOCIATE DIRECTOR_EXT'),
+            ('MANAGING DIRECTOR'), ('MANAGING DIRECTOR_EXT')
+        ) AS r(role)
+        CROSS JOIN (VALUES
+            ('resources'), ('projects'), ('clients'), ('assignments'),
+            ('allocations'), ('contracts'), ('rate_cards'), ('skills'),
+            ('roles'), ('leaves'), ('resource_requests'), ('interviews'),
+            ('wbs_tasks'), ('billing_milestones'), ('resource_evaluations')
+        ) AS e(entity)
+        ON CONFLICT (role, entity) DO NOTHING;
+    `;
     await db.sql`CREATE TABLE IF NOT EXISTS action_logs ( id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), user_id UUID REFERENCES app_users(id) ON DELETE SET NULL, username VARCHAR(255), action VARCHAR(100) NOT NULL, entity VARCHAR(100), entity_id VARCHAR(255), details JSONB, ip_address VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );`;
     await db.sql`CREATE TABLE IF NOT EXISTS notifications ( id UUID PRIMARY KEY, recipient_resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, title VARCHAR(255) NOT NULL, message TEXT NOT NULL, link VARCHAR(255), is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );`;
     await db.sql`CREATE TABLE IF NOT EXISTS notification_configs ( id UUID PRIMARY KEY, event_type VARCHAR(50) NOT NULL, webhook_url TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;

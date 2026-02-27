@@ -357,6 +357,7 @@ export interface AppUser {
     resourceId: string | null;
     isActive: boolean;
     permissions: string[];
+    entityVisibility: string[];
     mustChangePassword?: boolean;
     version?: number;
 }
@@ -365,6 +366,12 @@ export interface RolePermission {
     role: UserRole;
     pagePath: string;
     isAllowed: boolean;
+}
+
+export interface RoleEntityVisibility {
+    role: UserRole;
+    entity: string;
+    isVisible: boolean;
 }
 
 export interface SidebarItem {

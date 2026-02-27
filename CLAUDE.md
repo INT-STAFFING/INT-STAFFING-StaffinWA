@@ -228,6 +228,7 @@ import { useEntitiesContext } from '@/context/AppContext';
 - Some named exports require the `.then(module => ({ default: module.NamedExport }))` pattern in lazy imports.
 - RBAC is enforced via `DynamicRoute` wrapper that checks `AuthContext.hasPermission(path)`.
 - Route metadata (labels, icons, sections, breadcrumbs) is defined in `routes.ts` and consumed via `RoutesContext`.
+- **Entity-level visibility** is enforced via `AuthContext.hasEntityVisibility(entity)` on each page. See [Authentication & Authorization](#authentication--authorization) for details.
 
 ### API Layer
 
@@ -235,7 +236,7 @@ import { useEntitiesContext } from '@/context/AppContext';
 
 - **`/api/data`** — Bulk read: fetches all entities for initial load. Accepts `?scope=all|metadata|planning`.
 - **`/api/auth`** — Unified authentication endpoint: `POST` for login (username/password → JWT); `GET ?action=config` reads login-protection flag; `POST ?action=config` (ADMIN) toggles login protection.
-- **`/api/resources?entity=<type>`** — Generic CRUD dispatcher (31 entity types). Handles `resources`, `projects`, `clients`, `roles`, `skills`, `skill_categories`, `leaves`, `app_users`, `rate_cards`, `billing_milestones`, `resource_requests`, `interviews`, `contracts`, `assignments`, `allocations`, and more via the `TABLE_MAPPING` and `VALIDATION_SCHEMAS` maps inside `resources.ts`.
+- **`/api/resources?entity=<type>`** — Generic CRUD dispatcher (31 entity types). Handles `resources`, `projects`, `clients`, `roles`, `skills`, `skill_categories`, `leaves`, `app_users`, `rate_cards`, `billing_milestones`, `resource_requests`, `interviews`, `contracts`, `assignments`, `allocations`, `role_entity_visibility`, and more via the `TABLE_MAPPING` and `VALIDATION_SCHEMAS` maps inside `resources.ts`. The `role_entity_visibility` entity supports a special bulk-save `POST` with `{ visibilityRules: RoleEntityVisibility[] }` body (ADMIN only).
 - **`/api/config?type=<type>`** — CRUD for lookup/config values (functions, seniority levels, locations, etc.).
 - **`/api/staffing`** — Dedicated endpoint for allocations and assignments: `POST ?action=allocation` for bulk upsert/delete; `POST ?action=assignment` to create/get an assignment; `DELETE ?action=assignment&id=<uuid>` to delete an assignment (cascades to allocations).
 - **`/api/admin`** — Admin utilities: `POST ?action=webhook-test` sends a test Adaptive Card (Teams format) to a webhook URL.
@@ -249,7 +250,7 @@ Server-side utilities shared across Vercel functions live in `api/_lib/`. Files 
 - **`api/_lib/db.ts`** — PostgreSQL connection pool (`@vercel/postgres`). Import `db` from here in all API handlers.
 - **`api/_lib/env.ts`** — Validates required env vars (`JWT_SECRET`, `POSTGRES_URL`) at startup and throws if missing. Import typed `env` object from here instead of raw `process.env`.
 - **`api/_lib/auth.ts`** — Shared JWT verification helpers: `verifyAdmin(req)` asserts ADMIN role; `getUserFromRequest(req)` extracts user `{ id, username, role }` from Bearer token. Exports `OPERATIONAL_ROLES` (`['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR']`).
-- **`api/_lib/schema.ts`** — Full database schema DDL. `ensureDbTablesExist()` is called lazily on first request.
+- **`api/_lib/schema.ts`** — Full database schema DDL. `ensureDbTablesExist()` is called lazily on first request. Includes `role_entity_visibility` table seeded with all non-ADMIN roles × all manageable entities, `is_visible = TRUE` by default (backward-compatible).
 
 **Local/Preview Mode:** `apiClient.ts` detects non-production environments by checking the hostname/port and intercepts all `/api/*` calls, routing them to the in-memory mock engine (`mockHandlers.ts` + `mockData.ts`).
 
@@ -296,10 +297,48 @@ API calls use `apiFetch()` from `services/apiClient.ts` which handles auth heade
 - JWT-based auth with `bcryptjs` password hashing.
 - JWT secret stored in `JWT_SECRET` environment variable (required in production; validated at startup in `api/_lib/env.ts`).
 - Auth token stored in `localStorage` as `authToken`.
-- Auth state in `AuthContext.tsx` — provides `login`, `logout`, `changePassword`, `hasPermission`.
-- RBAC roles: `SIMPLE`, `MANAGER`, `SENIOR MANAGER`, `MANAGING DIRECTOR`, `ADMIN` with path-level permissions stored in `role_permissions` table.
+- Auth state in `AuthContext.tsx` — provides `login`, `logout`, `changePassword`, `hasPermission`, `hasEntityVisibility`.
 - Force password change on first login (`mustChangePassword` flag on user object).
 - `utils/auth.ts` exports `getStoredAuthToken()`. `utils/api.ts` exports `authorizedFetch`/`authorizedJsonFetch` as lower-level alternatives to `apiFetch()`.
+
+#### RBAC — Three Layers
+
+| Layer | Table | Enforced by | Scope |
+|---|---|---|---|
+| 1. Route permissions | `role_permissions` | `DynamicRoute` + `hasPermission()` | Page-level: which routes a role can access |
+| 2. Operation permissions | `OPERATIONAL_ROLES` constant | API checks in `api/resources.ts` | Write operations: only operational roles can create/update/delete |
+| 3. Entity visibility | `role_entity_visibility` | `canSee()` in `api/data.ts`, GET guard in `api/resources.ts`, `hasEntityVisibility()` in pages | Data-level: which entity types a role can see |
+
+**Roles:** `SIMPLE`, `SIMPLE_EXT`, `MANAGER`, `MANAGER_EXT`, `SENIOR MANAGER`, `SENIOR MANAGER_EXT`, `ASSOCIATE DIRECTOR`, `ASSOCIATE DIRECTOR_EXT`, `MANAGING DIRECTOR`, `MANAGING DIRECTOR_EXT`, `ADMIN`. ADMIN always bypasses all checks.
+
+#### Entity Visibility (Layer 3)
+
+The `role_entity_visibility` table controls which entity types each role can see. Managed via the **"Entity Visibility"** pillar in `pages/SecurityCenterPage.tsx`.
+
+- **At login** (`api/auth.ts`): visible entity list is fetched for the user's role and embedded in the JWT payload as `entityVisibility: string[]`.
+- **At bulk fetch** (`api/data.ts`): `canSee(entity)` helper filters all returned data per role.
+- **At individual GET** (`api/resources.ts`): Entity-level guard returns `403` if the requesting role lacks visibility.
+- **At page render** (per-page): `hasEntityVisibility(entity)` from `useAuth()` shows a lock screen instead of the data table.
+- **Backward compatibility**: missing rows in `role_entity_visibility` default to visible (`true`). Old sessions without `entityVisibility` field also default to full visibility.
+
+**Manageable entities:** `resources`, `projects`, `clients`, `assignments`, `allocations`, `contracts`, `rate_cards`, `skills`, `leaves`, `resource_requests`, `interviews`, `wbs_tasks`, `billing_milestones`, `resource_evaluations`.
+
+**Dependency constraints** (enforced by UI validation before save):
+```
+allocations        → requires assignments
+assignments        → requires resources + projects
+interviews         → requires resource_requests
+leaves             → requires resources
+billing_milestones → requires contracts
+wbs_tasks          → requires clients
+resource_evaluations → requires resources
+contracts          → requires projects + clients
+```
+
+**Pages with entity visibility guards** (pattern: all hooks first, then `if (!hasEntityVisibility('...')) return <LockScreen />`):
+`ResourcesPage`, `ProjectsPage`, `ContractsPage`, `RateCardsPage`, `ResourceRequestPage`, `InterviewsPage`, `LeavePage`.
+
+**IMPORTANT — React Hooks Rule:** When adding a visibility guard to a new page, always call `useAuth()` (and all other hooks) BEFORE the `if (!hasEntityVisibility(...)) return (...)` guard. Never place a hook call after an early return.
 
 ## TypeScript Conventions
 
@@ -401,8 +440,10 @@ API calls use `apiFetch()` from `services/apiClient.ts` which handles auth heade
 3. Define the TypeScript interface in `types.ts`.
 4. Choose the appropriate domain context and add state + CRUD operations there.
 5. Add the entity to the `initialize()` call in `AppContext.tsx` coordinator.
-6. Include the entity in `api/data.ts` bulk fetch.
+6. Include the entity in `api/data.ts` bulk fetch, wrapping the return with `canSee('entity_key') ? data : []`.
 7. Add mock data to `services/mockData.ts`.
+8. If the entity should be visibility-controlled: add it to `ENTITY_VISIBILITY_CONTROLLED` in `api/resources.ts` (line ~636), to `MANAGEABLE_ENTITIES` in `SecurityCenterPage.tsx`, to the DB seed in `api/_lib/schema.ts`, and to the mock seed in `services/mockData.ts`. Optionally add any dependency rules to `ENTITY_VISIBILITY_DEPS`.
+9. Add a `hasEntityVisibility('entity_key')` guard to the page component (after all hooks, before the main return).
 
 **If the entity needs a dedicated endpoint:**
 1. Create a new file in `api/` (e.g., `api/my-endpoint.ts`). Do **not** put it inside `api/_lib/`.
