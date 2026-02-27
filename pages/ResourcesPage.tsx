@@ -4,6 +4,7 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useSkillsContext } from '../context/SkillsContext';
+import { useAuth } from '../context/AuthContext';
 import { Resource, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -30,6 +31,7 @@ type EnrichedResource = Resource & {
 
 // --- Component ---
 const ResourcesPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const {
         resources, roles, addResource, updateResource,
     } = useResourcesContext();
@@ -38,7 +40,6 @@ const ResourcesPage: React.FC = () => {
     const { assignments } = useProjectsContext();
     const { skills, resourceSkills, addResourceSkill, deleteResourceSkill } = useSkillsContext();
     const { isActionLoading, loading } = useAppState();
-    
     const { allocations } = useAllocationsContext();
     const { addToast } = useToast();
     
@@ -563,6 +564,16 @@ const ResourcesPage: React.FC = () => {
             </div>
         </div>
     );
+
+    if (!hasEntityVisibility('resources')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Risorse.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div>

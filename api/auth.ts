@@ -109,6 +109,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
         const permRes = await client.sql`SELECT page_path FROM role_permissions WHERE role = ${user.role} AND is_allowed = TRUE`;
         const permissions = permRes.rows.map(r => r.page_path);
+
+        const visibilityRes = await client.sql`SELECT entity FROM role_entity_visibility WHERE role = ${user.role} AND is_visible = TRUE`;
+        const ALL_ENTITIES = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
+        // Se nessuna riga trovata (ruolo nuovo o seed non eseguito): default tutte visibili
+        const entityVisibility = visibilityRes.rows.length > 0
+            ? visibilityRes.rows.map(r => r.entity)
+            : ALL_ENTITIES;
+
         await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN', '{}', ${ip})`;
 
         return res.status(200).json({
@@ -120,6 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 role: user.role,
                 resourceId: user.resource_id,
                 permissions,
+                entityVisibility,
                 mustChangePassword: user.must_change_password,
             },
             isAdmin: user.role === 'ADMIN',

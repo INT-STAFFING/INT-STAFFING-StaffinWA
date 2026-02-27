@@ -40,11 +40,60 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
 
   if (path.endsWith('/api/data')) {
     const scope = params.scope || 'all';
+
+    // Determina il ruolo dell'utente corrente dalla sessione mock
+    const storedUser = typeof window !== 'undefined' ? localStorage.getItem('authUser') : null;
+    let currentRole: string = 'ADMIN';
+    try {
+        if (storedUser) currentRole = JSON.parse(storedUser).role || 'ADMIN';
+    } catch { /* fallback ADMIN */ }
+
+    // Calcola entità visibili per il ruolo corrente
+    const isAdminMock = currentRole === 'ADMIN';
+    const visibilityRules: any[] = (db as any).roleEntityVisibility || [];
+    const visibleSet = isAdminMock
+        ? null
+        : new Set(visibilityRules.filter((r: any) => r.role === currentRole && r.isVisible).map((r: any) => r.entity));
+    const canSeeMock = (entity: string) => isAdminMock || visibleSet === null || (visibleSet as Set<string>).size === 0 || (visibleSet as Set<string>).has(entity);
+
     if (scope === 'metadata') {
-        const { assignments, allocations, ...metadata } = db;
-        return metadata;
+        const { assignments, allocations, leaveRequests, resourceRequests, interviews, contracts, contractProjects, contractManagers, projectSkills, billingMilestones, wbsTasks, roleEntityVisibility: _rev, ...metadata } = db as any;
+        return {
+            ...metadata,
+            resources: canSeeMock('resources') ? metadata.resources : [],
+            projects: canSeeMock('projects') ? metadata.projects : [],
+            clients: canSeeMock('clients') ? metadata.clients : [],
+            skills: canSeeMock('skills') ? metadata.skills : [],
+            rateCards: canSeeMock('rate_cards') ? metadata.rateCards : [],
+            rateCardEntries: canSeeMock('rate_cards') ? metadata.rateCardEntries : [],
+            projectExpenses: canSeeMock('projects') ? metadata.projectExpenses : [],
+            resourceSkills: canSeeMock('resources') ? metadata.resourceSkills : [],
+        };
     }
-    return db;
+
+    const { roleEntityVisibility: _rev2, ...allData } = db as any;
+    return {
+        ...allData,
+        resources: canSeeMock('resources') ? allData.resources : [],
+        projects: canSeeMock('projects') ? allData.projects : [],
+        clients: canSeeMock('clients') ? allData.clients : [],
+        assignments: canSeeMock('assignments') ? allData.assignments : [],
+        allocations: canSeeMock('allocations') ? allData.allocations : {},
+        contracts: canSeeMock('contracts') ? allData.contracts : [],
+        contractProjects: canSeeMock('contracts') ? allData.contractProjects : [],
+        contractManagers: canSeeMock('contracts') ? allData.contractManagers : [],
+        leaveRequests: canSeeMock('leaves') ? allData.leaveRequests : [],
+        resourceRequests: canSeeMock('resource_requests') ? allData.resourceRequests : [],
+        interviews: canSeeMock('interviews') ? allData.interviews : [],
+        wbsTasks: canSeeMock('wbs_tasks') ? allData.wbsTasks : [],
+        billingMilestones: canSeeMock('billing_milestones') ? allData.billingMilestones : [],
+        skills: canSeeMock('skills') ? allData.skills : [],
+        rateCards: canSeeMock('rate_cards') ? allData.rateCards : [],
+        rateCardEntries: canSeeMock('rate_cards') ? allData.rateCardEntries : [],
+        projectExpenses: canSeeMock('projects') ? allData.projectExpenses : [],
+        resourceSkills: canSeeMock('resources') ? allData.resourceSkills : [],
+        projectSkills: canSeeMock('projects') ? allData.projectSkills : [],
+    };
   }
 
   // ─── Auth: login + config protezione ────────────────────────────────────────
@@ -60,18 +109,24 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (method === 'POST') {
       const { username } = JSON.parse(options.body as string);
       const mockUser = (db as any).users?.find((u: any) => u.username === username);
+      const loginRole = mockUser?.role || 'ADMIN';
+      const visibilityRulesLogin: any[] = (db as any).roleEntityVisibility || [];
+      const entityVisibilityLogin = loginRole === 'ADMIN'
+          ? ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations']
+          : visibilityRulesLogin.filter((r: any) => r.role === loginRole && r.isVisible).map((r: any) => r.entity);
       return {
         success: true,
         token: 'mock-jwt-token',
         user: {
           id: mockUser?.id || 'mock-admin-id',
           username: mockUser?.username || username || 'admin',
-          role: mockUser?.role || 'ADMIN',
+          role: loginRole,
           resourceId: mockUser?.resourceId || null,
           permissions: [],
+          entityVisibility: entityVisibilityLogin,
           mustChangePassword: false,
         },
-        isAdmin: true,
+        isAdmin: loginRole === 'ADMIN',
       };
     }
   }
@@ -80,6 +135,7 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     const entity = params.entity;
     let dbKey = entity;
     if (entity === 'leaves') dbKey = 'leaveRequests';
+    if (entity === 'role_entity_visibility') dbKey = 'roleEntityVisibility';
     if (entity === 'app-users') dbKey = 'users';
     if (entity === 'notification_rules') dbKey = 'notificationRules';
     if (entity === 'notification_configs') dbKey = 'notificationConfigs';
@@ -124,6 +180,16 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
         return { success: true };
       }
       return { error: 'Azione db_inspector non supportata in mock' };
+    }
+
+    // ── role_entity_visibility: bulk save ────────────────────────────────────
+    if (entity === 'role_entity_visibility' && method === 'POST') {
+      const { visibilityRules } = JSON.parse(options.body as string);
+      if (Array.isArray(visibilityRules)) {
+        (db as any).roleEntityVisibility = visibilityRules;
+        saveDb(db);
+      }
+      return { success: true };
     }
 
     // ── app-users: bulk password reset ───────────────────────────────────────

@@ -21,6 +21,7 @@ interface AuthContextType {
     logout: () => void;
     toggleLoginProtection: (enable: boolean) => Promise<void>;
     hasPermission: (path: string) => boolean;
+    hasEntityVisibility: (entity: string) => boolean;
     changePassword: (newPassword: string) => Promise<void>;
     impersonate: (userId: string) => Promise<void>;
 }
@@ -29,7 +30,7 @@ type AuthConfigResponse = { isEnabled: boolean };
 type LoginResponse = {
     success: boolean;
     token?: string;
-    user: { id: string; username: string; role: string; resourceId?: string; permissions?: string[]; mustChangePassword?: boolean };
+    user: { id: string; username: string; role: string; resourceId?: string; permissions?: string[]; entityVisibility?: string[]; mustChangePassword?: boolean };
 };
 
 // --- Contesto ---
@@ -99,6 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     resourceId: data.user.resourceId || null,
                     isActive: true,
                     permissions: data.user.permissions || [],
+                    entityVisibility: data.user.entityVisibility ?? [],
                     mustChangePassword: !!data.user.mustChangePassword
                 };
 
@@ -165,6 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     resourceId: data.user.resourceId || null,
                     isActive: true,
                     permissions: data.user.permissions || [],
+                    entityVisibility: data.user.entityVisibility ?? [],
                     mustChangePassword: false // Skip pw change check during impersonation
                 };
 
@@ -185,9 +188,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!user) return false;
         // CRITICAL: Admin always has permission to everything
         if (user.role === 'ADMIN') return true;
-        
+
         const cleanPath = path.split('?')[0].replace(/\/$/, '') || '/';
         return user.permissions.includes(cleanPath);
+    }, [user]);
+
+    const hasEntityVisibility = useCallback((entity: string): boolean => {
+        if (!user) return false;
+        // ADMIN vede sempre tutte le entità
+        if (user.role === 'ADMIN') return true;
+        // Se entityVisibility è vuoto (vecchia sessione senza il campo), default visibile per retro-compatibilità
+        if (!user.entityVisibility || user.entityVisibility.length === 0) return true;
+        return user.entityVisibility.includes(entity);
     }, [user]);
 
     const value = {
@@ -200,6 +212,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         toggleLoginProtection,
         hasPermission,
+        hasEntityVisibility,
         changePassword,
         impersonate
     };

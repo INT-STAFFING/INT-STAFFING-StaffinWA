@@ -3,6 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
+import { useAuth } from '../context/AuthContext';
 import { Contract, BillingType } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -56,6 +57,7 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
 
 // --- Component ---
 export const ContractsPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const {
         contracts, projects, contractProjects, contractManagers, rateCards,
         addContract, updateContract, deleteContract, recalculateContractBacklog,
@@ -368,6 +370,16 @@ export const ContractsPage: React.FC = () => {
         ],
       };
     }, [dataForTable, exportData]);
+
+    if (!hasEntityVisibility('contracts')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare i Contratti.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div>

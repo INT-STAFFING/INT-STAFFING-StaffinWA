@@ -8,6 +8,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
+import { useAuth } from '../context/AuthContext';
 import { RateCard, RateCardEntry, Resource } from '../types';
 import Modal from '../components/Modal';
 import { SpinnerIcon } from '../components/icons';
@@ -16,6 +17,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
 
 export default function RateCardsPage() {
+    const { hasEntityVisibility } = useAuth();
     const { rateCards, rateCardEntries, addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries } = useProjectsContext();
     const { roles, resources } = useResourcesContext();
     const { isActionLoading, loading } = useAppState();
@@ -209,9 +211,19 @@ export default function RateCardsPage() {
     }, [resourcesByRole, roles]);
 
 
+    if (!hasEntityVisibility('rate_cards')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Rate Card.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full flex flex-col md:flex-row gap-6 overflow-hidden">
-            
+
             {/* --- LEFT PANEL: LIST OF CARDS --- */}
             <div className="w-full md:w-1/3 lg:w-1/4 flex flex-col gap-4 min-w-[250px]">
                 <div className="flex justify-between items-center px-2">

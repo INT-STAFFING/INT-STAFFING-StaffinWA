@@ -41,6 +41,7 @@ const TABLE_MAPPING: Record<string, string> = {
     'resource_evaluations': 'resource_evaluations',
     'evaluation_metrics': 'evaluation_metrics',
     'resource_requests': 'resource_requests',
+    'role_entity_visibility': 'role_entity_visibility',
 };
 
 const VALIDATION_SCHEMAS: Record<string, any> = {
@@ -166,6 +167,11 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         role: z.string(),
         pagePath: z.string(),
         isAllowed: z.boolean().optional()
+    }),
+    'role_entity_visibility': z.object({
+        role: z.string(),
+        entity: z.string(),
+        isVisible: z.boolean()
     }),
     'leave_types': z.object({
         name: z.string(),
@@ -623,8 +629,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (method === 'GET') {
-            const sensitiveEntities = ['app_users', 'role_permissions', 'action_logs', 'db_inspector', 'theme', 'notification_configs', 'notification_rules'];
+            const sensitiveEntities = ['app_users', 'role_permissions', 'role_entity_visibility', 'action_logs', 'db_inspector', 'theme', 'notification_configs', 'notification_rules'];
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+
+            // Protezione entity-level: verifica che il ruolo corrente abbia visibilità sull'entità richiesta
+            const ENTITY_VISIBILITY_CONTROLLED = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'rate_card_entries', 'billing_milestones', 'leave_requests', 'resource_requests', 'interviews', 'wbs_tasks', 'resource_evaluations'];
+            const entityKeyForVisibility = (Object.entries(TABLE_MAPPING).find(([, v]) => v === tableName) || [tableName])[0];
+            if (currentUser && currentUser.role !== 'ADMIN' && ENTITY_VISIBILITY_CONTROLLED.includes(entityKeyForVisibility as string)) {
+                const visRes = await client.query(`SELECT entity FROM role_entity_visibility WHERE role = $1 AND is_visible = TRUE`, [currentUser.role]);
+                const visibleEntities = new Set(visRes.rows.map((r: any) => r.entity));
+                const checkKey = entityKeyForVisibility === 'leaves' ? 'leaves' : entityKeyForVisibility;
+                if (visRes.rows.length > 0 && !visibleEntities.has(checkKey as string)) {
+                    return res.status(403).json({ error: 'Entità non accessibile per questo ruolo.' });
+                }
+            }
             
             if (tableName === 'resource_evaluations') {
                 let queryStr = `SELECT * FROM resource_evaluations`;
@@ -701,16 +719,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  const { rows } = await client.query(`SELECT * FROM app_users WHERE id = $1`, [id]);
                  const targetUser = rows[0];
                  if (!targetUser) return res.status(404).json({ error: 'User not found' });
-                 
+
                  const token = jwt.sign(
                      { userId: targetUser.id, username: targetUser.username, role: targetUser.role },
                      env.JWT_SECRET,
                      { expiresIn: '8h' }
                  );
-                 
+
                  const permRes = await client.query(`SELECT page_path FROM role_permissions WHERE role = $1 AND is_allowed = TRUE`, [targetUser.role]);
                  const permissions = permRes.rows.map(r => r.page_path);
-                 
+
+                 const ALL_ENTITIES_IMP = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
+                 const visResImp = await client.query(`SELECT entity FROM role_entity_visibility WHERE role = $1 AND is_visible = TRUE`, [targetUser.role]);
+                 const entityVisibility = visResImp.rows.length > 0
+                     ? visResImp.rows.map(r => r.entity)
+                     : ALL_ENTITIES_IMP;
+
                  return res.status(200).json({
                      success: true,
                      token,
@@ -720,6 +744,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                          role: targetUser.role,
                          resourceId: targetUser.resource_id,
                          permissions,
+                         entityVisibility,
                          mustChangePassword: false
                      }
                  });
@@ -729,13 +754,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
                  const { permissions } = req.body;
                  if (!Array.isArray(permissions)) return res.status(400).json({ error: 'Invalid permissions data' });
-                 
+
                  await client.query('BEGIN');
                  await client.query('DELETE FROM role_permissions');
                  for (const p of permissions) {
                      await client.query(
                          `INSERT INTO role_permissions (role, page_path, is_allowed) VALUES ($1, $2, $3)`,
                          [p.role, p.pagePath, p.isAllowed ? true : false]
+                     );
+                 }
+                 await client.query('COMMIT');
+                 return res.status(200).json({ success: true });
+             }
+
+             if (entity === 'role_entity_visibility') {
+                 if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
+                 const { visibilityRules } = req.body;
+                 if (!Array.isArray(visibilityRules)) return res.status(400).json({ error: 'Dati visibilità entità non validi' });
+
+                 await client.query('BEGIN');
+                 await client.query('DELETE FROM role_entity_visibility');
+                 for (const rule of visibilityRules) {
+                     await client.query(
+                         `INSERT INTO role_entity_visibility (role, entity, is_visible) VALUES ($1, $2, $3)`,
+                         [rule.role, rule.entity, rule.isVisible ? true : false]
                      );
                  }
                  await client.query('COMMIT');

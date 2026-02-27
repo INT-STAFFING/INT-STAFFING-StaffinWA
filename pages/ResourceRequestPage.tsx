@@ -5,6 +5,7 @@ import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useHRContext } from '../context/HRContext';
+import { useAuth } from '../context/AuthContext';
 import { ResourceRequest, ResourceRequestStatus } from '../types';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -107,7 +108,8 @@ const ScoreBar: React.FC<{ score: number; colorClass: string; label: string }> =
 );
 
 export const ResourceRequestPage: React.FC = () => {
-    const { 
+    const { hasEntityVisibility } = useAuth();
+    const {
         resourceRequests, addResourceRequest, updateResourceRequest, deleteResourceRequest, getBestFitResources,
     } = useHRContext();
     const { projects } = useProjectsContext();
@@ -545,6 +547,16 @@ export const ResourceRequestPage: React.FC = () => {
         ],
       };
     }, [dataForTable, exportData]);
+
+    if (!hasEntityVisibility('resource_requests')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Richieste Risorsa.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

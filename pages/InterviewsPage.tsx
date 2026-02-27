@@ -3,6 +3,7 @@ import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useHRContext } from '../context/HRContext';
+import { useAuth } from '../context/AuthContext';
 import { useLookupContext } from '../context/LookupContext';
 import { Interview, InterviewFeedback, InterviewHiringStatus, InterviewStatus, Resource } from '../types';
 import Modal from '../components/Modal';
@@ -91,6 +92,7 @@ const RatingStarsDisplay: React.FC<{ value: number }> = ({ value }) => (
 );
 
 const InterviewsPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const { interviews, resourceRequests, addInterview, updateInterview, deleteInterview } = useHRContext();
     const { roles, resources } = useResourcesContext();
     const { projects } = useProjectsContext();
@@ -334,6 +336,16 @@ const InterviewsPage: React.FC = () => {
         ],
       };
     }, [dataForTable, exportData]);
+
+    if (!hasEntityVisibility('interviews')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare i Colloqui.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
