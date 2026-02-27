@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from './ToastContext';
 import { useEntitiesContext } from './AppContext';
 import { AppUser, UserRole } from '../types';
@@ -53,6 +54,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const { addToast } = useToast();
     const { fetchData } = useEntitiesContext();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const checkAuthState = async () => {
@@ -175,11 +177,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 // Re-fetch all data with the new user's token
                 await fetchData();
+
+                // Naviga alla home dopo il re-fetch per evitare di rimanere su una pagina
+                // non accessibile dall'utente impersonato (es. /security-center)
+                navigate('/');
             }
         } catch (error) {
             addToast(`Errore impersonificazione: ${(error as Error).message}`, 'error');
         }
-    }, [addToast, fetchData]);
+    }, [addToast, fetchData, navigate]);
 
     const hasPermission = useCallback((path: string): boolean => {
         if (!user) return false;

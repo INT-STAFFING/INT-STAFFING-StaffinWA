@@ -131,7 +131,9 @@ export const RoutesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const preferredRoute = preferred ? enabledRoutes.find(route => route.path === preferred) : undefined;
             if (preferredRoute) return preferredRoute.path;
 
-            const defaultRoute = enabledRoutes.find(route => route.isDefaultHome) ?? enabledRoutes[0];
+            // Esclude le route non autenticate (es. /login) dalla selezione dell'home page
+            const authRoutes = enabledRoutes.filter(r => r.requiresAuth !== false);
+            const defaultRoute = authRoutes.find(route => route.isDefaultHome) ?? authRoutes[0];
             return defaultRoute?.path ?? '/';
         },
         [enabledRoutes, roleHomePages]
