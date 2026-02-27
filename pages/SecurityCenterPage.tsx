@@ -692,6 +692,61 @@ const EntityVisibilityPillar: React.FC = () => {
 
     const { addToast } = useToast();
 
+    // Tutte le useMemo PRIMA di qualsiasi early return (regola hook di React)
+    const entityGroups = useMemo(() => {
+        const groups: Record<string, typeof MANAGEABLE_ENTITIES> = {};
+        MANAGEABLE_ENTITIES.forEach(e => {
+            if (!groups[e.group]) groups[e.group] = [];
+            groups[e.group].push(e);
+        });
+        return groups;
+    }, []);
+
+    const dependencyErrors = useMemo(() => {
+        const rules = visibilityData || [];
+        const errors: string[] = [];
+        for (const [entity, deps] of Object.entries(ENTITY_VISIBILITY_DEPS)) {
+            for (const role of ENTITY_VISIBILITY_ROLES) {
+                const entityRule = rules.find(r => r.role === role && r.entity === entity);
+                const entityVisible = entityRule ? entityRule.isVisible : true;
+                if (entityVisible) {
+                    for (const dep of deps) {
+                        const depRule = rules.find(r => r.role === role && r.entity === dep);
+                        const depVisible = depRule ? depRule.isVisible : true;
+                        if (!depVisible) {
+                            const entityLabel = MANAGEABLE_ENTITIES.find(e => e.key === entity)?.label ?? entity;
+                            const depLabel = MANAGEABLE_ENTITIES.find(e => e.key === dep)?.label ?? dep;
+                            errors.push(`${role}: "${entityLabel}" richiede "${depLabel}" visibile`);
+                        }
+                    }
+                }
+            }
+        }
+        return errors;
+    }, [visibilityData]);
+
+    // Calcola errori per entità+ruolo specifico (per evidenziare celle problematiche)
+    const errorSet = useMemo(() => {
+        const set = new Set<string>();
+        for (const [entity, deps] of Object.entries(ENTITY_VISIBILITY_DEPS)) {
+            for (const role of ENTITY_VISIBILITY_ROLES) {
+                const entityRule = (visibilityData || []).find(r => r.role === role && r.entity === entity);
+                const entityVisible = entityRule ? entityRule.isVisible : true;
+                if (entityVisible) {
+                    for (const dep of deps) {
+                        const depRule = (visibilityData || []).find(r => r.role === role && r.entity === dep);
+                        const depVisible = depRule ? depRule.isVisible : true;
+                        if (!depVisible) {
+                            set.add(`${role}:${dep}`); // il dep mancante è il problema
+                        }
+                    }
+                }
+            }
+        }
+        return set;
+    }, [visibilityData]);
+
+    // Early return DOPO tutti gli hook
     if (error) {
         return (
             <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
@@ -743,8 +798,6 @@ const EntityVisibilityPillar: React.FC = () => {
         return errors;
     };
 
-    const dependencyErrors = useMemo(() => validateDependencies(visibilityData || []), [visibilityData]);
-
     const handleSave = async () => {
         if (!visibilityData) {
             addToast('Dati non pronti', 'warning');
@@ -765,36 +818,6 @@ const EntityVisibilityPillar: React.FC = () => {
             addToast(`Errore nel salvataggio: ${e.message}`, 'error');
         }
     };
-
-    const entityGroups = useMemo(() => {
-        const groups: Record<string, typeof MANAGEABLE_ENTITIES> = {};
-        MANAGEABLE_ENTITIES.forEach(e => {
-            if (!groups[e.group]) groups[e.group] = [];
-            groups[e.group].push(e);
-        });
-        return groups;
-    }, []);
-
-    // Calcola errori per entità+ruolo specifico (per evidenziare celle problematiche)
-    const errorSet = useMemo(() => {
-        const set = new Set<string>();
-        for (const [entity, deps] of Object.entries(ENTITY_VISIBILITY_DEPS)) {
-            for (const role of ENTITY_VISIBILITY_ROLES) {
-                const entityRule = (visibilityData || []).find(r => r.role === role && r.entity === entity);
-                const entityVisible = entityRule ? entityRule.isVisible : true;
-                if (entityVisible) {
-                    for (const dep of deps) {
-                        const depRule = (visibilityData || []).find(r => r.role === role && r.entity === dep);
-                        const depVisible = depRule ? depRule.isVisible : true;
-                        if (!depVisible) {
-                            set.add(`${role}:${dep}`); // il dep mancante è il problema
-                        }
-                    }
-                }
-            }
-        }
-        return set;
-    }, [visibilityData]);
 
     return (
         <div className="space-y-6">
