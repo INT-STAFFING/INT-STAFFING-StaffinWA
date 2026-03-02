@@ -9,6 +9,13 @@ import { INITIAL_MOCK_DATA } from './mockData';
 
 const STORAGE_KEY = 'staffing_planner_local_db_v1';
 
+/** Lista di tutte le entità gestibili — deve corrispondere a ALL_MANAGEABLE_ENTITIES in api/_lib/auth.ts */
+const ALL_ENTITIES_MOCK = [
+    'resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts',
+    'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews',
+    'wbs_tasks', 'billing_milestones', 'resource_evaluations',
+];
+
 const getDb = () => {
   if (typeof window === 'undefined') return INITIAL_MOCK_DATA;
   const stored = localStorage.getItem(STORAGE_KEY);
@@ -112,7 +119,7 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       const loginRole = mockUser?.role || 'ADMIN';
       const visibilityRulesLogin: any[] = (db as any).roleEntityVisibility || [];
       const entityVisibilityLogin = loginRole === 'ADMIN'
-          ? ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations']
+          ? ALL_ENTITIES_MOCK
           : visibilityRulesLogin.filter((r: any) => r.role === loginRole && r.isVisible).map((r: any) => r.entity);
       return {
         success: true,
@@ -198,10 +205,9 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
       const targetUser = users.find((u: any) => u.id === params.id);
       if (!targetUser) return { error: 'Utente non trovato' };
       const impRole = targetUser.role || 'SIMPLE';
-      const allEntities = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
       const visRulesImp: any[] = (db as any).roleEntityVisibility || [];
       const entityVisibilityImp = impRole === 'ADMIN'
-        ? allEntities
+        ? ALL_ENTITIES_MOCK
         : visRulesImp.filter((r: any) => r.role === impRole && r.isVisible).map((r: any) => r.entity);
       return {
         success: true,

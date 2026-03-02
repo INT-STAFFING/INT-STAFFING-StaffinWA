@@ -9,6 +9,7 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useHRContext } from '../context/HRContext';
+import { useAuth } from '../context/AuthContext';
 import { Resource, Assignment, LeaveRequest, LeaveType, Role } from '../types';
 import { getCalendarDays, formatDate, addDays, isHoliday, getWorkingDaysBetween, formatDateSynthetic } from '../utils/dateUtils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -153,6 +154,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
 });
 
 const WorkloadPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
     // Destructured loading from useEntitiesContext to fix line 510 error
@@ -517,6 +519,16 @@ const WorkloadPage: React.FC = () => {
         ],
       };
     }, [displayData, timeColumns, calculateAvgLoadForPeriod, exportData]);
+
+    if (!hasEntityVisibility('allocations')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare il Carico di Lavoro.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full">

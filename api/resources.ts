@@ -16,6 +16,14 @@ const JSONB_FIELDS: Record<string, string[]> = {
     'notification_rules': ['templateBlocks'],
 };
 
+// Entità soggette al controllo di visibilità per ruolo (Layer 3 RBAC).
+// Lista unica condivisa tra GET, POST, PUT, DELETE.
+const ENTITY_VISIBILITY_CONTROLLED = [
+    'resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts',
+    'rate_cards', 'rate_card_entries', 'billing_milestones', 'leave_requests',
+    'resource_requests', 'interviews', 'wbs_tasks', 'resource_evaluations',
+];
+
 const TABLE_MAPPING: Record<string, string> = {
     'leaves': 'leave_requests',
     'leave_types': 'leave_types',
@@ -555,6 +563,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentUser = getUserFromRequest(req);
     const tableName = TABLE_MAPPING[entity as string] || entity;
 
+    // Helper: verifica visibilità entità per il ruolo corrente (Layer 3 RBAC)
+    const checkEntityVisibility = async (): Promise<boolean> => {
+        const entityKey = (Object.entries(TABLE_MAPPING).find(([, v]) => v === tableName) || [tableName])[0];
+        if (!currentUser || currentUser.role === 'ADMIN') return true;
+        if (!ENTITY_VISIBILITY_CONTROLLED.includes(entityKey as string)) return true;
+        const visRes = await client.query(`SELECT entity FROM role_entity_visibility WHERE role = $1 AND is_visible = TRUE`, [currentUser.role]);
+        if (visRes.rows.length === 0) return true; // Backward-compat: nessuna riga = tutte visibili
+        const checkKey = entityKey === 'leaves' ? 'leaves' : entityKey;
+        return new Set(visRes.rows.map((r: any) => r.entity)).has(checkKey as string);
+    };
+
     try {
         if (entity === 'db_inspector') {
             if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
@@ -633,15 +652,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (sensitiveEntities.includes(tableName as string) && !verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
 
             // Protezione entity-level: verifica che il ruolo corrente abbia visibilità sull'entità richiesta
-            const ENTITY_VISIBILITY_CONTROLLED = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'rate_card_entries', 'billing_milestones', 'leave_requests', 'resource_requests', 'interviews', 'wbs_tasks', 'resource_evaluations'];
-            const entityKeyForVisibility = (Object.entries(TABLE_MAPPING).find(([, v]) => v === tableName) || [tableName])[0];
-            if (currentUser && currentUser.role !== 'ADMIN' && ENTITY_VISIBILITY_CONTROLLED.includes(entityKeyForVisibility as string)) {
-                const visRes = await client.query(`SELECT entity FROM role_entity_visibility WHERE role = $1 AND is_visible = TRUE`, [currentUser.role]);
-                const visibleEntities = new Set(visRes.rows.map((r: any) => r.entity));
-                const checkKey = entityKeyForVisibility === 'leaves' ? 'leaves' : entityKeyForVisibility;
-                if (visRes.rows.length > 0 && !visibleEntities.has(checkKey as string)) {
-                    return res.status(403).json({ error: 'Entità non accessibile per questo ruolo.' });
-                }
+            if (!(await checkEntityVisibility())) {
+                return res.status(403).json({ error: 'Entità non accessibile per questo ruolo.' });
             }
             
             if (tableName === 'resource_evaluations') {
@@ -692,7 +704,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (method === 'POST') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
-             
+             // Layer 3: verifica visibilità entità anche per scrittura
+             if (!(await checkEntityVisibility())) {
+                 return res.status(403).json({ error: 'Entità non accessibile per questo ruolo.' });
+             }
+
              if (entity === 'app-users' && action === 'bulk_password_reset') {
                  if (!verifyAdmin(req)) return res.status(403).json({ error: 'Forbidden' });
                  const { users } = req.body as { users: Array<{ username: string; password: string }> };
@@ -868,6 +884,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             }
 
             if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+            // Layer 3: verifica visibilità entità anche per aggiornamento
+            if (!(await checkEntityVisibility())) {
+                return res.status(403).json({ error: 'Entità non accessibile per questo ruolo.' });
+            }
             const { version } = req.body;
             const schema = VALIDATION_SCHEMAS[tableName as string];
             const dataToValidate = { ...req.body };
@@ -900,6 +920,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (method === 'DELETE') {
              if (!currentUser || !OPERATIONAL_ROLES.includes(currentUser.role)) return res.status(403).json({ error: 'Unauthorized' });
+             // Layer 3: verifica visibilità entità anche per eliminazione
+             if (!(await checkEntityVisibility())) {
+                 return res.status(403).json({ error: 'Entità non accessibile per questo ruolo.' });
+             }
 
              // Composite-key delete for join tables (no id column)
              if (tableName === 'contract_projects' && req.query.contractId && req.query.projectId) {

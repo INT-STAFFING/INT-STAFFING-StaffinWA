@@ -249,7 +249,7 @@ Server-side utilities shared across Vercel functions live in `api/_lib/`. Files 
 
 - **`api/_lib/db.ts`** — PostgreSQL connection pool (`@vercel/postgres`). Import `db` from here in all API handlers.
 - **`api/_lib/env.ts`** — Validates required env vars (`JWT_SECRET`, `POSTGRES_URL`) at startup and throws if missing. Import typed `env` object from here instead of raw `process.env`.
-- **`api/_lib/auth.ts`** — Shared JWT verification helpers: `verifyAdmin(req)` asserts ADMIN role; `getUserFromRequest(req)` extracts user `{ id, username, role }` from Bearer token. Exports `OPERATIONAL_ROLES` (`['ADMIN', 'MANAGER', 'SENIOR MANAGER', 'MANAGING DIRECTOR']`).
+- **`api/_lib/auth.ts`** — Shared JWT verification helpers: `verifyAdmin(req)` asserts ADMIN role; `getUserFromRequest(req)` extracts user `{ id, username, role }` from Bearer token. Exports `OPERATIONAL_ROLES` (`['ADMIN', 'MANAGER', 'MANAGER_EXT', 'SENIOR MANAGER', 'SENIOR MANAGER_EXT', 'ASSOCIATE DIRECTOR', 'ASSOCIATE DIRECTOR_EXT', 'MANAGING DIRECTOR', 'MANAGING DIRECTOR_EXT']`) and `ALL_MANAGEABLE_ENTITIES` (the single-source-of-truth entity list for visibility control).
 - **`api/_lib/schema.ts`** — Full database schema DDL. `ensureDbTablesExist()` is called lazily on first request. Includes `role_entity_visibility` table seeded with all non-ADMIN roles × all manageable entities, `is_visible = TRUE` by default (backward-compatible).
 
 **Local/Preview Mode:** `apiClient.ts` detects non-production environments by checking the hostname/port and intercepts all `/api/*` calls, routing them to the in-memory mock engine (`mockHandlers.ts` + `mockData.ts`).
@@ -307,7 +307,7 @@ API calls use `apiFetch()` from `services/apiClient.ts` which handles auth heade
 |---|---|---|---|
 | 1. Route permissions | `role_permissions` | `DynamicRoute` + `hasPermission()` | Page-level: which routes a role can access |
 | 2. Operation permissions | `OPERATIONAL_ROLES` constant | API checks in `api/resources.ts` | Write operations: only operational roles can create/update/delete |
-| 3. Entity visibility | `role_entity_visibility` | `canSee()` in `api/data.ts`, GET guard in `api/resources.ts`, `hasEntityVisibility()` in pages | Data-level: which entity types a role can see |
+| 3. Entity visibility | `role_entity_visibility` | `canSee()` in `api/data.ts`, GET/POST/PUT/DELETE guard in `api/resources.ts`, `hasEntityVisibility()` in pages | Data-level: which entity types a role can see/write |
 
 **Roles:** `SIMPLE`, `SIMPLE_EXT`, `MANAGER`, `MANAGER_EXT`, `SENIOR MANAGER`, `SENIOR MANAGER_EXT`, `ASSOCIATE DIRECTOR`, `ASSOCIATE DIRECTOR_EXT`, `MANAGING DIRECTOR`, `MANAGING DIRECTOR_EXT`, `ADMIN`. ADMIN always bypasses all checks.
 
@@ -315,13 +315,14 @@ API calls use `apiFetch()` from `services/apiClient.ts` which handles auth heade
 
 The `role_entity_visibility` table controls which entity types each role can see. Managed via the **"Entity Visibility"** pillar in `pages/SecurityCenterPage.tsx`.
 
-- **At login** (`api/auth.ts`): visible entity list is fetched for the user's role and embedded in the JWT payload as `entityVisibility: string[]`.
+- **At login** (`api/auth.ts`): visible entity list is fetched for the user's role and returned in the login response as `entityVisibility: string[]` (stored client-side in `localStorage['authUser']`).
 - **At bulk fetch** (`api/data.ts`): `canSee(entity)` helper filters all returned data per role.
 - **At individual GET** (`api/resources.ts`): Entity-level guard returns `403` if the requesting role lacks visibility.
+- **At write operations** (`api/resources.ts`): POST/PUT/DELETE also enforce entity visibility via `checkEntityVisibility()` — a role without visibility on an entity cannot create, update, or delete records of that type.
 - **At page render** (per-page): `hasEntityVisibility(entity)` from `useAuth()` shows a lock screen instead of the data table.
 - **Backward compatibility**: missing rows in `role_entity_visibility` default to visible (`true`). Old sessions without `entityVisibility` field also default to full visibility.
 
-**Manageable entities:** `resources`, `projects`, `clients`, `assignments`, `allocations`, `contracts`, `rate_cards`, `skills`, `leaves`, `resource_requests`, `interviews`, `wbs_tasks`, `billing_milestones`, `resource_evaluations`.
+**Manageable entities** (defined in `ALL_MANAGEABLE_ENTITIES` constant in `api/_lib/auth.ts`): `resources`, `projects`, `clients`, `assignments`, `allocations`, `contracts`, `rate_cards`, `skills`, `roles`, `leaves`, `resource_requests`, `interviews`, `wbs_tasks`, `billing_milestones`, `resource_evaluations`.
 
 **Dependency constraints** (enforced by UI validation before save):
 ```
@@ -336,7 +337,7 @@ contracts          → requires projects + clients
 ```
 
 **Pages with entity visibility guards** (pattern: all hooks first, then `if (!hasEntityVisibility('...')) return <LockScreen />`):
-`ResourcesPage`, `ProjectsPage`, `ContractsPage`, `RateCardsPage`, `ResourceRequestPage`, `InterviewsPage`, `LeavePage`.
+`ResourcesPage`, `ProjectsPage`, `ContractsPage`, `RateCardsPage`, `ResourceRequestPage`, `InterviewsPage`, `LeavePage`, `SkillsPage`, `SkillsMapPage`, `PerformanceTimeline`, `WbsAllocationPage`, `WorkloadPage`.
 
 **IMPORTANT — React Hooks Rule:** When adding a visibility guard to a new page, always call `useAuth()` (and all other hooks) BEFORE the `if (!hasEntityVisibility(...)) return (...)` guard. Never place a hook call after an early return.
 

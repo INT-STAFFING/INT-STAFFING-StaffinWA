@@ -8,6 +8,7 @@ import React, { useState, useMemo } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useSkillsContext } from '../context/SkillsContext';
+import { useAuth } from '../context/AuthContext';
 import { useGetResourceComputedSkills } from '../hooks/useComputedSkills';
 import { Resource, ComputedSkill, SKILL_LEVELS, SkillLevelValue } from '../types';
 import Modal from '../components/Modal';
@@ -47,6 +48,7 @@ type EnrichedSkillResource = Resource & {
 type DisplayMode = 'all' | 'skills_only' | 'certs_only' | 'empty';
 
 const SkillsMapPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const { resources, roles } = useResourcesContext();
     const { skills, resourceSkills, addResourceSkill, deleteResourceSkill, skillCategories, skillMacroCategories } = useSkillsContext();
     const getResourceComputedSkills = useGetResourceComputedSkills();
@@ -455,6 +457,16 @@ const SkillsMapPage: React.FC = () => {
             </div>
         </div>
     );
+
+    if (!hasEntityVisibility('skills')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare la Mappa Competenze.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
