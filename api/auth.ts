@@ -10,7 +10,7 @@
 
 import { db } from './_lib/db.js';
 import { env } from './_lib/env.js';
-import { verifyAdmin } from './_lib/auth.js';
+import { verifyAdmin, ALL_MANAGEABLE_ENTITIES } from './_lib/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -111,11 +111,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const permissions = permRes.rows.map(r => r.page_path);
 
         const visibilityRes = await client.sql`SELECT entity FROM role_entity_visibility WHERE role = ${user.role} AND is_visible = TRUE`;
-        const ALL_ENTITIES = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
         // Se nessuna riga trovata (ruolo nuovo o seed non eseguito): default tutte visibili
         const entityVisibility = visibilityRes.rows.length > 0
             ? visibilityRes.rows.map(r => r.entity)
-            : ALL_ENTITIES;
+            : ALL_MANAGEABLE_ENTITIES;
 
         await client.sql`INSERT INTO action_logs (user_id, username, action, details, ip_address) VALUES (${user.id}, ${username}, 'LOGIN', '{}', ${ip})`;
 

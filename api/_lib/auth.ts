@@ -20,6 +20,13 @@ export const OPERATIONAL_ROLES: string[] = [
     'MANAGING DIRECTOR_EXT',
 ];
 
+/** Lista di tutte le entità gestibili soggette a controllo di visibilità (Layer 3 RBAC). */
+export const ALL_MANAGEABLE_ENTITIES: string[] = [
+    'resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts',
+    'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews',
+    'wbs_tasks', 'billing_milestones', 'resource_evaluations',
+];
+
 /**
  * Verifica che la richiesta provenga da un utente con ruolo ADMIN.
  */

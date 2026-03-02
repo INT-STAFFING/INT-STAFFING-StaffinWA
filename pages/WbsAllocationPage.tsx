@@ -9,6 +9,7 @@ import { useAllocationsContext, useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
+import { useAuth } from '../context/AuthContext';
 import { getWorkingDaysBetween, isHoliday, formatDate, formatDateFull } from '../utils/dateUtils';
 import { formatCurrency } from '../utils/formatters';
 import SearchableSelect from '../components/SearchableSelect';
@@ -178,7 +179,8 @@ const ResourceRow: React.FC<{
 // --- Main Component ---
 
 export const WbsAllocationPage: React.FC = () => {
-    const { 
+    const { hasEntityVisibility } = useAuth();
+    const {
         assignments, projects, contracts, clients,
     } = useProjectsContext();
     const { resources, roles, getRoleCost } = useResourcesContext();
@@ -389,9 +391,19 @@ export const WbsAllocationPage: React.FC = () => {
 
     const clientOptions = useMemo(() => clients.map(c => ({ value: c.id!, label: c.name })), [clients]);
 
+    if (!hasEntityVisibility('wbs_tasks')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Allocazioni WBS.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full space-y-6">
-            
+
             {/* Header & Controls */}
             <div className="flex flex-col space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

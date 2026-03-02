@@ -115,7 +115,7 @@ export const PerformanceTimelinePage: React.FC = () => {
         addEvaluation, updateEvaluation, deleteEvaluation,
     } = useResourcesContext();
     const { isActionLoading } = useAppState();
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, hasEntityVisibility } = useAuth();
     const { addToast } = useToast();
 
     const [selectedResourceId, setSelectedResourceId] = useState<string>('');
@@ -226,6 +226,16 @@ export const PerformanceTimelinePage: React.FC = () => {
             }
         }
     };
+
+    if (!hasEntityVisibility('resource_evaluations')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Valutazioni.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-20">

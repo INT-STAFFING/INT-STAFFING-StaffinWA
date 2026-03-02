@@ -6,7 +6,7 @@
 
 import { db } from './_lib/db.js';
 import { ensureDbTablesExist } from './_lib/schema.js';
-import { getUserFromRequest } from './_lib/auth.js';
+import { getUserFromRequest, ALL_MANAGEABLE_ENTITIES } from './_lib/auth.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { CalendarEvent, Allocation } from '../types';
 
@@ -55,7 +55,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Calcola visibilità entità per il ruolo corrente
-        const ALL_ENTITIES_DATA = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
         const currentUser = getUserFromRequest(req);
         const isAdmin = !currentUser || currentUser.role === 'ADMIN';
         let visibleEntities: Set<string> | null = null;
@@ -63,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const visRes = await db.query(`SELECT entity FROM role_entity_visibility WHERE role = $1 AND is_visible = TRUE`, [currentUser!.role]);
             visibleEntities = visRes.rows.length > 0
                 ? new Set(visRes.rows.map((r: any) => r.entity))
-                : new Set(ALL_ENTITIES_DATA);
+                : new Set(ALL_MANAGEABLE_ENTITIES);
         }
         // Ritorna true se l'entità è visibile per il ruolo corrente
         const canSee = (entity: string): boolean => isAdmin || visibleEntities === null || visibleEntities.has(entity);

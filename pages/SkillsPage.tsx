@@ -8,6 +8,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useSkillsContext } from '../context/SkillsContext';
+import { useAuth } from '../context/AuthContext';
 import { Skill, SKILL_LEVELS } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -29,6 +30,7 @@ type EnrichedSkill = Skill & {
 };
 
 const SkillsPage: React.FC = () => {
+    const { hasEntityVisibility } = useAuth();
     const { skills, resourceSkills, projectSkills, skillCategories, addSkill, updateSkill, deleteSkill, addResourceSkill } = useSkillsContext();
     const { resources } = useResourcesContext();
     const { isActionLoading, loading } = useAppState();
@@ -420,6 +422,16 @@ const SkillsPage: React.FC = () => {
         ],
       };
     }, [filteredSkills, exportData]);
+
+    if (!hasEntityVisibility('skills')) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-center">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant">lock</span>
+                <p className="text-on-surface-variant font-bold">Non hai i permessi per visualizzare le Competenze.</p>
+                <p className="text-xs text-on-surface-variant">Contatta un amministratore per richiedere l'accesso.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
