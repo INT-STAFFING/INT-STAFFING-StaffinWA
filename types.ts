@@ -355,6 +355,7 @@ export interface AppUser {
     username: string;
     role: UserRole;
     resourceId: string | null;
+    managerId?: string | null;
     isActive: boolean;
     permissions: string[];
     entityVisibility: string[];

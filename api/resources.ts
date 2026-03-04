@@ -221,6 +221,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         username: z.string(),
         role: z.string(),
         resourceId: z.string().optional().nullable(),
+        managerId: z.string().optional().nullable(),
         isActive: z.boolean().optional().nullable()
     }),
     'notification_configs': z.object({
@@ -845,8 +846,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  const hashedPassword = await bcrypt.hash("ChangeMe123!", salt);
                  const newId = uuidv4();
                  await client.query(
-                     `INSERT INTO app_users (id, username, password_hash, role, resource_id, is_active, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
-                     [newId, validatedBody.username, hashedPassword, validatedBody.role, validatedBody.resourceId || null, validatedBody.isActive ?? true]
+                     `INSERT INTO app_users (id, username, password_hash, role, resource_id, manager_id, is_active, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
+                     [newId, validatedBody.username, hashedPassword, validatedBody.role, validatedBody.resourceId || null, validatedBody.managerId || null, validatedBody.isActive ?? true]
                  );
                  await notify(client, 'USER_CREATED', {
                      title: 'Nuovo Utente di Sistema Creato',

@@ -415,6 +415,10 @@ const IdentityPillar: React.FC = () => {
                                 <label className="block text-sm font-bold mb-1 text-on-surface-variant">Associa a Risorsa</label>
                                 <SearchableSelect name="resourceId" value={editingUser.resourceId || ''} onChange={(_, v) => setEditingUser({...editingUser, resourceId: v})} options={resourceOptions} placeholder="Seleziona risorsa..." />
                             </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1 text-on-surface-variant">Manager (Superiore Gerarchico)</label>
+                                <SearchableSelect name="managerId" value={editingUser.managerId || ''} onChange={(_, v) => setEditingUser({...editingUser, managerId: v || null})} options={(users || []).filter(u => u.id !== editingUser.id).map(u => ({ value: u.id, label: `${u.username} (${u.role})` }))} placeholder="Nessun manager (root)..." />
+                            </div>
                             <div className="flex items-center gap-3 p-3 bg-surface-container rounded-2xl">
                                 <input type="checkbox" checked={editingUser.isActive} onChange={e => setEditingUser({...editingUser, isActive: e.target.checked})} className="form-checkbox h-6 w-6" id="user-active" />
                                 <label htmlFor="user-active" className="text-sm font-bold">Account Abilitato all'accesso</label>
@@ -1376,16 +1380,310 @@ const AuditPillar: React.FC = () => {
     );
 };
 
+// --- PILASTRO 6: GERARCHIA ORGANIZZATIVA ---
+interface HierarchyNode {
+    user: AppUser;
+    children: HierarchyNode[];
+}
+
+const HierarchyPillar: React.FC = () => {
+    const { data: users, loading, error, updateCache } = useAuthorizedResource<AppUser[]>(
+        'security-users',
+        createAuthorizedFetcher<AppUser[]>('/api/resources?entity=app-users')
+    );
+    const { resources } = useResourcesContext();
+    const { addToast } = useToast();
+    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
+
+    const resourceMap = useMemo(() => {
+        const map: Record<string, { name: string; function: string; roleId: string }> = {};
+        resources.forEach(r => { if (r.id) map[r.id] = { name: r.name, function: r.function, roleId: r.roleId }; });
+        return map;
+    }, [resources]);
+
+    const { roots, orphans } = useMemo(() => {
+        if (!users) return { roots: [] as HierarchyNode[], orphans: [] as AppUser[] };
+        const userMap = new Map<string, AppUser>();
+        users.forEach(u => userMap.set(u.id, u));
+
+        const childrenMap = new Map<string, HierarchyNode[]>();
+        const rootNodes: HierarchyNode[] = [];
+        const orphanUsers: AppUser[] = [];
+
+        // Build children map
+        users.forEach(u => {
+            if (u.managerId && userMap.has(u.managerId)) {
+                if (!childrenMap.has(u.managerId)) childrenMap.set(u.managerId, []);
+                childrenMap.get(u.managerId)!.push({ user: u, children: [] });
+            } else if (u.role === 'ADMIN' || !u.managerId) {
+                rootNodes.push({ user: u, children: [] });
+            } else {
+                orphanUsers.push(u);
+            }
+        });
+
+        // Recursively attach children
+        const buildTree = (node: HierarchyNode): HierarchyNode => {
+            const kids = childrenMap.get(node.user.id) || [];
+            node.children = kids.map(buildTree).sort((a, b) => a.user.username.localeCompare(b.user.username));
+            return node;
+        };
+
+        return {
+            roots: rootNodes.map(buildTree).sort((a, b) => {
+                if (a.user.role === 'ADMIN' && b.user.role !== 'ADMIN') return -1;
+                if (b.user.role === 'ADMIN' && a.user.role !== 'ADMIN') return 1;
+                return a.user.username.localeCompare(b.user.username);
+            }),
+            orphans: orphanUsers,
+        };
+    }, [users]);
+
+    const countDescendants = useCallback((node: HierarchyNode): number => {
+        return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0);
+    }, []);
+
+    const toggleExpand = useCallback((id: string) => {
+        setExpandedNodes(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const expandAll = useCallback(() => {
+        if (!users) return;
+        setExpandedNodes(new Set(users.map(u => u.id)));
+    }, [users]);
+
+    const collapseAll = useCallback(() => {
+        setExpandedNodes(new Set());
+    }, []);
+
+    const handleManagerChange = useCallback(async (userId: string, newManagerId: string | null) => {
+        if (!users) return;
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+        try {
+            const updated = await authorizedJsonFetch<AppUser>(`/api/resources?entity=app-users&id=${userId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ ...user, managerId: newManagerId })
+            });
+            updateCache(prev => (prev || []).map(u => u.id === userId ? { ...u, managerId: newManagerId, version: updated.version } : u));
+            addToast('Gerarchia aggiornata con successo', 'success');
+            setEditingUserId(null);
+        } catch (e: any) {
+            addToast(`Errore: ${e.message}`, 'error');
+        }
+    }, [users, updateCache, addToast]);
+
+    const ROLE_COLORS: Record<string, string> = {
+        'ADMIN': 'bg-error/15 text-error border-error/30',
+        'MANAGING DIRECTOR': 'bg-primary/15 text-primary border-primary/30',
+        'MANAGING DIRECTOR_EXT': 'bg-primary/10 text-primary border-primary/20',
+        'ASSOCIATE DIRECTOR': 'bg-tertiary/15 text-tertiary border-tertiary/30',
+        'ASSOCIATE DIRECTOR_EXT': 'bg-tertiary/10 text-tertiary border-tertiary/20',
+        'SENIOR MANAGER': 'bg-secondary/15 text-secondary border-secondary/30',
+        'SENIOR MANAGER_EXT': 'bg-secondary/10 text-secondary border-secondary/20',
+        'MANAGER': 'bg-primary/10 text-on-surface border-primary/20',
+        'MANAGER_EXT': 'bg-primary/5 text-on-surface-variant border-primary/10',
+        'SIMPLE': 'bg-surface-container text-on-surface-variant border-outline-variant',
+        'SIMPLE_EXT': 'bg-surface-container-low text-on-surface-variant border-outline-variant/50',
+    };
+
+    const renderNode = (node: HierarchyNode, depth: number = 0): React.ReactNode => {
+        const { user } = node;
+        const isExpanded = expandedNodes.has(user.id);
+        const hasChildren = node.children.length > 0;
+        const descendantCount = countDescendants(node);
+        const resource = user.resourceId ? resourceMap[user.resourceId] : null;
+        const isEditing = editingUserId === user.id;
+        const roleColor = ROLE_COLORS[user.role] || ROLE_COLORS['SIMPLE'];
+
+        return (
+            <div key={user.id} className="relative">
+                {/* Connector line */}
+                {depth > 0 && (
+                    <div className="absolute left-0 top-0 bottom-0 border-l-2 border-outline-variant/40" style={{ marginLeft: `${(depth - 1) * 32 + 16}px` }} />
+                )}
+                {depth > 0 && (
+                    <div className="absolute border-t-2 border-outline-variant/40" style={{ left: `${(depth - 1) * 32 + 16}px`, top: '24px', width: '16px' }} />
+                )}
+
+                <div className="flex items-center gap-2 py-1.5" style={{ paddingLeft: `${depth * 32}px` }}>
+                    {/* Expand/collapse button */}
+                    <button
+                        onClick={() => hasChildren && toggleExpand(user.id)}
+                        className={`w-6 h-6 flex items-center justify-center rounded-full shrink-0 transition-colors ${hasChildren ? 'hover:bg-surface-container-high cursor-pointer text-on-surface-variant' : 'text-transparent cursor-default'}`}
+                    >
+                        {hasChildren && (
+                            <span className={`material-symbols-outlined text-base transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                                chevron_right
+                            </span>
+                        )}
+                    </button>
+
+                    {/* User card */}
+                    <div className={`flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all ${roleColor} ${!user.isActive ? 'opacity-40' : ''}`}>
+                        <div className="w-8 h-8 rounded-full bg-on-surface/10 flex items-center justify-center text-sm font-bold shrink-0">
+                            {user.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm truncate">{user.username}</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{user.role}</span>
+                                {!user.isActive && <span className="text-[9px] font-black text-error uppercase">DISAB.</span>}
+                            </div>
+                            {resource && (
+                                <p className="text-[11px] opacity-60 truncate">{resource.name} · {resource.function}</p>
+                            )}
+                        </div>
+                        {hasChildren && (
+                            <span className="text-[10px] font-bold opacity-50 shrink-0">
+                                {node.children.length} dirett{node.children.length === 1 ? 'o' : 'i'}{descendantCount > node.children.length ? ` · ${descendantCount} totali` : ''}
+                            </span>
+                        )}
+
+                        {/* Edit manager button */}
+                        {isEditing ? (
+                            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                <select
+                                    className="form-select text-xs py-1 px-2 rounded-lg max-w-[180px]"
+                                    value={selectedManagerId || ''}
+                                    onChange={e => setSelectedManagerId(e.target.value || null)}
+                                >
+                                    <option value="">Nessun manager (root)</option>
+                                    {(users || []).filter(u => u.id !== user.id).map(u => (
+                                        <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => handleManagerChange(user.id, selectedManagerId)}
+                                    className="p-1 rounded-full hover:bg-surface-container text-primary"
+                                    title="Conferma"
+                                >
+                                    <span className="material-symbols-outlined text-base">check</span>
+                                </button>
+                                <button
+                                    onClick={() => setEditingUserId(null)}
+                                    className="p-1 rounded-full hover:bg-surface-container text-on-surface-variant"
+                                    title="Annulla"
+                                >
+                                    <span className="material-symbols-outlined text-base">close</span>
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => { setEditingUserId(user.id); setSelectedManagerId(user.managerId || null); }}
+                                className="p-1 rounded-full hover:bg-on-surface/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                title="Cambia manager"
+                            >
+                                <span className="material-symbols-outlined text-base">swap_vert</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Children */}
+                {isExpanded && node.children.map(child => renderNode(child, depth + 1))}
+            </div>
+        );
+    };
+
+    if (error) {
+        return (
+            <div className="p-8 text-center bg-error-container/10 rounded-3xl border border-error/20">
+                <span className="material-symbols-outlined text-error text-4xl mb-2">error</span>
+                <p className="text-on-surface font-bold">Errore nel caricamento della gerarchia</p>
+                <p className="text-xs text-on-surface-variant mt-1">{error}</p>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="flex justify-center py-16">
+                <SpinnerIcon className="w-8 h-8 text-primary" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-black text-on-surface tracking-tight">Gerarchia Organizzativa</h2>
+                    <p className="text-xs text-on-surface-variant mt-1">Struttura ad albero dei rapporti gerarchici tra utenti</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={expandAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-primary hover:bg-primary/10 transition-colors flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">unfold_more</span> Espandi
+                    </button>
+                    <button onClick={collapseAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-on-surface-variant hover:bg-surface-container transition-colors flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">unfold_less</span> Comprimi
+                    </button>
+                </div>
+            </div>
+
+            {/* Tree */}
+            <div className="space-y-0.5 [&_>_div]:group">
+                {roots.map(node => renderNode(node, 0))}
+            </div>
+
+            {/* Orphans */}
+            {orphans.length > 0 && (
+                <div className="mt-8 p-5 bg-yellow-container/10 border border-yellow-container/30 rounded-3xl">
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="material-symbols-outlined text-yellow-700 text-lg">warning</span>
+                        <h3 className="text-sm font-bold text-on-surface">Utenti senza manager valido ({orphans.length})</h3>
+                    </div>
+                    <p className="text-xs text-on-surface-variant mb-3">Questi utenti hanno un manager_id che non corrisponde a nessun utente attivo. Assegna un manager tramite il pilastro Identità.</p>
+                    <div className="flex flex-wrap gap-2">
+                        {orphans.map(u => (
+                            <span key={u.id} className="px-3 py-1 rounded-full text-xs font-bold bg-surface-container border border-outline-variant">
+                                {u.username} <span className="opacity-50">({u.role})</span>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                <div className="p-4 bg-surface-container-low rounded-2xl text-center">
+                    <p className="text-2xl font-black text-primary">{users?.length || 0}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Utenti Totali</p>
+                </div>
+                <div className="p-4 bg-surface-container-low rounded-2xl text-center">
+                    <p className="text-2xl font-black text-tertiary">{roots.length}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Nodi Root</p>
+                </div>
+                <div className="p-4 bg-surface-container-low rounded-2xl text-center">
+                    <p className="text-2xl font-black text-secondary">{users?.filter(u => (users || []).some(c => c.managerId === u.id)).length || 0}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Con Riporti</p>
+                </div>
+                <div className="p-4 bg-surface-container-low rounded-2xl text-center">
+                    <p className="text-2xl font-black text-error">{orphans.length}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Orfani</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- PAGINA PRINCIPALE SECURITY CENTER ---
 const SecurityCenterPage: React.FC = () => {
-    const [activePillar, setActivePillar] = useState<'id' | 'rbac' | 'entity' | 'nav' | 'audit'>('audit'); // Default to Audit per request focus
+    const [activePillar, setActivePillar] = useState<'id' | 'rbac' | 'entity' | 'nav' | 'audit' | 'hierarchy'>('audit');
 
     const pillars = [
-        { id: 'audit',  label: 'Security Audit',         icon: 'policy',        desc: 'Timeline Attività' },
-        { id: 'rbac',   label: 'Access Control Matrix',  icon: 'security',      desc: 'Rotte e Ruoli' },
-        { id: 'entity', label: 'Entity Visibility',      icon: 'visibility',    desc: 'Visibilità Entità' },
-        { id: 'id',     label: 'Identity & Users',       icon: 'badge',         desc: 'Whitelist Utenti' },
-        { id: 'nav',    label: 'App Architecture',       icon: 'account_tree',  desc: 'Menu e Landing' },
+        { id: 'audit',     label: 'Security Audit',         icon: 'policy',           desc: 'Timeline Attività' },
+        { id: 'rbac',      label: 'Access Control Matrix',  icon: 'security',         desc: 'Rotte e Ruoli' },
+        { id: 'entity',    label: 'Entity Visibility',      icon: 'visibility',       desc: 'Visibilità Entità' },
+        { id: 'id',        label: 'Identity & Users',       icon: 'badge',            desc: 'Whitelist Utenti' },
+        { id: 'hierarchy', label: 'Gerarchia',              icon: 'device_hub',       desc: 'Organigramma' },
+        { id: 'nav',       label: 'App Architecture',       icon: 'account_tree',     desc: 'Menu e Landing' },
     ];
 
     return (
@@ -1438,6 +1736,7 @@ const SecurityCenterPage: React.FC = () => {
                     {activePillar === 'entity' && <EntityVisibilityPillar />}
                     {activePillar === 'nav' && <NavigationPillar />}
                     {activePillar === 'audit' && <AuditPillar />}
+                    {activePillar === 'hierarchy' && <HierarchyPillar />}
                 </div>
             </div>
 
