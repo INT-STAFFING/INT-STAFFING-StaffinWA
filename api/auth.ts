@@ -126,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 username: user.username,
                 role: user.role,
                 resourceId: user.resource_id,
-                managerId: user.manager_id || null,
+                managerIds: user.manager_ids || [],
                 permissions,
                 entityVisibility,
                 mustChangePassword: user.must_change_password,

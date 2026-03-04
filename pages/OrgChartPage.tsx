@@ -1,11 +1,13 @@
 /**
  * @file pages/OrgChartPage.tsx
  * @description Pagina Organigramma — visualizzazione grafica della gerarchia organizzativa degli utenti.
- * Mostra una struttura ad albero verticale con nodi card collegati da linee.
+ * Supporta multi-parent: un utente può apparire sotto più manager.
+ * Per SIMPLE/SIMPLE_EXT i manager vengono auto-derivati dai Project Manager dei progetti assegnati.
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useResourcesContext } from '../context/ResourcesContext';
+import { useProjectsContext } from '../context/ProjectsContext';
 import { SpinnerIcon } from '../components/icons';
 import { AppUser } from '../types';
 import { useAuthorizedResource, createAuthorizedFetcher } from '../hooks/useAuthorizedResource';
@@ -15,6 +17,7 @@ interface OrgNode {
     user: AppUser;
     children: OrgNode[];
     depth: number;
+    isAutoPlaced?: boolean; // true if placed under this parent via auto-derivation
 }
 
 // --- Role color mapping (MD3 tokens) ---
@@ -79,7 +82,10 @@ const OrgNodeCard: React.FC<{
                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${style.badge}`}>
                         {user.role}
                     </span>
-                    {resource?.function && (
+                    {node.isAutoPlaced && (
+                        <span className="text-[8px] font-bold text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded" title="Auto-derivato da assegnazione progetto">AUTO</span>
+                    )}
+                    {resource?.function && !node.isAutoPlaced && (
                         <span className="text-[9px] text-on-surface-variant font-medium truncate max-w-[80px]">
                             {resource.function}
                         </span>
@@ -95,7 +101,6 @@ const OrgNodeCard: React.FC<{
                     </div>
                 )}
 
-                {/* Inactive overlay */}
                 {!user.isActive && (
                     <div className="absolute top-1 right-1">
                         <span className="material-symbols-outlined text-error text-sm">block</span>
@@ -114,19 +119,21 @@ const OrgTreeLevel: React.FC<{
     onToggle: (id: string) => void;
     searchTerm: string;
     matchingIds: Set<string>;
-}> = ({ nodes, resourceMap, expandedNodes, onToggle, searchTerm, matchingIds }) => {
+    parentKey?: string;
+}> = ({ nodes, resourceMap, expandedNodes, onToggle, searchTerm, matchingIds, parentKey = '' }) => {
     if (nodes.length === 0) return null;
 
     return (
         <div className="flex flex-col items-center">
             <div className="flex items-start justify-center gap-6 flex-wrap">
-                {nodes.map((node) => {
+                {nodes.map((node, idx) => {
+                    const nodeKey = parentKey ? `${parentKey}-${node.user.id}-${idx}` : `${node.user.id}-${idx}`;
                     const isExpanded = expandedNodes.has(node.user.id);
                     const hasChildren = node.children.length > 0;
                     const isHighlighted = searchTerm.length > 0 && matchingIds.has(node.user.id);
 
                     return (
-                        <div key={node.user.id} className="flex flex-col items-center">
+                        <div key={nodeKey} className="flex flex-col items-center">
                             <OrgNodeCard
                                 node={node}
                                 resourceMap={resourceMap}
@@ -135,11 +142,9 @@ const OrgTreeLevel: React.FC<{
                                 isHighlighted={isHighlighted}
                             />
 
-                            {/* Vertical connector line */}
                             {hasChildren && isExpanded && (
                                 <>
                                     <div className="w-0.5 h-6 bg-outline-variant/60" />
-                                    {/* Horizontal connector for multiple children */}
                                     {node.children.length > 1 && (
                                         <div className="relative w-full flex justify-center">
                                             <div
@@ -151,10 +156,9 @@ const OrgTreeLevel: React.FC<{
                                             />
                                         </div>
                                     )}
-                                    {/* Recurse into children */}
                                     <div className="flex items-start justify-center gap-6 flex-wrap pt-0">
-                                        {node.children.map(child => (
-                                            <div key={child.user.id} className="flex flex-col items-center">
+                                        {node.children.map((child, ci) => (
+                                            <div key={`${nodeKey}-c${ci}`} className="flex flex-col items-center">
                                                 <div className="w-0.5 h-4 bg-outline-variant/60" />
                                                 <OrgTreeLevel
                                                     nodes={[child]}
@@ -163,6 +167,7 @@ const OrgTreeLevel: React.FC<{
                                                     onToggle={onToggle}
                                                     searchTerm={searchTerm}
                                                     matchingIds={matchingIds}
+                                                    parentKey={nodeKey}
                                                 />
                                             </div>
                                         ))}
@@ -184,6 +189,7 @@ const OrgChartPage: React.FC = () => {
         createAuthorizedFetcher<AppUser[]>('/api/resources?entity=app-users')
     );
     const { resources } = useResourcesContext();
+    const { projects, assignments } = useProjectsContext();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -197,6 +203,60 @@ const OrgChartPage: React.FC = () => {
         resources.forEach(r => { if (r.id) map[r.id] = { name: r.name, function: r.function }; });
         return map;
     }, [resources]);
+
+    // Build a map: resource name → app_user IDs
+    const pmNameToUserIds = useMemo(() => {
+        if (!users) return new Map<string, string[]>();
+        const resourceIdToUserIds = new Map<string, string[]>();
+        users.forEach(u => {
+            if (u.resourceId) {
+                if (!resourceIdToUserIds.has(u.resourceId)) resourceIdToUserIds.set(u.resourceId, []);
+                resourceIdToUserIds.get(u.resourceId)!.push(u.id);
+            }
+        });
+        const nameMap = new Map<string, string[]>();
+        resources.forEach(r => {
+            if (r.id && r.name) {
+                const uIds = resourceIdToUserIds.get(r.id);
+                if (uIds) nameMap.set(r.name.toLowerCase(), uIds);
+            }
+        });
+        return nameMap;
+    }, [users, resources]);
+
+    // Compute effective managerIds: manual + auto-derived for SIMPLE/SIMPLE_EXT
+    const effectiveManagerMap = useMemo(() => {
+        if (!users) return new Map<string, { manual: string[]; auto: string[]; all: string[] }>();
+        const userMap = new Map<string, AppUser>();
+        users.forEach(u => userMap.set(u.id, u));
+
+        const result = new Map<string, { manual: string[]; auto: string[]; all: string[] }>();
+        users.forEach(u => {
+            const manual = (u.managerIds || []).filter(id => userMap.has(id));
+            let auto: string[] = [];
+
+            if (u.role === 'SIMPLE' || u.role === 'SIMPLE_EXT') {
+                if (u.resourceId) {
+                    const userProjectIds = assignments
+                        .filter(a => a.resourceId === u.resourceId)
+                        .map(a => a.projectId);
+
+                    const pmUserIds = new Set<string>();
+                    projects.forEach(p => {
+                        if (p.id && userProjectIds.includes(p.id) && p.projectManager) {
+                            const ids = pmNameToUserIds.get(p.projectManager.toLowerCase());
+                            ids?.forEach(id => { if (id !== u.id) pmUserIds.add(id); });
+                        }
+                    });
+                    auto = [...pmUserIds].filter(id => !manual.includes(id));
+                }
+            }
+
+            const all = [...new Set([...manual, ...auto])];
+            result.set(u.id, { manual, auto, all });
+        });
+        return result;
+    }, [users, assignments, projects, pmNameToUserIds]);
 
     // Build tree
     const { roots, orphans, allNodeIds } = useMemo(() => {
@@ -213,25 +273,41 @@ const OrgChartPage: React.FC = () => {
 
         filteredUsers.forEach(u => {
             ids.add(u.id);
-            if (u.managerId && userMap.has(u.managerId)) {
-                if (!childrenMap.has(u.managerId)) childrenMap.set(u.managerId, []);
-                childrenMap.get(u.managerId)!.push({ user: u, children: [], depth: 0 });
-            } else if (u.role === 'ADMIN' || !u.managerId) {
+            const eff = effectiveManagerMap.get(u.id);
+            const manualMgrs = (eff?.manual || []).filter(id => userMap.has(id));
+            const autoMgrs = (eff?.auto || []).filter(id => userMap.has(id));
+            const validMgrs = [...manualMgrs, ...autoMgrs];
+
+            if (validMgrs.length > 0) {
+                manualMgrs.forEach(mgrId => {
+                    if (!childrenMap.has(mgrId)) childrenMap.set(mgrId, []);
+                    childrenMap.get(mgrId)!.push({ user: u, children: [], depth: 0, isAutoPlaced: false });
+                });
+                autoMgrs.forEach(mgrId => {
+                    if (!childrenMap.has(mgrId)) childrenMap.set(mgrId, []);
+                    childrenMap.get(mgrId)!.push({ user: u, children: [], depth: 0, isAutoPlaced: true });
+                });
+            } else if (u.role === 'ADMIN' || (eff?.all.length || 0) === 0) {
                 rootNodes.push({ user: u, children: [], depth: 0 });
             } else {
                 orphanUsers.push(u);
             }
         });
 
-        const buildTree = (node: OrgNode, depth: number): OrgNode => {
+        // Build tree with cycle protection
+        const buildTree = (node: OrgNode, depth: number, visited: Set<string>): OrgNode => {
+            if (visited.has(node.user.id)) return { ...node, children: [], depth };
+            const nextVisited = new Set(visited);
+            nextVisited.add(node.user.id);
             node.depth = depth;
             const kids = childrenMap.get(node.user.id) || [];
-            node.children = kids.map(k => buildTree(k, depth + 1)).sort((a, b) => a.user.username.localeCompare(b.user.username));
+            node.children = kids.map(k => buildTree({ ...k }, depth + 1, nextVisited))
+                .sort((a, b) => a.user.username.localeCompare(b.user.username));
             return node;
         };
 
         return {
-            roots: rootNodes.map(n => buildTree(n, 0)).sort((a, b) => {
+            roots: rootNodes.map(n => buildTree(n, 0, new Set())).sort((a, b) => {
                 if (a.user.role === 'ADMIN' && b.user.role !== 'ADMIN') return -1;
                 if (b.user.role === 'ADMIN' && a.user.role !== 'ADMIN') return 1;
                 return a.user.username.localeCompare(b.user.username);
@@ -239,7 +315,7 @@ const OrgChartPage: React.FC = () => {
             orphans: orphanUsers,
             allNodeIds: ids,
         };
-    }, [users, showInactive]);
+    }, [users, showInactive, effectiveManagerMap]);
 
     // Search matching
     const matchingIds = useMemo(() => {
@@ -258,23 +334,28 @@ const OrgChartPage: React.FC = () => {
     useEffect(() => {
         if (matchingIds.size === 0 || !users) return;
 
-        const userMap = new Map<string, AppUser>();
-        users.forEach(u => userMap.set(u.id, u));
-
         const toExpand = new Set<string>();
         matchingIds.forEach(id => {
-            let current = userMap.get(id);
-            while (current?.managerId) {
-                toExpand.add(current.managerId);
-                current = userMap.get(current.managerId);
-            }
+            const eff = effectiveManagerMap.get(id);
+            (eff?.all || []).forEach(mgrId => toExpand.add(mgrId));
+            // Recursively expand ancestors
+            const expandAncestors = (uid: string, visited: Set<string>) => {
+                if (visited.has(uid)) return;
+                visited.add(uid);
+                const e = effectiveManagerMap.get(uid);
+                (e?.all || []).forEach(mid => {
+                    toExpand.add(mid);
+                    expandAncestors(mid, visited);
+                });
+            };
+            expandAncestors(id, new Set());
         });
         setExpandedNodes(prev => {
             const next = new Set(prev);
             toExpand.forEach(id => next.add(id));
             return next;
         });
-    }, [matchingIds, users]);
+    }, [matchingIds, users, effectiveManagerMap]);
 
     const toggleExpand = useCallback((id: string) => {
         setExpandedNodes(prev => {
@@ -292,7 +373,6 @@ const OrgChartPage: React.FC = () => {
     const zoomOut = useCallback(() => setZoom(z => Math.max(z - 10, 40)), []);
     const zoomReset = useCallback(() => setZoom(100), []);
 
-    // Keyboard zoom
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === '=') { e.preventDefault(); zoomIn(); }
@@ -305,16 +385,18 @@ const OrgChartPage: React.FC = () => {
 
     // Stats
     const stats = useMemo(() => {
-        if (!users) return { total: 0, active: 0, managers: 0, maxDepth: 0 };
+        if (!users) return { total: 0, active: 0, managers: 0, maxDepth: 0, autoCount: 0 };
         const active = users.filter(u => u.isActive).length;
-        const managers = new Set(users.filter(u => u.managerId).map(u => u.managerId)).size;
+        const managersSet = new Set<string>();
+        effectiveManagerMap.forEach((eff) => { eff.all.forEach(id => managersSet.add(id)); });
+        const autoCount = [...effectiveManagerMap.values()].filter(e => e.auto.length > 0).length;
         const getMaxDepth = (node: OrgNode): number => {
             if (node.children.length === 0) return 0;
             return 1 + Math.max(...node.children.map(getMaxDepth));
         };
         const maxDepth = roots.length > 0 ? Math.max(...roots.map(getMaxDepth)) : 0;
-        return { total: users.length, active, managers, maxDepth };
-    }, [users, roots]);
+        return { total: users.length, active, managers: managersSet.size, maxDepth, autoCount };
+    }, [users, roots, effectiveManagerMap]);
 
     if (error) {
         return (
@@ -340,7 +422,7 @@ const OrgChartPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-on-surface tracking-tight">Organigramma</h1>
-                    <p className="text-sm text-on-surface-variant mt-1">Struttura gerarchica dell'organizzazione</p>
+                    <p className="text-sm text-on-surface-variant mt-1">Struttura gerarchica dell'organizzazione. Per SIMPLE/SIMPLE_EXT i manager sono auto-derivati dai Project Manager.</p>
                 </div>
 
                 {/* Stats badges */}
@@ -357,12 +439,17 @@ const OrgChartPage: React.FC = () => {
                         <span className="material-symbols-outlined text-secondary text-sm">supervisor_account</span>
                         <span className="text-xs font-bold text-secondary">{stats.managers} manager</span>
                     </div>
+                    {stats.autoCount > 0 && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary/10 rounded-full">
+                            <span className="material-symbols-outlined text-tertiary text-sm">auto_awesome</span>
+                            <span className="text-xs font-bold text-tertiary">{stats.autoCount} auto-derivati</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Controls bar */}
             <div className="flex flex-wrap items-center gap-3 p-3 bg-surface-container rounded-2xl border border-outline-variant">
-                {/* Search */}
                 <div className="relative flex-1 min-w-[200px]">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
                     <input
@@ -373,10 +460,7 @@ const OrgChartPage: React.FC = () => {
                         className="form-input pl-10 text-sm"
                     />
                     {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
-                        >
+                        <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
                             <span className="material-symbols-outlined text-sm">close</span>
                         </button>
                     )}
@@ -384,7 +468,6 @@ const OrgChartPage: React.FC = () => {
 
                 <div className="h-8 w-px bg-outline-variant hidden sm:block" />
 
-                {/* Expand/Collapse */}
                 <button onClick={expandAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-primary hover:bg-primary/10 transition-colors flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">unfold_more</span>
                     <span className="hidden sm:inline">Espandi tutto</span>
@@ -396,7 +479,6 @@ const OrgChartPage: React.FC = () => {
 
                 <div className="h-8 w-px bg-outline-variant hidden sm:block" />
 
-                {/* Zoom */}
                 <div className="flex items-center gap-1">
                     <button onClick={zoomOut} className="p-1.5 rounded-full hover:bg-surface-container-high text-on-surface-variant" title="Riduci">
                         <span className="material-symbols-outlined text-sm">remove</span>
@@ -411,7 +493,6 @@ const OrgChartPage: React.FC = () => {
 
                 <div className="h-8 w-px bg-outline-variant hidden sm:block" />
 
-                {/* Show inactive */}
                 <label className="flex items-center gap-2 text-xs cursor-pointer select-none text-on-surface-variant">
                     <input
                         type="checkbox"
@@ -423,7 +504,6 @@ const OrgChartPage: React.FC = () => {
                 </label>
             </div>
 
-            {/* Search results count */}
             {searchTerm && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">
                     <span className="material-symbols-outlined text-primary text-sm">filter_list</span>
@@ -465,7 +545,6 @@ const OrgChartPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Orphan users */}
             {orphans.length > 0 && (
                 <div className="p-5 bg-yellow-container/10 border border-yellow-container/30 rounded-2xl">
                     <div className="flex items-center gap-2 mb-3">
@@ -492,6 +571,10 @@ const OrgChartPage: React.FC = () => {
                             <span className="text-[10px] text-on-surface-variant font-medium">{role}</span>
                         </div>
                     ))}
+                    <div className="flex items-center gap-1.5 ml-4 pl-4 border-l border-outline-variant">
+                        <span className="text-[8px] font-bold text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded">AUTO</span>
+                        <span className="text-[10px] text-on-surface-variant font-medium">Auto-derivato da PM progetto</span>
+                    </div>
                 </div>
             </div>
         </div>

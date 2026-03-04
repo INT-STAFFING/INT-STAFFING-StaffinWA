@@ -7,7 +7,9 @@ import { useToast } from '../context/ToastContext';
 import { SpinnerIcon } from '../components/icons';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
 import { AppUser, RolePermission, RoleEntityVisibility, UserRole, AuditLogEntry } from '../types';
+import { useProjectsContext } from '../context/ProjectsContext';
 import { authorizedJsonFetch } from '../utils/api';
 import { routesManifest } from '../routes';
 import { useAuthorizedResource, createAuthorizedFetcher } from '../hooks/useAuthorizedResource';
@@ -416,8 +418,11 @@ const IdentityPillar: React.FC = () => {
                                 <SearchableSelect name="resourceId" value={editingUser.resourceId || ''} onChange={(_, v) => setEditingUser({...editingUser, resourceId: v})} options={resourceOptions} placeholder="Seleziona risorsa..." />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold mb-1 text-on-surface-variant">Manager (Superiore Gerarchico)</label>
-                                <SearchableSelect name="managerId" value={editingUser.managerId || ''} onChange={(_, v) => setEditingUser({...editingUser, managerId: v || null})} options={(users || []).filter(u => u.id !== editingUser.id).map(u => ({ value: u.id, label: `${u.username} (${u.role})` }))} placeholder="Nessun manager (root)..." />
+                                <label className="block text-sm font-bold mb-1 text-on-surface-variant">Manager (Superiori Gerarchici)</label>
+                                <MultiSelectDropdown name="managerIds" selectedValues={editingUser.managerIds || []} onChange={(_, v) => setEditingUser({...editingUser, managerIds: v})} options={(users || []).filter(u => u.id !== editingUser.id).map(u => ({ value: u.id, label: `${u.username} (${u.role})` }))} placeholder="Nessun manager (root)..." />
+                                {(editingUser.role === 'SIMPLE' || editingUser.role === 'SIMPLE_EXT') && (
+                                    <p className="text-[10px] text-on-surface-variant mt-1 italic">Per i ruoli SIMPLE i manager vengono anche auto-derivati dai Project Manager dei progetti assegnati.</p>
+                                )}
                             </div>
                             <div className="flex items-center gap-3 p-3 bg-surface-container rounded-2xl">
                                 <input type="checkbox" checked={editingUser.isActive} onChange={e => setEditingUser({...editingUser, isActive: e.target.checked})} className="form-checkbox h-6 w-6" id="user-active" />
@@ -1392,10 +1397,11 @@ const HierarchyPillar: React.FC = () => {
         createAuthorizedFetcher<AppUser[]>('/api/resources?entity=app-users')
     );
     const { resources } = useResourcesContext();
+    const { projects, assignments } = useProjectsContext();
     const { addToast } = useToast();
     const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
-    const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
+    const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([]);
 
     const resourceMap = useMemo(() => {
         const map: Record<string, { name: string; function: string; roleId: string }> = {};
@@ -1403,43 +1409,111 @@ const HierarchyPillar: React.FC = () => {
         return map;
     }, [resources]);
 
+    // Build a map: resource name → app_user IDs (for resolving projectManager names to user IDs)
+    const pmNameToUserIds = useMemo(() => {
+        if (!users) return new Map<string, string[]>();
+        const resourceIdToUserIds = new Map<string, string[]>();
+        users.forEach(u => {
+            if (u.resourceId) {
+                if (!resourceIdToUserIds.has(u.resourceId)) resourceIdToUserIds.set(u.resourceId, []);
+                resourceIdToUserIds.get(u.resourceId)!.push(u.id);
+            }
+        });
+        const nameMap = new Map<string, string[]>();
+        resources.forEach(r => {
+            if (r.id && r.name) {
+                const uIds = resourceIdToUserIds.get(r.id);
+                if (uIds) nameMap.set(r.name.toLowerCase(), uIds);
+            }
+        });
+        return nameMap;
+    }, [users, resources]);
+
+    // Compute effective managerIds for each user (manual + auto-derived from project assignments for SIMPLE/SIMPLE_EXT)
+    const effectiveManagerIds = useMemo(() => {
+        if (!users) return new Map<string, { manual: string[]; auto: string[]; all: string[] }>();
+        const userMap = new Map<string, AppUser>();
+        users.forEach(u => userMap.set(u.id, u));
+
+        const result = new Map<string, { manual: string[]; auto: string[]; all: string[] }>();
+        users.forEach(u => {
+            const manual = (u.managerIds || []).filter(id => userMap.has(id));
+            let auto: string[] = [];
+
+            if (u.role === 'SIMPLE' || u.role === 'SIMPLE_EXT') {
+                if (u.resourceId) {
+                    // Find projects this user is assigned to
+                    const userProjectIds = assignments
+                        .filter(a => a.resourceId === u.resourceId)
+                        .map(a => a.projectId);
+
+                    // Get project managers for those projects
+                    const pmUserIds = new Set<string>();
+                    projects.forEach(p => {
+                        if (p.id && userProjectIds.includes(p.id) && p.projectManager) {
+                            const ids = pmNameToUserIds.get(p.projectManager.toLowerCase());
+                            ids?.forEach(id => { if (id !== u.id) pmUserIds.add(id); });
+                        }
+                    });
+                    auto = [...pmUserIds].filter(id => !manual.includes(id));
+                }
+            }
+
+            const all = [...new Set([...manual, ...auto])];
+            result.set(u.id, { manual, auto, all });
+        });
+        return result;
+    }, [users, assignments, projects, pmNameToUserIds]);
+
     const { roots, orphans } = useMemo(() => {
         if (!users) return { roots: [] as HierarchyNode[], orphans: [] as AppUser[] };
         const userMap = new Map<string, AppUser>();
         users.forEach(u => userMap.set(u.id, u));
 
+        // Build children map: manager → list of children (a user can appear under multiple managers)
         const childrenMap = new Map<string, HierarchyNode[]>();
         const rootNodes: HierarchyNode[] = [];
         const orphanUsers: AppUser[] = [];
+        const placedUsers = new Set<string>();
 
-        // Build children map
         users.forEach(u => {
-            if (u.managerId && userMap.has(u.managerId)) {
-                if (!childrenMap.has(u.managerId)) childrenMap.set(u.managerId, []);
-                childrenMap.get(u.managerId)!.push({ user: u, children: [] });
-            } else if (u.role === 'ADMIN' || !u.managerId) {
+            const eff = effectiveManagerIds.get(u.id);
+            const allMgrs = eff?.all || [];
+            const validMgrs = allMgrs.filter(id => userMap.has(id));
+
+            if (validMgrs.length > 0) {
+                validMgrs.forEach(mgrId => {
+                    if (!childrenMap.has(mgrId)) childrenMap.set(mgrId, []);
+                    childrenMap.get(mgrId)!.push({ user: u, children: [] });
+                });
+                placedUsers.add(u.id);
+            } else if (u.role === 'ADMIN' || allMgrs.length === 0) {
                 rootNodes.push({ user: u, children: [] });
+                placedUsers.add(u.id);
             } else {
                 orphanUsers.push(u);
             }
         });
 
-        // Recursively attach children
-        const buildTree = (node: HierarchyNode): HierarchyNode => {
+        // Recursively attach children (with cycle protection via visited set)
+        const buildTree = (node: HierarchyNode, visited: Set<string>): HierarchyNode => {
+            if (visited.has(node.user.id)) return { ...node, children: [] };
+            const nextVisited = new Set(visited);
+            nextVisited.add(node.user.id);
             const kids = childrenMap.get(node.user.id) || [];
-            node.children = kids.map(buildTree).sort((a, b) => a.user.username.localeCompare(b.user.username));
+            node.children = kids.map(k => buildTree({ ...k }, nextVisited)).sort((a, b) => a.user.username.localeCompare(b.user.username));
             return node;
         };
 
         return {
-            roots: rootNodes.map(buildTree).sort((a, b) => {
+            roots: rootNodes.map(n => buildTree(n, new Set())).sort((a, b) => {
                 if (a.user.role === 'ADMIN' && b.user.role !== 'ADMIN') return -1;
                 if (b.user.role === 'ADMIN' && a.user.role !== 'ADMIN') return 1;
                 return a.user.username.localeCompare(b.user.username);
             }),
             orphans: orphanUsers,
         };
-    }, [users]);
+    }, [users, effectiveManagerIds]);
 
     const countDescendants = useCallback((node: HierarchyNode): number => {
         return node.children.reduce((sum, child) => sum + 1 + countDescendants(child), 0);
@@ -1462,16 +1536,16 @@ const HierarchyPillar: React.FC = () => {
         setExpandedNodes(new Set());
     }, []);
 
-    const handleManagerChange = useCallback(async (userId: string, newManagerId: string | null) => {
+    const handleManagersChange = useCallback(async (userId: string, newManagerIds: string[]) => {
         if (!users) return;
         const user = users.find(u => u.id === userId);
         if (!user) return;
         try {
             const updated = await authorizedJsonFetch<AppUser>(`/api/resources?entity=app-users&id=${userId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ ...user, managerId: newManagerId })
+                body: JSON.stringify({ ...user, managerIds: newManagerIds })
             });
-            updateCache(prev => (prev || []).map(u => u.id === userId ? { ...u, managerId: newManagerId, version: updated.version } : u));
+            updateCache(prev => (prev || []).map(u => u.id === userId ? { ...u, managerIds: newManagerIds, version: updated.version } : u));
             addToast('Gerarchia aggiornata con successo', 'success');
             setEditingUserId(null);
         } catch (e: any) {
@@ -1493,18 +1567,20 @@ const HierarchyPillar: React.FC = () => {
         'SIMPLE_EXT': 'bg-surface-container-low text-on-surface-variant border-outline-variant/50',
     };
 
-    const renderNode = (node: HierarchyNode, depth: number = 0): React.ReactNode => {
+    const renderNode = (node: HierarchyNode, depth: number = 0, parentKey: string = ''): React.ReactNode => {
         const { user } = node;
+        const nodeKey = parentKey ? `${parentKey}-${user.id}` : user.id;
         const isExpanded = expandedNodes.has(user.id);
         const hasChildren = node.children.length > 0;
         const descendantCount = countDescendants(node);
         const resource = user.resourceId ? resourceMap[user.resourceId] : null;
         const isEditing = editingUserId === user.id;
         const roleColor = ROLE_COLORS[user.role] || ROLE_COLORS['SIMPLE'];
+        const eff = effectiveManagerIds.get(user.id);
+        const hasAutoManagers = (eff?.auto.length || 0) > 0;
 
         return (
-            <div key={user.id} className="relative">
-                {/* Connector line */}
+            <div key={nodeKey} className="relative">
                 {depth > 0 && (
                     <div className="absolute left-0 top-0 bottom-0 border-l-2 border-outline-variant/40" style={{ marginLeft: `${(depth - 1) * 32 + 16}px` }} />
                 )}
@@ -1513,19 +1589,15 @@ const HierarchyPillar: React.FC = () => {
                 )}
 
                 <div className="flex items-center gap-2 py-1.5" style={{ paddingLeft: `${depth * 32}px` }}>
-                    {/* Expand/collapse button */}
                     <button
                         onClick={() => hasChildren && toggleExpand(user.id)}
                         className={`w-6 h-6 flex items-center justify-center rounded-full shrink-0 transition-colors ${hasChildren ? 'hover:bg-surface-container-high cursor-pointer text-on-surface-variant' : 'text-transparent cursor-default'}`}
                     >
                         {hasChildren && (
-                            <span className={`material-symbols-outlined text-base transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                                chevron_right
-                            </span>
+                            <span className={`material-symbols-outlined text-base transition-transform ${isExpanded ? 'rotate-90' : ''}`}>chevron_right</span>
                         )}
                     </button>
 
-                    {/* User card */}
                     <div className={`flex-1 flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all ${roleColor} ${!user.isActive ? 'opacity-40' : ''}`}>
                         <div className="w-8 h-8 rounded-full bg-on-surface/10 flex items-center justify-center text-sm font-bold shrink-0">
                             {user.username.charAt(0).toUpperCase()}
@@ -1535,6 +1607,9 @@ const HierarchyPillar: React.FC = () => {
                                 <span className="font-bold text-sm truncate">{user.username}</span>
                                 <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{user.role}</span>
                                 {!user.isActive && <span className="text-[9px] font-black text-error uppercase">DISAB.</span>}
+                                {hasAutoManagers && (
+                                    <span className="text-[9px] font-bold text-tertiary bg-tertiary/10 px-1.5 py-0.5 rounded" title="Manager auto-derivati da assegnazioni progetto">AUTO</span>
+                                )}
                             </div>
                             {resource && (
                                 <p className="text-[11px] opacity-60 truncate">{resource.name} · {resource.function}</p>
@@ -1546,21 +1621,17 @@ const HierarchyPillar: React.FC = () => {
                             </span>
                         )}
 
-                        {/* Edit manager button */}
                         {isEditing ? (
-                            <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                                <select
-                                    className="form-select text-xs py-1 px-2 rounded-lg max-w-[180px]"
-                                    value={selectedManagerId || ''}
-                                    onChange={e => setSelectedManagerId(e.target.value || null)}
-                                >
-                                    <option value="">Nessun manager (root)</option>
-                                    {(users || []).filter(u => u.id !== user.id).map(u => (
-                                        <option key={u.id} value={u.id}>{u.username} ({u.role})</option>
-                                    ))}
-                                </select>
+                            <div className="flex items-center gap-1 shrink-0 max-w-[300px]" onClick={e => e.stopPropagation()}>
+                                <MultiSelectDropdown
+                                    name="edit-managers"
+                                    selectedValues={selectedManagerIds}
+                                    onChange={(_, v) => setSelectedManagerIds(v)}
+                                    options={(users || []).filter(u => u.id !== user.id).map(u => ({ value: u.id, label: `${u.username} (${u.role})` }))}
+                                    placeholder="Manager..."
+                                />
                                 <button
-                                    onClick={() => handleManagerChange(user.id, selectedManagerId)}
+                                    onClick={() => handleManagersChange(user.id, selectedManagerIds)}
                                     className="p-1 rounded-full hover:bg-surface-container text-primary"
                                     title="Conferma"
                                 >
@@ -1576,9 +1647,9 @@ const HierarchyPillar: React.FC = () => {
                             </div>
                         ) : (
                             <button
-                                onClick={() => { setEditingUserId(user.id); setSelectedManagerId(user.managerId || null); }}
+                                onClick={() => { setEditingUserId(user.id); setSelectedManagerIds(user.managerIds || []); }}
                                 className="p-1 rounded-full hover:bg-on-surface/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                                title="Cambia manager"
+                                title="Gestisci manager manuali"
                             >
                                 <span className="material-symbols-outlined text-base">swap_vert</span>
                             </button>
@@ -1586,8 +1657,7 @@ const HierarchyPillar: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Children */}
-                {isExpanded && node.children.map(child => renderNode(child, depth + 1))}
+                {isExpanded && node.children.map(child => renderNode(child, depth + 1, nodeKey))}
             </div>
         );
     };
@@ -1610,12 +1680,14 @@ const HierarchyPillar: React.FC = () => {
         );
     }
 
+    const usersWithReports = users?.filter(u => (users || []).some(c => (effectiveManagerIds.get(c.id)?.all || []).includes(u.id))).length || 0;
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-2xl font-black text-on-surface tracking-tight">Gerarchia Organizzativa</h2>
-                    <p className="text-xs text-on-surface-variant mt-1">Struttura ad albero dei rapporti gerarchici tra utenti</p>
+                    <p className="text-xs text-on-surface-variant mt-1">Struttura ad albero dei rapporti gerarchici tra utenti. Per SIMPLE/SIMPLE_EXT i manager vengono auto-derivati dai Project Manager.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={expandAll} className="px-3 py-1.5 rounded-full text-xs font-bold text-primary hover:bg-primary/10 transition-colors flex items-center gap-1">
@@ -1627,19 +1699,17 @@ const HierarchyPillar: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tree */}
             <div className="space-y-0.5 [&_>_div]:group">
                 {roots.map(node => renderNode(node, 0))}
             </div>
 
-            {/* Orphans */}
             {orphans.length > 0 && (
                 <div className="mt-8 p-5 bg-yellow-container/10 border border-yellow-container/30 rounded-3xl">
                     <div className="flex items-center gap-2 mb-3">
                         <span className="material-symbols-outlined text-yellow-700 text-lg">warning</span>
-                        <h3 className="text-sm font-bold text-on-surface">Utenti senza manager valido ({orphans.length})</h3>
+                        <h3 className="text-sm font-bold text-on-surface">Utenti con manager non validi ({orphans.length})</h3>
                     </div>
-                    <p className="text-xs text-on-surface-variant mb-3">Questi utenti hanno un manager_id che non corrisponde a nessun utente attivo. Assegna un manager tramite il pilastro Identità.</p>
+                    <p className="text-xs text-on-surface-variant mb-3">Questi utenti hanno managerIds che non corrispondono a utenti attivi. Assegna nuovi manager.</p>
                     <div className="flex flex-wrap gap-2">
                         {orphans.map(u => (
                             <span key={u.id} className="px-3 py-1 rounded-full text-xs font-bold bg-surface-container border border-outline-variant">
@@ -1650,7 +1720,6 @@ const HierarchyPillar: React.FC = () => {
                 </div>
             )}
 
-            {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">
                     <p className="text-2xl font-black text-primary">{users?.length || 0}</p>
@@ -1661,7 +1730,7 @@ const HierarchyPillar: React.FC = () => {
                     <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Nodi Root</p>
                 </div>
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">
-                    <p className="text-2xl font-black text-secondary">{users?.filter(u => (users || []).some(c => c.managerId === u.id)).length || 0}</p>
+                    <p className="text-2xl font-black text-secondary">{usersWithReports}</p>
                     <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Con Riporti</p>
                 </div>
                 <div className="p-4 bg-surface-container-low rounded-2xl text-center">

@@ -114,9 +114,9 @@ export const INITIAL_MOCK_DATA: {
     { id: 'p1', name: 'App Mobile Intesa', clientId: 'c1', startDate: '2024-02-01', endDate: '2024-11-30', budget: 120000, realizationPercentage: 100, projectManager: 'Elena Bianchi', status: 'In corso', billingType: 'TIME_MATERIAL' }
   ],
   users: [
-    { id: 'admin-id', username: 'admin', role: 'ADMIN', resourceId: null, managerId: null, isActive: true, mustChangePassword: false },
-    { id: 'mgr-id', username: 'e.bianchi', role: 'MANAGER', resourceId: 'res2', managerId: 'admin-id', isActive: true, mustChangePassword: false },
-    { id: 'dev-id', username: 'm.rossi', role: 'SIMPLE', resourceId: 'res1', managerId: 'mgr-id', isActive: true, mustChangePassword: false }
+    { id: 'admin-id', username: 'admin', role: 'ADMIN', resourceId: null, managerIds: [], isActive: true, mustChangePassword: false },
+    { id: 'mgr-id', username: 'e.bianchi', role: 'MANAGER', resourceId: 'res2', managerIds: ['admin-id'], isActive: true, mustChangePassword: false },
+    { id: 'dev-id', username: 'm.rossi', role: 'SIMPLE', resourceId: 'res1', managerIds: ['mgr-id'], isActive: true, mustChangePassword: false }
   ],
   assignments: [
     { id: 'as1', resourceId: 'res1', projectId: 'p1' }

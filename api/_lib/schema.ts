@@ -63,10 +63,14 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS resource_skills ( resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, skill_id UUID REFERENCES skills(id) ON DELETE CASCADE, level INT, acquisition_date DATE, expiration_date DATE, PRIMARY KEY (resource_id, skill_id) );`;
 
     // 6. Security & RBAC
-    await db.sql`CREATE TABLE IF NOT EXISTS app_users ( id UUID PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role VARCHAR(50) NOT NULL DEFAULT 'SIMPLE', resource_id UUID REFERENCES resources(id) ON DELETE SET NULL, manager_id UUID REFERENCES app_users(id) ON DELETE SET NULL, is_active BOOLEAN DEFAULT TRUE, must_change_password BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
+    await db.sql`CREATE TABLE IF NOT EXISTS app_users ( id UUID PRIMARY KEY, username VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role VARCHAR(50) NOT NULL DEFAULT 'SIMPLE', resource_id UUID REFERENCES resources(id) ON DELETE SET NULL, manager_ids JSONB NOT NULL DEFAULT '[]'::jsonb, is_active BOOLEAN DEFAULT TRUE, must_change_password BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, version INT DEFAULT 1 );`;
     try {
-        await db.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES app_users(id) ON DELETE SET NULL;`;
-    } catch(e) { /* Column may already exist */ }
+        // Migration: manager_id (single UUID) → manager_ids (JSONB array)
+        await db.sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS manager_ids JSONB NOT NULL DEFAULT '[]'::jsonb;`;
+        // Migrate old single manager_id to manager_ids array if column exists
+        await db.sql`UPDATE app_users SET manager_ids = jsonb_build_array(manager_id) WHERE manager_id IS NOT NULL AND manager_ids = '[]'::jsonb;`;
+        await db.sql`ALTER TABLE app_users DROP COLUMN IF EXISTS manager_id;`;
+    } catch(e) { /* Migration may already be done */ }
     await db.sql`CREATE TABLE IF NOT EXISTS role_permissions ( role VARCHAR(50) NOT NULL, page_path VARCHAR(255) NOT NULL, is_allowed BOOLEAN DEFAULT FALSE, PRIMARY KEY (role, page_path) );`;
     await db.sql`CREATE TABLE IF NOT EXISTS role_entity_visibility ( role VARCHAR(50) NOT NULL, entity VARCHAR(100) NOT NULL, is_visible BOOLEAN NOT NULL DEFAULT TRUE, PRIMARY KEY (role, entity) );`;
     // Seed iniziale: tutti i ruoli non-ADMIN vedono tutte le entità (backwards-compatible)
