@@ -198,6 +198,15 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/SkillAnalysisPage')),
     },
     {
+        path: '/org-chart',
+        label: 'Organigramma',
+        icon: 'device_hub',
+        section: 'Risorse',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/OrgChartPage')),
+    },
+    {
         path: '/roles',
         label: 'Ruoli',
         icon: 'badge',

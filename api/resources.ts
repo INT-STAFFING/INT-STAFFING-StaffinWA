@@ -14,6 +14,7 @@ import { notify } from '../utils/webhookNotifier.js';
 // (colonne di tipo JSONB — pg driver non serializza automaticamente gli array JS)
 const JSONB_FIELDS: Record<string, string[]> = {
     'notification_rules': ['templateBlocks'],
+    'app_users': ['managerIds'],
 };
 
 // Entità soggette al controllo di visibilità per ruolo (Layer 3 RBAC).
@@ -221,6 +222,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         username: z.string(),
         role: z.string(),
         resourceId: z.string().optional().nullable(),
+        managerIds: z.array(z.string()).optional().nullable(),
         isActive: z.boolean().optional().nullable()
     }),
     'notification_configs': z.object({
@@ -845,8 +847,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  const hashedPassword = await bcrypt.hash("ChangeMe123!", salt);
                  const newId = uuidv4();
                  await client.query(
-                     `INSERT INTO app_users (id, username, password_hash, role, resource_id, is_active, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
-                     [newId, validatedBody.username, hashedPassword, validatedBody.role, validatedBody.resourceId || null, validatedBody.isActive ?? true]
+                     `INSERT INTO app_users (id, username, password_hash, role, resource_id, manager_ids, is_active, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
+                     [newId, validatedBody.username, hashedPassword, validatedBody.role, validatedBody.resourceId || null, JSON.stringify(validatedBody.managerIds || []), validatedBody.isActive ?? true]
                  );
                  await notify(client, 'USER_CREATED', {
                      title: 'Nuovo Utente di Sistema Creato',

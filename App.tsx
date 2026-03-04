@@ -59,6 +59,7 @@ const ContractsPage = lazy(() => import('./pages/ContractsPage').then(module => 
 const WbsAllocationPage = lazy(() => import('./pages/WbsAllocationPage').then(module => ({ default: module.WbsAllocationPage })));
 const RevenuePage = lazy(() => import('./pages/RevenuePage').then(module => ({ default: module.RevenuePage })));
 const PerformanceTimelinePage = lazy(() => import('./pages/PerformanceTimeline').then(module => ({ default: module.PerformanceTimelinePage })));
+const OrgChartPage = lazy(() => import('./pages/OrgChartPage'));
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -218,7 +219,8 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/notifications" element={<DynamicRoute path="/notifications"><NotificationsPage /></DynamicRoute>} />
               <Route path="/revenue" element={<DynamicRoute path="/revenue"><RevenuePage /></DynamicRoute>} />
               <Route path="/performance" element={<DynamicRoute path="/performance"><PerformanceTimelinePage /></DynamicRoute>} />
-              
+              <Route path="/org-chart" element={<DynamicRoute path="/org-chart"><OrgChartPage /></DynamicRoute>} />
+
               <Route path="/admin-settings" element={<DynamicRoute path="/admin-settings"><AdminSettingsPage /></DynamicRoute>} />
               <Route path="/security-center" element={<DynamicRoute path="/security-center"><SecurityCenterPage /></DynamicRoute>} />
               <Route path="/notification-settings" element={<DynamicRoute path="/notification-settings"><NotificationSettingsPage /></DynamicRoute>} />
