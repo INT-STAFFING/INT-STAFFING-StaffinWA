@@ -263,6 +263,14 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
         saveDb(db);
         return newItem;
       }
+      // Composite-key join tables (no id/version)
+      const COMPOSITE_KEY_ENTITIES = ['project_skills', 'resource_skills', 'contract_projects', 'contract_managers'];
+      if (COMPOSITE_KEY_ENTITIES.includes(entity)) {
+        if (!(db as any)[dbKey]) (db as any)[dbKey] = [];
+        (db as any)[dbKey].push(body);
+        saveDb(db);
+        return body;
+      }
       const newItem = { id: uuidv4(), version: 1, ...body };
       if (!(db as any)[dbKey]) (db as any)[dbKey] = [];
       (db as any)[dbKey].push(newItem);

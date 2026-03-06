@@ -867,6 +867,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              const values = Object.entries(dbFields).map(([k, v]) =>
                  jsonbFields.includes(k) && typeof v !== 'string' ? JSON.stringify(v) : v
              );
+             // Composite-key join tables (no id/version columns)
+             const COMPOSITE_KEY_TABLES = ['project_skills', 'resource_skills', 'contract_projects', 'contract_managers'];
+             if (COMPOSITE_KEY_TABLES.includes(tableName as string)) {
+                 const placeholders = values.map((_, i) => `$${i + 1}`);
+                 await client.query(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+                 return res.status(201).json(validatedBody);
+             }
+
              const newId = uuidv4();
              const placeholders = values.map((_, i) => `$${i + 2}`);
              await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
