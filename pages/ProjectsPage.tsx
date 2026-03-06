@@ -576,6 +576,9 @@ export const ProjectsPage: React.FC = () => {
                 } else {
                     const newProject = await addProject(projectPayload as Omit<Project, 'id'>);
                     if (newProject && newProject.id) {
+                        // Update editingProject with the new ID so a retry (e.g. if skill insertion fails)
+                        // treats it as an update rather than creating a duplicate project
+                        setEditingProject({ ...editingProject, id: newProject.id, version: newProject.version } as Project);
                         await Promise.all(selectedSkills.map(skillId => addProjectSkill({ projectId: newProject.id!, skillId })));
                     }
                 }

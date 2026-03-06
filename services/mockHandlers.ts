@@ -263,6 +263,23 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
         saveDb(db);
         return newItem;
       }
+      // Composite-key join tables (no id/version)
+      const COMPOSITE_KEY_ENTITIES = ['project_skills', 'resource_skills', 'contract_projects', 'contract_managers'];
+      if (COMPOSITE_KEY_ENTITIES.includes(entity)) {
+        if (!(db as any)[dbKey]) (db as any)[dbKey] = [];
+        (db as any)[dbKey].push(body);
+        saveDb(db);
+        return body;
+      }
+      // Tables with id but no version column
+      const NO_VERSION_ENTITIES = ['skill_macro_categories', 'skill_categories', 'notifications', 'evaluation_metrics', 'analytics_cache'];
+      if (NO_VERSION_ENTITIES.includes(entity)) {
+        const newItem = { id: uuidv4(), ...body };
+        if (!(db as any)[dbKey]) (db as any)[dbKey] = [];
+        (db as any)[dbKey].push(newItem);
+        saveDb(db);
+        return newItem;
+      }
       const newItem = { id: uuidv4(), version: 1, ...body };
       if (!(db as any)[dbKey]) (db as any)[dbKey] = [];
       (db as any)[dbKey].push(newItem);
@@ -273,6 +290,13 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (method === 'PUT') {
       const body = JSON.parse(options.body as string);
       const existing = list.find((i: any) => i.id === params.id);
+      const NO_VERSION_ENTITIES_PUT = ['skill_macro_categories', 'skill_categories', 'notifications', 'evaluation_metrics', 'analytics_cache'];
+      if (NO_VERSION_ENTITIES_PUT.includes(entity)) {
+        const updated = { ...existing, ...body, id: params.id };
+        (db as any)[dbKey] = list.map((i: any) => i.id === params.id ? updated : i);
+        saveDb(db);
+        return updated;
+      }
       const nextVersion = (existing?.version ?? 0) + 1;
       const updated = { ...existing, ...body, id: params.id, version: nextVersion };
       (db as any)[dbKey] = list.map((i: any) => i.id === params.id ? updated : i);
