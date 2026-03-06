@@ -875,7 +875,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                  return res.status(201).json(validatedBody);
              }
 
+             // Tables that have `id` but no `version` column
+             const NO_VERSION_TABLES = ['skill_macro_categories', 'skill_categories', 'notifications', 'evaluation_metrics', 'analytics_cache'];
              const newId = uuidv4();
+             if (NO_VERSION_TABLES.includes(tableName as string)) {
+                 const placeholders = values.map((_, i) => `$${i + 2}`);
+                 await client.query(`INSERT INTO ${tableName} (id, ${columns.join(', ')}) VALUES ($1, ${placeholders.join(', ')})`, [newId, ...values]);
+                 return res.status(201).json({ id: newId, ...validatedBody });
+             }
+
              const placeholders = values.map((_, i) => `$${i + 2}`);
              await client.query(`INSERT INTO ${tableName} (id, version, ${columns.join(', ')}) VALUES ($1, 1, ${placeholders.join(', ')})`, [newId, ...values]);
              await triggerNotification(client, 'POST', tableName as string, newId, validatedBody);
@@ -918,6 +926,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             if (id && notifiableTables.includes(tableName as string)) {
                 const oldRes = await client.query(`SELECT * FROM ${tableName} WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
                 if (oldRes.rows[0]) oldData = toCamelAndNormalize(oldRes.rows[0]);
+            }
+
+            // Tables that have `id` but no `version` column — no optimistic locking
+            const NO_VERSION_TABLES_PUT = ['skill_macro_categories', 'skill_categories', 'notifications', 'evaluation_metrics', 'analytics_cache'];
+            if (NO_VERSION_TABLES_PUT.includes(tableName as string)) {
+                const result = await client.query(`UPDATE ${tableName} SET ${updates.join(', ')} WHERE id = $${values.length + 1}`, [...values, id]);
+                if (result.rowCount === 0) return res.status(404).json({ error: "Not found" });
+                return res.status(200).json({ id, ...validatedBody });
             }
 
             const result = await client.query(`UPDATE ${tableName} SET ${updates.join(', ')}, version = version + 1 WHERE id = $${values.length + 1} AND version = $${values.length + 2}`, [...values, id, version]);
