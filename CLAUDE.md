@@ -291,6 +291,7 @@ API calls use `apiFetch()` from `services/apiClient.ts` which handles auth heade
 - This is NOT the full `zod` package — it's a minimal subset supporting: `object`, `string`, `boolean`, `enum`, `number`, `array`, `optional/nullable`, `refine`, `safeParse`.
 - Import `zod` as usual — the alias resolves to the local implementation.
 - The custom lib is used on both the **frontend** (form validation) and **backend** (`api/resources.ts` uses `z` from `'../libs/zod.js'`).
+- **IMPORTANT — NUMERIC coercion:** PostgreSQL `NUMERIC` columns return **strings** in JavaScript via the `pg` driver (e.g., `"50000.00"` instead of `50000`). All numeric fields in `VALIDATION_SCHEMAS` (`api/resources.ts`) **must** use `z.coerce.number()` instead of `z.number()` to handle this. Failing to coerce will cause "Invalid data" errors on PUT/POST for any entity with `NUMERIC` DB columns.
 
 ### Authentication & Authorization
 
@@ -437,7 +438,10 @@ contracts          → requires projects + clients
 
 **If the entity can use the generic CRUD dispatcher (`api/resources.ts`):**
 1. Add a `TABLE_MAPPING` entry (frontend entity name → DB table name) in `api/resources.ts`.
-2. Add a `VALIDATION_SCHEMAS` entry with a Zod schema in `api/resources.ts`.
+2. Add a `VALIDATION_SCHEMAS` entry with a Zod schema in `api/resources.ts`. Use `z.coerce.number()` for any field backed by a `NUMERIC` DB column. Determine which table category the entity belongs to:
+   - **Composite-key tables** (no `id`/`version` columns, e.g., join tables): add to `COMPOSITE_KEY_TABLES` in the POST handler and `COMPOSITE_KEY_ENTITIES` in `services/mockHandlers.ts`.
+   - **No-version tables** (`id` column but no `version` column): add to `NO_VERSION_TABLES` in the POST handler and `NO_VERSION_TABLES_PUT` in the PUT handler; also add to `NO_VERSION_ENTITIES` and `NO_VERSION_ENTITIES_PUT` in `services/mockHandlers.ts`.
+   - **Standard tables** (`id` + `version` columns): no extra lists needed — the default handler covers them.
 3. Define the TypeScript interface in `types.ts`.
 4. Choose the appropriate domain context and add state + CRUD operations there.
 5. Add the entity to the `initialize()` call in `AppContext.tsx` coordinator.
