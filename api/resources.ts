@@ -62,13 +62,13 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         industry: z.string().optional().nullable(), // Aggiunto
         location: z.string().optional().nullable(),
         hireDate: z.string().optional().nullable(),
-        workSeniority: z.number().optional().nullable(),
+        workSeniority: z.coerce.number().optional().nullable(),
         notes: z.string().optional().nullable(),
-        maxStaffingPercentage: z.number().optional().nullable(),
+        maxStaffingPercentage: z.coerce.number().optional().nullable(),
         resigned: z.boolean().optional().nullable(),
         lastDayOfWork: z.string().optional().nullable(),
         tutorId: z.string().optional().nullable(),
-        dailyCost: z.number().optional().nullable(),
+        dailyCost: z.coerce.number().optional().nullable(),
         isTalent: z.boolean().optional().nullable(),
         seniorityCode: z.string().optional().nullable()
     }),
@@ -77,8 +77,8 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         clientId: z.string().optional().nullable(),
         startDate: z.string().optional().nullable(),
         endDate: z.string().optional().nullable(),
-        budget: z.number().optional().nullable(),
-        realizationPercentage: z.number().optional().nullable(),
+        budget: z.coerce.number().optional().nullable(),
+        realizationPercentage: z.coerce.number().optional().nullable(),
         projectManager: z.string().optional().nullable(),
         status: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
@@ -93,13 +93,13 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
     'roles': z.object({
         name: z.string(),
         seniorityLevel: z.string().optional().nullable(),
-        dailyCost: z.number().optional().nullable(),
-        standardCost: z.number().optional().nullable(),
-        dailyExpenses: z.number().optional().nullable(),
-        overheadPct: z.number().optional(),
-        chargeablePct: z.number().optional(),
-        trainingPct: z.number().optional(),
-        bdPct: z.number().optional()
+        dailyCost: z.coerce.number().optional().nullable(),
+        standardCost: z.coerce.number().optional().nullable(),
+        dailyExpenses: z.coerce.number().optional().nullable(),
+        overheadPct: z.coerce.number().optional(),
+        chargeablePct: z.coerce.number().optional(),
+        trainingPct: z.coerce.number().optional(),
+        bdPct: z.coerce.number().optional()
     }),
     'skills': z.object({
         name: z.string(),
@@ -116,7 +116,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
     'resource_skills': z.object({
         resourceId: z.string(),
         skillId: z.string(),
-        level: z.number().optional().nullable(),
+        level: z.coerce.number().optional().nullable(),
         acquisitionDate: z.string().optional().nullable(),
         expirationDate: z.string().optional().nullable()
     }),
@@ -131,8 +131,8 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         cig: z.string(),
         cigDerivato: z.string().optional().nullable(),
         wbs: z.string().optional().nullable(),
-        capienza: z.number(),
-        backlog: z.number().optional().nullable(),
+        capienza: z.coerce.number(),
+        backlog: z.coerce.number().optional().nullable(),
         rateCardId: z.string().optional().nullable(),
         billingType: z.string().optional().nullable()
     }),
@@ -147,14 +147,14 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
     'rate_card_entries': z.object({
         rateCardId: z.string(),
         resourceId: z.string(),
-        dailyRate: z.number()
+        dailyRate: z.coerce.number()
     }),
     'evaluation_metrics': z.object({
         evaluationId: z.string(),
         category: z.string(),
         metricKey: z.string(),
         metricValue: z.string().optional().nullable(),
-        score: z.number().optional().nullable()
+        score: z.coerce.number().optional().nullable()
     }),
     'app_config': z.object({
         key: z.string(),
@@ -207,7 +207,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         projectId: z.string(),
         category: z.string(),
         description: z.string().optional().nullable(),
-        amount: z.number(),
+        amount: z.coerce.number(),
         date: z.string(),
         billable: z.boolean().optional().nullable()
     }),
@@ -215,7 +215,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         projectId: z.string(),
         name: z.string(),
         date: z.string(),
-        amount: z.number(),
+        amount: z.coerce.number(),
         status: z.string().optional().nullable()
     }),
     'app_users': z.object({
@@ -268,27 +268,27 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         hiringStatus: z.string().optional().nullable(),
         entryDate: z.string().optional().nullable(),
         status: z.string(),
-        ratingTechnicalMastery: z.number().optional().nullable(),
-        ratingProblemSolving: z.number().optional().nullable(),
-        ratingMethodQuality: z.number().optional().nullable(),
-        ratingDomainKnowledge: z.number().optional().nullable(),
-        ratingAutonomy: z.number().optional().nullable(),
-        ratingCommunication: z.number().optional().nullable(),
-        ratingProactivity: z.number().optional().nullable(),
-        ratingTeamFit: z.number().optional().nullable()
+        ratingTechnicalMastery: z.coerce.number().optional().nullable(),
+        ratingProblemSolving: z.coerce.number().optional().nullable(),
+        ratingMethodQuality: z.coerce.number().optional().nullable(),
+        ratingDomainKnowledge: z.coerce.number().optional().nullable(),
+        ratingAutonomy: z.coerce.number().optional().nullable(),
+        ratingCommunication: z.coerce.number().optional().nullable(),
+        ratingProactivity: z.coerce.number().optional().nullable(),
+        ratingTeamFit: z.coerce.number().optional().nullable()
     }),
     'resource_evaluations': z.object({
         resourceId: z.string(),
-        fiscalYear: z.number(),
+        fiscalYear: z.coerce.number(),
         evaluatorId: z.string().optional().nullable(),
         status: z.string().optional(),
-        overallRating: z.number().optional().nullable(),
+        overallRating: z.coerce.number().optional().nullable(),
         summary: z.string().optional().nullable(),
         metrics: z.array(z.object({
              category: z.string(),
              metricKey: z.string(),
              metricValue: z.string().optional().nullable(),
-             score: z.number().optional().nullable()
+             score: z.coerce.number().optional().nullable()
         })).optional()
     }),
     'resource_requests': z.object({
@@ -297,7 +297,7 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         requestorId: z.string().optional().nullable(),
         startDate: z.string(),
         endDate: z.string(),
-        commitmentPercentage: z.number(),
+        commitmentPercentage: z.coerce.number(),
         isUrgent: z.boolean().optional(),
         isLongTerm: z.boolean().optional(),
         isTechRequest: z.boolean().optional(),
