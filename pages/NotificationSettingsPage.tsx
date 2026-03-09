@@ -105,14 +105,25 @@ function makeBlock(type: NotificationBlockType): NotificationBlock {
 // ---------------------------------------------------------------------------
 
 const CONTEXT_HINTS: Record<string, string[]> = {
-    ASSIGNMENT_CREATED:  ['context.title', 'context.Risorsa', 'context.Progetto', 'context.Data'],
-    ASSIGNMENT_DELETED:  ['context.title', 'context.Risorsa', 'context.Progetto'],
-    ALLOCATION_CHANGED:  ['context.title', 'context.Risorsa', 'context.Progetto', 'context.Giorni'],
-    RESOURCE_CREATED:    ['context.title', 'context.Nome', 'context.Ruolo', 'context.Funzione'],
-    PROJECT_CREATED:     ['context.title', 'context.Nome', 'context.Cliente', 'context.Budget'],
-    LEAVE_REQUEST_CREATED: ['context.title', 'context.Risorsa', 'context.Dal', 'context.Al'],
-    LEAVE_APPROVED:      ['context.title', 'context.Risorsa', 'context.Dal', 'context.Al'],
-    LOGIN_FAILED:        ['context.title', 'context.username', 'context.ip'],
+    ASSIGNMENT_CREATED:              ['context.title', 'context.Risorsa', 'context.Progetto', 'context.Data'],
+    ASSIGNMENT_DELETED:              ['context.title', 'context.Risorsa', 'context.Progetto'],
+    ALLOCATION_CHANGED:              ['context.title', 'context.Risorsa', 'context.Progetto', 'context.Giorni'],
+    RESOURCE_CREATED:                ['context.title', 'context.Nome', 'context.Ruolo', 'context.Funzione', 'context.Sede'],
+    RESOURCE_UPDATED:                ['context.title', 'context.Nome'],
+    RESOURCE_RESIGNED:               ['context.title', 'context.Nome', 'context.Ultimo Giorno'],
+    SKILL_ADDED:                     ['context.title', 'context.Risorsa', 'context.Competenza', 'context.Livello', 'context.Data Acquisizione'],
+    PROJECT_CREATED:                 ['context.title', 'context.Progetto', 'context.Budget', 'context.Stato'],
+    PROJECT_STATUS_CHANGED:          ['context.title', 'context.Progetto', 'context.Precedente', 'context.Nuovo Stato'],
+    BUDGET_UPDATED:                  ['context.title', 'context.Progetto', 'context.Budget Precedente', 'context.Nuovo Budget'],
+    CONTRACT_CREATED:                ['context.title', 'context.Contratto', 'context.CIG', 'context.Capienza'],
+    RESOURCE_REQUEST_CREATED:        ['context.title', 'context.Codice', 'context.Urgenza'],
+    RESOURCE_REQUEST_STATUS_CHANGED: ['context.title', 'context.Codice', 'context.Nuovo Stato'],
+    INTERVIEW_FEEDBACK:              ['context.title', 'context.Candidato', 'context.Esito', 'context.Media Voto', 'context.Stato'],
+    LEAVE_REQUEST_CREATED:           ['context.title', 'context.Risorsa', 'context.Tipo', 'context.Dal', 'context.Al', 'context.Note'],
+    LEAVE_APPROVED:                  ['context.title', 'context.Risorsa', 'context.Tipo', 'context.Dal', 'context.Al'],
+    LEAVE_REJECTED:                  ['context.title', 'context.Risorsa', 'context.Tipo', 'context.Dal', 'context.Al'],
+    USER_CREATED:                    ['context.title', 'context.Username', 'context.Ruolo'],
+    LOGIN_FAILED:                    ['context.title', 'context.username', 'context.ip'],
 };
 
 // ---------------------------------------------------------------------------
