@@ -361,10 +361,17 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     ]
                 });
             } else if (tableName === 'leave_requests') {
+                // Recupera nome risorsa per il payload notifica
+                let leaveResourceName = 'N/A';
+                if (data.resourceId) {
+                    const resRow = await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId]).catch(() => ({ rows: [] }));
+                    leaveResourceName = resRow.rows[0]?.name || 'N/A';
+                }
                 await notify(client, 'LEAVE_REQUEST_CREATED', {
                     title: 'Nuova Richiesta di Assenza',
                     color: 'Accent',
                     facts: [
+                        { name: 'Risorsa', value: leaveResourceName },
                         { name: 'Tipo', value: data.leaveType || 'N/A' },
                         { name: 'Dal', value: data.startDate || 'N/A' },
                         { name: 'Al', value: data.endDate || 'N/A' },
@@ -382,10 +389,23 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     ]
                 });
             } else if (tableName === 'resource_skills') {
+                // Recupera nome risorsa e skill per arricchire il payload
+                let resourceName = 'N/A';
+                let skillName = 'N/A';
+                if (data.resourceId) {
+                    const resRow = await client.query('SELECT name FROM resources WHERE id = $1', [data.resourceId]).catch(() => ({ rows: [] }));
+                    resourceName = resRow.rows[0]?.name || 'N/A';
+                }
+                if (data.skillId) {
+                    const skillRow = await client.query('SELECT name FROM skills WHERE id = $1', [data.skillId]).catch(() => ({ rows: [] }));
+                    skillName = skillRow.rows[0]?.name || 'N/A';
+                }
                 await notify(client, 'SKILL_ADDED', {
                     title: 'Nuova Competenza Acquisita',
                     color: 'Good',
                     facts: [
+                        { name: 'Risorsa', value: resourceName },
+                        { name: 'Competenza', value: skillName },
                         { name: 'Livello', value: data.level ? `${data.level}/5` : 'N/A' },
                         { name: 'Data Acquisizione', value: data.acquisitionDate || 'N/A' },
                     ]
@@ -447,11 +467,19 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                 const newStatus = data.status;
                 const oldStatus = oldData?.status;
                 if (newStatus && newStatus !== oldStatus) {
+                    // Recupera nome risorsa per il payload notifica (usa resourceId da body o da oldData)
+                    const leaveResId = data.resourceId || oldData?.resourceId;
+                    let leaveResName = 'N/A';
+                    if (leaveResId) {
+                        const resRow = await client.query('SELECT name FROM resources WHERE id = $1', [leaveResId]).catch(() => ({ rows: [] }));
+                        leaveResName = resRow.rows[0]?.name || 'N/A';
+                    }
                     if (newStatus === 'APPROVED') {
                         await notify(client, 'LEAVE_APPROVED', {
                             title: 'Assenza Approvata',
                             color: 'Good',
                             facts: [
+                                { name: 'Risorsa', value: leaveResName },
                                 { name: 'Tipo', value: data.leaveType || oldData?.leaveType || 'N/A' },
                                 { name: 'Dal', value: data.startDate || oldData?.startDate || 'N/A' },
                                 { name: 'Al', value: data.endDate || oldData?.endDate || 'N/A' },
@@ -462,6 +490,7 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                             title: 'Assenza Rifiutata',
                             color: 'Attention',
                             facts: [
+                                { name: 'Risorsa', value: leaveResName },
                                 { name: 'Tipo', value: data.leaveType || oldData?.leaveType || 'N/A' },
                                 { name: 'Dal', value: data.startDate || oldData?.startDate || 'N/A' },
                                 { name: 'Al', value: data.endDate || oldData?.endDate || 'N/A' },
@@ -477,10 +506,12 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                         color: 'Accent',
                         facts: [{ name: 'Codice', value: code }, { name: 'Nuovo Stato', value: data.status }]
                     });
-                    if (data.requestorId) {
+                    // Fallback a oldData?.requestorId nel caso il frontend non includa il campo nel body
+                    const recipientId = data.requestorId || oldData?.requestorId;
+                    if (recipientId) {
                         await client.query(
                             'INSERT INTO notifications (id, recipient_resource_id, title, message, link) VALUES ($1, $2, $3, $4, $5)',
-                            [uuidv4(), data.requestorId, 'Aggiornamento Richiesta', `La tua richiesta ${code} è passata allo stato ${data.status}.`, '/resource-requests']
+                            [uuidv4(), recipientId, 'Aggiornamento Richiesta', `La tua richiesta ${code} è passata allo stato ${data.status}.`, '/resource-requests']
                         );
                     }
                 }
@@ -516,16 +547,21 @@ const triggerNotification = async (client: any, method: string, tableName: strin
                     const encodedConfig = encodeURIComponent(JSON.stringify(chartConfig));
                     const imageUrl = `https://quickchart.io/chart?c=${encodedConfig}&w=300&h=300`;
 
+                    // Fallback a oldData nel caso il frontend non includa tutti i campi nel body
+                    const candidateName = data.candidateName || oldData?.candidateName || '';
+                    const candidateSurname = data.candidateSurname || oldData?.candidateSurname || '';
+                    const fullName = `${candidateName} ${candidateSurname}`.trim() || 'N/A';
+
                     await notify(client, 'INTERVIEW_FEEDBACK', {
-                        title: `Feedback Inserito: ${data.candidateName} ${data.candidateSurname}`,
+                        title: `Feedback Inserito: ${fullName}`,
                         color: average >= 3.5 ? 'Good' : average >= 2.5 ? 'Warning' : 'Attention',
                         imageUrl: imageUrl,
                         imageCaption: `Valutazione Media: ${average.toFixed(1)} su 5`,
                         facts: [
-                            { name: 'Candidato', value: `${data.candidateName} ${data.candidateSurname}` },
+                            { name: 'Candidato', value: fullName },
                             { name: 'Esito', value: data.feedback },
                             { name: 'Media Voto', value: `${stars} (${average.toFixed(1)})` },
-                            { name: 'Stato', value: data.status || 'N/A' }
+                            { name: 'Stato', value: data.status || oldData?.status || 'N/A' }
                         ],
                         detailedFacts: detailedFacts
                     });
