@@ -243,9 +243,15 @@ export async function processEvent(
 
         await Promise.allSettled(rules.map(async (rule: any) => {
             try {
-                const blocks: NotificationBlock[] = Array.isArray(rule.template_blocks)
-                    ? rule.template_blocks
-                    : JSON.parse(rule.template_blocks || '[]');
+                let blocks: NotificationBlock[] = [];
+                try {
+                    blocks = Array.isArray(rule.template_blocks)
+                        ? rule.template_blocks
+                        : JSON.parse(rule.template_blocks || '[]');
+                } catch (jsonErr) {
+                    console.error(`[processEvent] template_blocks JSON non valido per regola "${rule.name}" (${rule.id}):`, jsonErr);
+                    return;
+                }
 
                 if (blocks.length === 0) {
                     console.warn(`[processEvent] Regola "${rule.name}" (${rule.id}) non ha blocchi configurati — card inviata con body di fallback`);
@@ -281,11 +287,17 @@ export async function notify(
     payload: NotificationPayload
 ) {
     try {
-        // Deriva il contesto piatto dai facts del payload (per processEvent ibrido)
+        // Deriva il contesto piatto dai facts del payload (per processEvent ibrido).
+        // Le chiavi vengono aggiunte sia nel case originale che in lowercase per
+        // garantire compatibilità con template che usano {{context.username}} o {{context.Username}}.
+        const factsEntries = payload.facts.flatMap(f => [
+            [f.name, f.value],
+            [f.name.toLowerCase(), f.value],
+        ]);
         const ctx: EventContext = {
             title: payload.title,
             subtitle: payload.subtitle || '',
-            ...Object.fromEntries(payload.facts.map(f => [f.name, f.value])),
+            ...Object.fromEntries(factsEntries),
         };
 
         // Esegui legacy + nuovo motore in parallelo

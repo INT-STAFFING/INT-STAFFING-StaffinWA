@@ -8,7 +8,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getUserFromRequest } from './_lib/auth.js';
+import { getUserFromRequest, verifyAdmin } from './_lib/auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
@@ -18,7 +18,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!user) return res.status(401).json({ error: 'Non autorizzato' });
 
     // ─── Test webhook ─────────────────────────────────────────────────────────
+    // Richiede ruolo ADMIN: solo admin può testare URL webhook per prevenire
+    // che utenti non privilegiati scoprano o abusino gli endpoint configurati.
     if (action === 'webhook-test') {
+        if (!verifyAdmin(req)) return res.status(403).json({ error: 'Richiede ruolo ADMIN' });
         if (method !== 'POST') {
             res.setHeader('Allow', ['POST']);
             return res.status(405).end();

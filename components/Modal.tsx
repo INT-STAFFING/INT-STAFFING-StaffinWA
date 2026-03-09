@@ -28,16 +28,18 @@ interface ModalProps {
  * @returns {React.ReactElement | null} Il componente modale se `isOpen` è true, altrimenti null.
  */
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
-    // Non renderizzare nulla se la modale non è aperta.
-    if (!isOpen) return null;
-
     const dialogRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
     const descriptionId = useId();
 
     useEffect(() => {
-        dialogRef.current?.focus();
-    }, []);
+        if (isOpen) {
+            dialogRef.current?.focus();
+        }
+    }, [isOpen]);
+
+    // Non renderizzare nulla se la modale non è aperta.
+    if (!isOpen) return null;
 
     const handleBackdropClick = () => {
         const confirmed = window.confirm('Chiudere senza salvare? Le modifiche non salvate andranno perse.');

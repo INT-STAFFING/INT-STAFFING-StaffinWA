@@ -146,7 +146,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
             addToast('Progetto aggiornato', 'success');
         } catch (e: any) {
-            addToast(e.message, 'error');
+            addToast(e.message || 'Errore durante l\'aggiornamento del progetto.', 'error');
         }
     }, [addToast]);
 
@@ -284,11 +284,16 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, [contractProjects, contractManagers, addToast]);
 
     const deleteContract = useCallback(async (id: string): Promise<void> => {
-        await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' });
-        setContracts(prev => prev.filter(c => c.id !== id));
-        setContractProjects(prev => prev.filter(cp => cp.contractId !== id));
-        setContractManagers(prev => prev.filter(cm => cm.contractId !== id));
-    }, []);
+        try {
+            await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' });
+            setContracts(prev => prev.filter(c => c.id !== id));
+            setContractProjects(prev => prev.filter(cp => cp.contractId !== id));
+            setContractManagers(prev => prev.filter(cm => cm.contractId !== id));
+        } catch (e: any) {
+            addToast(e.message || 'Errore durante l\'eliminazione del contratto.', 'error');
+            throw e;
+        }
+    }, [addToast]);
 
     const recalculateContractBacklog = useCallback(async (id: string): Promise<void> => {
         const contract = contracts.find(c => c.id === id);
