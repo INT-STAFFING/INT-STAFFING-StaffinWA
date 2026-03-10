@@ -24,6 +24,15 @@ export default defineConfig(({ mode }) => {
           // to avoid the same TypeScript error.
           'zod': path.resolve('libs/zod'),
         }
-      }
+      },
+      test: {
+        environment: 'jsdom',
+        globals: true,
+        setupFiles: [],
+        alias: {
+          '@': path.resolve('.'),
+          'zod': path.resolve('libs/zod'),
+        },
+      },
     };
 });
