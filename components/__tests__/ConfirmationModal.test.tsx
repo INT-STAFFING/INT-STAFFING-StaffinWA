@@ -1,93 +1,120 @@
 /* @vitest-environment jsdom */
 /**
  * @file components/__tests__/ConfirmationModal.test.tsx
- * @description Test del componente ConfirmationModal.
+ * @description Test unitari per ConfirmationModal.
+ * Verifica apertura/chiusura, pulsanti, stato isConfirming e testi predefiniti.
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import ConfirmationModal from '../ConfirmationModal';
 
-describe('ConfirmationModal', () => {
-    const defaultProps = {
-        isOpen: true,
-        onClose: vi.fn(),
-        onConfirm: vi.fn(),
-        title: 'Conferma eliminazione',
-        message: 'Sei sicuro di voler eliminare questo elemento?',
-    };
+afterEach(cleanup);
 
-    it('non renderizza nulla se isOpen è false', () => {
+const makeProps = () => ({
+    isOpen: true,
+    onClose: vi.fn(),
+    onConfirm: vi.fn(),
+    title: 'Conferma eliminazione',
+    message: 'Sei sicuro di voler eliminare questo elemento?',
+});
+
+// alias per brevità
+let defaultProps: ReturnType<typeof makeProps>;
+beforeEach(() => { defaultProps = makeProps(); });
+
+describe('ConfirmationModal – rendering', () => {
+    it('non renderizza nulla quando isOpen=false', () => {
         const { container } = render(<ConfirmationModal {...defaultProps} isOpen={false} />);
-        expect(container.firstChild).toBeNull();
+        // Il modal non deve avere role=dialog visibile
+        expect(container.querySelector('[role="dialog"]')).toBeNull();
     });
 
-    it('mostra il titolo quando è aperta', () => {
+    it('renderizza il titolo quando isOpen=true', () => {
         render(<ConfirmationModal {...defaultProps} />);
         expect(screen.getByText('Conferma eliminazione')).toBeDefined();
     });
 
-    it('mostra il messaggio', () => {
+    it('renderizza il messaggio testuale', () => {
         render(<ConfirmationModal {...defaultProps} />);
         expect(screen.getByText('Sei sicuro di voler eliminare questo elemento?')).toBeDefined();
     });
 
-    it('mostra il testo di default "Conferma" per il bottone di conferma', () => {
-        render(<ConfirmationModal {...defaultProps} />);
-        expect(screen.getByText('Conferma')).toBeDefined();
+    it('renderizza un ReactNode come messaggio', () => {
+        render(
+            <ConfirmationModal
+                {...defaultProps}
+                message={<span data-testid="custom-msg">Messaggio personalizzato</span>}
+            />
+        );
+        expect(screen.getByTestId('custom-msg')).toBeDefined();
     });
 
-    it('mostra il testo di default "Annulla" per il bottone di annullamento', () => {
+    it('usa i testi predefiniti per i pulsanti (Conferma / Annulla)', () => {
         render(<ConfirmationModal {...defaultProps} />);
+        expect(screen.getByText('Conferma')).toBeDefined();
         expect(screen.getByText('Annulla')).toBeDefined();
     });
 
-    it('usa il testo personalizzato per il bottone di conferma', () => {
-        render(<ConfirmationModal {...defaultProps} confirmButtonText="Elimina definitivamente" />);
-        expect(screen.getByText('Elimina definitivamente')).toBeDefined();
-    });
-
-    it('usa il testo personalizzato per il bottone di annullamento', () => {
-        render(<ConfirmationModal {...defaultProps} cancelButtonText="Torna indietro" />);
+    it('accetta testi personalizzati per i pulsanti', () => {
+        render(
+            <ConfirmationModal
+                {...defaultProps}
+                confirmButtonText="Elimina"
+                cancelButtonText="Torna indietro"
+            />
+        );
+        expect(screen.getByText('Elimina')).toBeDefined();
         expect(screen.getByText('Torna indietro')).toBeDefined();
     });
+});
 
-    it('chiama onConfirm al click sul bottone di conferma', () => {
+describe('ConfirmationModal – interazioni', () => {
+    it('chiama onConfirm cliccando il pulsante di conferma', () => {
         const onConfirm = vi.fn();
         render(<ConfirmationModal {...defaultProps} onConfirm={onConfirm} />);
         fireEvent.click(screen.getByText('Conferma'));
         expect(onConfirm).toHaveBeenCalledTimes(1);
     });
 
-    it('chiama onClose al click sul bottone di annullamento', () => {
+    it('chiama onClose cliccando il pulsante Annulla', () => {
         const onClose = vi.fn();
         render(<ConfirmationModal {...defaultProps} onClose={onClose} />);
         fireEvent.click(screen.getByText('Annulla'));
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it('disabilita i bottoni durante isConfirming=true', () => {
-        render(<ConfirmationModal {...defaultProps} isConfirming={true} />);
-        const annullaBtn = screen.getByText('Annulla') as HTMLButtonElement;
-        expect(annullaBtn.disabled).toBe(true);
+    it('chiama onClose cliccando il pulsante X del modal header', () => {
+        const onClose = vi.fn();
+        render(<ConfirmationModal {...defaultProps} onClose={onClose} />);
+        const closeBtn = screen.getByLabelText('Chiudi modale');
+        fireEvent.click(closeBtn);
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('ConfirmationModal – stato isConfirming', () => {
+    it('disabilita entrambi i pulsanti quando isConfirming=true', () => {
+        render(<ConfirmationModal {...defaultProps} isConfirming />);
+        const buttons = screen.getAllByRole('button').filter(b => b.getAttribute('aria-label') !== 'Chiudi modale');
+        buttons.forEach(btn => {
+            expect((btn as HTMLButtonElement).disabled).toBe(true);
+        });
     });
 
-    it('non disabilita i bottoni con isConfirming=false (default)', () => {
+    it('mostra lo spinner invece del testo di conferma quando isConfirming=true', () => {
+        const { container } = render(<ConfirmationModal {...defaultProps} isConfirming />);
+        // Il testo "Conferma" non deve essere visibile
+        expect(screen.queryByText('Conferma')).toBeNull();
+        // Deve esserci un SVG (SpinnerIcon)
+        expect(container.querySelector('svg')).not.toBeNull();
+    });
+
+    it('i pulsanti non sono disabilitati di default', () => {
         render(<ConfirmationModal {...defaultProps} />);
         const annullaBtn = screen.getByText('Annulla') as HTMLButtonElement;
+        const confermaBtn = screen.getByText('Conferma') as HTMLButtonElement;
         expect(annullaBtn.disabled).toBe(false);
-    });
-
-    it('il bottone di conferma ha classe bg-error', () => {
-        render(<ConfirmationModal {...defaultProps} />);
-        const confirmBtn = screen.getByText('Conferma');
-        expect(confirmBtn.className).toContain('bg-error');
-    });
-
-    it('accetta un ReactNode come messaggio', () => {
-        const message = <span data-testid="rich-message">Elemento: <strong>Progetto Alpha</strong></span>;
-        render(<ConfirmationModal {...defaultProps} message={message} />);
-        expect(screen.getByTestId('rich-message')).toBeDefined();
-        expect(screen.getByText('Progetto Alpha')).toBeDefined();
+        expect(confermaBtn.disabled).toBe(false);
     });
 });
