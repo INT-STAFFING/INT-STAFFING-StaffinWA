@@ -221,7 +221,9 @@ const CertificationsPage: React.FC = () => {
             await deleteSkill(skillToDelete.id!);
             setSkillToDelete(null);
             addToast('Certificazione eliminata.', 'success');
-        } catch (error) {}
+        } catch (error) {
+            addToast('Errore durante l\'eliminazione della certificazione.', 'error');
+        }
     };
 
     const openAssignmentModal = (skill: Skill) => {

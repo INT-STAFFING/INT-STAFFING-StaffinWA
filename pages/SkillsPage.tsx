@@ -222,7 +222,9 @@ const SkillsPage: React.FC = () => {
         try {
             await deleteSkill(skillToDelete.id!);
             setSkillToDelete(null);
-        } catch (error) {}
+        } catch (error) {
+            addToast('Errore durante l\'eliminazione della competenza.', 'error');
+        }
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -100,7 +100,10 @@ export async function ensureDbTablesExist(db: VercelPool) {
     await db.sql`CREATE TABLE IF NOT EXISTS rate_cards ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, currency VARCHAR(10) DEFAULT 'EUR', version INT DEFAULT 1 );`;
     try {
          await db.sql`CREATE TABLE IF NOT EXISTS rate_card_entries ( rate_card_id UUID REFERENCES rate_cards(id) ON DELETE CASCADE, resource_id UUID REFERENCES resources(id) ON DELETE CASCADE, daily_rate NUMERIC(10, 2) NOT NULL, PRIMARY KEY (rate_card_id, resource_id) );`;
-    } catch(e) {}
+    } catch(e) {
+        // Ignorato intenzionalmente: la tabella potrebbe già esistere con vincoli diversi (migrazione)
+        console.warn('[schema] rate_card_entries CREATE TABLE ignorato:', (e as Error).message);
+    }
 
     await db.sql`CREATE TABLE IF NOT EXISTS contracts ( id UUID PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, start_date DATE, end_date DATE, cig VARCHAR(255) NOT NULL UNIQUE, cig_derivato VARCHAR(255), wbs VARCHAR(255), capienza NUMERIC(15, 2) NOT NULL, backlog NUMERIC(15, 2) DEFAULT 0, rate_card_id UUID REFERENCES rate_cards(id) ON DELETE SET NULL, billing_type VARCHAR(50) DEFAULT 'TIME_MATERIAL', version INT DEFAULT 1 );`;
     // Column migrations for contracts table (in case table existed before these columns were added)

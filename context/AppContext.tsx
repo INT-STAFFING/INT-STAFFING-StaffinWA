@@ -42,15 +42,15 @@ export interface AppState {
 const EntitiesContext = createContext<EntitiesContextType | undefined>(undefined);
 export const AllocationsContext = createContext<AllocationsContextType | undefined>(undefined);
 const AppStateContext = createContext<AppState | undefined>(undefined);
-const FetchDataContext = createContext<() => Promise<void>>(() => Promise.resolve());
-const UpdatePlanningContext = createContext<(settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>>(() => Promise.resolve());
+const FetchDataContext = createContext<() => Promise<void>>(() => { throw new Error('FetchDataContext: Provider non trovato'); });
+const UpdatePlanningContext = createContext<(settings: { monthsBefore: number; monthsAfter: number }) => Promise<void>>(() => { throw new Error('UpdatePlanningContext: Provider non trovato'); });
 interface CascadeOpsContextType {
     deleteProject: (id: string) => Promise<void>;
     deleteResource: (id: string) => Promise<void>;
 }
 const CascadeOpsContext = createContext<CascadeOpsContextType>({
-    deleteProject: async () => {},
-    deleteResource: async () => {},
+    deleteProject: async () => { throw new Error('CascadeOpsContext: Provider non trovato'); },
+    deleteResource: async () => { throw new Error('CascadeOpsContext: Provider non trovato'); },
 });
 
 // --- Coordinator interno: aggrega tutti i sub-context e fornisce operazioni cross-domain ---
