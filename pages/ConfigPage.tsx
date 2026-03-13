@@ -7,6 +7,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useLookupContext } from '../context/LookupContext';
+import { useToast } from '../context/ToastContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { ConfigOption, LeaveType, SkillCategory, SkillMacroCategory } from '../types';
 import Modal from '../components/Modal';
@@ -25,6 +26,7 @@ interface ConfigSectionProps {
 const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, options }) => {
     const { addConfigOption, updateConfigOption, deleteConfigOption } = useLookupContext();
     const { isActionLoading } = useAppState();
+    const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOption, setEditingOption] = useState<ConfigOption | { value: string } | null>(null);
 
@@ -48,7 +50,9 @@ const ConfigSection: React.FC<ConfigSectionProps> = ({ title, configType, option
                     await addConfigOption(configType, editingOption.value);
                 }
                 handleCloseModal();
-            } catch (e) {}
+            } catch (e) {
+                addToast('Errore durante il salvataggio della configurazione.', 'error');
+            }
         }
     };
 

@@ -7,6 +7,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppState } from '../context/AppContext';
 import { useLookupContext } from '../context/LookupContext';
+import { useToast } from '../context/ToastContext';
 import { CalendarEvent, CalendarEventType } from '../types';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -38,6 +39,7 @@ const getEventTypeBadgeClass = (type: CalendarEventType): string => {
 const CalendarPage: React.FC = () => {
     const { companyCalendar, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent, locations } = useLookupContext();
     const { loading, isActionLoading } = useAppState();
+    const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<CalendarEvent | Omit<CalendarEvent, 'id'> | null>(null);
     const [filters, setFilters] = useState({ name: '', type: '' });
@@ -95,7 +97,9 @@ const CalendarPage: React.FC = () => {
                     await addCalendarEvent(eventToSave as Omit<CalendarEvent, 'id'>);
                 }
                 handleCloseModal();
-            } catch(e) {}
+            } catch(e) {
+                addToast('Errore durante il salvataggio dell\'evento.', 'error');
+            }
         }
     };
 

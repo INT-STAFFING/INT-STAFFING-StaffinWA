@@ -207,7 +207,9 @@ const InterviewsPage: React.FC = () => {
             else await addInterview(payload as Omit<Interview, 'id'>);
             setIsModalOpen(false);
             addToast('Colloquio salvato con successo', 'success');
-        } catch (e) {}
+        } catch (e) {
+            addToast('Errore durante il salvataggio del colloquio.', 'error');
+        }
     };
 
     const handleRatingChange = (field: keyof Interview, value: number) => {
@@ -543,7 +545,9 @@ const InterviewsPage: React.FC = () => {
                             await deleteInterview(interviewToDelete.id!);
                             addToast('Colloquio eliminato.', 'success');
                             setInterviewToDelete(null);
-                        } catch (e) {}
+                        } catch (e) {
+                            addToast('Errore durante l\'eliminazione del colloquio.', 'error');
+                        }
                     }} 
                     title="Elimina Candidato" 
                     message={<>Sei sicuro di voler eliminare permanentemente <strong>{interviewToDelete.candidateName} {interviewToDelete.candidateSurname}</strong>?</>}
