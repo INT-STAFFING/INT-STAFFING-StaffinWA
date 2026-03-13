@@ -1,5 +1,11 @@
 # CLAUDE.md — Staffing Allocation Planner
 
+# Code Quality - MANDATORY
+- NEVER leave empty catch blocks. Always log the error or rethrow with context.
+- NEVER leave stub implementations (e.g. `TODO`, `pass`, `throw new Error("not implemented")`).
+- IMPORTANT: After any code change, run `npm test` and `npm run typecheck` before considering the task done.
+- If a function cannot be fully implemented, ask for clarification instead of generating a stub.
+
 ## Workflow Orchestration
 
 ### 1. Plan Node Default
