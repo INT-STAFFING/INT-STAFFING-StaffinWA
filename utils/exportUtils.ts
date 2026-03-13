@@ -271,7 +271,7 @@ export const exportInterviews = async (data: EntitiesContextType) => {
         "Nome Candidato": i.candidateName,
         "Cognome Candidato": i.candidateSurname,
         "Data di Nascita": formatDateForExport(i.birthDate),
-        "Horizontal": i.horizontal,
+        "Horizontal": i.function,
         "Ruolo Proposto": roles.find(r => r.id === i.roleId)?.name,
         "Riassunto CV": i.cvSummary,
         "Colloquiato Da": i.interviewersIds?.map(id => resources.find(r => r.id === id)?.name).join(', '),
