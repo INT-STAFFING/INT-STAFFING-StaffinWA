@@ -7,6 +7,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { useAuth } from '../context/AuthContext';
 import { Project, ProjectExpense, BillingType, BillingMilestone, MilestoneStatus } from '../types';
+import { z, SafeParseError } from '../libs/zod';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -53,6 +54,17 @@ const buildProjectPayload = (project: Project | Omit<Project, 'id'>): Project | 
 
     return basePayload;
 };
+
+const projectSchema = z.object({
+    name: z.string().min(1, 'Il nome è obbligatorio'),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable(),
+    budget: z.coerce.number().min(0, 'Il budget non può essere negativo'),
+    realizationPercentage: z.coerce.number().min(0, 'La percentuale non può essere negativa').max(200, 'La percentuale non può superare il 200%'),
+}).refine(data => {
+    if (!data.startDate || !data.endDate) return true;
+    return data.endDate >= data.startDate;
+}, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] });
 
 const BillingPlanModal: React.FC<{ 
     project: Project; 
@@ -421,6 +433,7 @@ export const ProjectsPage: React.FC = () => {
     const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | Omit<Project, 'id'> | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [filters, setFilters] = useState({ name: '', clientId: '', status: '' });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
     
@@ -556,11 +569,28 @@ export const ProjectsPage: React.FC = () => {
         setIsModalOpen(true); 
         handleCancelInlineEdit(); 
     };
-    const handleCloseModal = () => { setIsModalOpen(false); setEditingProject(null); setSelectedSkills([]); };
+    const handleCloseModal = () => { 
+        setIsModalOpen(false); 
+        setEditingProject(null); 
+        setSelectedSkills([]); 
+        setErrors({});
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingProject) {
+            const validation = projectSchema.safeParse(editingProject);
+            if (validation.success === false) {
+                const fieldErrors = (validation as SafeParseError).error.flatten().fieldErrors;
+                const mappedErrors: Record<string, string> = {};
+                Object.keys(fieldErrors).forEach(key => {
+                    if (fieldErrors[key]) mappedErrors[key] = fieldErrors[key][0];
+                });
+                setErrors(mappedErrors);
+                addToast('Controlla i dati inseriti.', 'error');
+                return;
+            }
+            setErrors({});
             try {
                 const projectPayload = buildProjectPayload(editingProject);
                 if ('id' in projectPayload) {
@@ -593,11 +623,15 @@ export const ProjectsPage: React.FC = () => {
             const { name, value } = e.target;
             const numericFields = ['budget', 'realizationPercentage'];
             setEditingProject({ ...editingProject, [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value });
+            setErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
 
     const handleSelectChange = (name: string, value: string) => {
-        if (editingProject) setEditingProject({ ...editingProject, [name]: value });
+        if (editingProject) {
+            setEditingProject({ ...editingProject, [name]: value });
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     const handleStartInlineEdit = (project: Project) => { setInlineEditingId(project.id!); setInlineEditingData({ ...project }); };
@@ -873,11 +907,13 @@ export const ProjectsPage: React.FC = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Progetto *</label>
-                                    <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className="form-input" placeholder="Nome descrittivo progetto" />
+                                    <input type="text" name="name" value={editingProject.name} onChange={handleChange} required className={`form-input ${errors.name ? 'border-error' : ''}`} placeholder="Nome descrittivo progetto" />
+                                    {errors.name && <p className="text-xs text-error mt-1">{errors.name}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Cliente *</label>
                                     <SearchableSelect name="clientId" value={editingProject.clientId || ''} onChange={handleSelectChange} options={clientOptions} placeholder="Seleziona cliente" required />
+                                    {errors.clientId && <p className="text-xs text-error mt-1">{errors.clientId}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Project Manager</label>
@@ -895,21 +931,25 @@ export const ProjectsPage: React.FC = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>
-                                        <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className="form-input" />
+                                        <input type="date" name="startDate" value={editingProject.startDate || ''} onChange={handleChange} className={`form-input ${errors.startDate ? 'border-error' : ''}`} />
+                                        {errors.startDate && <p className="text-xs text-error mt-1">{errors.startDate}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label>
-                                        <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className="form-input" />
+                                        <input type="date" name="endDate" value={editingProject.endDate || ''} onChange={handleChange} className={`form-input ${errors.endDate ? 'border-error' : ''}`} />
+                                        {errors.endDate && <p className="text-xs text-error mt-1">{errors.endDate}</p>}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Budget (€) *</label>
-                                        <input type="number" name="budget" value={editingProject.budget} onChange={handleChange} required className="form-input" />
+                                        <input type="number" name="budget" value={editingProject.budget} onChange={handleChange} required className={`form-input ${errors.budget ? 'border-error' : ''}`} />
+                                        {errors.budget && <p className="text-xs text-error mt-1">{errors.budget}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Realization (%)</label>
-                                        <input type="number" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className="form-input" min="0" max="200" />
+                                        <input type="number" name="realizationPercentage" value={editingProject.realizationPercentage} onChange={handleChange} className={`form-input ${errors.realizationPercentage ? 'border-error' : ''}`} min="0" max="200" />
+                                        {errors.realizationPercentage && <p className="text-xs text-error mt-1">{errors.realizationPercentage}</p>}
                                     </div>
                                 </div>
                                 <div>

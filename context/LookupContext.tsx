@@ -41,8 +41,9 @@ export interface LookupContextValue {
     updateCalendarEvent: (event: CalendarEvent) => Promise<void>;
     deleteCalendarEvent: (id: string) => Promise<void>;
     // Funzioni interne per il coordinator
-    initialize: (data: LookupInitData) => void;
+    initialize: (data: LookupInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => void;
     _setPlanningSettings: (settings: { monthsBefore: number; monthsAfter: number }) => void;
+    _setActionLoading?: (action: string, loading: boolean) => void;
 }
 
 const LookupContext = createContext<LookupContextValue | undefined>(undefined);
@@ -80,7 +81,9 @@ export const LookupProvider: React.FC<{
         locations: setLocations,
     }), []);
 
-    const initialize = useCallback((data: LookupInitData) => {
+    const [actionLoading, setActionLoading] = useState<(action: string, loading: boolean) => void>(() => () => {});
+
+    const initialize = useCallback((data: LookupInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => {
         if (data.functions !== undefined) setFunctions(data.functions);
         if (data.industries !== undefined) setIndustries(data.industries);
         if (data.seniorityLevels !== undefined) setSeniorityLevels(data.seniorityLevels);
@@ -89,6 +92,7 @@ export const LookupProvider: React.FC<{
         if (data.locations !== undefined) setLocations(data.locations);
         if (data.companyCalendar !== undefined) setCompanyCalendar(data.companyCalendar);
         if (data.planningSettings !== undefined) setPlanningSettings(data.planningSettings);
+        if (setActionLoadingFn) setActionLoading(() => setActionLoadingFn);
     }, []);
 
     const _setPlanningSettings = useCallback((settings: { monthsBefore: number; monthsAfter: number }) => {
@@ -127,15 +131,18 @@ export const LookupProvider: React.FC<{
 
     // --- CRUD Calendario Aziendale ---
     const addCalendarEvent = useCallback(async (event: Omit<CalendarEvent, 'id'>): Promise<void> => {
+        actionLoading('addCalendarEvent', true);
         try {
             const created = await apiFetch<CalendarEvent>('/api/resources?entity=company_calendar', {
                 method: 'POST', body: JSON.stringify(event)
             });
             setCompanyCalendar(prev => [...prev, created]);
         } catch (e) { addToast('Errore durante l\'aggiunta dell\'evento.', 'error'); }
-    }, [addToast]);
+        finally { actionLoading('addCalendarEvent', false); }
+    }, [addToast, actionLoading]);
 
     const updateCalendarEvent = useCallback(async (event: CalendarEvent): Promise<void> => {
+        actionLoading(`updateCalendarEvent-${event.id}`, true);
         try {
             const updated = await apiFetch<CalendarEvent>(
                 `/api/resources?entity=company_calendar&id=${event.id}`,
@@ -143,14 +150,17 @@ export const LookupProvider: React.FC<{
             );
             setCompanyCalendar(prev => prev.map(e => e.id === event.id ? updated : e));
         } catch (e) { addToast('Errore durante l\'aggiornamento dell\'evento.', 'error'); }
-    }, [addToast]);
+        finally { actionLoading(`updateCalendarEvent-${event.id}`, false); }
+    }, [addToast, actionLoading]);
 
     const deleteCalendarEvent = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteCalendarEvent-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=company_calendar&id=${id}`, { method: 'DELETE' });
             setCompanyCalendar(prev => prev.filter(e => e.id !== id));
         } catch (e) { addToast('Errore durante l\'eliminazione dell\'evento.', 'error'); }
-    }, [addToast]);
+        finally { actionLoading(`deleteCalendarEvent-${id}`, false); }
+    }, [addToast, actionLoading]);
 
     const value = useMemo<LookupContextValue>(() => ({
         functions, industries, seniorityLevels, projectStatuses, clientSectors, locations,
@@ -158,12 +168,14 @@ export const LookupProvider: React.FC<{
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         initialize, _setPlanningSettings,
+        _setActionLoading: actionLoading
     }), [
         functions, industries, seniorityLevels, projectStatuses, clientSectors, locations,
         companyCalendar, planningSettings,
         addConfigOption, updateConfigOption, deleteConfigOption,
         addCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
         initialize, _setPlanningSettings,
+        actionLoading
     ]);
 
     return <LookupContext.Provider value={value}>{children}</LookupContext.Provider>;

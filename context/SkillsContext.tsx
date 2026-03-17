@@ -52,9 +52,10 @@ export interface SkillsContextValue {
     // Soglie
     updateSkillThresholds: (thresholds: SkillThresholds) => Promise<void>;
     // Funzioni interne per il coordinator (cascade)
-    initialize: (data: SkillsInitData) => void;
+    initialize: (data: SkillsInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => void;
     _removeResourceSkillsByResource: (resourceId: string) => void;
     _removeProjectSkillsByProject: (projectId: string) => void;
+    _setActionLoading?: (action: string, loading: boolean) => void;
 }
 
 const SkillsContext = createContext<SkillsContextValue | undefined>(undefined);
@@ -73,7 +74,9 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [projectSkills, setProjectSkills] = useState<ProjectSkill[]>([]);
     const [skillThresholds, setSkillThresholds] = useState<SkillThresholds>(DEFAULT_SKILL_THRESHOLDS);
 
-    const initialize = useCallback((data: SkillsInitData) => {
+    const [actionLoading, setActionLoading] = useState<(action: string, loading: boolean) => void>(() => () => {});
+
+    const initialize = useCallback((data: SkillsInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => {
         if (data.skills !== undefined) setSkills(data.skills);
         if (data.skillCategories !== undefined) setSkillCategories(data.skillCategories);
         if (data.skillMacroCategories !== undefined) setSkillMacroCategories(data.skillMacroCategories);
@@ -82,6 +85,7 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (data.skillThresholds !== undefined) {
             setSkillThresholds(prev => ({ ...prev, ...data.skillThresholds }));
         }
+        if (setActionLoadingFn) setActionLoading(() => setActionLoadingFn);
     }, []);
 
     const _removeResourceSkillsByResource = useCallback((resourceId: string) => {
@@ -94,6 +98,7 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // --- CRUD Competenze ---
     const addSkill = useCallback(async (skill: Omit<Skill, 'id'>): Promise<void> => {
+        actionLoading('addSkill', true);
         try {
             const newSkill = await apiFetch<Skill>('/api/resources?entity=skills', {
                 method: 'POST', body: JSON.stringify(skill)
@@ -103,10 +108,13 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta della competenza.', 'error');
             throw e;
+        } finally {
+            actionLoading('addSkill', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateSkill = useCallback(async (skill: Skill): Promise<void> => {
+        actionLoading(`updateSkill-${skill.id}`, true);
         try {
             const updated = await apiFetch<Skill>(`/api/resources?entity=skills&id=${skill.id}`, {
                 method: 'PUT', body: JSON.stringify(skill)
@@ -116,10 +124,13 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento della competenza.', 'error');
             throw e;
+        } finally {
+            actionLoading(`updateSkill-${skill.id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const deleteSkill = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteSkill-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=skills&id=${id}`, { method: 'DELETE' });
             setSkills(prev => prev.filter(s => s.id !== id));
@@ -129,8 +140,10 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'eliminazione della competenza.', 'error');
             throw e;
+        } finally {
+            actionLoading(`deleteSkill-${id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     // --- Resource Skills ---
     const addResourceSkill = useCallback(async (rs: ResourceSkill): Promise<void> => {
@@ -283,6 +296,7 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         addSkillMacro, updateSkillMacro, deleteSkillMacro,
         updateSkillThresholds,
         initialize, _removeResourceSkillsByResource, _removeProjectSkillsByProject,
+        _setActionLoading: actionLoading
     }), [
         skills, skillCategories, skillMacroCategories, resourceSkills, projectSkills, skillThresholds,
         addSkill, updateSkill, deleteSkill,
@@ -292,6 +306,7 @@ export const SkillsProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         addSkillMacro, updateSkillMacro, deleteSkillMacro,
         updateSkillThresholds,
         initialize, _removeResourceSkillsByResource, _removeProjectSkillsByProject,
+        actionLoading
     ]);
 
     return <SkillsContext.Provider value={value}>{children}</SkillsContext.Provider>;

@@ -72,10 +72,11 @@ export interface ProjectsContextValue {
     // Utility
     getSellRate: (rateCardId: string | null | undefined, resourceId: string) => number;
     // Funzioni interne per il coordinator (cascade)
-    initialize: (data: ProjectsInitData) => void;
+    initialize: (data: ProjectsInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => void;
     _removeProject: (id: string) => void;
     _removeAssignmentsByResource: (resourceId: string) => void;
     _removeAssignmentsByProject: (projectId: string) => void;
+    _setActionLoading?: (action: string, loading: boolean) => void;
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | undefined>(undefined);
@@ -95,7 +96,9 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [rateCards, setRateCards] = useState<RateCard[]>([]);
     const [rateCardEntries, setRateCardEntries] = useState<RateCardEntry[]>([]);
 
-    const initialize = useCallback((data: ProjectsInitData) => {
+    const [actionLoading, setActionLoading] = useState<(action: string, loading: boolean) => void>(() => () => {});
+
+    const initialize = useCallback((data: ProjectsInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => {
         if (data.projects !== undefined) setProjects(data.projects);
         if (data.clients !== undefined) setClients(data.clients);
         if (data.contracts !== undefined) setContracts(data.contracts);
@@ -107,6 +110,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (data.wbsTasks !== undefined) setWbsTasks(data.wbsTasks);
         if (data.rateCards !== undefined) setRateCards(data.rateCards);
         if (data.rateCardEntries !== undefined) setRateCardEntries(data.rateCardEntries);
+        if (setActionLoadingFn) setActionLoading(() => setActionLoadingFn);
     }, []);
 
     const _removeProject = useCallback((id: string) => {
@@ -124,6 +128,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- CRUD Progetti ---
     const addProject = useCallback(async (project: Omit<Project, 'id'>): Promise<Project | null> => {
+        actionLoading('addProject', true);
         try {
             const newProject = await apiFetch<Project | null>('/api/resources?entity=projects', {
                 method: 'POST',
@@ -134,10 +139,13 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta del progetto.', 'error');
             throw e;
+        } finally {
+            actionLoading('addProject', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateProject = useCallback(async (project: Project): Promise<void> => {
+        actionLoading(`updateProject-${project.id}`, true);
         try {
             const updated = await apiFetch<Project>(`/api/resources?entity=projects&id=${project.id}`, {
                 method: 'PUT',
@@ -147,11 +155,14 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             addToast('Progetto aggiornato', 'success');
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento del progetto.', 'error');
+        } finally {
+            actionLoading(`updateProject-${project.id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     // --- CRUD Clienti ---
     const addClient = useCallback(async (client: Omit<Client, 'id'>): Promise<void> => {
+        actionLoading('addClient', true);
         try {
             const newClient = await apiFetch<Client>('/api/resources?entity=clients', {
                 method: 'POST',
@@ -162,10 +173,13 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta del cliente.', 'error');
             throw e;
+        } finally {
+            actionLoading('addClient', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateClient = useCallback(async (client: Client): Promise<void> => {
+        actionLoading(`updateClient-${client.id}`, true);
         try {
             const updated = await apiFetch<Client>(`/api/resources?entity=clients&id=${client.id}`, {
                 method: 'PUT',
@@ -176,18 +190,23 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento del cliente.', 'error');
             throw e;
+        } finally {
+            actionLoading(`updateClient-${client.id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const deleteClient = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteClient-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=clients&id=${id}`, { method: 'DELETE' });
             setClients(prev => prev.filter(c => c.id !== id));
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'eliminazione del cliente.', 'error');
             throw e;
+        } finally {
+            actionLoading(`deleteClient-${id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     // --- CRUD Contratti ---
     const addContract = useCallback(async (
@@ -195,6 +214,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         projectIds: string[],
         managerIds: string[]
     ): Promise<void> => {
+        actionLoading('addContract', true);
         try {
             const newContract = await apiFetch<Contract>('/api/resources?entity=contracts', {
                 method: 'POST',
@@ -216,14 +236,17 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta del contratto.', 'error');
             throw e;
+        } finally {
+            actionLoading('addContract', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateContract = useCallback(async (
         contract: Contract,
         projectIds: string[],
         managerIds: string[]
     ): Promise<void> => {
+        actionLoading(`updateContract-${contract.id}`, true);
         try {
             const updated = await apiFetch<Contract>(`/api/resources?entity=contracts&id=${contract.id}`, {
                 method: 'PUT',
@@ -280,10 +303,13 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento del contratto.', 'error');
             throw e;
+        } finally {
+            actionLoading(`updateContract-${contract.id}`, false);
         }
-    }, [contractProjects, contractManagers, addToast]);
+    }, [contractProjects, contractManagers, addToast, actionLoading]);
 
     const deleteContract = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteContract-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=contracts&id=${id}`, { method: 'DELETE' });
             setContracts(prev => prev.filter(c => c.id !== id));
@@ -292,8 +318,10 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'eliminazione del contratto.', 'error');
             throw e;
+        } finally {
+            actionLoading(`deleteContract-${id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const recalculateContractBacklog = useCallback(async (id: string): Promise<void> => {
         const contract = contracts.find(c => c.id === id);
@@ -442,6 +470,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
         getSellRate,
         initialize, _removeProject, _removeAssignmentsByResource, _removeAssignmentsByProject,
+        _setActionLoading: actionLoading
     }), [
         projects, clients, contracts, contractProjects, contractManagers,
         assignments, billingMilestones, projectExpenses, wbsTasks, rateCards, rateCardEntries,
@@ -454,6 +483,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         addRateCard, updateRateCard, deleteRateCard, upsertRateCardEntries,
         getSellRate,
         initialize, _removeProject, _removeAssignmentsByResource, _removeAssignmentsByProject,
+        actionLoading
     ]);
 
     return <ProjectsContext.Provider value={value}>{children}</ProjectsContext.Provider>;

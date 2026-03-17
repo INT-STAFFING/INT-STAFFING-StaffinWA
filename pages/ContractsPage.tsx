@@ -5,6 +5,7 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useAuth } from '../context/AuthContext';
 import { Contract, BillingType } from '../types';
+import { z, SafeParseError } from '../libs/zod';
 import { DataTable, ColumnDef } from '../components/DataTable';
 import Modal from '../components/Modal';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
@@ -55,6 +56,17 @@ const buildContractPayload = (contract: Contract | Omit<Contract, 'id'>): Contra
     return basePayload;
 };
 
+const contractSchema = z.object({
+    name: z.string().min(1, 'Il nome è obbligatorio'),
+    cig: z.string().min(1, 'Il CIG è obbligatorio'),
+    startDate: z.string().optional().nullable(),
+    endDate: z.string().optional().nullable(),
+    capienza: z.coerce.number().min(0, 'La capienza non può essere negativa'),
+}).refine(data => {
+    if (!data.startDate || !data.endDate) return true;
+    return data.endDate >= data.startDate;
+}, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] });
+
 // --- Component ---
 export const ContractsPage: React.FC = () => {
     const { hasEntityVisibility } = useAuth();
@@ -67,6 +79,7 @@ export const ContractsPage: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingContract, setEditingContract] = useState<Contract | Omit<Contract, 'id'> | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [associatedProjectIds, setAssociatedProjectIds] = useState<string[]>([]);
     const [associatedManagerIds, setAssociatedManagerIds] = useState<string[]>([]);
     const [contractToDelete, setContractToDelete] = useState<EnrichedContract | null>(null);
@@ -192,11 +205,23 @@ export const ContractsPage: React.FC = () => {
         setEditingContract(null);
         setAssociatedProjectIds([]);
         setAssociatedManagerIds([]);
+        setErrors({});
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (editingContract) {
+            const validation = contractSchema.safeParse(editingContract);
+            if (validation.success === false) {
+                const fieldErrors = (validation as SafeParseError).error.flatten().fieldErrors;
+                const mappedErrors: Record<string, string> = {};
+                Object.keys(fieldErrors).forEach(key => {
+                    if (fieldErrors[key]) mappedErrors[key] = fieldErrors[key][0];
+                });
+                setErrors(mappedErrors);
+                return;
+            }
+            setErrors({});
             try {
                 const contractPayload = buildContractPayload(editingContract);
                 if ('id' in contractPayload) {
@@ -216,6 +241,7 @@ export const ContractsPage: React.FC = () => {
         const { name, value } = e.target;
         const isNumeric = ['capienza'].includes(name);
         setEditingContract({ ...editingContract, [name]: isNumeric ? Number(value) : value });
+        setErrors(prev => ({ ...prev, [name]: '' }));
     };
 
     const handleSelectChange = (name: string, value: string) => {
@@ -223,6 +249,7 @@ export const ContractsPage: React.FC = () => {
              // If empty string, set to null
              const val = value === '' ? null : value;
              setEditingContract({ ...editingContract, [name]: val });
+             setErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
 
@@ -428,12 +455,14 @@ export const ContractsPage: React.FC = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Nome Contratto *</label>
-                                    <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className="form-input" placeholder="es. Accordo Quadro 2024" />
+                                    <input type="text" name="name" value={editingContract.name} onChange={handleChange} required className={`form-input ${errors.name ? 'border-error' : ''}`} placeholder="es. Accordo Quadro 2024" />
+                                    {errors.name && <p className="text-xs text-error mt-1">{errors.name}</p>}
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">CIG *</label>
-                                        <input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className="form-input" placeholder="Codice CIG" />
+                                        <input type="text" name="cig" value={editingContract.cig} onChange={handleChange} required className={`form-input ${errors.cig ? 'border-error' : ''}`} placeholder="Codice CIG" />
+                                        {errors.cig && <p className="text-xs text-error mt-1">{errors.cig}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">CIG Derivato</label>
@@ -455,7 +484,8 @@ export const ContractsPage: React.FC = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-on-surface-variant mb-1">Capienza (€) *</label>
-                                    <input type="number" name="capienza" value={editingContract.capienza} onChange={handleChange} required className="form-input" step="0.01" />
+                                    <input type="number" name="capienza" value={editingContract.capienza} onChange={handleChange} required className={`form-input ${errors.capienza ? 'border-error' : ''}`} step="0.01" />
+                                    {errors.capienza && <p className="text-xs text-error mt-1">{errors.capienza}</p>}
                                 </div>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -488,11 +518,13 @@ export const ContractsPage: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Inizio</label>
-                                        <input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className="form-input"/>
+                                        <input type="date" name="startDate" value={editingContract.startDate || ''} onChange={handleChange} className={`form-input ${errors.startDate ? 'border-error' : ''}`}/>
+                                        {errors.startDate && <p className="text-xs text-error mt-1">{errors.startDate}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-on-surface-variant mb-1">Data Fine</label>
-                                        <input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className="form-input"/>
+                                        <input type="date" name="endDate" value={editingContract.endDate || ''} onChange={handleChange} className={`form-input ${errors.endDate ? 'border-error' : ''}`}/>
+                                        {errors.endDate && <p className="text-xs text-error mt-1">{errors.endDate}</p>}
                                     </div>
                                 </div>
                             </div>

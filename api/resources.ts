@@ -85,7 +85,10 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         notes: z.string().optional().nullable(),
         contractId: z.string().optional().nullable(),
         billingType: z.string().optional().nullable()
-    }),
+    }).refine(data => {
+        if (!data.startDate || !data.endDate) return true;
+        return data.endDate >= data.startDate;
+    }, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] }),
     'clients': z.object({
         name: z.string(),
         sector: z.string().optional().nullable(),
@@ -120,7 +123,10 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         level: z.coerce.number().optional().nullable(),
         acquisitionDate: z.string().optional().nullable(),
         expirationDate: z.string().optional().nullable()
-    }),
+    }).refine(data => {
+        if (!data.acquisitionDate || !data.expirationDate) return true;
+        return data.expirationDate >= data.acquisitionDate;
+    }, { message: 'La data di scadenza non può essere antecedente alla data di acquisizione', path: ['expirationDate'] }),
     'project_skills': z.object({
         projectId: z.string(),
         skillId: z.string()
@@ -136,7 +142,10 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         backlog: z.coerce.number().optional().nullable(),
         rateCardId: z.string().optional().nullable(),
         billingType: z.string().optional().nullable()
-    }),
+    }).refine(data => {
+        if (!data.startDate || !data.endDate) return true;
+        return data.endDate >= data.startDate;
+    }, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] }),
     'contract_projects': z.object({
         contractId: z.string(),
         projectId: z.string()
@@ -199,7 +208,10 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         approverIds: z.array(z.string()).optional().nullable(),
         notes: z.string().optional().nullable(),
         isHalfDay: z.boolean().optional().nullable()
-    }),
+    }).refine(data => {
+        if (!data.startDate || !data.endDate) return true;
+        return data.endDate >= data.startDate;
+    }, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] }),
     'rate_cards': z.object({
         name: z.string(),
         currency: z.string().optional().nullable()

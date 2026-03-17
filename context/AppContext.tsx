@@ -107,7 +107,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 roles: metaData.roles || [],
                 roleCostHistory: metaData.roleCostHistory || [],
                 managerResourceIds: metaData.managerResourceIds || [],
-            });
+            }, setActionLoading);
 
             initProjects({
                 clients: metaData.clients || [],
@@ -115,7 +115,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 rateCards: metaData.rateCards || [],
                 rateCardEntries: metaData.rateCardEntries || [],
                 projectExpenses: metaData.projectExpenses || [],
-            });
+            }, setActionLoading);
 
             initSkills({
                 skills: metaData.skills || [],
@@ -123,11 +123,11 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 skillMacroCategories: metaData.skillMacroCategories || [],
                 resourceSkills: metaData.resourceSkills || [],
                 skillThresholds: metaData.skillThresholds,
-            });
+            }, setActionLoading);
 
             initHR({
                 leaveTypes: metaData.leaveTypes || [],
-            });
+            }, setActionLoading);
 
             initUIConfig({
                 pageVisibility: metaData.pageVisibility || {},
@@ -145,7 +145,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 ...(metaData.dashboardLayout && { dashboardLayout: metaData.dashboardLayout }),
                 ...(metaData.roleHomePages && { roleHomePages: metaData.roleHomePages }),
                 ...(metaData.bottomNavPaths && { bottomNavPaths: metaData.bottomNavPaths }),
-            });
+            }, setActionLoading);
 
             let monthsBefore = planningMonthsBefore;
             let monthsAfter = planningMonthsAfter;
@@ -162,7 +162,7 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 locations: metaData.locations || [],
                 companyCalendar: metaData.companyCalendar || [],
                 planningSettings: { monthsBefore, monthsAfter },
-            });
+            }, setActionLoading);
 
             const today = new Date();
             const start = new Date(today);
@@ -181,17 +181,17 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
                 contractProjects: planningData.contractProjects || [],
                 contractManagers: planningData.contractManagers || [],
                 billingMilestones: planningData.billingMilestones || [],
-            });
+            }, setActionLoading);
 
             initSkills({
                 projectSkills: planningData.projectSkills || [],
-            });
+            }, setActionLoading);
 
             initHR({
                 leaveRequests: planningData.leaveRequests || [],
                 resourceRequests: planningData.resourceRequests || [],
                 interviews: planningData.interviews || [],
-            });
+            }, setActionLoading);
 
             setAllocations(planningData.allocations || {});
 

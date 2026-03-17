@@ -7,6 +7,7 @@ import { useLookupContext } from '../context/LookupContext';
 import { useUIConfigContext } from '../context/UIConfigContext';
 import { useAuth } from '../context/AuthContext';
 import { LeaveRequest, LeaveStatus, LeaveType } from '../types';
+import { z, SafeParseError } from '../libs/zod';
 import { isHoliday, getWorkingDaysBetween, formatDateFull, formatDate } from '../utils/dateUtils';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -48,6 +49,15 @@ const buildLeaveRequestPayload = (request: LeaveRequest | Omit<LeaveRequest, 'id
     return basePayload;
 };
 
+const leaveRequestSchema = z.object({
+    resourceId: z.string().min(1, 'La risorsa è obbligatoria'),
+    typeId: z.string().min(1, 'La tipologia è obbligatoria'),
+    startDate: z.string().min(1, 'La data di inizio è obbligatoria'),
+    endDate: z.string().min(1, 'La data di fine è obbligatoria'),
+}).refine(data => {
+    return data.endDate >= data.startDate;
+}, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] });
+
 const LeavePage: React.FC = () => {
     const { user, isAdmin, hasEntityVisibility } = useAuth();
     const { leaveRequests, leaveTypes, addLeaveRequest, updateLeaveRequest, deleteLeaveRequest } = useHRContext();
@@ -63,6 +73,7 @@ const LeavePage: React.FC = () => {
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingRequest, setEditingRequest] = useState<LeaveRequest | Omit<LeaveRequest, 'id'> | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [requestToDelete, setRequestToDelete] = useState<LeaveRequest | null>(null);
 
     // Filters
@@ -226,6 +237,18 @@ const LeavePage: React.FC = () => {
         e.preventDefault();
         if (!editingRequest) return;
 
+        const validation = leaveRequestSchema.safeParse(editingRequest);
+        if (validation.success === false) {
+            const fieldErrors = (validation as SafeParseError).error.flatten().fieldErrors;
+            const mappedErrors: Record<string, string> = {};
+            Object.keys(fieldErrors).forEach(key => {
+                if (fieldErrors[key]) mappedErrors[key] = fieldErrors[key][0];
+            });
+            setErrors(mappedErrors);
+            return;
+        }
+        setErrors({});
+
         try {
             const requestPayload = buildLeaveRequestPayload(editingRequest);
             if ('id' in requestPayload) {
@@ -308,10 +331,14 @@ const LeavePage: React.FC = () => {
         const { name, value, type } = e.target;
         const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
         setEditingRequest({ ...editingRequest, [name]: val });
+        setErrors(prev => ({ ...prev, [name]: '' }));
     };
 
     const handleSelectChange = (name: string, value: string) => {
-        if(editingRequest) setEditingRequest({ ...editingRequest, [name]: value });
+        if(editingRequest) {
+            setEditingRequest({ ...editingRequest, [name]: value });
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     const handleApproversChange = (name: string, values: string[]) => {
@@ -616,6 +643,7 @@ const LeavePage: React.FC = () => {
                                     required 
                                     placeholder="Seleziona risorsa..."
                                 />
+                                {errors.resourceId && <p className="text-xs text-error mt-1">{errors.resourceId}</p>}
                             </div>
                             <div>
                                 <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Tipologia Assenza</label>
@@ -627,15 +655,18 @@ const LeavePage: React.FC = () => {
                                     required 
                                     placeholder="Seleziona tipo..."
                                 />
+                                {errors.typeId && <p className="text-xs text-error mt-1">{errors.typeId}</p>}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Data Inizio</label>
-                                    <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className="form-input" />
+                                    <input type="date" name="startDate" value={editingRequest.startDate} onChange={handleChange} required className={`form-input ${errors.startDate ? 'border-error' : ''}`} />
+                                    {errors.startDate && <p className="text-xs text-error mt-1">{errors.startDate}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black text-primary uppercase tracking-widest mb-2">Data Fine</label>
-                                    <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className="form-input" />
+                                    <input type="date" name="endDate" value={editingRequest.endDate} onChange={handleChange} required className={`form-input ${errors.endDate ? 'border-error' : ''}`} />
+                                    {errors.endDate && <p className="text-xs text-error mt-1">{errors.endDate}</p>}
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 p-3 bg-surface rounded-2xl border border-outline-variant">

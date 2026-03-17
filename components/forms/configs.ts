@@ -8,6 +8,12 @@ export const bulkAssignmentSchema = z.object({
     startDate: z.string().min(1, 'Seleziona una data di inizio'),
     endDate: z.string().min(1, 'Seleziona una data di fine'),
     percentage: z.number().min(0, 'La percentuale non può essere negativa').max(100, 'La percentuale non può superare il 100'),
+}).refine(data => {
+    if (!data.startDate || !data.endDate) return true;
+    return data.endDate >= data.startDate;
+}, {
+    message: 'La data di fine non può essere antecedente alla data di inizio',
+    path: ['endDate'],
 });
 
 export const assignmentSchema = z.object({

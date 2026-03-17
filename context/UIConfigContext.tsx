@@ -96,7 +96,9 @@ export interface UIConfigContextValue {
     // Analytics
     forceRecalculateAnalytics: () => Promise<void>;
     // Funzioni interne per il coordinator
-    initialize: (data: UIConfigInitData) => void;
+    initialize: (data: UIConfigInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => void;
+    _setAnalyticsCache: (cache: Record<string, unknown>) => void;
+    _setActionLoading?: (action: string, loading: boolean) => void;
 }
 
 const UIConfigContext = createContext<UIConfigContextValue | undefined>(undefined);
@@ -135,7 +137,9 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [notificationRules, setNotificationRules] = useState<NotificationRule[]>([]);
     const [analyticsCache, setAnalyticsCache] = useState<Record<string, unknown>>({});
 
-    const initialize = useCallback((data: UIConfigInitData) => {
+    const [actionLoading, setActionLoading] = useState<(action: string, loading: boolean) => void>(() => () => {});
+
+    const initialize = useCallback((data: UIConfigInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => {
         if (data.sidebarConfig !== undefined) setSidebarConfig(data.sidebarConfig);
         if (data.quickActions !== undefined) setQuickActions(data.quickActions);
         if (data.sidebarSections !== undefined) setSidebarSections(data.sidebarSections);
@@ -148,6 +152,7 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (data.notificationConfigs !== undefined) setNotificationConfigs(data.notificationConfigs);
         if (data.notificationRules !== undefined) setNotificationRules(data.notificationRules);
         if (data.analyticsCache !== undefined) setAnalyticsCache(data.analyticsCache);
+        if (setActionLoadingFn) setActionLoading(() => setActionLoadingFn);
     }, []);
 
     // --- Aggiornamenti configurazione ---
@@ -204,15 +209,18 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // --- CRUD NotificationConfig ---
     const addNotificationConfig = useCallback(async (config: Omit<NotificationConfig, 'id'>): Promise<void> => {
+        actionLoading('addNotificationConfig', true);
         try {
             const created = await apiFetch<NotificationConfig>('/api/resources?entity=notification_configs', {
                 method: 'POST', body: JSON.stringify(config)
             });
             setNotificationConfigs(prev => [...prev, created]);
         } catch (e) { addToast('Errore durante l\'aggiunta della configurazione notifica.', 'error'); }
-    }, [addToast]);
+        finally { actionLoading('addNotificationConfig', false); }
+    }, [addToast, actionLoading]);
 
     const updateNotificationConfig = useCallback(async (config: NotificationConfig): Promise<void> => {
+        actionLoading(`updateNotificationConfig-${config.id}`, true);
         try {
             const updated = await apiFetch<NotificationConfig>(
                 `/api/resources?entity=notification_configs&id=${config.id}`,
@@ -220,35 +228,53 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
             );
             setNotificationConfigs(prev => prev.map(c => c.id === config.id ? updated : c));
         } catch (e) { addToast('Errore durante l\'aggiornamento della configurazione notifica.', 'error'); }
-    }, [addToast]);
+        finally { actionLoading(`updateNotificationConfig-${config.id}`, false); }
+    }, [addToast, actionLoading]);
 
     const deleteNotificationConfig = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteNotificationConfig-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=notification_configs&id=${id}`, { method: 'DELETE' });
             setNotificationConfigs(prev => prev.filter(c => c.id !== id));
         } catch (e) { addToast('Errore durante l\'eliminazione della configurazione notifica.', 'error'); }
-    }, [addToast]);
+        finally { actionLoading(`deleteNotificationConfig-${id}`, false); }
+    }, [addToast, actionLoading]);
 
     // --- CRUD NotificationRule (errori propagati al chiamante, no toast) ---
     const addNotificationRule = useCallback(async (rule: Omit<NotificationRule, 'id'>): Promise<void> => {
-        const created = await apiFetch<NotificationRule>('/api/resources?entity=notification_rules', {
-            method: 'POST', body: JSON.stringify(rule)
-        });
-        setNotificationRules(prev => [...prev, created]);
-    }, []);
+        actionLoading('addNotificationRule', true);
+        try {
+            const created = await apiFetch<NotificationRule>('/api/resources?entity=notification_rules', {
+                method: 'POST', body: JSON.stringify(rule)
+            });
+            setNotificationRules(prev => [...prev, created]);
+        } finally {
+            actionLoading('addNotificationRule', false);
+        }
+    }, [actionLoading]);
 
     const updateNotificationRule = useCallback(async (rule: NotificationRule): Promise<void> => {
-        const updated = await apiFetch<NotificationRule>(
-            `/api/resources?entity=notification_rules&id=${rule.id}`,
-            { method: 'PUT', body: JSON.stringify(rule) }
-        );
-        setNotificationRules(prev => prev.map(r => r.id === rule.id ? updated : r));
-    }, []);
+        actionLoading(`updateNotificationRule-${rule.id}`, true);
+        try {
+            const updated = await apiFetch<NotificationRule>(
+                `/api/resources?entity=notification_rules&id=${rule.id}`,
+                { method: 'PUT', body: JSON.stringify(rule) }
+            );
+            setNotificationRules(prev => prev.map(r => r.id === rule.id ? updated : r));
+        } finally {
+            actionLoading(`updateNotificationRule-${rule.id}`, false);
+        }
+    }, [actionLoading]);
 
     const deleteNotificationRule = useCallback(async (id: string): Promise<void> => {
-        await apiFetch(`/api/resources?entity=notification_rules&id=${id}`, { method: 'DELETE' });
-        setNotificationRules(prev => prev.filter(r => r.id !== id));
-    }, []);
+        actionLoading(`deleteNotificationRule-${id}`, true);
+        try {
+            await apiFetch(`/api/resources?entity=notification_rules&id=${id}`, { method: 'DELETE' });
+            setNotificationRules(prev => prev.filter(r => r.id !== id));
+        } finally {
+            actionLoading(`deleteNotificationRule-${id}`, false);
+        }
+    }, [actionLoading]);
 
     // --- Analytics ---
     const forceRecalculateAnalytics = useCallback(async (): Promise<void> => {
@@ -273,6 +299,8 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         addNotificationRule, updateNotificationRule, deleteNotificationRule,
         forceRecalculateAnalytics,
         initialize,
+        _setAnalyticsCache: setAnalyticsCache,
+        _setActionLoading: actionLoading
     }), [
         sidebarConfig, quickActions, sidebarSections, sidebarSectionColors, sidebarFooterActions,
         dashboardLayout, roleHomePages, bottomNavPaths, pageVisibility,
@@ -285,6 +313,7 @@ export const UIConfigProvider: React.FC<{ children: ReactNode }> = ({ children }
         addNotificationRule, updateNotificationRule, deleteNotificationRule,
         forceRecalculateAnalytics,
         initialize,
+        actionLoading
     ]);
 
     return <UIConfigContext.Provider value={value}>{children}</UIConfigContext.Provider>;

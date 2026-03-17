@@ -14,6 +14,7 @@ interface SearchableSelectProps {
     placeholder?: string;
     required?: boolean;
     loadOptions?: (query: string) => Promise<Option[]>;
+    className?: string;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -24,6 +25,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     placeholder = 'Seleziona...',
     required,
     loadOptions,
+    className = '',
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -157,7 +159,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             <button
                 ref={buttonRef}
                 type="button"
-                className="w-full text-left flex justify-between items-center form-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className={`w-full text-left flex justify-between items-center form-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${className}`}
                 onClick={openMenu}
                 onKeyDown={handleButtonKeyDown}
                 aria-haspopup="listbox"

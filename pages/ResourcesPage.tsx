@@ -15,6 +15,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { useToast } from '../context/ToastContext';
 import ExportButton from '../components/ExportButton';
+import { z, SafeParseError } from '../libs/zod';
 import PdfExportButton from '../components/PdfExportButton';
 import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
 
@@ -45,6 +46,23 @@ const ResourcesPage: React.FC = () => {
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingResource, setEditingResource] = useState<Resource | Omit<Resource, 'id'> | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const resourceSchema = z.object({
+        name: z.string().min(3, 'Il nome deve avere almeno 3 caratteri'),
+        email: z.string().min(1, 'Email obbligatoria'),
+        roleId: z.string().min(1, 'Ruolo obbligatorio'),
+        function: z.string().min(1, 'Funzione obbligatoria'),
+        location: z.string().min(1, 'Sede obbligatoria'),
+        hireDate: z.string().optional().nullable(),
+        lastDayOfWork: z.string().optional().nullable(),
+    }).refine(data => {
+        if (!data.hireDate || !data.lastDayOfWork) return true;
+        return new Date(data.lastDayOfWork) >= new Date(data.hireDate);
+    }, {
+        message: 'La data di fine rapporto non può essere antecedente alla data di assunzione',
+        path: ['lastDayOfWork']
+    });
     
     const [filters, setFilters] = useState({ name: '', roleId: '', function: '', industry: '', location: '', status: 'active', tutorId: '' });
     const [debouncedFilters, setDebouncedFilters] = useState(filters);
@@ -246,10 +264,18 @@ const ResourcesPage: React.FC = () => {
         e.preventDefault();
         if (!editingResource) return;
 
-        if (!editingResource.name || !editingResource.email || !editingResource.roleId || !editingResource.function || !editingResource.location) {
-            addToast('Compila tutti i campi obbligatori.', 'error');
+        const validation = resourceSchema.safeParse(editingResource);
+        if (validation.success === false) {
+            const fieldErrors = (validation as SafeParseError).error.flatten().fieldErrors;
+            const mappedErrors: Record<string, string> = {};
+            Object.keys(fieldErrors).forEach(key => {
+                if (fieldErrors[key]) mappedErrors[key] = fieldErrors[key][0];
+            });
+            setErrors(mappedErrors);
+            addToast('Controlla i dati inseriti.', 'error');
             return;
         }
+        setErrors({});
 
         const resourcePayload: any = {
             name: editingResource.name,
@@ -620,11 +646,13 @@ const ResourcesPage: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome e Cognome *</label>
-                                        <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className="form-input"/>
+                                        <input type="text" name="name" value={editingResource.name} onChange={handleChange} required className={`form-input ${errors.name ? 'border-error ring-1 ring-error' : ''}`}/>
+                                        {errors.name && <p className="text-xs text-error mt-1">{errors.name}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
-                                        <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className="form-input"/>
+                                        <input type="email" name="email" value={editingResource.email} onChange={handleChange} required className={`form-input ${errors.email ? 'border-error ring-1 ring-error' : ''}`}/>
+                                        {errors.email && <p className="text-xs text-error mt-1">{errors.email}</p>}
                                     </div>
                                 </div>
                             </div>
@@ -636,11 +664,13 @@ const ResourcesPage: React.FC = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo *</label>
-                                        <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required />
+                                        <SearchableSelect name="roleId" value={editingResource.roleId} onChange={handleSelectChange} options={roleOptions} placeholder="Seleziona un ruolo" required className={errors.roleId ? 'border-error ring-1 ring-error' : ''} />
+                                        {errors.roleId && <p className="text-xs text-error mt-1">{errors.roleId}</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Function *</label>
-                                        <SearchableSelect name="function" value={editingResource.function} onChange={handleSelectChange} options={functionOptions} placeholder="Seleziona una function" required />
+                                        <SearchableSelect name="function" value={editingResource.function} onChange={handleSelectChange} options={functionOptions} placeholder="Seleziona una function" required className={errors.function ? 'border-error ring-1 ring-error' : ''} />
+                                        {errors.function && <p className="text-xs text-error mt-1">{errors.function}</p>}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -650,7 +680,8 @@ const ResourcesPage: React.FC = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sede *</label>
-                                        <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required />
+                                        <SearchableSelect name="location" value={editingResource.location} onChange={handleSelectChange} options={locationOptions} placeholder="Seleziona una sede" required className={errors.location ? 'border-error ring-1 ring-error' : ''} />
+                                        {errors.location && <p className="text-xs text-error mt-1">{errors.location}</p>}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -727,7 +758,11 @@ const ResourcesPage: React.FC = () => {
                                 <div className="space-y-4">
                                     <label className="flex items-center space-x-3 bg-surface p-2 rounded border border-outline-variant"><input type="checkbox" name="resigned" checked={editingResource.resigned} onChange={handleChange} className="form-checkbox h-5 w-5"/><span className="text-sm font-medium text-on-surface">Risorsa Dimessa</span></label>
                                     {editingResource.resigned && (
-                                        <div className="animate-fade-in"><label className="block text-sm font-medium text-on-surface-variant mb-1">Ultimo Giorno di Lavoro *</label><input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className="form-input"/></div>
+                                        <div className="animate-fade-in">
+                                            <label className="block text-sm font-medium text-on-surface-variant mb-1">Ultimo Giorno di Lavoro *</label>
+                                            <input type="date" name="lastDayOfWork" value={editingResource.lastDayOfWork || ''} onChange={handleChange} required className={`form-input ${errors.lastDayOfWork ? 'border-error ring-1 ring-error' : ''}`}/>
+                                            {errors.lastDayOfWork && <p className="text-xs text-error mt-1">{errors.lastDayOfWork}</p>}
+                                        </div>
                                     )}
                                     <div><label className="block text-sm font-medium text-on-surface-variant mb-1">Note</label><textarea name="notes" value={editingResource.notes || ''} onChange={handleChange} className="form-textarea" rows={2} placeholder="Note sulla risorsa..."></textarea></div>
                                 </div>

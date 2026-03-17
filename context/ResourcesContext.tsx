@@ -42,7 +42,7 @@ export interface ResourcesContextValue {
     updateEvaluation: (evaluation: ResourceEvaluation) => Promise<void>;
     deleteEvaluation: (id: string) => Promise<void>;
     // Funzioni interne per il coordinator (cascade)
-    initialize: (data: ResourcesInitData) => void;
+    initialize: (data: ResourcesInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => void;
     _removeResource: (id: string) => void;
     _setActionLoading?: (action: string, loading: boolean) => void;
 }
@@ -58,11 +58,14 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [managerResourceIds, setManagerResourceIds] = useState<string[]>([]);
     const [evaluations, setEvaluations] = useState<ResourceEvaluation[]>([]);
 
-    const initialize = useCallback((data: ResourcesInitData) => {
+    const [actionLoading, setActionLoading] = useState<(action: string, loading: boolean) => void>(() => () => {});
+
+    const initialize = useCallback((data: ResourcesInitData, setActionLoadingFn?: (action: string, loading: boolean) => void) => {
         if (data.resources !== undefined) setResources(data.resources);
         if (data.roles !== undefined) setRoles(data.roles);
         if (data.roleCostHistory !== undefined) setRoleCostHistory(data.roleCostHistory);
         if (data.managerResourceIds !== undefined) setManagerResourceIds(data.managerResourceIds);
+        if (setActionLoadingFn) setActionLoading(() => setActionLoadingFn);
     }, []);
 
     const _removeResource = useCallback((id: string) => {
@@ -71,6 +74,7 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // --- CRUD Risorse ---
     const addResource = useCallback(async (resource: Omit<Resource, 'id'>): Promise<Resource> => {
+        actionLoading('addResource', true);
         try {
             const newResource = await apiFetch<Resource>('/api/resources?entity=resources', {
                 method: 'POST',
@@ -82,10 +86,13 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta della risorsa.', 'error');
             throw e;
+        } finally {
+            actionLoading('addResource', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateResource = useCallback(async (resource: Resource): Promise<void> => {
+        actionLoading(`updateResource-${resource.id}`, true);
         try {
             const updated = await apiFetch<Resource>(`/api/resources?entity=resources&id=${resource.id}`, {
                 method: 'PUT',
@@ -96,11 +103,14 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento della risorsa.', 'error');
             throw e;
+        } finally {
+            actionLoading(`updateResource-${resource.id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     // --- CRUD Ruoli ---
     const addRole = useCallback(async (role: Omit<Role, 'id'>): Promise<void> => {
+        actionLoading('addRole', true);
         try {
             const newRole = await apiFetch<Role>('/api/resources?entity=roles', {
                 method: 'POST',
@@ -111,10 +121,13 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta del ruolo.', 'error');
             throw e;
+        } finally {
+            actionLoading('addRole', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateRole = useCallback(async (role: Role): Promise<void> => {
+        actionLoading(`updateRole-${role.id}`, true);
         try {
             const updated = await apiFetch<Role>(`/api/resources?entity=roles&id=${role.id}`, {
                 method: 'PUT',
@@ -127,18 +140,23 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento del ruolo.', 'error');
             throw e;
+        } finally {
+            actionLoading(`updateRole-${role.id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const deleteRole = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteRole-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' });
             setRoles(prev => prev.filter(r => r.id !== id));
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'eliminazione del ruolo.', 'error');
             throw e;
+        } finally {
+            actionLoading(`deleteRole-${id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     // --- Utility ---
     const getRoleCost = useCallback((roleId: string, date: Date, resourceId?: string): number => {
@@ -172,6 +190,7 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
     }, [addToast]);
 
     const addEvaluation = useCallback(async (evaluation: Omit<ResourceEvaluation, 'id'>): Promise<void> => {
+        actionLoading('addEvaluation', true);
         try {
             const created = await apiFetch<ResourceEvaluation>('/api/resources?entity=resource_evaluations', {
                 method: 'POST',
@@ -182,10 +201,13 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiunta della valutazione.', 'error');
             throw e;
+        } finally {
+            actionLoading('addEvaluation', false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const updateEvaluation = useCallback(async (evaluation: ResourceEvaluation): Promise<void> => {
+        actionLoading(`updateEvaluation-${evaluation.id}`, true);
         try {
             const updated = await apiFetch<ResourceEvaluation>(
                 `/api/resources?entity=resource_evaluations&id=${evaluation.id}`,
@@ -196,18 +218,23 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'aggiornamento della valutazione.', 'error');
             throw e;
+        } finally {
+            actionLoading(`updateEvaluation-${evaluation.id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const deleteEvaluation = useCallback(async (id: string): Promise<void> => {
+        actionLoading(`deleteEvaluation-${id}`, true);
         try {
             await apiFetch(`/api/resources?entity=resource_evaluations&id=${id}`, { method: 'DELETE' });
             setEvaluations(prev => prev.filter(e => e.id !== id));
         } catch (e: any) {
             addToast(e.message || 'Errore durante l\'eliminazione della valutazione.', 'error');
             throw e;
+        } finally {
+            actionLoading(`deleteEvaluation-${id}`, false);
         }
-    }, [addToast]);
+    }, [addToast, actionLoading]);
 
     const value = useMemo<ResourcesContextValue>(() => ({
         resources,
@@ -227,11 +254,12 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         deleteEvaluation,
         initialize,
         _removeResource,
+        _setActionLoading: actionLoading
     }), [
         resources, roles, roleCostHistory, managerResourceIds, evaluations,
         addResource, updateResource, addRole, updateRole, deleteRole,
         getRoleCost, fetchEvaluations, addEvaluation, updateEvaluation, deleteEvaluation,
-        initialize, _removeResource,
+        initialize, _removeResource, actionLoading
     ]);
 
     return <ResourcesContext.Provider value={value}>{children}</ResourcesContext.Provider>;
