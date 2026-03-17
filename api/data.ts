@@ -191,7 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 projectStatuses: projectStatusesRes.rows,
                 clientSectors: clientSectorsRes.rows,
                 locations: locationsRes.rows,
-                companyCalendar,
+                companyCalendar: canSee('company_calendar') ? companyCalendar : [],
                 skills: canSee('skills') ? skills : [],
                 skillCategories: hydratedCategories, // metadato di sistema: sempre visibile
                 skillMacroCategories: macros,         // metadato di sistema: sempre visibile

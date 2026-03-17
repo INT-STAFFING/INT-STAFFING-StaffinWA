@@ -24,7 +24,7 @@ export const OPERATIONAL_ROLES: string[] = [
 export const ALL_MANAGEABLE_ENTITIES: string[] = [
     'resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts',
     'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews',
-    'wbs_tasks', 'billing_milestones', 'resource_evaluations',
+    'wbs_tasks', 'billing_milestones', 'resource_evaluations', 'company_calendar',
 ];
 
 /**

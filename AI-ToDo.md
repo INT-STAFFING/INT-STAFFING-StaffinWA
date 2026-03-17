@@ -1,13 +1,9 @@
-# CLAUDE-ToDo.md — Aggiornamento suite di test
-
-**Sessione:** 2026-03-10
-**Branch:** `claude/update-tests-UWvrH`
+# AI-ToDo.md — Aggiornamento suite di test
 
 ## Piano
 
 - [x] Esplorare i test esistenti e la struttura del codebase
 - [x] Identificare le lacune di copertura e pianificare i nuovi test
-- [x] Impostare il branch git `claude/update-tests-UWvrH`
 - [x] Creare `utils/dateUtils.test.ts` (49 test)
 - [x] Creare `utils/costUtils.test.ts` (14 test)
 - [x] Creare `utils/formatters.test.ts` (9 test)

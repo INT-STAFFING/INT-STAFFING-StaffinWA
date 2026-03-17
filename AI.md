@@ -1,4 +1,4 @@
-# CLAUDE.md — Staffing Allocation Planner
+# AI.md — Staffing Allocation Planner
 
 # Code Quality - MANDATORY
 - NEVER leave empty catch blocks. Always log the error or rethrow with context.
@@ -19,7 +19,7 @@ For complex problems, throw more compute at it via subagents
 One tack per subagent for focused execution
 
 ### 3. Self-Improvement Loop
-After ANY correction from the user: update CLAUDE-Lessons.md with the pattern
+After ANY correction from the user: update AI-Lessons.md with the pattern
 Write rules for yourself that prevent the same mistake
 Ruthlessly iterate on these lessons until mistake rate drops
 Review lessons at session start for relevant project
@@ -42,16 +42,16 @@ Zero context switching required from the user
 Go fix failing CI tests without being told how
 
 ## Task Management
-1.**Plan First*: Write plan to CLAUDE-ToDo.md with checkable items
-2.**Verify Plan*: Check in before starting implementation
-3.Track Progress: Mark items complete as you go
+1. **Plan First**: Write plan to AI-ToDo.md with checkable items
+2. **Verify Plan**: Check in before starting implementation
+3. Track Progress: Mark items complete as you go
 4. Explain Changes: High-level summary at each step
-5. **Document Results*: Add review section to CLAUDE-ToDo.md
-6. **Capture Lessons*: Update CLAUDE-Lessons.md after corrections
+5. **Document Results**: Add review section to AI-ToDo.md
+6. **Capture Lessons**: Update AI-Lessons.md after corrections
 
 ## Core Principles
-Simplicity First*: Make every change as simple as possible. Impact minimal od No Laziness*: Find root causes. No temporary fixes. Senior developer standards.
-**Minimat Impact*: Changes should onlv touch what's necessary. Avoid introducing bugs.
+**Simplicity First**: Make every change as simple as possible. Impact minimal od No Laziness*: Find root causes. No temporary fixes. Senior developer standards.
+**Minimat Impact**: Changes should onlv touch what's necessary. Avoid introducing bugs.
 
 ## Project Overview
 

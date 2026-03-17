@@ -23,6 +23,7 @@ const ENTITY_VISIBILITY_CONTROLLED = [
     'resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts',
     'rate_cards', 'rate_card_entries', 'billing_milestones', 'leave_requests',
     'resource_requests', 'interviews', 'wbs_tasks', 'resource_evaluations',
+    'company_calendar',
 ];
 
 const TABLE_MAPPING: Record<string, string> = {
@@ -305,6 +306,12 @@ const VALIDATION_SCHEMAS: Record<string, any> = {
         osrNumber: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         status: z.string(),
+    }),
+    'company_calendar': z.object({
+        name: z.string(),
+        date: z.string(),
+        type: z.string(),
+        location: z.string().optional().nullable()
     }),
 };
 

@@ -1,4 +1,4 @@
-# CLAUDE-Lessons.md — Lezioni apprese
+# AI-Lessons.md — Lezioni apprese
 
 Regole auto-aggiornate per ridurre il tasso di errore nelle sessioni future.
 Aggiornare dopo ogni correzione ricevuta dall'utente.
@@ -84,16 +84,16 @@ Non usare mai `vi.spyOn(setTimeout)` dopo `vi.useFakeTimers()` — sostituiresti
 
 ## Workflow
 
-### ⚠️ L20-01 — Creare CLAUDE-ToDo.md e CLAUDE-Lessons.md all'avvio di ogni task non banale (2026-03-10)
+### ⚠️ L20-01 — Creare AI-ToDo.md e AI-Lessons.md all'avvio di ogni task non banale (2026-03-10)
 
-**Problema:** Ho completato un task multi-step senza creare né CLAUDE-ToDo.md né
-CLAUDE-Lessons.md come richiesto dalle istruzioni di workflow.
+**Problema:** Ho completato un task multi-step senza creare né AI-ToDo.md né
+AI-Lessons.md come richiesto dalle istruzioni di workflow.
 
 **Regola:**
-1. Prima di iniziare qualsiasi task con 3+ step, creare `CLAUDE-ToDo.md` con:
+1. Prima di iniziare qualsiasi task con 3+ step, creare `AI-ToDo.md` con:
    - Lista checkable degli step pianificati
    - Sezione `## Revisione` vuota da riempire alla fine
-2. Dopo aver completato il task (o ricevuto una correzione), aggiornare `CLAUDE-Lessons.md`.
+2. Dopo aver completato il task (o ricevuto una correzione), aggiornare `AI-Lessons.md`.
 3. Controllare questo file all'**inizio** di ogni sessione per evitare di ripetere gli stessi errori.
 
 ---
