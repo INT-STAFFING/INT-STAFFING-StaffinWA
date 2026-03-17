@@ -6,6 +6,7 @@
 
 import { AppUser, RolePermission, Resource, EntitiesContextType, Allocation } from '../types';
 import { isHoliday } from './dateUtils';
+import { buildCsv, buildJson } from './exportTableUtils';
 
 type ExportType = 'core_entities' | 'staffing' | 'resource_requests' | 'interviews' | 'skills' | 'leaves' | 'users_permissions' | 'tutor_mapping' | 'monthly_allocations';
 
@@ -401,6 +402,38 @@ export const exportTutorMapping = async (data: EntitiesContextType) => {
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Mappatura_Tutor');
     XLSX.writeFile(wb, `Staffing_Export_Tutor_Mapping_${formatDateForExport(new Date())}.xlsx`);
+};
+
+/**
+ * Genera e avvia il download di un file CSV.
+ */
+export const downloadAsCsv = (data: any[], fileName: string) => {
+    const csv = buildCsv(data);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${fileName}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+/**
+ * Genera e avvia il download di un file JSON.
+ */
+export const downloadAsJson = (data: any[], fileName: string) => {
+    const json = buildJson(data);
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${fileName}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 /**

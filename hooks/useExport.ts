@@ -1,24 +1,57 @@
 
 import { useCallback, useState } from 'react';
 import { ExportableInput } from '../types';
-import { buildHtmlTable, buildTsv } from '../utils/exportTableUtils';
+import { buildHtmlTable, buildTsv, buildCsv, buildJson } from '../utils/exportTableUtils';
 
 interface UseExportOptions {
   data: ExportableInput[];
   title?: string;
+  filename?: string;
 }
 
 interface UseExportState {
   copyToClipboard: () => Promise<void>;
+  downloadAsCsv: () => void;
+  downloadAsJson: () => void;
   isCopying: boolean;
   hasCopied: boolean;
   error: string | null;
 }
 
-export const useExport = ({ data, title }: UseExportOptions): UseExportState => {
+export const useExport = ({ data, title, filename = 'export' }: UseExportOptions): UseExportState => {
   const [isCopying, setIsCopying] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const downloadFile = (content: string, type: string, extension: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadAsCsv = useCallback(() => {
+    try {
+      const csv = buildCsv(data);
+      downloadFile(csv, 'text/csv;charset=utf-8;', 'csv');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore durante il download CSV.');
+    }
+  }, [data, filename]);
+
+  const downloadAsJson = useCallback(() => {
+    try {
+      const json = buildJson(data);
+      downloadFile(json, 'application/json;charset=utf-8;', 'json');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Errore durante il download JSON.');
+    }
+  }, [data, filename]);
 
   const copyToClipboard = useCallback(async () => {
     if (!navigator?.clipboard?.write) {
@@ -47,5 +80,5 @@ export const useExport = ({ data, title }: UseExportOptions): UseExportState => 
     }
   }, [data, title]);
 
-  return { copyToClipboard, isCopying, hasCopied, error };
+  return { copyToClipboard, downloadAsCsv, downloadAsJson, isCopying, hasCopied, error };
 };

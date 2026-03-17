@@ -15,7 +15,11 @@ const formatCellValue = (value: unknown): string => {
 
 const ExportModal: React.FC = () => {
   const { isOpen, title, data, closeExport } = useExportContext();
-  const { copyToClipboard, isCopying, hasCopied, error } = useExport({ data, title });
+  const { copyToClipboard, downloadAsCsv, downloadAsJson, isCopying, hasCopied, error } = useExport({ 
+    data, 
+    title,
+    filename: title?.toLowerCase().replace(/\s+/g, '_') || 'export'
+  });
 
   const normalizedData = useMemo(() => normalizeExportData(data), [data]);
   const columns = useMemo(() => getExportColumns(data), [data]);
@@ -32,6 +36,7 @@ const ExportModal: React.FC = () => {
               Il formato include tabella HTML e testo separato da tabulazioni (TSV).
             </p>
           </div>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={copyToClipboard}
@@ -43,6 +48,27 @@ const ExportModal: React.FC = () => {
             </span>
             {hasCopied ? 'Copiato' : isCopying ? 'Copiando...' : 'Copia negli appunti'}
           </button>
+
+          <button
+            type="button"
+            onClick={downloadAsCsv}
+            disabled={data.length === 0}
+            className="inline-flex items-center gap-2 rounded-full bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition hover:bg-surface-container-highest disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="material-symbols-outlined text-base">csv</span>
+            Scarica CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={downloadAsJson}
+            disabled={data.length === 0}
+            className="inline-flex items-center gap-2 rounded-full bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface shadow-sm transition hover:bg-surface-container-highest disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <span className="material-symbols-outlined text-base">data_object</span>
+            Scarica JSON
+          </button>
+        </div>
         </div>
 
         {error && (

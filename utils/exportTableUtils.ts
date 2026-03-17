@@ -87,6 +87,34 @@ export const buildTsv = (data: ExportableInput[]): string => {
   return [header, ...rows].join('\n');
 };
 
+export const buildCsv = (data: ExportableInput[]): string => {
+  if (data.length === 0) return '';
+  const normalized = normalizeExportData(data);
+  const columns = getExportColumns(data);
+  
+  const escapeCsv = (value: string): string => {
+    const escaped = value.replace(/"/g, '""');
+    if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') || escaped.includes('\r')) {
+      return `"${escaped}"`;
+    }
+    return escaped;
+  };
+
+  const header = columns.map(escapeCsv).join(',');
+  const rows = normalized.map((row) =>
+    columns
+      .map((column) => escapeCsv(formatCell(row[column])))
+      .join(',')
+  );
+  return [header, ...rows].join('\n');
+};
+
+export const buildJson = (data: ExportableInput[]): string => {
+  if (data.length === 0) return '[]';
+  const normalized = normalizeExportData(data);
+  return JSON.stringify(normalized, null, 2);
+};
+
 export const buildHtmlTable = (data: ExportableInput[], options: ExportTableOptions = {}): string => {
   const normalized = normalizeExportData(data);
   const columns = getExportColumns(data);
