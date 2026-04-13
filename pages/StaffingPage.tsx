@@ -767,7 +767,8 @@ export const StaffingPage: React.FC = () => {
   }, [displayResources, currentPage, itemsPerPage, isMobile]);
 
   // 5. Group Assignments by Resource (Only for visible ones)
-  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile.
+  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile,
+  // mantenendo però visibili quelle non ancora popolate (nessuna allocazione registrata).
   const assignmentsByResource = useMemo(() => {
       const map = new Map<string, Assignment[]>();
       const visibleIds = new Set(paginatedResources.map(r => r.id));
@@ -776,23 +777,26 @@ export const StaffingPage: React.FC = () => {
       const rangeStartStr = formatDate(timeColumns[0].startDate, 'iso');
       const rangeEndStr = formatDate(timeColumns[timeColumns.length - 1].endDate, 'iso');
 
-      const hasAllocationInPeriod = (assignmentId: string): boolean => {
+      const shouldShowAssignment = (assignmentId: string): boolean => {
           const assignmentAllocs = allocations[assignmentId];
-          if (!assignmentAllocs) return false;
+          // Nessuna allocazione registrata: assegnazione non ancora popolata, mostrala.
+          if (!assignmentAllocs) return true;
+
+          let hasAnyNonZero = false;
           for (const dateStr in assignmentAllocs) {
-              if (
-                  dateStr >= rangeStartStr &&
-                  dateStr <= rangeEndStr &&
-                  assignmentAllocs[dateStr] > 0
-              ) {
-                  return true;
+              if (assignmentAllocs[dateStr] > 0) {
+                  hasAnyNonZero = true;
+                  if (dateStr >= rangeStartStr && dateStr <= rangeEndStr) {
+                      return true; // Allocazione > 0 nel periodo visibile.
+                  }
               }
           }
-          return false;
+          // Mostra solo se l'assegnazione non ha ancora ricevuto alcuna percentuale.
+          return !hasAnyNonZero;
       };
 
       filteredAssignments.forEach(a => {
-          if (visibleIds.has(a.resourceId) && hasAllocationInPeriod(a.id!)) {
+          if (visibleIds.has(a.resourceId) && shouldShowAssignment(a.id!)) {
               if (!map.has(a.resourceId)) {
                   map.set(a.resourceId, []);
               }
