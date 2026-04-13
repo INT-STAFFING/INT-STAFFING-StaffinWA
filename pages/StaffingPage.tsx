@@ -767,12 +767,36 @@ export const StaffingPage: React.FC = () => {
   }, [displayResources, currentPage, itemsPerPage, isMobile]);
 
   // 5. Group Assignments by Resource (Only for visible ones)
+  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile,
+  // mantenendo però visibili quelle non ancora popolate (nessuna allocazione registrata).
   const assignmentsByResource = useMemo(() => {
       const map = new Map<string, Assignment[]>();
       const visibleIds = new Set(paginatedResources.map(r => r.id));
-      
+
+      if (timeColumns.length === 0) return map;
+      const rangeStartStr = formatDate(timeColumns[0].startDate, 'iso');
+      const rangeEndStr = formatDate(timeColumns[timeColumns.length - 1].endDate, 'iso');
+
+      const shouldShowAssignment = (assignmentId: string): boolean => {
+          const assignmentAllocs = allocations[assignmentId];
+          // Nessuna allocazione registrata: assegnazione non ancora popolata, mostrala.
+          if (!assignmentAllocs) return true;
+
+          let hasAnyNonZero = false;
+          for (const dateStr in assignmentAllocs) {
+              if (assignmentAllocs[dateStr] > 0) {
+                  hasAnyNonZero = true;
+                  if (dateStr >= rangeStartStr && dateStr <= rangeEndStr) {
+                      return true; // Allocazione > 0 nel periodo visibile.
+                  }
+              }
+          }
+          // Mostra solo se l'assegnazione non ha ancora ricevuto alcuna percentuale.
+          return !hasAnyNonZero;
+      };
+
       filteredAssignments.forEach(a => {
-          if (visibleIds.has(a.resourceId)) {
+          if (visibleIds.has(a.resourceId) && shouldShowAssignment(a.id!)) {
               if (!map.has(a.resourceId)) {
                   map.set(a.resourceId, []);
               }
@@ -780,7 +804,7 @@ export const StaffingPage: React.FC = () => {
           }
       });
       return map;
-  }, [filteredAssignments, paginatedResources]);
+  }, [filteredAssignments, paginatedResources, allocations, timeColumns]);
 
   // 6. Pre-calculate Leaves Lookup (Only for visible resources & date range)
   const leavesLookup = useMemo(() => {
