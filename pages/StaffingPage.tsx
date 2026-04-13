@@ -767,12 +767,32 @@ export const StaffingPage: React.FC = () => {
   }, [displayResources, currentPage, itemsPerPage, isMobile]);
 
   // 5. Group Assignments by Resource (Only for visible ones)
+  // Nasconde le assegnazioni che non hanno alcuna percentuale > 0 nel periodo visibile.
   const assignmentsByResource = useMemo(() => {
       const map = new Map<string, Assignment[]>();
       const visibleIds = new Set(paginatedResources.map(r => r.id));
-      
+
+      if (timeColumns.length === 0) return map;
+      const rangeStartStr = formatDate(timeColumns[0].startDate, 'iso');
+      const rangeEndStr = formatDate(timeColumns[timeColumns.length - 1].endDate, 'iso');
+
+      const hasAllocationInPeriod = (assignmentId: string): boolean => {
+          const assignmentAllocs = allocations[assignmentId];
+          if (!assignmentAllocs) return false;
+          for (const dateStr in assignmentAllocs) {
+              if (
+                  dateStr >= rangeStartStr &&
+                  dateStr <= rangeEndStr &&
+                  assignmentAllocs[dateStr] > 0
+              ) {
+                  return true;
+              }
+          }
+          return false;
+      };
+
       filteredAssignments.forEach(a => {
-          if (visibleIds.has(a.resourceId)) {
+          if (visibleIds.has(a.resourceId) && hasAllocationInPeriod(a.id!)) {
               if (!map.has(a.resourceId)) {
                   map.set(a.resourceId, []);
               }
@@ -780,7 +800,7 @@ export const StaffingPage: React.FC = () => {
           }
       });
       return map;
-  }, [filteredAssignments, paginatedResources]);
+  }, [filteredAssignments, paginatedResources, allocations, timeColumns]);
 
   // 6. Pre-calculate Leaves Lookup (Only for visible resources & date range)
   const leavesLookup = useMemo(() => {
