@@ -926,7 +926,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              const COMPOSITE_KEY_TABLES = ['project_skills', 'resource_skills', 'contract_projects', 'contract_managers'];
              if (COMPOSITE_KEY_TABLES.includes(tableName as string)) {
                  const placeholders = values.map((_, i) => `$${i + 1}`);
-                 await client.query(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`, values);
+                 // Upsert idempotente: il salvataggio della risorsa reinvia tutte le skill correnti,
+                 // incluse quelle già presenti, quindi un INSERT puro violerebbe la PK composta.
+                 let conflictClause = '';
+                 if (tableName === 'resource_skills') {
+                     const updatable = columns.filter(c => c !== 'resource_id' && c !== 'skill_id');
+                     conflictClause = updatable.length
+                         ? ` ON CONFLICT (resource_id, skill_id) DO UPDATE SET ${updatable.map(c => `${c} = EXCLUDED.${c}`).join(', ')}`
+                         : ` ON CONFLICT (resource_id, skill_id) DO NOTHING`;
+                 } else if (tableName === 'project_skills') {
+                     conflictClause = ` ON CONFLICT (project_id, skill_id) DO NOTHING`;
+                 } else if (tableName === 'contract_projects') {
+                     conflictClause = ` ON CONFLICT (contract_id, project_id) DO NOTHING`;
+                 } else if (tableName === 'contract_managers') {
+                     conflictClause = ` ON CONFLICT (contract_id, resource_id) DO NOTHING`;
+                 }
+                 await client.query(`INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})${conflictClause}`, values);
                  return res.status(201).json(validatedBody);
              }
 
