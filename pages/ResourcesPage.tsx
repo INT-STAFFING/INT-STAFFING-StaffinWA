@@ -119,9 +119,10 @@ const ResourcesPage: React.FC = () => {
     const kpis = useMemo(() => {
         const activeResources = resources.filter(r => !r.resigned);
         const totalActive = activeResources.length;
+        const resignedCount = resources.length - totalActive;
         const assignedResourceIds = new Set(assignments.map(a => a.resourceId));
         const benchCount = activeResources.filter(r => !assignedResourceIds.has(r.id!)).length;
-        
+
         const totalCost = activeResources.reduce((sum, r) => {
             if (r.dailyCost && r.dailyCost > 0) return sum + r.dailyCost;
             const role = roles.find(role => role.id === r.roleId);
@@ -129,7 +130,7 @@ const ResourcesPage: React.FC = () => {
         }, 0);
         const avgCost = totalActive > 0 ? totalCost / totalActive : 0;
 
-        return { totalActive, benchCount, avgCost };
+        return { totalActive, resignedCount, benchCount, avgCost };
     }, [resources, assignments, roles]);
     
     const calculateResourceAllocation = useCallback((resource: Resource): number => {
@@ -603,12 +604,26 @@ const ResourcesPage: React.FC = () => {
 
     return (
         <div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <button
+                    type="button"
+                    onClick={() => setFilters(prev => ({ ...prev, status: 'active' }))}
+                    aria-pressed={filters.status === 'active'}
+                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-primary transition hover:bg-surface-container ${filters.status === 'active' ? 'ring-2 ring-primary' : ''}`}
+                >
                     <p className="text-sm text-on-surface-variant">Risorse Attive</p>
                     <p className="text-2xl font-bold text-on-surface">{kpis.totalActive}</p>
-                </div>
-                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error">
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setFilters(prev => ({ ...prev, status: 'resigned' }))}
+                    aria-pressed={filters.status === 'resigned'}
+                    className={`text-left bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-error transition hover:bg-surface-container ${filters.status === 'resigned' ? 'ring-2 ring-error' : ''}`}
+                >
+                    <p className="text-sm text-on-surface-variant">Risorse Dimesse</p>
+                    <p className="text-2xl font-bold text-on-surface">{kpis.resignedCount}</p>
+                </button>
+                <div className="bg-surface-container-low p-4 rounded-2xl shadow border-l-4 border-secondary">
                      <p className="text-sm text-on-surface-variant">Risorse in Bench</p>
                      <p className="text-2xl font-bold text-on-surface">{kpis.benchCount}</p>
                 </div>
