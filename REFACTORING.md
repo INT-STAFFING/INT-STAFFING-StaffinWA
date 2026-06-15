@@ -52,8 +52,23 @@ dei casi unici (mai perdita di copertura).
 
 ### Fase 3 — Spezzare file enormi [da fare, valutare scope]
 Da affrontare uno alla volta, estraendo componenti/funzioni pure senza cambiare comportamento.
+
+**Priorità 1 — DashboardPage.tsx (2362 righe).** Analisi fatta: contiene ~28
+sotto-componenti "card" puramente presentazionali (righe 79–1347) prima del
+componente principale `DashboardPage` (1348–2362). Piano:
+- Creare `pages/dashboard/dashboardConstants.ts` con `DASHBOARD_COLORS` e
+  `getAvgAllocationColor` (helper condivisi).
+- Creare `pages/dashboard/DashboardCards.tsx` con tutti i componenti card
+  presentazionali (KpiHeaderCards, AttentionCards, ... TopMarginProjectsCard,
+  più i locali `PdfExportButton`/`ViewToggleButton`).
+- `DashboardPage.tsx` importa da questi moduli; resta solo l'orchestrazione/calcolo.
+- Atteso: DashboardPage da 2362 → ~1050 righe. Comportamento invariato.
+- ATTENZIONE: `parseISODate` locale (riga 69) è un dato di cache modulare — va
+  spostato dove serve o duplicato con cura (non confondere con utils/dateUtils).
+
+**Priorità successive (uno alla volta, stessa logica):**
+- [ ] DashboardPage.tsx (2362)
 - [ ] api/resources.ts (1052) — estrarre TABLE_MAPPING / VALIDATION_SCHEMAS / guard
-- [ ] DashboardPage.tsx (2362) — estrarre widget e helper
 - [ ] SecurityCenterPage.tsx (1822)
 - [ ] SimulationPage.tsx (1453)
 - [ ] ProjectsPage.tsx (1012)
