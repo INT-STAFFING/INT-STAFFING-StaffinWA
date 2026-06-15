@@ -254,7 +254,7 @@ const UserManualPage: React.FC = () => {
 
                 <SubSection title="Come estendere o intervenire sul codice">
                     <ol className="list-decimal list-inside space-y-2">
-                        <li><strong>Aggiungere una pagina:</strong> creare il file in <code>pages/</code>, esportare un componente React di default, aggiungere l'import lazy in <code>src/App.tsx</code> e configurare il path nel router (eventualmente in <code>src/routes.ts</code> se usato per menu dinamici).</li>
+                        <li><strong>Aggiungere una pagina:</strong> creare il file in <code>pages/</code>, esportare un componente React di default, aggiungere l'import lazy in <code>App.tsx</code> e configurare il path nel router (eventualmente in <code>routes.ts</code> se usato per menu dinamici).</li>
                         <li><strong>Integrare un nuovo dato/API:</strong> incapsulare le chiamate in <code>services/</code>, tipizzare le risposte in <code>types.ts</code>, e passare i dati tramite il context pertinente per mantenerli coerenti tra le viste.</li>
                         <li><strong>Riutilizzare componenti UI:</strong> consultare <code>components/</code> per pattern già disponibili (card, toolbar, filtri). Estendere i componenti con props tipizzate evitando <code>any</code> e mantenendo la compatibilità con Tailwind.</li>
                         <li><strong>Gestire permessi:</strong> mappare il nuovo path nel sistema RBAC dentro <code>AuthContext</code> (o nella configurazione di ruoli) così che <code>DynamicRoute</code> possa validarlo automaticamente.</li>
