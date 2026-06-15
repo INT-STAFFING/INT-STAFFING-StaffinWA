@@ -30,7 +30,7 @@ Regola d'oro: dopo OGNI fase, questi tre comandi devono restare verdi prima del 
 - [x] Verifica: tsc + vitest (380) + eslint verdi
 - [x] Commit
 
-### Fase 2 — Consolidamento test duplicati + convenzione [da fare]
+### Fase 2 — Consolidamento test duplicati + convenzione [COMPLETATA]
 Le 5 coppie NON sono identiche e nessuna è sempre il superset:
 - dateUtils: 49 / 49 — confronto cases
 - zod: co-located 38 / `__tests__` 45
@@ -42,13 +42,18 @@ canonico, eliminando il doppione. Convenzione scelta: test unitari **co-locati**
 accanto al sorgente (utils/libs/services/hooks); `components/__tests__/` e
 `pages/__tests__/` restano invariati. Conteggio test finale deve essere >= unione
 dei casi unici (mai perdita di copertura).
-- [ ] Merge dateUtils
-- [ ] Merge zod
-- [ ] Merge costUtils
-- [ ] Merge formatters
-- [ ] Merge apiClient
-- [ ] Spostare `utils/__tests__/auth.test.ts` e `utils/__tests__/noStubs.test.ts` co-locati (coerenza)
-- [ ] Verifica + commit
+- [x] Merge dateUtils (49+49 = 98 casi, blocchi suite A/B)
+- [x] Merge zod (38+45 = 83 casi)
+- [x] Merge costUtils (14+14 = 28 casi, fixture rinominate rolesB/historyB)
+- [x] Merge formatters (9+10 = 19 casi)
+- [x] Merge apiClient (16+10 = 26 casi, setLocationB per evitare collisioni)
+- [x] Spostati `utils/auth.test.ts` e `utils/noStubs.test.ts` co-locati (path ROOT aggiornato a `..`)
+- [x] Rimosse cartelle `__tests__/` ormai vuote (libs, services, utils)
+- [x] Verifica: tsc 0 + vitest 380 (18 file, da 23) + eslint 0 → commit
+
+Risultato: 23 → 18 file di test, 380 test invariati (zero perdita di copertura: l'unione
+in un solo file equivale ai due file separati contati prima). `components/__tests__/` e
+`pages/__tests__/` lasciati invariati (convenzione UI consolidata).
 
 ### Fase 3 — Spezzare file enormi [da fare, valutare scope]
 Da affrontare uno alla volta, estraendo componenti/funzioni pure senza cambiare comportamento.
@@ -78,3 +83,5 @@ componente principale `DashboardPage` (1348–2362). Piano:
 
 ## Log avanzamento
 - 2026-06-15: creata baseline (tutto verde), analisi iniziale, scritto questo file.
+- 2026-06-15: Fase 1 completata (rimossa src/). Commit cb4d7ee.
+- 2026-06-15: Fase 2 completata (consolidati 5 test duplicati, coerenza posizione). 380 test invariati.

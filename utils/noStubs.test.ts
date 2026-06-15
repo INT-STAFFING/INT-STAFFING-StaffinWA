@@ -1,5 +1,5 @@
 /**
- * @file noStubs.test.ts
+ * @file utils/noStubs.test.ts
  * @description Verifica che nessun file del progetto contenga stub vuoti o codice troncato
  * introdotti da agenti AI che abbreviano le implementazioni con placeholder.
  */
@@ -8,7 +8,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
-const ROOT = join(import.meta.dirname, '../..');
+// Il file è co-locato in utils/, quindi la radice del progetto è un livello sopra.
+const ROOT = join(import.meta.dirname, '..');
 
 // Pattern che indicano stub vuoti o codice troncato da AI
 const STUB_PATTERNS: Array<{ pattern: RegExp; description: string }> = [
@@ -82,7 +83,7 @@ describe('Nessuno stub vuoto o codice troncato', () => {
     it('exportUtils.ts esporta funzioni con implementazione reale', async () => {
         const { exportStaffing, exportMonthlyAllocations, exportResourceRequests,
                 exportInterviews, exportSkills, exportLeaves,
-                exportUsersPermissions, exportTutorMapping, exportTemplate } = await import('../exportUtils');
+                exportUsersPermissions, exportTutorMapping, exportTemplate } = await import('./exportUtils');
 
         const functions = {
             exportStaffing,
