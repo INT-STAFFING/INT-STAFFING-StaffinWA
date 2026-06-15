@@ -76,7 +76,7 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - [x] SecurityCenterPage.tsx (1822 → 87) — estratti i 6 Pillar in `pages/security/` + `securityShared.ts`. Main ridotto a composizione pura. tsc/vitest/eslint + vite build verdi. Solo spostamento.
 - [ ] api/resources.ts (1052) — estrarre TABLE_MAPPING / VALIDATION_SCHEMAS / guard (NOTA: api/ escluso da tsc frontend → verifica più debole, valutare con cura)
 - [ ] SimulationPage.tsx (1453)
-- [ ] ProjectsPage.tsx (1012)
+- [x] ProjectsPage.tsx (1012 → 657) — estratti BillingPlanModal e ProjectExpensesModal in `pages/projects/`. tsc/vitest/eslint + vite build verdi. Solo spostamento.
 
 ### Fase 4 — Robustezza tipi (continuo) [IN CORSO]
 - [x] Tipizzate le props delle 28 card Dashboard: `any` 71 → 16 (residui = idiomi d3 e
@@ -95,3 +95,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-15: Fase 3 — DashboardPage.tsx spezzato (2362 → 1075). Verificato anche con vite build.
 - 2026-06-15: Fase 3b — SecurityCenterPage.tsx spezzato (1822 → 87), 6 pillar in pages/security/. Build OK.
 - 2026-06-15: Fase 4 — tipizzate props card Dashboard (any 71→16), nuovo dashboardTypes.ts. Build OK.
+- 2026-06-15: ProjectsPage.tsx spezzato (1012 → 657), 2 modali in pages/projects/. Build OK.
