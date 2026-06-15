@@ -8,7 +8,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useResourcesContext } from '../../context/ResourcesContext';
 import { useHRContext } from '../../context/HRContext';
 import { useAuth } from '../../context/AuthContext';
-import { formatDate, formatDateFull } from '../../utils/dateUtils';
+import { formatDateFull } from '../../utils/dateUtils';
 import SearchableSelect from '../../components/SearchableSelect';
 import { Link } from 'react-router-dom';
 import { DashboardDataTable } from '../../components/DashboardDataTable';
@@ -25,11 +25,51 @@ import { formatCurrency } from '../../utils/formatters';
 import ExportButton from '../../components/ExportButton';
 import { exportCardToPdf, buildQuickChartUrl } from '../../utils/pdfExport';
 import { DASHBOARD_COLORS, getAvgAllocationColor } from './dashboardConstants';
+import type {
+    KpiHeaderCardsProps,
+    AttentionCardsProps,
+    UnallocatedFteCardProps,
+    NoWbsLeakageCardProps,
+    LeavesOverviewCardProps,
+    AverageAllocationCardProps,
+    AverageAllocationRow,
+    FtePerProjectCardProps,
+    FtePerProjectRow,
+    BudgetAnalysisCardProps,
+    BudgetAnalysisRow,
+    TemporalBudgetAnalysisCardProps,
+    TemporalBudgetAnalysisRow,
+    AverageDailyRateCardProps,
+    AverageDailyRateRow,
+    UnderutilizedResourcesCardProps,
+    UnderutilizedResourceRow,
+    MonthlyClientCostCardProps,
+    ClientCostEntry,
+    EffortByFunctionCardProps,
+    EffortByIndustryCardProps,
+    EffortRow,
+    LocationAnalysisCardProps,
+    LocationAnalysisRow,
+    SaturationTrendCardProps,
+    CostForecastCardProps,
+    AllocationMatrixCardProps,
+    RevenueByIndustryCardProps,
+    BenchByFunctionCardProps,
+    BenchByIndustryCardProps,
+    NamedValueRow,
+    WbsSaturationCardProps,
+    ContractExpirationsCardProps,
+    ContractExpirationRow,
+    RevenueMixCardProps,
+    BillingPipelineCardProps,
+    TopMarginProjectsCardProps,
+    TopMarginProjectRow,
+} from './dashboardTypes';
 import 'd3-transition'; // Import transition to avoid crashes
 
 // --- Child Components for each Card ---
 
-export const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any }> = ({ overallKPIs, currentMonthKPIs }) => (
+export const KpiHeaderCards: React.FC<KpiHeaderCardsProps> = ({ overallKPIs, currentMonthKPIs }) => (
     <>
         <div className="bg-surface-container-low rounded-2xl shadow p-5 border-l-4 border-primary">
             <h3 className="text-sm font-medium text-on-surface-variant">Budget Complessivo</h3>
@@ -46,7 +86,7 @@ export const KpiHeaderCards: React.FC<{ overallKPIs: any, currentMonthKPIs: any 
     </>
 );
 
-export const AttentionCards: React.FC<{ overallKPIs: any, navigate: (path: string) => void }> = ({ overallKPIs, navigate }) => (
+export const AttentionCards: React.FC<AttentionCardsProps> = ({ overallKPIs, navigate }) => (
     <>
         <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start cursor-pointer ${DASHBOARD_COLORS.attention.hoverBackground} min-h-[150px] border-l-4 border-error`} onClick={() => navigate('/resources?filter=unassigned')}>
             <div className="flex justify-between items-start w-full">
@@ -61,7 +101,7 @@ export const AttentionCards: React.FC<{ overallKPIs: any, navigate: (path: strin
             </div>
             {overallKPIs.unassignedResources.length > 0 && (
                 <div className={`mt-2 text-xs ${DASHBOARD_COLORS.attention.text} overflow-y-auto max-h-20 pr-2 w-full`}>
-                    <ul className="list-disc list-inside">{overallKPIs.unassignedResources.slice(0, 5).map((r: any) => <li key={r.id} className="truncate">{r.name}</li>)}</ul>
+                    <ul className="list-disc list-inside">{overallKPIs.unassignedResources.slice(0, 5).map((r) => <li key={r.id} className="truncate">{r.name}</li>)}</ul>
                 </div>
             )}
         </div>
@@ -78,14 +118,14 @@ export const AttentionCards: React.FC<{ overallKPIs: any, navigate: (path: strin
             </div>
             {overallKPIs.unstaffedProjects.length > 0 && (
                 <div className={`mt-2 text-xs ${DASHBOARD_COLORS.attention.text} overflow-y-auto max-h-20 pr-2 w-full`}>
-                    <ul className="list-disc list-inside">{overallKPIs.unstaffedProjects.slice(0, 5).map((p: any) => <li key={p.id} className="truncate">{p.name}</li>)}</ul>
+                    <ul className="list-disc list-inside">{overallKPIs.unstaffedProjects.slice(0, 5).map((p) => <li key={p.id} className="truncate">{p.name}</li>)}</ul>
                 </div>
             )}
         </div>
     </>
 );
 
-export const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
+export const UnallocatedFteCard: React.FC<UnallocatedFteCardProps> = ({ kpis }) => (
     <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-secondary`}>
         <div className="flex justify-between items-start w-full">
             <div>
@@ -103,7 +143,7 @@ export const UnallocatedFteCard: React.FC<{ kpis: any }> = ({ kpis }) => (
     </div>
 );
 
-export const NoWbsLeakageCard: React.FC<{ leakageAmount: number, navigate: (path: string) => void }> = ({ leakageAmount, navigate }) => (
+export const NoWbsLeakageCard: React.FC<NoWbsLeakageCardProps> = ({ leakageAmount, navigate }) => (
     <div className={`${DASHBOARD_COLORS.attention.background} rounded-2xl shadow p-5 flex flex-col justify-start min-h-[150px] border-l-4 border-error cursor-pointer hover:opacity-90`} onClick={() => navigate('/wbs-analysis')}>
          <div className="flex justify-between items-start w-full">
             <div>
@@ -120,7 +160,7 @@ export const NoWbsLeakageCard: React.FC<{ leakageAmount: number, navigate: (path
     </div>
 );
 
-export const LeavesOverviewCard: React.FC<{ navigate: (path: string) => void }> = ({ navigate }) => {
+export const LeavesOverviewCard: React.FC<LeavesOverviewCardProps> = ({ navigate }) => {
     const { leaveRequests, leaveTypes } = useHRContext();
     const { resources } = useResourcesContext();
     const { isAdmin } = useAuth();
@@ -230,9 +270,9 @@ export const ViewToggleButton: React.FC<{ view: 'table' | 'graph', setView: (v: 
 );
 
 
-export const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, resourceOptions, totals, isLoading }) => {
+export const AverageAllocationCard: React.FC<AverageAllocationCardProps> = ({ data, filter, setFilter, resourceOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<AverageAllocationRow>[] = [
         { header: 'Risorsa', sortKey: 'resource.name', cell: d => <Link to={`/workload?resourceId=${d.resource.id}`} className={DASHBOARD_COLORS.link}>{d.resource.name}</Link> },
         { header: 'Mese Corrente', sortKey: 'currentMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.currentMonth)}`}>{d.currentMonth.toFixed(0)}%</span> },
         { header: 'Mese Prossimo', sortKey: 'nextMonth', cell: d => <span className={`font-semibold ${getAvgAllocationColor(d.nextMonth)}`}>{d.nextMonth.toFixed(0)}%</span> },
@@ -247,7 +287,7 @@ export const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, 
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Risorsa: d.resource.name,
             'Mese Corrente (%)': d.currentMonth.toFixed(0),
             'Mese Prossimo (%)': d.nextMonth.toFixed(0)
@@ -287,9 +327,9 @@ export const AverageAllocationCard: React.FC<any> = ({ data, filter, setFilter, 
     );
 };
 
-export const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+export const FtePerProjectCard: React.FC<FtePerProjectCardProps> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<FtePerProjectRow>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "G/U Allocati", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
         { header: "FTE", sortKey: "fte", cell: (d) => <span className="font-semibold">{d.fte.toFixed(2)}</span> },
@@ -304,7 +344,7 @@ export const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clie
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Progetto: d.name,
             'G/U Allocati': d.totalPersonDays.toFixed(1),
             FTE: d.fte.toFixed(2)
@@ -344,9 +384,9 @@ export const FtePerProjectCard: React.FC<any> = ({ data, filter, setFilter, clie
     );
 };
 
-export const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+export const BudgetAnalysisCard: React.FC<BudgetAnalysisCardProps> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<BudgetAnalysisRow>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "Budget", sortKey: "budget", cell: (d) => formatCurrency(d.budget) },
         { header: "Costo Stimato", sortKey: "estimatedCost", cell: (d) => formatCurrency(d.estimatedCost) },
@@ -363,7 +403,7 @@ export const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cli
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Progetto: d.name,
             Budget: formatCurrency(d.budget),
             'Costo Stimato': formatCurrency(d.estimatedCost),
@@ -404,9 +444,9 @@ export const BudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, cli
     );
 };
 
-export const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+export const TemporalBudgetAnalysisCard: React.FC<TemporalBudgetAnalysisCardProps> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<TemporalBudgetAnalysisRow>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "Budget Periodo", sortKey: "periodBudget", cell: (d) => formatCurrency(d.periodBudget) },
         { header: "Costo Stimato", sortKey: "estimatedCost", cell: (d) => formatCurrency(d.estimatedCost) },
@@ -423,7 +463,7 @@ export const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFil
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Progetto: d.name,
             'Budget Periodo': formatCurrency(d.periodBudget),
             'Costo Stimato': formatCurrency(d.estimatedCost),
@@ -468,9 +508,9 @@ export const TemporalBudgetAnalysisCard: React.FC<any> = ({ data, filter, setFil
     );
 };
 
-export const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
+export const AverageDailyRateCard: React.FC<AverageDailyRateCardProps> = ({ data, filter, setFilter, clientOptions, totals, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<AverageDailyRateRow>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => d.name },
         { header: "Cliente", sortKey: "clientName", cell: (d) => d.clientName },
         { header: "G/U Lavorati", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
@@ -488,7 +528,7 @@ export const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, c
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Progetto: d.name,
             Cliente: d.clientName,
             'G/U Lavorati': d.totalPersonDays.toFixed(1),
@@ -535,15 +575,15 @@ export const AverageDailyRateCard: React.FC<any> = ({ data, filter, setFilter, c
 };
 
 
-export const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMonth, isLoading }) => {
+export const UnderutilizedResourcesCard: React.FC<UnderutilizedResourcesCardProps> = ({ data, month, setMonth, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<UnderutilizedResourceRow>[] = [
         { header: "Risorsa", sortKey: "resource.name", cell: (d) => d.resource.name },
         { header: "Alloc. Media", sortKey: "avgAllocation", cell: (d) => <span className={DASHBOARD_COLORS.utilization.high}>{d.avgAllocation.toFixed(0)}%</span> },
     ];
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Risorsa: d.resource.name,
             'Allocazione Media (%)': d.avgAllocation.toFixed(0)
         }));
@@ -581,15 +621,15 @@ export const UnderutilizedResourcesCard: React.FC<any> = ({ data, month, setMont
     );
 };
 
-export const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading }) => {
+export const MonthlyClientCostCard: React.FC<MonthlyClientCostCardProps> = ({ data, navigate, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<ClientCostEntry>[] = [
         { header: "Cliente", sortKey: "name", cell: (d) => <button onClick={() => navigate(`/projects?clientId=${d.id}`)} className={DASHBOARD_COLORS.link}>{d.name}</button> },
         { header: "Costo Stimato", sortKey: "cost", cell: (d) => formatCurrency(d.cost) },
     ];
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Cliente: d.name,
             'Costo Stimato': formatCurrency(d.cost)
         }));
@@ -626,9 +666,9 @@ export const MonthlyClientCostCard: React.FC<any> = ({ data, navigate, isLoading
     );
 };
 
-export const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) => {
+export const EffortByFunctionCard: React.FC<EffortByFunctionCardProps> = ({ data, total, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<EffortRow>[] = [
         { header: "Function", sortKey: "name", cell: (d) => d.name },
         { header: "G/U Totali", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
     ];
@@ -641,7 +681,7 @@ export const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) 
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Function: d.name,
             'G/U Totali': d.totalPersonDays.toFixed(1)
         }));
@@ -679,9 +719,9 @@ export const EffortByFunctionCard: React.FC<any> = ({ data, total, isLoading }) 
     );
 };
 
-export const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) => {
+export const EffortByIndustryCard: React.FC<EffortByIndustryCardProps> = ({ data, total, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<EffortRow>[] = [
         { header: "Industry", sortKey: "name", cell: (d) => d.name },
         { header: "G/U Totali", sortKey: "totalPersonDays", cell: (d) => d.totalPersonDays.toFixed(1) },
     ];
@@ -694,7 +734,7 @@ export const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) 
     );
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Industry: d.name,
             'G/U Totali': d.totalPersonDays.toFixed(1)
         }));
@@ -732,9 +772,9 @@ export const EffortByIndustryCard: React.FC<any> = ({ data, total, isLoading }) 
     );
 };
 
-export const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
+export const LocationAnalysisCard: React.FC<LocationAnalysisCardProps> = ({ data, isLoading }) => {
     const [view, setView] = useState<'table' | 'graph'>('table');
-    const columns: ColumnDef<any>[] = [
+    const columns: ColumnDef<LocationAnalysisRow>[] = [
         { header: "Sede", sortKey: "name", cell: (d) => d.name },
         { header: "N. Risorse", sortKey: "resourceCount", cell: (d) => d.resourceCount },
         { header: "G/U Allocati", sortKey: "allocatedDays", cell: (d) => d.allocatedDays.toFixed(1) },
@@ -742,7 +782,7 @@ export const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     ];
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Sede: d.name,
             'N. Risorse': d.resourceCount,
             'G/U Allocati': d.allocatedDays.toFixed(1),
@@ -781,16 +821,11 @@ export const LocationAnalysisCard: React.FC<any> = ({ data, isLoading }) => {
     );
 };
 
-export const SaturationTrendCard: React.FC<{ 
-    trendResource: string, 
-    setTrendResource: (v: string) => void, 
-    resourceOptions: any[], 
-    data: any[] 
-}> = ({ trendResource, setTrendResource, resourceOptions, data }) => {
+export const SaturationTrendCard: React.FC<SaturationTrendCardProps> = ({ trendResource, setTrendResource, resourceOptions, data }) => {
     const chartRef = useRef<SVGSVGElement>(null);
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Mese: d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }),
             'Saturazione (%)': d.value.toFixed(1)
         }));
@@ -849,11 +884,11 @@ export const SaturationTrendCard: React.FC<{
     );
 };
 
-export const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
+export const CostForecastCard: React.FC<CostForecastCardProps> = ({ data }) => {
     const chartRef = useRef<SVGSVGElement>(null);
 
     const exportData = useMemo(() => {
-        return data.map((d: any) => ({
+        return data.map((d) => ({
             Mese: d.month.toLocaleString('it-IT', { month: 'short', year: '2-digit' }),
             'Media Storica': formatCurrency(d.historic),
             'Forecast': formatCurrency(d.forecast)
@@ -915,12 +950,12 @@ export const CostForecastCard: React.FC<{ data: any[] }> = ({ data }) => {
     );
 };
 
-export const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> = ({ data, isLoading }) => {
+export const AllocationMatrixCard: React.FC<AllocationMatrixCardProps> = ({ data, isLoading }) => {
     const { matrix, functions, industries } = data;
-    
+
     // Sort logic handled in parent or here
-    const sortedFunctions = useMemo(() => [...functions].sort((a: string, b: string) => a.localeCompare(b)), [functions]);
-    const sortedIndustries = useMemo(() => [...industries].sort((a: string, b: string) => a.localeCompare(b)), [industries]);
+    const sortedFunctions = useMemo(() => [...functions].sort((a, b) => a.localeCompare(b)), [functions]);
+    const sortedIndustries = useMemo(() => [...industries].sort((a, b) => a.localeCompare(b)), [industries]);
 
     // Color scale helper for heatmap
     const getHeatmapColor = (value: number, maxVal: number) => {
@@ -932,8 +967,8 @@ export const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> =
 
     const maxVal = useMemo(() => {
         let m = 0;
-        Object.values(matrix).forEach((row: any) => {
-             Object.values(row).forEach((val: any) => {
+        Object.values(matrix).forEach((row) => {
+             Object.values(row).forEach((val) => {
                  if(typeof val === 'number' && val > m) m = val;
              });
         });
@@ -941,10 +976,10 @@ export const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> =
     }, [matrix]);
 
     const exportData = useMemo(() => {
-        const rows: any[] = [];
-        sortedFunctions.forEach((func: string) => {
-            const row: any = { Function: func };
-            sortedIndustries.forEach((ind: string) => {
+        const rows: Record<string, string>[] = [];
+        sortedFunctions.forEach((func) => {
+            const row: Record<string, string> = { Function: func };
+            sortedIndustries.forEach((ind) => {
                 row[ind] = (matrix[func]?.[ind] || 0).toFixed(1);
             });
             rows.push(row);
@@ -993,7 +1028,7 @@ export const AllocationMatrixCard: React.FC<{ data: any, isLoading: boolean }> =
     );
 };
 
-export const RevenueByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+export const RevenueByIndustryCard: React.FC<RevenueByIndustryCardProps> = ({ data, isLoading }) => {
     // Top 5 filtering
     const top5 = useMemo(() => [...data].sort((a,b) => b.value - a.value).slice(0, 5), [data]);
 
@@ -1019,7 +1054,7 @@ export const RevenueByIndustryCard: React.FC<{ data: any[], isLoading: boolean }
     );
 };
 
-export const BenchByFunctionCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+export const BenchByFunctionCard: React.FC<BenchByFunctionCardProps> = ({ data, isLoading }) => {
      const exportData = useMemo(() => data.map(d => ({ Function: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
 
     return (
@@ -1042,7 +1077,7 @@ export const BenchByFunctionCard: React.FC<{ data: any[], isLoading: boolean }> 
     );
 };
 
-export const BenchByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+export const BenchByIndustryCard: React.FC<BenchByIndustryCardProps> = ({ data, isLoading }) => {
     const exportData = useMemo(() => data.map(d => ({ Industry: d.name, 'Bench %': d.value.toFixed(1) + '%' })), [data]);
 
     return (
@@ -1065,7 +1100,7 @@ export const BenchByIndustryCard: React.FC<{ data: any[], isLoading: boolean }> 
     );
 };
 
-export const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+export const WbsSaturationCard: React.FC<WbsSaturationCardProps> = ({ data, isLoading }) => {
     const exportData = useMemo(() => data.map(d => ({ 
         Contratto: d.name, 
         Capienza: formatCurrency(d.capienza), 
@@ -1100,9 +1135,9 @@ export const WbsSaturationCard: React.FC<{ data: any[], isLoading: boolean }> = 
     );
 };
 
-export const ContractExpirationsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
-     const columns: ColumnDef<any>[] = [
-        { header: "Scadenza", sortKey: "endDate", cell: (d) => formatDate(d.endDate, 'short') },
+export const ContractExpirationsCard: React.FC<ContractExpirationsCardProps> = ({ data, isLoading }) => {
+     const columns: ColumnDef<ContractExpirationRow>[] = [
+        { header: "Scadenza", sortKey: "endDate", cell: (d) => formatDateFull(d.endDate) },
         { header: "Contratto", sortKey: "name", cell: (d) => <span title={d.name} className="truncate block max-w-[150px]">{d.name}</span> },
         { header: "Backlog", sortKey: "backlog", cell: (d) => formatCurrency(d.backlog) },
     ];
@@ -1136,7 +1171,7 @@ export const ContractExpirationsCard: React.FC<{ data: any[], isLoading: boolean
 
 // --- NEW CARDS IMPLEMENTATION ---
 
-export const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+export const RevenueMixCard: React.FC<RevenueMixCardProps> = ({ data, isLoading }) => {
     const svgRef = useRef<SVGSVGElement>(null);
 
     const exportData = useMemo(() => data.map(d => ({ 
@@ -1224,7 +1259,7 @@ export const RevenueMixCard: React.FC<{ data: any[], isLoading: boolean }> = ({ 
     );
 };
 
-export const BillingPipelineCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
+export const BillingPipelineCard: React.FC<BillingPipelineCardProps> = ({ data, isLoading }) => {
     const exportData = useMemo(() => data.map(d => ({ 
         Mese: d.month, 
         'Fatturato Previsto': formatCurrency(d.amount) 
@@ -1250,8 +1285,8 @@ export const BillingPipelineCard: React.FC<{ data: any[], isLoading: boolean }> 
     );
 };
 
-export const TopMarginProjectsCard: React.FC<{ data: any[], isLoading: boolean }> = ({ data, isLoading }) => {
-     const columns: ColumnDef<any>[] = [
+export const TopMarginProjectsCard: React.FC<TopMarginProjectsCardProps> = ({ data, isLoading }) => {
+     const columns: ColumnDef<TopMarginProjectRow>[] = [
         { header: "Progetto", sortKey: "name", cell: (d) => <span className="font-semibold">{d.name}</span> },
         { header: "Ricavi", sortKey: "revenue", cell: (d) => formatCurrency(d.revenue) },
         { header: "Margine", sortKey: "margin", cell: (d) => <span className={d.margin < 0 ? 'text-error' : 'text-tertiary'}>{formatCurrency(d.margin)}</span> },

@@ -78,8 +78,15 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - [ ] SimulationPage.tsx (1453)
 - [ ] ProjectsPage.tsx (1012)
 
-### Fase 4 — Robustezza tipi (continuo) [da fare]
-- [ ] Ridurre `any` nelle aree toccate durante le fasi precedenti
+### Fase 4 — Robustezza tipi (continuo) [IN CORSO]
+- [x] Tipizzate le props delle 28 card Dashboard: `any` 71 → 16 (residui = idiomi d3 e
+  shape di export eterogenee, lasciati di proposito). Nuovo `pages/dashboard/dashboardTypes.ts`
+  con interfacce props + righe dati + tipi riusabili (`SelectOption`, `ClientFilter`,
+  `ClientDateRangeFilter`, `NavigateFn`), riuso di `Resource`/`Project`/`Contract` da types.ts.
+  `ColumnDef<any>` → tipo riga corretto. Risolta una unsoundness latente in ContractExpirationsCard
+  (`formatDate(string|null,'short')` → `formatDateFull`, output byte-identico, verificato).
+  tsc/vitest/eslint + vite build verdi. Call site del main NON toccati.
+- [ ] (Futuro) Ridurre `any` nei pillar Security (catch/cast API) — richiede narrowing, non banale.
 
 ## Log avanzamento
 - 2026-06-15: creata baseline (tutto verde), analisi iniziale, scritto questo file.
@@ -87,3 +94,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-15: Fase 2 completata (consolidati 5 test duplicati, coerenza posizione). 380 test invariati.
 - 2026-06-15: Fase 3 — DashboardPage.tsx spezzato (2362 → 1075). Verificato anche con vite build.
 - 2026-06-15: Fase 3b — SecurityCenterPage.tsx spezzato (1822 → 87), 6 pillar in pages/security/. Build OK.
+- 2026-06-15: Fase 4 — tipizzate props card Dashboard (any 71→16), nuovo dashboardTypes.ts. Build OK.
