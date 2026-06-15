@@ -72,7 +72,7 @@ componente principale `DashboardPage` (1348–2362). Piano:
   spostato dove serve o duplicato con cura (non confondere con utils/dateUtils).
 
 **Priorità successive (uno alla volta, stessa logica):**
-- [ ] DashboardPage.tsx (2362)
+- [x] DashboardPage.tsx (2362 → 1075) — estratte 28 card in `pages/dashboard/DashboardCards.tsx` (1287) + `dashboardConstants.ts` (41). tsc/vitest/eslint verdi + `vite build` OK. Solo spostamento, zero logica cambiata.
 - [ ] api/resources.ts (1052) — estrarre TABLE_MAPPING / VALIDATION_SCHEMAS / guard
 - [ ] SecurityCenterPage.tsx (1822)
 - [ ] SimulationPage.tsx (1453)
@@ -85,3 +85,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-15: creata baseline (tutto verde), analisi iniziale, scritto questo file.
 - 2026-06-15: Fase 1 completata (rimossa src/). Commit cb4d7ee.
 - 2026-06-15: Fase 2 completata (consolidati 5 test duplicati, coerenza posizione). 380 test invariati.
+- 2026-06-15: Fase 3 — DashboardPage.tsx spezzato (2362 → 1075). Verificato anche con vite build.
