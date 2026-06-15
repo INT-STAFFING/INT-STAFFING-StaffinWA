@@ -73,8 +73,8 @@ componente principale `DashboardPage` (1348–2362). Piano:
 
 **Priorità successive (uno alla volta, stessa logica):**
 - [x] DashboardPage.tsx (2362 → 1075) — estratte 28 card in `pages/dashboard/DashboardCards.tsx` (1287) + `dashboardConstants.ts` (41). tsc/vitest/eslint verdi + `vite build` OK. Solo spostamento, zero logica cambiata.
-- [ ] api/resources.ts (1052) — estrarre TABLE_MAPPING / VALIDATION_SCHEMAS / guard
-- [ ] SecurityCenterPage.tsx (1822)
+- [x] SecurityCenterPage.tsx (1822 → 87) — estratti i 6 Pillar in `pages/security/` + `securityShared.ts`. Main ridotto a composizione pura. tsc/vitest/eslint + vite build verdi. Solo spostamento.
+- [ ] api/resources.ts (1052) — estrarre TABLE_MAPPING / VALIDATION_SCHEMAS / guard (NOTA: api/ escluso da tsc frontend → verifica più debole, valutare con cura)
 - [ ] SimulationPage.tsx (1453)
 - [ ] ProjectsPage.tsx (1012)
 
@@ -86,3 +86,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-15: Fase 1 completata (rimossa src/). Commit cb4d7ee.
 - 2026-06-15: Fase 2 completata (consolidati 5 test duplicati, coerenza posizione). 380 test invariati.
 - 2026-06-15: Fase 3 — DashboardPage.tsx spezzato (2362 → 1075). Verificato anche con vite build.
+- 2026-06-15: Fase 3b — SecurityCenterPage.tsx spezzato (1822 → 87), 6 pillar in pages/security/. Build OK.
