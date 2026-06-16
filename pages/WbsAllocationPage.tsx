@@ -204,7 +204,7 @@ export const WbsAllocationPage: React.FC = () => {
         
         // Generate Month Keys for Columns (e.g. "2024-01", "2024-02")
         const monthKeys: string[] = [];
-        let curr = new Date(start.getUTCFullYear(), start.getUTCMonth(), 1);
+        const curr = new Date(start.getUTCFullYear(), start.getUTCMonth(), 1);
         const endMonth = new Date(end.getUTCFullYear(), end.getUTCMonth(), 1);
         
         while (curr <= endMonth) {

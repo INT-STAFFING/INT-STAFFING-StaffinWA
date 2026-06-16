@@ -92,7 +92,7 @@ export const getWorkingDaysBetween = (
     resourceLocation: string | null = null
 ): number => {
     // Normalizzazione UTC iniziale
-    let current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
+    const current = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate()));
     const end = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()));
     
     if (isNaN(current.getTime()) || isNaN(end.getTime())) return 0;

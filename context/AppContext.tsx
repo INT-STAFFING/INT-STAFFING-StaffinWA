@@ -499,7 +499,7 @@ const AllocationsInternalProvider: React.FC<{ children: ReactNode }> = ({ childr
         const start = parseISODate(startDate);
         const end = parseISODate(endDate);
         const updates: { assignmentId: string; date: string; percentage: number }[] = [];
-        let curr = new Date(start.getTime());
+        const curr = new Date(start.getTime());
         while (curr.getTime() <= end.getTime()) {
             const day = curr.getUTCDay();
             if (day !== 0 && day !== 6) {

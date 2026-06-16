@@ -119,7 +119,7 @@ const AllocationCell: React.FC<AllocationCellProps> = React.memo(
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let rawVal = e.target.value;
+      const rawVal = e.target.value;
       
       // Allow empty string for better UX while deleting
       if (rawVal === '') {
@@ -199,7 +199,7 @@ const ReadonlyAggregatedAllocationCell: React.FC<{
     const assignmentAllocations = allocations[assignment.id!];
 
     if (assignmentAllocations) {
-      let currentDate = new Date(startDate.getTime()); // Copy
+      const currentDate = new Date(startDate.getTime()); // Copy
       while (currentDate.getTime() <= effectiveEndDate.getTime()) {
         const dateStr = formatDate(currentDate, 'iso');
         if (assignmentAllocations[dateStr]) {
@@ -361,7 +361,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{
     resourceAssignments.forEach((assignment) => {
       const assignmentAllocations = allocations[assignment.id!];
       if (assignmentAllocations) {
-        let currentDate = new Date(startDate.getTime()); // Copy for safety
+        const currentDate = new Date(startDate.getTime()); // Copy for safety
         while (currentDate.getTime() <= effectiveEndDate.getTime()) {
           const dateStr = formatDate(currentDate, 'iso');
           if (assignmentAllocations[dateStr]) {
@@ -607,7 +607,7 @@ export const StaffingPage: React.FC = () => {
   // --- Time Calculation ---
   const timeColumns = useMemo(() => {
     const cols: { label: string; subLabel: string; startDate: Date; endDate: Date; isNonWorkingDay: boolean; dateIso: string; }[] = [];
-    let d = new Date(currentDate);
+    const d = new Date(currentDate);
 
     if (isMobile) {
         let daysToGenerate = 1;

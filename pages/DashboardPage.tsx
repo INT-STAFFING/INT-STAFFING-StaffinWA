@@ -370,7 +370,7 @@ const DashboardPage: React.FC = () => {
                 
                 const assignmentAllocations = allocations[assignment.id!];
                 if (assignmentAllocations) {
-                    let currentDate = new Date(filterStartDate);
+                    const currentDate = new Date(filterStartDate);
                     while (currentDate.getTime() <= filterEndDate.getTime()) {
                         const dateStr = currentDate.toISOString().slice(0, 10);
                         if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) {

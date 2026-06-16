@@ -18,8 +18,11 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': 'off',
 
     // Style rules — non sono bug, disabilitate per compatibilità con codebase esistente
-    'prefer-const': 'off',
     'no-useless-escape': 'off',
+
+    // prefer-const — riattivata: le occorrenze (15) sono state convertite,
+    // garantisce immutabilità del binding dove la variabile non viene riassegnata
+    'prefer-const': 'error',
 
     // Empty catch blocks — usati intenzionalmente nei migration script DB
     'no-empty': 'off',

@@ -113,7 +113,7 @@ const ReadonlyAggregatedTotalCell: React.FC<{ resource: Resource; startDate: Dat
     resourceAssignments.forEach((assignment) => {
       const assignmentAllocations = allocations[assignment.id!];
       if (assignmentAllocations) {
-        let currentDate = new Date(startDate.getTime());
+        const currentDate = new Date(startDate.getTime());
         while (currentDate.getTime() <= effectiveEndDate.getTime()) {
           const dateStr = formatDate(currentDate, 'iso');
           if (assignmentAllocations[dateStr]) {
@@ -199,7 +199,7 @@ const WorkloadPage: React.FC = () => {
 
     const timeColumns = useMemo(() => {
         const cols = [];
-        let d = new Date(currentDate);
+        const d = new Date(currentDate);
 
         if (viewMode === 'day') {
             return getCalendarDays(d, 14).map((day) => {

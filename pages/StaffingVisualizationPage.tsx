@@ -59,7 +59,7 @@ const StaffingVisualizationPage: React.FC = () => {
             const assignmentAllocations = allocations[assignment.id!];
             let totalPersonDays = 0;
             if (assignmentAllocations) {
-                let currentDate = new Date(firstDay);
+                const currentDate = new Date(firstDay);
                 while (currentDate <= lastDay) {
                     const dateStr = currentDate.toISOString().split('T')[0];
                     if (assignmentAllocations[dateStr] && !isHoliday(currentDate, resource.location, companyCalendar) && currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
