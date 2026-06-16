@@ -153,8 +153,8 @@ export const ProjectExpensesModal: React.FC<{
                         />
                     </div>
                     <div className="col-span-2 flex justify-end">
-                        <button type="submit" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addProjectExpense')}>
-                            {isActionLoading('addProjectExpense') ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">add</span>}
+                        <button type="submit" aria-label="Aggiungi spesa" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addProjectExpense')}>
+                            {isActionLoading('addProjectExpense') ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm" aria-hidden="true">add</span>}
                         </button>
                     </div>
                     <div className="col-span-12 flex items-center gap-2 mt-1">

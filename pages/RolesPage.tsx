@@ -193,10 +193,10 @@ const RolesPage: React.FC = () => {
                     <td className="px-6 py-4"><input type="number" step="0.01" name="overheadPct" value={inlineEditingData!.overheadPct || 0} onChange={handleInlineFormChange} className="w-full form-input p-1"/></td>
                     <td className="px-6 py-4 text-xs text-on-surface-variant">Modifica dettagli per mix</td>
                     <td className="px-6 py-4 text-right sticky right-0 bg-inherit"><div className="flex items-center justify-end space-x-2">
-                        <button onClick={handleSaveInlineEdit} disabled={isSaving} className="p-2 rounded-full hover:bg-surface-container text-primary transition-colors disabled:opacity-50">
+                        <button onClick={handleSaveInlineEdit} disabled={isSaving} aria-label="Salva modifica" className="p-2 rounded-full hover:bg-surface-container text-primary transition-colors disabled:opacity-50">
                            {isSaving ? <SpinnerIcon className="w-5 h-5"/> : <span className="material-symbols-outlined">check</span>}
                         </button>
-                        <button onClick={handleCancelInlineEdit} className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors"><span className="material-symbols-outlined">close</span></button>
+                        <button onClick={handleCancelInlineEdit} aria-label="Annulla modifica" className="p-2 rounded-full hover:bg-surface-container text-on-surface-variant transition-colors"><span className="material-symbols-outlined" aria-hidden="true">close</span></button>
                     </div></td>
                 </tr>
             );
