@@ -86,7 +86,10 @@ componente principale `DashboardPage` (1348–2362). Piano:
   `ColumnDef<any>` → tipo riga corretto. Risolta una unsoundness latente in ContractExpirationsCard
   (`formatDate(string|null,'short')` → `formatDateFull`, output byte-identico, verificato).
   tsc/vitest/eslint + vite build verdi. Call site del main NON toccati.
-- [ ] (Futuro) Ridurre `any` nei pillar Security (catch/cast API) — richiede narrowing, non banale.
+- [x] Pillar Security: eliminati i 3 cast `as any` (SecurityCenterPage `p.id` → nuovo tipo `PillarId`;
+  IdentityPillar `saved as any` superfluo rimosso; ruolo select → `as AppUser['role']`). Restano solo i
+  6 `catch (e: any)`, lasciati di proposito perché convenzione diffusa nel codebase (54 occorrenze totali):
+  una conversione a `unknown` + helper sarebbe un pass dedicato a sé, fuori dallo scope "aree toccate".
 
 ## Log avanzamento
 - 2026-06-15: creata baseline (tutto verde), analisi iniziale, scritto questo file.
@@ -98,3 +101,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-15: ProjectsPage.tsx spezzato (1012 → 657), 2 modali in pages/projects/. Build OK.
 - 2026-06-16: SimulationPage.tsx spezzato (1453 → 1061), reducer + 2 modali in pages/simulation/. Build OK.
 - 2026-06-16: api/resources.ts spezzato (1052 → 740), config statiche in api/_lib/resourcesConfig.ts. tsc+eslint+test verdi.
+- 2026-06-16: pillar Security — eliminati i 3 cast `as any` (tipo PillarId, AppUser['role'], cast superfluo). Build OK.

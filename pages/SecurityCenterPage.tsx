@@ -8,10 +8,12 @@ import { AuditPillar } from './security/AuditPillar';
 import { HierarchyPillar } from './security/HierarchyPillar';
 
 // --- PAGINA PRINCIPALE SECURITY CENTER ---
-const SecurityCenterPage: React.FC = () => {
-    const [activePillar, setActivePillar] = useState<'id' | 'rbac' | 'entity' | 'nav' | 'audit' | 'hierarchy'>('audit');
+type PillarId = 'id' | 'rbac' | 'entity' | 'nav' | 'audit' | 'hierarchy';
 
-    const pillars = [
+const SecurityCenterPage: React.FC = () => {
+    const [activePillar, setActivePillar] = useState<PillarId>('audit');
+
+    const pillars: { id: PillarId; label: string; icon: string; desc: string }[] = [
         { id: 'audit',     label: 'Security Audit',         icon: 'policy',           desc: 'Timeline Attività' },
         { id: 'rbac',      label: 'Access Control Matrix',  icon: 'security',         desc: 'Rotte e Ruoli' },
         { id: 'entity',    label: 'Entity Visibility',      icon: 'visibility',       desc: 'Visibilità Entità' },
@@ -32,7 +34,7 @@ const SecurityCenterPage: React.FC = () => {
                 {pillars.map(p => (
                     <button
                         key={p.id}
-                        onClick={() => setActivePillar(p.id as any)}
+                        onClick={() => setActivePillar(p.id)}
                         className={`w-full flex items-center gap-4 px-6 py-5 rounded-[2rem] font-bold text-left transition-all duration-300 group ${
                             activePillar === p.id
                                 ? 'bg-primary text-on-primary shadow-xl scale-105'

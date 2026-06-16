@@ -61,7 +61,7 @@ export const IdentityPillar: React.FC = () => {
                 method: isNew ? 'POST' : 'PUT',
                 body: JSON.stringify(editingUser)
             });
-            updateCache(prev => isNew ? [...(prev || []), saved as any] : (prev || []).map(u => u.id === saved.id ? saved as any : u));
+            updateCache(prev => isNew ? [...(prev || []), saved] : (prev || []).map(u => u.id === saved.id ? saved : u));
             addToast('Utente salvato con successo', 'success');
             setIsModalOpen(false);
         } catch (e: any) {
@@ -395,7 +395,7 @@ export const IdentityPillar: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-1 text-on-surface-variant">Ruolo Sistema</label>
-                                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as any})} className="form-select">
+                                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as AppUser['role']})} className="form-select">
                                     <option value="SIMPLE">Simple User</option>
                                     <option value="SIMPLE_EXT">Simple User (Ext)</option>
                                     <option value="MANAGER">Manager</option>
