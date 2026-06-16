@@ -74,7 +74,7 @@ componente principale `DashboardPage` (1348–2362). Piano:
 **Priorità successive (uno alla volta, stessa logica):**
 - [x] DashboardPage.tsx (2362 → 1075) — estratte 28 card in `pages/dashboard/DashboardCards.tsx` (1287) + `dashboardConstants.ts` (41). tsc/vitest/eslint verdi + `vite build` OK. Solo spostamento, zero logica cambiata.
 - [x] SecurityCenterPage.tsx (1822 → 87) — estratti i 6 Pillar in `pages/security/` + `securityShared.ts`. Main ridotto a composizione pura. tsc/vitest/eslint + vite build verdi. Solo spostamento.
-- [ ] api/resources.ts (1052) — estrarre TABLE_MAPPING / VALIDATION_SCHEMAS / guard (NOTA: api/ escluso da tsc frontend → verifica più debole, valutare con cura)
+- [x] api/resources.ts (1052 → 740) — estratte le 4 config statiche (JSONB_FIELDS, ENTITY_VISIBILITY_CONTROLLED, TABLE_MAPPING, VALIDATION_SCHEMAS) in `api/_lib/resourcesConfig.ts`. NOTA: scoperto che `api/` NON è escluso da tsconfig (AI.md era errato) → la verifica tsc+eslint è robusta. Tutti i gate verdi. Solo spostamento.
 - [x] SimulationPage.tsx (1453 → 1061) — estratti reducer (`simulationReducer.ts`) e i 2 modali in `pages/simulation/`. tsc/vitest/eslint + vite build verdi. Solo spostamento.
 - [x] ProjectsPage.tsx (1012 → 657) — estratti BillingPlanModal e ProjectExpensesModal in `pages/projects/`. tsc/vitest/eslint + vite build verdi. Solo spostamento.
 
@@ -97,3 +97,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-15: Fase 4 — tipizzate props card Dashboard (any 71→16), nuovo dashboardTypes.ts. Build OK.
 - 2026-06-15: ProjectsPage.tsx spezzato (1012 → 657), 2 modali in pages/projects/. Build OK.
 - 2026-06-16: SimulationPage.tsx spezzato (1453 → 1061), reducer + 2 modali in pages/simulation/. Build OK.
+- 2026-06-16: api/resources.ts spezzato (1052 → 740), config statiche in api/_lib/resourcesConfig.ts. tsc+eslint+test verdi.
