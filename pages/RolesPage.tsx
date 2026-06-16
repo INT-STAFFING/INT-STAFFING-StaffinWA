@@ -110,7 +110,7 @@ const RolesPage: React.FC = () => {
                     await addRole(editingRole);
                 }
                 handleCloseModal();
-            } catch (e: any) {
+            } catch (e: unknown) {
                 // Il context ha già mostrato il toast di errore
             }
         }
@@ -122,7 +122,7 @@ const RolesPage: React.FC = () => {
             await deleteRole(roleToDelete.id!);
             addToast(`Ruolo "${roleToDelete.name}" eliminato.`, 'success');
             setRoleToDelete(null);
-        } catch (e: any) {
+        } catch (e: unknown) {
             // Il context ha già mostrato il toast di errore
         }
     };

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 import { useResourcesContext } from '../../context/ResourcesContext';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
@@ -64,8 +65,8 @@ export const IdentityPillar: React.FC = () => {
             updateCache(prev => isNew ? [...(prev || []), saved] : (prev || []).map(u => u.id === saved.id ? saved : u));
             addToast('Utente salvato con successo', 'success');
             setIsModalOpen(false);
-        } catch (e: any) {
-            addToast(`Errore durante il salvataggio utente: ${e.message}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore durante il salvataggio utente: ${getErrorMessage(e)}`, 'error');
         }
     };
 
@@ -93,8 +94,8 @@ export const IdentityPillar: React.FC = () => {
             setNewPassword('');
             setConfirmPassword('');
             setUserForPwd(null);
-        } catch (e) {
-            addToast(`Errore durante il reset della password: ${(e as Error).message}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore durante il reset della password: ${getErrorMessage(e)}`, 'error');
         } finally {
             setPwdLoading(false);
         }
@@ -152,8 +153,8 @@ export const IdentityPillar: React.FC = () => {
             const count = selectedIds.size;
             addToast(`${count} ${count === 1 ? 'utente' : 'utenti'} ${enable ? 'abilitati' : 'disabilitati'} con successo`, 'success');
             setSelectedIds(new Set());
-        } catch (e: any) {
-            addToast(`Errore durante l'operazione bulk: ${e.message}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore durante l'operazione bulk: ${getErrorMessage(e)}`, 'error');
         } finally {
             setBulkLoading(false);
         }

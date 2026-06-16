@@ -9,6 +9,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getUserFromRequest, verifyAdmin } from './_lib/auth.js';
+import { getErrorMessage } from '../utils/getErrorMessage.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { method } = req;
@@ -141,8 +142,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
             const responseBody = await resp.text().catch(() => '');
             return res.status(200).json({ success: resp.ok, statusCode: resp.status, responseBody });
-        } catch (error: any) {
-            return res.status(200).json({ success: false, statusCode: 0, responseBody: error?.message || 'Errore di rete' });
+        } catch (error: unknown) {
+            return res.status(200).json({ success: false, statusCode: 0, responseBody: getErrorMessage(error) || 'Errore di rete' });
         }
     }
 

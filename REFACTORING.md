@@ -78,7 +78,12 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - [x] SimulationPage.tsx (1453 → 1061) — estratti reducer (`simulationReducer.ts`) e i 2 modali in `pages/simulation/`. tsc/vitest/eslint + vite build verdi. Solo spostamento.
 - [x] ProjectsPage.tsx (1012 → 657) — estratti BillingPlanModal e ProjectExpensesModal in `pages/projects/`. tsc/vitest/eslint + vite build verdi. Solo spostamento.
 
-### Fase 4 — Robustezza tipi (continuo) [IN CORSO]
+### Fase 4 — Robustezza tipi (continuo) [COMPLETATA]
+- [x] Pass completo `catch`: nuovo helper `utils/getErrorMessage.ts` (+7 test). Convertite TUTTE
+  le 55 occorrenze `catch (e: any)`/`catch (error: any)` (13 file frontend + api/admin.ts) in
+  `catch (e: unknown)` + `getErrorMessage(e)`. Gestiti anche i pattern `e?.message` e
+  `(e as Error).message`. Zero `catch (...: any)` residui. Comportamento preservato (per gli
+  Error il messaggio è identico). tsc/eslint/vitest(387) + vite build verdi.
 - [x] Tipizzate le props delle 28 card Dashboard: `any` 71 → 16 (residui = idiomi d3 e
   shape di export eterogenee, lasciati di proposito). Nuovo `pages/dashboard/dashboardTypes.ts`
   con interfacce props + righe dati + tipi riusabili (`SelectOption`, `ClientFilter`,
@@ -102,3 +107,4 @@ componente principale `DashboardPage` (1348–2362). Piano:
 - 2026-06-16: SimulationPage.tsx spezzato (1453 → 1061), reducer + 2 modali in pages/simulation/. Build OK.
 - 2026-06-16: api/resources.ts spezzato (1052 → 740), config statiche in api/_lib/resourcesConfig.ts. tsc+eslint+test verdi.
 - 2026-06-16: pillar Security — eliminati i 3 cast `as any` (tipo PillarId, AppUser['role'], cast superfluo). Build OK.
+- 2026-06-16: pass completo catch — helper getErrorMessage + 55 `catch(:any)` → `unknown`. 387 test. Build OK.

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { SpinnerIcon } from '../../components/icons';
@@ -108,9 +109,9 @@ export const AuditPillar: React.FC = () => {
 
             const data = await authorizedJsonFetch<AuditLogEntry[]>(`/api/resources?${params.toString()}`);
             setLogs(data || []);
-        } catch(e: any) {
+        } catch (e: unknown) {
             console.error(e);
-            setError(e.message || 'Errore durante il recupero dei log');
+            setError(getErrorMessage(e) || 'Errore durante il recupero dei log');
             addToast('Errore caricamento audit log', 'error');
         } finally {
             setLoading(false);

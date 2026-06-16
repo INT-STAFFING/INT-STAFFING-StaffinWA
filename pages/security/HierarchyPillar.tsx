@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 import { useResourcesContext } from '../../context/ResourcesContext';
 import { useToast } from '../../context/ToastContext';
 import { SpinnerIcon } from '../../components/icons';
@@ -171,8 +172,8 @@ export const HierarchyPillar: React.FC = () => {
             updateCache(prev => (prev || []).map(u => u.id === userId ? { ...u, managerIds: newManagerIds, version: updated.version } : u));
             addToast('Gerarchia aggiornata con successo', 'success');
             setEditingUserId(null);
-        } catch (e: any) {
-            addToast(`Errore: ${e.message}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore: ${getErrorMessage(e)}`, 'error');
         }
     }, [users, updateCache, addToast]);
 

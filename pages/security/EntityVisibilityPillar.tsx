@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 import { useToast } from '../../context/ToastContext';
 import { SpinnerIcon } from '../../components/icons';
 import { RoleEntityVisibility, UserRole } from '../../types';
@@ -173,8 +174,8 @@ export const EntityVisibilityPillar: React.FC = () => {
                 body: JSON.stringify({ visibilityRules: visibilityData }),
             });
             addToast('Visibilità entità salvata con successo', 'success');
-        } catch (e: any) {
-            addToast(`Errore nel salvataggio: ${e.message}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore nel salvataggio: ${getErrorMessage(e)}`, 'error');
         }
     };
 

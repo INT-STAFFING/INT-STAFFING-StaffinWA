@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useState, useContext, useCallback, useMemo, ReactNode } from 'react';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import {
     Resource, Role, RoleCostHistory, ResourceEvaluation
 } from '../types';
@@ -83,8 +84,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             setResources(prev => [...prev, newResource]);
             addToast('Risorsa aggiunta con successo', 'success');
             return newResource;
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiunta della risorsa.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta della risorsa.', 'error');
             throw e;
         } finally {
             actionLoading('addResource', false);
@@ -100,8 +101,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             });
             setResources(prev => prev.map(r => r.id === resource.id ? updated : r));
             addToast('Risorsa aggiornata', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiornamento della risorsa.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento della risorsa.', 'error');
             throw e;
         } finally {
             actionLoading(`updateResource-${resource.id}`, false);
@@ -118,8 +119,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             });
             setRoles(prev => [...prev, newRole]);
             addToast('Ruolo aggiunto con successo', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiunta del ruolo.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta del ruolo.', 'error');
             throw e;
         } finally {
             actionLoading('addRole', false);
@@ -137,8 +138,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             const historyRes = await apiFetch<RoleCostHistory[]>('/api/resources?entity=role_cost_history');
             setRoleCostHistory(historyRes);
             addToast('Ruolo aggiornato', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiornamento del ruolo.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento del ruolo.', 'error');
             throw e;
         } finally {
             actionLoading(`updateRole-${role.id}`, false);
@@ -150,8 +151,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
             await apiFetch(`/api/resources?entity=roles&id=${id}`, { method: 'DELETE' });
             setRoles(prev => prev.filter(r => r.id !== id));
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'eliminazione del ruolo.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'eliminazione del ruolo.', 'error');
             throw e;
         } finally {
             actionLoading(`deleteRole-${id}`, false);
@@ -198,8 +199,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             });
             setEvaluations(prev => [...prev, created]);
             addToast('Valutazione aggiunta con successo', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiunta della valutazione.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta della valutazione.', 'error');
             throw e;
         } finally {
             actionLoading('addEvaluation', false);
@@ -215,8 +216,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
             );
             setEvaluations(prev => prev.map(e => e.id === evaluation.id ? updated : e));
             addToast('Valutazione aggiornata', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiornamento della valutazione.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento della valutazione.', 'error');
             throw e;
         } finally {
             actionLoading(`updateEvaluation-${evaluation.id}`, false);
@@ -228,8 +229,8 @@ export const ResourcesProvider: React.FC<{ children: ReactNode }> = ({ children 
         try {
             await apiFetch(`/api/resources?entity=resource_evaluations&id=${id}`, { method: 'DELETE' });
             setEvaluations(prev => prev.filter(e => e.id !== id));
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'eliminazione della valutazione.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'eliminazione della valutazione.', 'error');
             throw e;
         } finally {
             actionLoading(`deleteEvaluation-${id}`, false);

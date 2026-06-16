@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 import { useUIConfigContext } from '../../context/UIConfigContext';
 import { useToast } from '../../context/ToastContext';
 import { RolePermission, UserRole } from '../../types';
@@ -78,8 +79,8 @@ export const RBACPillar: React.FC = () => {
             await updatePageVisibility(localVisibility);
 
             addToast('Configurazione salvata con successo', 'success');
-        } catch (e: any) {
-            addToast(`Errore nel salvataggio della configurazione: ${e.message}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore nel salvataggio della configurazione: ${getErrorMessage(e)}`, 'error');
         }
     };
 
