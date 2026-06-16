@@ -52,7 +52,7 @@ describe('excelAdapter', () => {
 
     it('applica lo stile Brand a header, filtro e riga bloccata senza alterare i valori', async () => {
         const wb = utils.book_new();
-        const rows = [{ Nome: 'Alice', Costo: 1200 }, { Nome: 'Bob', Costo: 800 }];
+        const rows = [{ Nome: 'Alice', Costo: 1200, Ratio: 0.5 }, { Nome: 'Bob', Costo: 800, Ratio: 1 }];
         utils.book_append_sheet(wb, utils.json_to_sheet(rows), 'Stile');
 
         const ws = wb.getWorksheet('Stile')!;
@@ -61,9 +61,11 @@ describe('excelAdapter', () => {
         expect(headerCell.font?.bold).toBe(true);
         expect(headerCell.font?.color?.argb).toBe('FFFFFFFF');
         expect(ws.views?.[0]).toMatchObject({ state: 'frozen', ySplit: 1 });
-        expect(ws.autoFilter).toBe('A1:B1');
+        expect(ws.autoFilter).toBe('A1:C1');
         expect(ws.getColumn(1).width).toBeGreaterThan(0);
-        expect(ws.getRow(2).getCell(2).numFmt).toBe('#,##0.###');
+        // Interi senza separatore decimale, decimali con separatore.
+        expect(ws.getRow(2).getCell(2).numFmt).toBe('#,##0');
+        expect(ws.getRow(2).getCell(3).numFmt).toBe('#,##0.###');
 
         // I valori restano invariati dopo il round-trip.
         const out = await read(await toBuffer(wb));

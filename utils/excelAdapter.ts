@@ -80,7 +80,8 @@ const HEADER_TEXT_ARGB = 'FFFFFFFF';  // testo header
 const ZEBRA_ARGB = 'FFF2F6F9';        // righe alternate
 const BORDER_ARGB = 'FFD9E0E6';       // bordi sottili
 const TITLE_TEXT_ARGB = 'FF006493';   // titolo fogli testuali
-const NUMBER_FORMAT = '#,##0.###';    // separatore migliaia, decimali solo se presenti
+const INT_FORMAT = '#,##0';           // interi: separatore migliaia, nessun decimale
+const DEC_FORMAT = '#,##0.###';       // decimali: separatore migliaia + fino a 3 decimali
 const DATE_FORMAT = 'yyyy-mm-dd';     // date in formato AAAA-MM-GG
 
 const thinBorder: Partial<ExcelJS.Borders> = {
@@ -140,7 +141,9 @@ const styleTableSheet = (ws: ExcelJS.Worksheet, colCount: number): void => {
             if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA_ARGB } };
             const v = cell.value;
             if (typeof v === 'number') {
-                cell.numFmt = NUMBER_FORMAT;
+                // Formato in base al valore: gli interi non mostrano il separatore decimale
+                // (evita artefatti tipo "99," in locale italiano).
+                cell.numFmt = Number.isInteger(v) ? INT_FORMAT : DEC_FORMAT;
                 cell.alignment = { horizontal: 'right' };
             } else if (v instanceof Date) {
                 cell.numFmt = DATE_FORMAT;
