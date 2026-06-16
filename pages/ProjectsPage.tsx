@@ -1,12 +1,13 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import { useAppState, useCascadeOps } from '../context/AppContext';
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useLookupContext } from '../context/LookupContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { useAuth } from '../context/AuthContext';
-import { Project, ProjectExpense, BillingType, BillingMilestone, MilestoneStatus } from '../types';
+import { Project } from '../types';
 import { z, SafeParseError } from '../libs/zod';
 import Modal from '../components/Modal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -18,9 +19,10 @@ import { formatCurrency } from '../utils/formatters';
 import { formatDateFull } from '../utils/dateUtils';
 import ExportButton from '../components/ExportButton';
 import { useToast } from '../context/ToastContext';
-import ConfirmationModal from '../components/ConfirmationModal';
 import PdfExportButton from '../components/PdfExportButton';
 import { PdfExportConfig, CHART_PALETTE } from '../utils/pdfExportUtils';
+import { BillingPlanModal } from './projects/BillingPlanModal';
+import { ProjectExpensesModal } from './projects/ProjectExpensesModal';
 
 type EnrichedProject = Project & { 
     clientName: string; 
@@ -65,362 +67,6 @@ const projectSchema = z.object({
     if (!data.startDate || !data.endDate) return true;
     return data.endDate >= data.startDate;
 }, { message: 'La data di fine non può essere antecedente alla data di inizio', path: ['endDate'] });
-
-const BillingPlanModal: React.FC<{ 
-    project: Project; 
-    isOpen: boolean; 
-    onClose: () => void; 
-}> = ({ project, isOpen, onClose }) => {
-    const { billingMilestones, addBillingMilestone, updateBillingMilestone, deleteBillingMilestone, updateProject, contracts, rateCards } = useProjectsContext();
-    const { isActionLoading } = useAppState();
-    const { addToast } = useToast();
-
-    const [billingType, setBillingType] = useState<BillingType>(project.billingType || 'TIME_MATERIAL');
-    const [milestones, setMilestones] = useState<BillingMilestone[]>([]);
-    
-    // New Milestone State
-    const [newMilestone, setNewMilestone] = useState<Omit<BillingMilestone, 'id' | 'projectId'>>({
-        name: '',
-        date: new Date().toISOString().split('T')[0],
-        amount: 0,
-        status: 'PLANNED'
-    });
-
-    useEffect(() => {
-        setBillingType(project.billingType || 'TIME_MATERIAL');
-    }, [project]);
-
-    useEffect(() => {
-        setMilestones(billingMilestones.filter(bm => bm.projectId === project.id).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    }, [billingMilestones, project.id]);
-
-    const handleSaveType = async () => {
-        try {
-            await updateProject({ ...project, billingType });
-            addToast('Tipo di fatturazione aggiornato', 'success');
-        } catch (e) { addToast('Errore aggiornamento', 'error'); }
-    };
-
-    const handleAddMilestone = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await addBillingMilestone({ ...newMilestone, projectId: project.id! });
-            setNewMilestone({ name: '', date: new Date().toISOString().split('T')[0], amount: 0, status: 'PLANNED' });
-            addToast('Milestone aggiunta', 'success');
-        } catch (e) { addToast('Errore aggiunta milestone', 'error'); }
-    };
-
-    const handleDeleteMilestone = async (id: string) => {
-        try {
-            await deleteBillingMilestone(id);
-            addToast('Milestone rimossa', 'success');
-        } catch (e) { addToast('Errore rimozione', 'error'); }
-    };
-    
-    const handleUpdateMilestoneStatus = async (ms: BillingMilestone, newStatus: MilestoneStatus) => {
-        try {
-            await updateBillingMilestone({ ...ms, status: newStatus });
-        } catch (e) { addToast('Errore aggiornamento stato', 'error'); }
-    };
-
-    const totalMilestoneAmount = milestones.reduce((sum, m) => sum + Number(m.amount), 0);
-    const contract = contracts.find(c => c.id === project.contractId);
-    const rateCard = rateCards.find(rc => rc.id === contract?.rateCardId);
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Piano Fatturazione: ${project.name}`}>
-            <div className="flex flex-col h-[70vh] space-y-6">
-                
-                {/* Billing Type Selector */}
-                <div className="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant">
-                    <div>
-                        <h4 className="text-sm font-bold text-on-surface">Modalità Contratto</h4>
-                        <p className="text-xs text-on-surface-variant">Definisce come viene calcolata la revenue.</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <select 
-                            value={billingType} 
-                            onChange={(e) => setBillingType(e.target.value as BillingType)}
-                            className="form-select text-sm py-1"
-                        >
-                            <option value="TIME_MATERIAL">Time & Material</option>
-                            <option value="FIXED_PRICE">Fixed Price (A Corpo)</option>
-                        </select>
-                        {billingType !== project.billingType && (
-                            <button onClick={handleSaveType} className="p-2 bg-primary text-on-primary rounded-full hover:opacity-90">
-                                <span className="material-symbols-outlined text-sm">save</span>
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {billingType === 'TIME_MATERIAL' ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-surface-container-lowest border border-dashed border-outline-variant rounded-xl">
-                        <span className="material-symbols-outlined text-5xl text-primary/20 mb-4">schedule</span>
-                        <h3 className="text-lg font-bold text-on-surface mb-2">Fatturazione a Consuntivo</h3>
-                        <p className="text-sm text-on-surface-variant max-w-md">
-                            La revenue viene calcolata moltiplicando i giorni lavorati per le tariffe di vendita definite nel listino.
-                        </p>
-                        {contract ? (
-                            <div className="mt-6 p-4 bg-surface rounded border border-outline-variant text-left w-full max-w-sm">
-                                <p className="text-xs text-on-surface-variant uppercase font-bold">Contratto Collegato</p>
-                                <p className="text-sm font-medium">{contract.name}</p>
-                                <p className="text-xs text-on-surface-variant mt-2 uppercase font-bold">Listino Applicato</p>
-                                <p className="text-sm font-medium">{rateCard?.name || 'Standard (Costo + Markup)'}</p>
-                            </div>
-                        ) : (
-                            <p className="mt-4 text-xs text-error font-bold bg-error-container/20 p-2 rounded">
-                                Nessun contratto collegato. Assicurati di collegare un contratto al progetto.
-                            </p>
-                        )}
-                    </div>
-                ) : (
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        <div className="flex justify-between items-center mb-2 px-1">
-                            <h4 className="text-sm font-bold text-on-surface">Piano Rate (Milestones)</h4>
-                            <div className="text-xs">
-                                <span className="text-on-surface-variant">Totale: </span>
-                                <span className={`font-bold ${totalMilestoneAmount > project.budget ? 'text-error' : 'text-primary'}`}>
-                                    {formatCurrency(totalMilestoneAmount)}
-                                </span>
-                                <span className="text-on-surface-variant"> / {formatCurrency(project.budget)}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto space-y-2 pr-1 mb-4">
-                            {milestones.length === 0 ? (
-                                <p className="text-center text-xs text-on-surface-variant py-8 italic">Nessuna milestone definita.</p>
-                            ) : (
-                                milestones.map(ms => (
-                                    <div key={ms.id} className="flex justify-between items-center p-3 bg-surface border border-outline-variant rounded-lg">
-                                        <div>
-                                            <p className="text-sm font-bold text-on-surface">{ms.name}</p>
-                                            <p className="text-xs text-on-surface-variant">{formatDateFull(ms.date)}</p>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-mono font-bold text-sm">{formatCurrency(ms.amount)}</span>
-                                            <select 
-                                                value={ms.status} 
-                                                onChange={(e) => handleUpdateMilestoneStatus(ms, e.target.value as MilestoneStatus)}
-                                                className={`text-xs rounded py-1 px-2 border-none font-bold ${
-                                                    ms.status === 'PAID' ? 'bg-tertiary-container text-on-tertiary-container' : 
-                                                    ms.status === 'INVOICED' ? 'bg-secondary-container text-on-secondary-container' : 
-                                                    'bg-surface-container-high text-on-surface-variant'
-                                                }`}
-                                            >
-                                                <option value="PLANNED">Pianificata</option>
-                                                <option value="INVOICED">Fatturata</option>
-                                                <option value="PAID">Pagata</option>
-                                            </select>
-                                            <button onClick={() => handleDeleteMilestone(ms.id!)} className="text-error hover:bg-error-container p-1 rounded">
-                                                <span className="material-symbols-outlined text-sm">delete</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        <form onSubmit={handleAddMilestone} className="pt-4 border-t border-outline-variant grid grid-cols-12 gap-2 items-end bg-surface-container-low p-3 rounded-lg">
-                            <div className="col-span-5">
-                                <label className="text-[10px] font-bold text-on-surface-variant">Descrizione</label>
-                                <input type="text" className="form-input text-xs p-2" required value={newMilestone.name} onChange={e => setNewMilestone({...newMilestone, name: e.target.value})} placeholder="es. Anticipo 20%"/>
-                            </div>
-                            <div className="col-span-3">
-                                <label className="text-[10px] font-bold text-on-surface-variant">Data Prevista</label>
-                                <input type="date" className="form-input text-xs p-2" required value={newMilestone.date} onChange={e => setNewMilestone({...newMilestone, date: e.target.value})}/>
-                            </div>
-                            <div className="col-span-3">
-                                <label className="text-[10px] font-bold text-on-surface-variant">Importo</label>
-                                <input type="number" step="0.01" className="form-input text-xs p-2" required value={newMilestone.amount || ''} onChange={e => setNewMilestone({...newMilestone, amount: parseFloat(e.target.value)})}/>
-                            </div>
-                            <div className="col-span-1">
-                                <button type="submit" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addBillingMilestone')}>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                )}
-            </div>
-        </Modal>
-    );
-};
-
-const ProjectExpensesModal: React.FC<{ 
-    project: Project; 
-    isOpen: boolean; 
-    onClose: () => void; 
-}> = ({ project, isOpen, onClose }) => {
-    const { projectExpenses, addProjectExpense, updateProjectExpense, deleteProjectExpense } = useProjectsContext();
-    const { isActionLoading } = useAppState();
-    const { addToast } = useToast();
-    
-    // Local state for the new expense form
-    const [newExpense, setNewExpense] = useState<Omit<ProjectExpense, 'id' | 'projectId'>>({
-        category: 'Altro',
-        description: '',
-        amount: 0,
-        date: new Date().toISOString().split('T')[0],
-        billable: false
-    });
-    
-    const [expenseToDelete, setExpenseToDelete] = useState<ProjectExpense | null>(null);
-
-    const projectSpecificExpenses = useMemo(() => 
-        projectExpenses.filter(e => e.projectId === project.id).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [projectExpenses, project.id]);
-
-    const totalExpenses = useMemo(() => 
-        projectSpecificExpenses.reduce((sum, e) => sum + Number(e.amount), 0),
-    [projectSpecificExpenses]);
-
-    const categoryOptions = ['Licenze Software', 'Hardware', 'Viaggi & Trasferte', 'Consulenza Esterna', 'Marketing', 'Altro'];
-
-    const handleAdd = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            await addProjectExpense({ ...newExpense, projectId: project.id! });
-            addToast('Spesa aggiunta', 'success');
-            setNewExpense({ category: 'Altro', description: '', amount: 0, date: new Date().toISOString().split('T')[0], billable: false });
-        } catch (err) {
-            addToast('Errore aggiunta spesa', 'error');
-        }
-    };
-
-    const confirmDelete = async () => {
-        if (expenseToDelete) {
-            try {
-                await deleteProjectExpense(expenseToDelete.id!);
-                addToast('Spesa eliminata', 'success');
-            } catch (err) { 
-                addToast('Errore eliminazione', 'error'); 
-            } finally {
-                setExpenseToDelete(null);
-            }
-        }
-    };
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Spese Extra: ${project.name}`}>
-            <div className="flex flex-col h-[70vh]">
-                <div className="flex-shrink-0 bg-surface-container-low p-4 rounded-xl border border-outline-variant mb-4 flex justify-between items-center">
-                    <div>
-                        <p className="text-sm text-on-surface-variant font-medium">Totale Spese Extra</p>
-                        <p className="text-2xl font-bold text-primary">{formatCurrency(totalExpenses)}</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs text-on-surface-variant">Budget Progetto: {formatCurrency(project.budget)}</p>
-                        <p className="text-xs text-on-surface-variant">Incidenza: {project.budget > 0 ? ((totalExpenses / project.budget) * 100).toFixed(1) : 0}%</p>
-                    </div>
-                </div>
-
-                <div className="flex-grow overflow-y-auto pr-1 space-y-2 mb-4">
-                    {projectSpecificExpenses.length === 0 ? (
-                        <p className="text-center text-sm text-on-surface-variant py-8">Nessuna spesa registrata.</p>
-                    ) : (
-                        projectSpecificExpenses.map(expense => (
-                            <div key={expense.id} className="flex justify-between items-center p-3 bg-surface border border-outline-variant rounded-lg hover:bg-surface-container-low transition-colors group">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm text-on-surface">{expense.category}</span>
-                                        {expense.billable && <span className="px-1.5 py-0.5 rounded text-[10px] bg-tertiary-container text-on-tertiary-container font-bold">Rifatturabile</span>}
-                                    </div>
-                                    <p className="text-xs text-on-surface-variant">{expense.description || '-'}</p>
-                                    <p className="text-[10px] text-on-surface-variant">{formatDateFull(expense.date)}</p>
-                                </div>
-                                <div className="text-right flex items-center gap-2">
-                                    <p className="font-mono font-bold text-sm text-on-surface">{formatCurrency(expense.amount)}</p>
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); setExpenseToDelete(expense); }}
-                                        className="text-error hover:bg-error-container p-2 rounded transition-colors"
-                                        disabled={isActionLoading(`deleteProjectExpense-${expense.id}`)}
-                                        title="Elimina"
-                                    >
-                                        <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                <form onSubmit={handleAdd} className="flex-shrink-0 pt-4 border-t border-outline-variant grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-3">
-                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Categoria</label>
-                        <select 
-                            className="form-select text-xs p-2" 
-                            value={newExpense.category} 
-                            onChange={e => setNewExpense({...newExpense, category: e.target.value})}
-                        >
-                            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    </div>
-                    <div className="col-span-3">
-                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Descrizione</label>
-                        <input 
-                            type="text" 
-                            className="form-input text-xs p-2" 
-                            placeholder="Dettagli..." 
-                            value={newExpense.description} 
-                            onChange={e => setNewExpense({...newExpense, description: e.target.value})}
-                            required
-                        />
-                    </div>
-                    <div className="col-span-2">
-                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Data</label>
-                        <input 
-                            type="date" 
-                            className="form-input text-xs p-2" 
-                            value={newExpense.date} 
-                            onChange={e => setNewExpense({...newExpense, date: e.target.value})}
-                            required
-                        />
-                    </div>
-                    <div className="col-span-2">
-                        <label className="text-[10px] font-bold uppercase text-on-surface-variant">Importo</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            className="form-input text-xs p-2" 
-                            placeholder="€" 
-                            value={newExpense.amount || ''} 
-                            onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})}
-                            required
-                        />
-                    </div>
-                    <div className="col-span-2 flex justify-end">
-                        <button type="submit" className="w-full bg-primary text-on-primary rounded-lg py-2 flex justify-center items-center hover:opacity-90 disabled:opacity-50" disabled={isActionLoading('addProjectExpense')}>
-                            {isActionLoading('addProjectExpense') ? <SpinnerIcon className="w-4 h-4"/> : <span className="material-symbols-outlined text-sm">add</span>}
-                        </button>
-                    </div>
-                    <div className="col-span-12 flex items-center gap-2 mt-1">
-                         <input 
-                            type="checkbox" 
-                            id="billable" 
-                            className="form-checkbox h-4 w-4"
-                            checked={newExpense.billable}
-                            onChange={e => setNewExpense({...newExpense, billable: e.target.checked})}
-                        />
-                        <label htmlFor="billable" className="text-xs text-on-surface cursor-pointer select-none">Spesa rifatturabile al cliente</label>
-                    </div>
-                </form>
-            </div>
-
-            {expenseToDelete && (
-                <ConfirmationModal
-                    isOpen={!!expenseToDelete}
-                    onClose={() => setExpenseToDelete(null)}
-                    onConfirm={confirmDelete}
-                    title="Elimina Spesa"
-                    message="Sei sicuro di voler eliminare questa spesa dal progetto? L'operazione è irreversibile."
-                    isConfirming={isActionLoading(`deleteProjectExpense-${expenseToDelete.id}`)}
-                />
-            )}
-        </Modal>
-    );
-};
 
 export const ProjectsPage: React.FC = () => {
     const { hasEntityVisibility } = useAuth();
@@ -613,8 +259,8 @@ export const ProjectsPage: React.FC = () => {
                     }
                 }
                 handleCloseModal();
-            } catch (e: any) {
-                addToast(e.message || 'Errore durante il salvataggio del progetto.', 'error');
+            } catch (e: unknown) {
+                addToast(getErrorMessage(e) || 'Errore durante il salvataggio del progetto.', 'error');
             }
         }
     };
@@ -655,8 +301,8 @@ export const ProjectsPage: React.FC = () => {
                 const projectPayload = buildProjectPayload(inlineEditingData);
                 await updateProject(projectPayload as Project);
                 handleCancelInlineEdit();
-            } catch (e: any) {
-                addToast(e.message || 'Errore durante il salvataggio.', 'error');
+            } catch (e: unknown) {
+                addToast(getErrorMessage(e) || 'Errore durante il salvataggio.', 'error');
             }
         }
     };

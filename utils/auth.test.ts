@@ -1,10 +1,10 @@
 /* @vitest-environment jsdom */
 /**
- * @file utils/__tests__/auth.test.ts
+ * @file utils/auth.test.ts
  * @description Test della funzione getStoredAuthToken.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getStoredAuthToken } from '../auth';
+import { getStoredAuthToken } from './auth';
 
 describe('getStoredAuthToken', () => {
     beforeEach(() => {

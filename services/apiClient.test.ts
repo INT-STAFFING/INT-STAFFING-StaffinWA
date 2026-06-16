@@ -1,8 +1,12 @@
 /* @vitest-environment jsdom */
 /**
  * @file services/apiClient.test.ts
- * @description Test unitari per apiClient.
- * Verifica isLocalPreview (rilevamento ambiente) e la logica di retry/backoff di apiFetch.
+ * @description Suite consolidata dei test unitari per apiClient.
+ * Fusione delle due suite precedentemente duplicate (co-locata + __tests__):
+ * la suite A verifica isLocalPreview e la logica di retry/backoff di apiFetch;
+ * la suite B verifica isLocalPreview con un approccio a import dinamico.
+ * Entrambe sono mantenute in blocchi `describe` separati per preservare tutti
+ * i casi senza perdita di copertura.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { isLocalPreview, apiFetch } from './apiClient';
@@ -27,7 +31,10 @@ const setHostname = (hostname: string, port = '') => {
     });
 };
 
-describe('isLocalPreview', () => {
+// ===========================================================================
+// SUITE A (originariamente services/apiClient.test.ts)
+// ===========================================================================
+describe('isLocalPreview (suite A)', () => {
     afterEach(() => {
         // Ripristina localhost dopo ogni test
         setHostname('localhost', '3000');
@@ -205,5 +212,70 @@ describe('apiFetch – produzione (mocked fetch)', () => {
 
         // Dopo tutti i retry la promise rigetta
         await expect(promise).rejects.toThrow();
+    });
+});
+
+// ===========================================================================
+// SUITE B (originariamente services/__tests__/apiClient.test.ts)
+// ===========================================================================
+
+// Helper per sovrascrivere window.location con Object.defineProperty (suite B)
+const setLocationB = (hostname: string, port: string) => {
+    Object.defineProperty(window, 'location', {
+        writable: true,
+        configurable: true,
+        value: { hostname, port },
+    });
+};
+
+describe('isLocalPreview (suite B)', () => {
+    afterEach(() => {
+        vi.resetModules();
+    });
+
+    const check = async (hostname: string, port: string): Promise<boolean> => {
+        setLocationB(hostname, port);
+        const { isLocalPreview: isLocalPreviewDynamic } = await import('./apiClient');
+        return isLocalPreviewDynamic();
+    };
+
+    it('restituisce true per localhost', async () => {
+        expect(await check('localhost', '')).toBe(true);
+    });
+
+    it('restituisce true per 127.0.0.1', async () => {
+        expect(await check('127.0.0.1', '')).toBe(true);
+    });
+
+    it('restituisce true per hostname con porta non standard', async () => {
+        expect(await check('myapp.example.com', '3000')).toBe(true);
+    });
+
+    it('restituisce false per porta 80', async () => {
+        expect(await check('myapp.example.com', '80')).toBe(false);
+    });
+
+    it('restituisce false per porta 443', async () => {
+        expect(await check('myapp.example.com', '443')).toBe(false);
+    });
+
+    it('restituisce true per hostname stackblitz', async () => {
+        expect(await check('myapp.stackblitz.io', '')).toBe(true);
+    });
+
+    it('restituisce true per hostname webcontainer', async () => {
+        expect(await check('myapp.webcontainer.io', '')).toBe(true);
+    });
+
+    it('restituisce true per hostname senza punto (intranet)', async () => {
+        expect(await check('intranetserver', '')).toBe(true);
+    });
+
+    it('restituisce false per hostname di produzione', async () => {
+        expect(await check('staffing-app.vercel.app', '')).toBe(false);
+    });
+
+    it('restituisce true per hostname googleusercontent.com', async () => {
+        expect(await check('abc.googleusercontent.com', '')).toBe(true);
     });
 });

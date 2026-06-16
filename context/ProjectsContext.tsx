@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useState, useContext, useCallback, useMemo, ReactNode } from 'react';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import {
     Project, Client, Contract, ContractProject, ContractManager,
     Assignment, BillingMilestone, ProjectExpense, WbsTask,
@@ -136,8 +137,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
             setProjects(prev => [...prev, newProject!]);
             return newProject;
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiunta del progetto.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta del progetto.', 'error');
             throw e;
         } finally {
             actionLoading('addProject', false);
@@ -153,8 +154,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
             setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
             addToast('Progetto aggiornato', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiornamento del progetto.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento del progetto.', 'error');
         } finally {
             actionLoading(`updateProject-${project.id}`, false);
         }
@@ -170,8 +171,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
             setClients(prev => [...prev, newClient]);
             addToast('Cliente aggiunto con successo', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiunta del cliente.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta del cliente.', 'error');
             throw e;
         } finally {
             actionLoading('addClient', false);
@@ -187,8 +188,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             });
             setClients(prev => prev.map(c => c.id === client.id ? updated : c));
             addToast('Cliente aggiornato', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiornamento del cliente.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento del cliente.', 'error');
             throw e;
         } finally {
             actionLoading(`updateClient-${client.id}`, false);
@@ -200,8 +201,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         try {
             await apiFetch(`/api/resources?entity=clients&id=${id}`, { method: 'DELETE' });
             setClients(prev => prev.filter(c => c.id !== id));
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'eliminazione del cliente.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'eliminazione del cliente.', 'error');
             throw e;
         } finally {
             actionLoading(`deleteClient-${id}`, false);
@@ -233,8 +234,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setContracts(prev => [...prev, newContract]);
             setContractProjects(prev => [...prev, ...projectIds.map(pid => ({ contractId: newContract.id!, projectId: pid }))]);
             setContractManagers(prev => [...prev, ...managerIds.map(mid => ({ contractId: newContract.id!, resourceId: mid }))]);
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiunta del contratto.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiunta del contratto.', 'error');
             throw e;
         } finally {
             actionLoading('addContract', false);
@@ -300,8 +301,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 return [...withoutRemoved, ...toAddManagers.map(mid => ({ contractId: contract.id!, resourceId: mid }))];
             });
             addToast('Contratto aggiornato', 'success');
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'aggiornamento del contratto.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'aggiornamento del contratto.', 'error');
             throw e;
         } finally {
             actionLoading(`updateContract-${contract.id}`, false);
@@ -315,8 +316,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
             setContracts(prev => prev.filter(c => c.id !== id));
             setContractProjects(prev => prev.filter(cp => cp.contractId !== id));
             setContractManagers(prev => prev.filter(cm => cm.contractId !== id));
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'eliminazione del contratto.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'eliminazione del contratto.', 'error');
             throw e;
         } finally {
             actionLoading(`deleteContract-${id}`, false);

@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useState, useContext, useCallback, useMemo, ReactNode } from 'react';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import {
     SidebarItem, SidebarSectionColors, SidebarFooterAction,
     DashboardCategory, QuickAction, Notification,
@@ -116,7 +117,7 @@ const makeConfigUpdate = <T,>(
                 body: JSON.stringify({ updates: [{ key, value: JSON.stringify(value) }] })
             });
             setter(value);
-        } catch (e: any) { addToast(`Errore durante l'aggiornamento della configurazione: ${e.message}`, 'error'); }
+        } catch (e: unknown) { addToast(`Errore durante l'aggiornamento della configurazione: ${getErrorMessage(e)}`, 'error'); }
     };
 };
 

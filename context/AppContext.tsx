@@ -14,6 +14,7 @@ import React, {
     createContext, useState, useEffect, ReactNode, useContext,
     useCallback, useMemo
 } from 'react';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import { EntitiesContextType, AllocationsContextType, ComputedSkill } from '../types';
 import { useToast } from './ToastContext';
 import { apiFetch } from '../services/apiClient';
@@ -231,8 +232,8 @@ const AppCoordinator: React.FC<AppCoordinatorProps> = ({
             removeAssignmentsByResource(id);
             removeResourceSkillsByResource(id);
             removeLeaveRequestsByResource(id);
-        } catch (e: any) {
-            addToast(e.message || 'Errore durante l\'eliminazione della risorsa.', 'error');
+        } catch (e: unknown) {
+            addToast(getErrorMessage(e) || 'Errore durante l\'eliminazione della risorsa.', 'error');
         } finally {
             setActionLoading(`deleteResource-${id}`, false);
         }

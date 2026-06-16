@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import { v4 as uuidv4 } from 'uuid';
 import { useUIConfigContext } from '../context/UIConfigContext';
 import { useToast } from '../context/ToastContext';
@@ -308,8 +309,8 @@ const WebhookSempliciTab: React.FC = () => {
             } else {
                 addToast(`Teams ha rifiutato la richiesta: HTTP ${result.statusCode} — ${result.responseBody}`, 'error');
             }
-        } catch (e: any) {
-            addToast(`Errore durante il test: ${e?.message || 'Errore di rete'}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore durante il test: ${getErrorMessage(e) || 'Errore di rete'}`, 'error');
         } finally {
             setTestingId(null);
         }
@@ -472,8 +473,8 @@ const BuilderTab: React.FC = () => {
             } else {
                 addToast(`Teams ha rifiutato la richiesta: HTTP ${result.statusCode} — ${result.responseBody}`, 'error');
             }
-        } catch (e: any) {
-            addToast(`Errore durante il test: ${e?.message || 'Errore di rete'}`, 'error');
+        } catch (e: unknown) {
+            addToast(`Errore durante il test: ${getErrorMessage(e) || 'Errore di rete'}`, 'error');
         } finally {
             setTestingRuleId(null);
         }
