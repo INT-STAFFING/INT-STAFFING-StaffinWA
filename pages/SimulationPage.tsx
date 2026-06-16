@@ -90,7 +90,7 @@ const SimulationPage: React.FC = () => {
     // Handle Export to Excel
     const handleExportExcel = async () => {
         try {
-             const XLSX = await import('xlsx');
+             const XLSX = await import('@/utils/excelAdapter');
              const wb = XLSX.utils.book_new();
 
              // 1. Info Sheet
@@ -134,7 +134,7 @@ const SimulationPage: React.FC = () => {
              XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.billingMilestones), "Milestones");
 
              const safeName = (state.name || 'simulation').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-             XLSX.writeFile(wb, `${safeName}.xlsx`);
+             await XLSX.writeFile(wb, `${safeName}.xlsx`);
              addToast('Simulazione esportata in Excel.', 'success');
 
         } catch (e) {
@@ -150,9 +150,9 @@ const SimulationPage: React.FC = () => {
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
-                const XLSX = await import('xlsx');
+                const XLSX = await import('@/utils/excelAdapter');
                 const data = new Uint8Array(event.target?.result as ArrayBuffer);
-                const workbook = XLSX.read(data, { type: 'array' });
+                const workbook = await XLSX.read(data, { type: 'array' });
 
                 // Parse Sheets
                 const infoSheet = workbook.Sheets['Info'];

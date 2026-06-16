@@ -21,7 +21,7 @@ const formatDateForExport = (date: Date | string | null | undefined): string => 
  * Esporta le entità principali (Risorse, Progetti, Clienti, etc.) in un file Excel.
  */
 export const exportCoreEntities = async (data: EntitiesContextType) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { clients, roles, resources, projects, companyCalendar, functions, industries, seniorityLevels, projectStatuses, clientSectors, locations, resourceSkills, skills } = data;
     const wb = XLSX.utils.book_new();
 
@@ -100,14 +100,14 @@ export const exportCoreEntities = async (data: EntitiesContextType) => {
     configToSheet(clientSectors, 'Config_ClientSectors');
     configToSheet(locations, 'Config_Locations');
 
-    XLSX.writeFile(wb, `Staffing_Export_Entita_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Entita_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta la griglia di staffing in un formato ottimizzato per la re-importazione.
  */
 export const exportStaffing = async (data: EntitiesContextType & { allocations: Allocation }) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { resources, projects, assignments, allocations } = data;
     const wb = XLSX.utils.book_new();
     const staffingData: any[] = [];
@@ -120,7 +120,7 @@ export const exportStaffing = async (data: EntitiesContextType & { allocations: 
     if (allDates.size === 0) {
         const ws = XLSX.utils.json_to_sheet([{ "Resource Name": "", "Project Name": "" }]);
         XLSX.utils.book_append_sheet(wb, ws, 'Staffing');
-        XLSX.writeFile(wb, `Staffing_Export_Staffing_${formatDateForExport(new Date())}.xlsx`);
+        await XLSX.writeFile(wb, `Staffing_Export_Staffing_${formatDateForExport(new Date())}.xlsx`);
         return;
     }
 
@@ -156,14 +156,14 @@ export const exportStaffing = async (data: EntitiesContextType & { allocations: 
     const ws = XLSX.utils.json_to_sheet(staffingData);
     ws['!cols'] = [{ wch: 25 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Staffing');
-    XLSX.writeFile(wb, `Staffing_Export_Staffing_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Staffing_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta le allocazioni mensili (media %) per risorsa/progetto per il mese corrente e i 2 successivi.
  */
 export const exportMonthlyAllocations = async (data: EntitiesContextType & { allocations: Allocation }) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { resources, projects, clients, assignments, allocations, companyCalendar, roles, contracts } = data;
     const wb = XLSX.utils.book_new();
 
@@ -230,14 +230,14 @@ export const exportMonthlyAllocations = async (data: EntitiesContextType & { all
     const ws = XLSX.utils.json_to_sheet(exportRows);
     ws['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Allocazioni Mensili');
-    XLSX.writeFile(wb, `Staffing_Monthly_Allocations_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Monthly_Allocations_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta le richieste di risorse in un file Excel.
  */
 export const exportResourceRequests = async (data: EntitiesContextType) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { resourceRequests, projects, roles, resources } = data;
     const wb = XLSX.utils.book_new();
 
@@ -257,14 +257,14 @@ export const exportResourceRequests = async (data: EntitiesContextType) => {
     }));
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Richieste_Risorse');
-    XLSX.writeFile(wb, `Staffing_Export_Richieste_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Richieste_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta i dati dei colloqui in un file Excel.
  */
 export const exportInterviews = async (data: EntitiesContextType) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { interviews, roles, resources } = data;
     const wb = XLSX.utils.book_new();
 
@@ -285,14 +285,14 @@ export const exportInterviews = async (data: EntitiesContextType) => {
     }));
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Colloqui');
-    XLSX.writeFile(wb, `Staffing_Export_Colloqui_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Colloqui_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta le competenze e le associazioni con le risorse.
  */
 export const exportSkills = async (data: EntitiesContextType) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { skills, resources, resourceSkills } = data;
     const wb = XLSX.utils.book_new();
 
@@ -320,14 +320,14 @@ export const exportSkills = async (data: EntitiesContextType) => {
     }).filter(Boolean);
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(associationsData), 'Associazioni_Risorse');
 
-    XLSX.writeFile(wb, `Staffing_Export_Skills_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Skills_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta i dati delle assenze in un file Excel.
  */
 export const exportLeaves = async (data: EntitiesContextType) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { leaveRequests, resources, leaveTypes } = data;
     const wb = XLSX.utils.book_new();
 
@@ -350,7 +350,7 @@ export const exportLeaves = async (data: EntitiesContextType) => {
     });
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Assenze');
-    XLSX.writeFile(wb, `Staffing_Export_Assenze_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Assenze_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
@@ -358,7 +358,7 @@ export const exportLeaves = async (data: EntitiesContextType) => {
  * NOTA: Le password NON vengono esportate per sicurezza.
  */
 export const exportUsersPermissions = async (users: AppUser[], permissions: RolePermission[], resources: Resource[]) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const wb = XLSX.utils.book_new();
 
     const usersData = users.map(u => {
@@ -379,14 +379,14 @@ export const exportUsersPermissions = async (users: AppUser[], permissions: Role
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(permissionsData), 'Permessi');
 
-    XLSX.writeFile(wb, `Staffing_Export_Utenti_Permessi_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Utenti_Permessi_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
  * Esporta la mappatura Risorsa-Tutor.
  */
 export const exportTutorMapping = async (data: EntitiesContextType) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const { resources } = data;
     const wb = XLSX.utils.book_new();
 
@@ -401,7 +401,7 @@ export const exportTutorMapping = async (data: EntitiesContextType) => {
     });
 
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sheetData), 'Mappatura_Tutor');
-    XLSX.writeFile(wb, `Staffing_Export_Tutor_Mapping_${formatDateForExport(new Date())}.xlsx`);
+    await XLSX.writeFile(wb, `Staffing_Export_Tutor_Mapping_${formatDateForExport(new Date())}.xlsx`);
 };
 
 /**
@@ -440,7 +440,7 @@ export const downloadAsJson = (data: any[], fileName: string) => {
  * Genera e avvia il download di un template Excel vuoto basato sul tipo di importazione.
  */
 export const exportTemplate = async (type: ExportType | string) => {
-    const XLSX = await import('xlsx');
+    const XLSX = await import('./excelAdapter');
     const wb = XLSX.utils.book_new();
     const fileName = `Staffing_Template_${type}.xlsx`;
 
@@ -495,5 +495,5 @@ export const exportTemplate = async (type: ExportType | string) => {
             break;
     }
 
-    XLSX.writeFile(wb, fileName);
+    await XLSX.writeFile(wb, fileName);
 };
