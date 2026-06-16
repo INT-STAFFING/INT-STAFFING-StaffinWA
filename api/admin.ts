@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         let cardBody: any[];
-        let cardActions: any[] = [];
+        const cardActions: any[] = [];
 
         if (Array.isArray(blocks) && blocks.length > 0) {
             cardBody = [];

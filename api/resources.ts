@@ -603,7 +603,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
              const parseResult = schema.safeParse(req.body);
              if (!parseResult.success) return res.status(400).json({ error: "Invalid data" });
-             let validatedBody = parseResult.data as any;
+             const validatedBody = parseResult.data as any;
              const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
              const columns = Object.keys(dbFields).map(k => k.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`));
              const jsonbFields = JSONB_FIELDS[tableName as string] || [];
@@ -670,7 +670,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             delete dataToValidate.version;
             const parseResult = schema.safeParse(dataToValidate);
             if (!parseResult.success) return res.status(400).json({ error: "Invalid data" });
-            let validatedBody = parseResult.data as any;
+            const validatedBody = parseResult.data as any;
             const { categoryIds, macroCategoryIds, metrics, ...dbFields } = validatedBody;
             const updates = Object.entries(dbFields).map(([k, v], i) => `${k.replace(/[A-Z]/g, l => `_${l.toLowerCase()}`)} = $${i + 1}`);
             const jsonbFieldsPut = JSONB_FIELDS[tableName as string] || [];

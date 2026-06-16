@@ -52,12 +52,12 @@ const ImportPage: React.FC = () => {
         setImportResult(null);
 
         try {
-            const XLSX = await import('xlsx');
+            const XLSX = await import('@/utils/excelAdapter');
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target?.result as ArrayBuffer);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const workbook = await XLSX.read(data, { type: 'array', cellDates: true });
                     
                     let body: any = {};
                     

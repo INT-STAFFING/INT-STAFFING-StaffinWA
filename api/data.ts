@@ -221,15 +221,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // --- PLANNING SCOPE ---
         if (scope === 'planning' || scope === 'all') {
             let allocationsQueryPromise;
-            let leaveRequestsQueryPromise;
-            
+
             if (start && end) {
                 allocationsQueryPromise = db.query(`SELECT * FROM allocations WHERE allocation_date >= $1 AND allocation_date <= $2`, [start, end]);
             } else {
                 allocationsQueryPromise = db.sql`SELECT * FROM allocations;`;
             }
-            
-            leaveRequestsQueryPromise = db.sql`SELECT * FROM leave_requests ORDER BY start_date DESC;`;
+
+            const leaveRequestsQueryPromise = db.sql`SELECT * FROM leave_requests ORDER BY start_date DESC;`;
 
             const [
                 assignmentsRes,
