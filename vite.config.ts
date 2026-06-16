@@ -10,6 +10,19 @@ export default defineConfig(() => {
         host: '0.0.0.0',
       },
       plugins: [react()],
+      build: {
+        rollupOptions: {
+          output: {
+            // Vendor splitting: isola le librerie stabili e pesanti in chunk
+            // dedicati per migliorare il caching tra deploy. xlsx/jspdf restano
+            // gia in chunk separati perche importati in modo lazy.
+            manualChunks: {
+              'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+              'd3-vendor': ['d3', 'd3-sankey'],
+            },
+          },
+        },
+      },
       resolve: {
         alias: {
           // FIX: In ESM environments where the global 'process' might not have 'cwd' typed correctly,
