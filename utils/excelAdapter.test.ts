@@ -50,6 +50,37 @@ describe('excelAdapter', () => {
         expect(parsed).toEqual([{ a: 1 }, { a: 2, b: 3 }]);
     });
 
+    it('applica lo stile Brand a header, filtro e riga bloccata senza alterare i valori', async () => {
+        const wb = utils.book_new();
+        const rows = [{ Nome: 'Alice', Costo: 1200 }, { Nome: 'Bob', Costo: 800 }];
+        utils.book_append_sheet(wb, utils.json_to_sheet(rows), 'Stile');
+
+        const ws = wb.getWorksheet('Stile')!;
+        const headerCell = ws.getRow(1).getCell(1);
+        expect((headerCell.fill as any).fgColor.argb).toBe('FF006493');
+        expect(headerCell.font?.bold).toBe(true);
+        expect(headerCell.font?.color?.argb).toBe('FFFFFFFF');
+        expect(ws.views?.[0]).toMatchObject({ state: 'frozen', ySplit: 1 });
+        expect(ws.autoFilter).toBe('A1:B1');
+        expect(ws.getColumn(1).width).toBeGreaterThan(0);
+        expect(ws.getRow(2).getCell(2).numFmt).toBe('#,##0.###');
+
+        // I valori restano invariati dopo il round-trip.
+        const out = await read(await toBuffer(wb));
+        expect(utils.sheet_to_json(out.Sheets['Stile'])).toEqual(rows);
+    });
+
+    it('lo stile "title" evidenzia solo la prima riga (fogli testuali)', () => {
+        const wb = utils.book_new();
+        const sheet = utils.aoa_to_sheet([['Istruzioni'], [], ['- riga']]);
+        sheet['!style'] = 'title';
+        utils.book_append_sheet(wb, sheet, 'Istruzioni');
+
+        const ws = wb.getWorksheet('Istruzioni')!;
+        expect(ws.getRow(1).getCell(1).font?.size).toBe(14);
+        expect(ws.autoFilter).toBeFalsy();
+    });
+
     it('foglio assente o vuoto -> array vuoto', () => {
         expect(utils.sheet_to_json(undefined)).toEqual([]);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
