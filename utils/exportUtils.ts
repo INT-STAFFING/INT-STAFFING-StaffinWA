@@ -454,6 +454,7 @@ export const exportTemplate = async (type: ExportType | string) => {
     ];
     const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
     wsInstructions['!cols'] = [{ wch: 100 }];
+    wsInstructions['!style'] = 'title';
     XLSX.utils.book_append_sheet(wb, wsInstructions, 'Istruzioni');
 
     switch (type) {

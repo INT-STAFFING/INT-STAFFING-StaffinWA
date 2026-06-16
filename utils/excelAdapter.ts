@@ -12,10 +12,23 @@
 
 import ExcelJS from 'exceljs';
 
+/** Larghezza colonna espressa in caratteri (compatibile con l'API SheetJS `ws['!cols']`). */
+interface ColInfo {
+    wch?: number;
+}
+
+/**
+ * Stile da applicare al foglio:
+ * - `table`  (default): header brand, zebratura, bordi, filtro e riga header bloccata;
+ * - `title`: foglio testuale (es. Istruzioni) con solo il titolo evidenziato;
+ * - `none`:  nessuno stile, solo larghezze colonna.
+ */
+type SheetStyle = 'table' | 'title' | 'none';
+
 /** Descrittore di foglio prodotto da json_to_sheet/aoa_to_sheet, materializzato in book_append_sheet. */
 type SheetDescriptor =
-    | { _kind: 'json'; headers: string[]; rows: Record<string, unknown>[] }
-    | { _kind: 'aoa'; aoa: unknown[][] };
+    | { _kind: 'json'; headers: string[]; rows: Record<string, unknown>[]; '!cols'?: ColInfo[]; '!style'?: SheetStyle }
+    | { _kind: 'aoa'; aoa: unknown[][]; '!cols'?: ColInfo[]; '!style'?: SheetStyle };
 
 /** Workbook in lettura, espone i fogli per nome come faceva xlsx (`workbook.Sheets[name]`). */
 interface ReadWorkbook {
@@ -60,6 +73,95 @@ const fromCellValue = (raw: ExcelJS.CellValue): unknown => {
     return raw;
 };
 
+// --- Stile "Brand" (palette dell'app: primario #006493 su testo bianco) -------------------
+
+const BRAND_ARGB = 'FF006493';        // header
+const HEADER_TEXT_ARGB = 'FFFFFFFF';  // testo header
+const ZEBRA_ARGB = 'FFF2F6F9';        // righe alternate
+const BORDER_ARGB = 'FFD9E0E6';       // bordi sottili
+const TITLE_TEXT_ARGB = 'FF006493';   // titolo fogli testuali
+const INT_FORMAT = '#,##0';           // interi: separatore migliaia, nessun decimale
+const DEC_FORMAT = '#,##0.###';       // decimali: separatore migliaia + fino a 3 decimali
+const DATE_FORMAT = 'yyyy-mm-dd';     // date in formato AAAA-MM-GG
+
+const thinBorder: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin', color: { argb: BORDER_ARGB } },
+    left: { style: 'thin', color: { argb: BORDER_ARGB } },
+    bottom: { style: 'thin', color: { argb: BORDER_ARGB } },
+    right: { style: 'thin', color: { argb: BORDER_ARGB } },
+};
+
+/** Lunghezza testuale di una cella, usata per il calcolo automatico delle larghezze. */
+const cellTextLength = (value: ExcelJS.CellValue): number => {
+    if (value === null || value === undefined) return 0;
+    if (value instanceof Date) return 10;                       // yyyy-mm-dd
+    if (typeof value === 'object') {
+        const obj = value as unknown as Record<string, unknown>;
+        return String(obj.text ?? obj.result ?? '').length;
+    }
+    return String(value).length;
+};
+
+/** Imposta le larghezze colonna: usa gli hint `!cols` se presenti, altrimenti si adatta al contenuto. */
+const applyColumnWidths = (ws: ExcelJS.Worksheet, colCount: number, hints?: ColInfo[]): void => {
+    for (let c = 1; c <= colCount; c++) {
+        const hint = hints?.[c - 1]?.wch;
+        if (typeof hint === 'number') {
+            ws.getColumn(c).width = hint;
+            continue;
+        }
+        let max = 10;
+        ws.getColumn(c).eachCell({ includeEmpty: false }, cell => {
+            max = Math.max(max, cellTextLength(cell.value) + 2);
+        });
+        ws.getColumn(c).width = Math.min(max, 60);
+    }
+};
+
+/** Applica lo stile tabellare "Brand": header colorato, zebratura, bordi, filtro e header bloccato. */
+const styleTableSheet = (ws: ExcelJS.Worksheet, colCount: number): void => {
+    if (colCount === 0 || ws.rowCount === 0) return;
+
+    const header = ws.getRow(1);
+    header.height = 20;
+    for (let c = 1; c <= colCount; c++) {
+        const cell = header.getCell(c);
+        cell.font = { bold: true, color: { argb: HEADER_TEXT_ARGB } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND_ARGB } };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = thinBorder;
+    }
+
+    for (let r = 2; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        const zebra = r % 2 === 0;
+        for (let c = 1; c <= colCount; c++) {
+            const cell = row.getCell(c);
+            cell.border = thinBorder;
+            if (zebra) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZEBRA_ARGB } };
+            const v = cell.value;
+            if (typeof v === 'number') {
+                // Formato in base al valore: gli interi non mostrano il separatore decimale
+                // (evita artefatti tipo "99," in locale italiano).
+                cell.numFmt = Number.isInteger(v) ? INT_FORMAT : DEC_FORMAT;
+                cell.alignment = { horizontal: 'right' };
+            } else if (v instanceof Date) {
+                cell.numFmt = DATE_FORMAT;
+                cell.alignment = { horizontal: 'right' };
+            }
+        }
+    }
+
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+    ws.autoFilter = `A1:${ws.getColumn(colCount).letter}1`;
+};
+
+/** Evidenzia solo la prima riga come titolo (fogli testuali, es. Istruzioni). */
+const styleTitleSheet = (ws: ExcelJS.Worksheet): void => {
+    if (ws.rowCount === 0) return;
+    ws.getRow(1).getCell(1).font = { bold: true, size: 14, color: { argb: TITLE_TEXT_ARGB } };
+};
+
 const book_new = (): ExcelJS.Workbook => new ExcelJS.Workbook();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,17 +174,34 @@ const aoa_to_sheet = (aoa: unknown[][]): SheetDescriptor => ({ _kind: 'aoa', aoa
 
 const book_append_sheet = (wb: ExcelJS.Workbook, sheet: SheetDescriptor, name: string): void => {
     const ws = wb.addWorksheet(name);
+
+    let colCount = 0;
+    let hasHeader = false;
     if (sheet._kind === 'json') {
         const { headers, rows } = sheet;
-        if (headers.length > 0) ws.addRow(headers);
+        if (headers.length > 0) {
+            ws.addRow(headers);
+            hasHeader = true;
+        }
         for (const row of rows) {
             ws.addRow(headers.map(h => toCellValue(row[h])));
         }
+        colCount = headers.length;
     } else {
         for (const r of sheet.aoa) {
             ws.addRow(r.map(toCellValue));
         }
+        colCount = sheet.aoa.reduce((max, r) => Math.max(max, r.length), 0);
+        hasHeader = sheet.aoa.length > 0;
     }
+
+    const style = sheet['!style'] ?? 'table';
+    if (style === 'table' && hasHeader) {
+        styleTableSheet(ws, colCount);
+    } else if (style === 'title') {
+        styleTitleSheet(ws);
+    }
+    applyColumnWidths(ws, colCount, sheet['!cols']);
 };
 
 /**
