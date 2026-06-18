@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppState } from '../context/AppContext';
@@ -17,6 +17,22 @@ interface SidebarProps {
     setIsOpen: (isOpen: boolean) => void;
 }
 
+const EXPANDED_STORAGE_KEY = 'staffing-sidebar-expanded';
+const RECENT_STORAGE_KEY = 'staffing-sidebar-recent';
+const RECENT_LIMIT = 5;
+const RECENT_SECTION = 'Recenti';
+
+const readJsonArray = (key: string): string[] => {
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+        return [];
+    }
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const location = useLocation();
     const logout = useAuth().logout;
@@ -27,8 +43,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const { navigationRoutes, homePath } = useRoutesManifest();
     const { setSearchOpen } = useAppState();
 
-    // State per le sezioni espanse
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+    // State per le sezioni espanse (con persistenza in localStorage)
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(readJsonArray(EXPANDED_STORAGE_KEY)));
+    // Indica se l'utente ha già una preferenza salvata: evita che il default sovrascriva la scelta.
+    const hasPersistedExpansion = useRef<boolean>(readJsonArray(EXPANDED_STORAGE_KEY).length > 0);
+
+    // Cronologia delle pagine visitate di recente.
+    const [recentPaths, setRecentPaths] = useState<string[]>(() => readJsonArray(RECENT_STORAGE_KEY));
 
     // State per la modale cambio password
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -37,16 +58,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     const [passwordError, setPasswordError] = useState('');
     const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-    // Inizializzazione basata sulla landing page (homePath)
+    // Inizializzazione basata sulla landing page (homePath), solo se l'utente non ha una preferenza salvata.
     useEffect(() => {
+        if (hasPersistedExpansion.current) return;
         const homeRoute = navigationRoutes.find(r => r.path === homePath);
         if (homeRoute) {
             const initialSection = homeRoute.section || 'Principale';
-            setExpandedSections(new Set([initialSection]));
+            setExpandedSections(new Set([initialSection, RECENT_SECTION]));
         } else if (sidebarSections.length > 0) {
-            setExpandedSections(new Set([sidebarSections[0]]));
+            setExpandedSections(new Set([sidebarSections[0], RECENT_SECTION]));
         }
     }, [homePath, navigationRoutes, sidebarSections]);
+
+    // Persiste lo stato delle sezioni espanse a ogni cambiamento.
+    useEffect(() => {
+        try {
+            localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify([...expandedSections]));
+            hasPersistedExpansion.current = true;
+        } catch {
+            /* localStorage non disponibile: ignora */
+        }
+    }, [expandedSections]);
+
+    // Aggiorna la cronologia delle pagine recenti quando cambia la rotta corrente.
+    useEffect(() => {
+        const current = location.pathname;
+        if (!navigationRoutes.some(r => r.path === current)) return;
+        setRecentPaths(prev => {
+            const next = [current, ...prev.filter(p => p !== current)].slice(0, RECENT_LIMIT);
+            if (next.length === prev.length && next.every((p, i) => p === prev[i])) return prev;
+            try {
+                localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
+            } catch {
+                /* ignora */
+            }
+            return next;
+        });
+    }, [location.pathname, navigationRoutes]);
 
     // Calcolo notifiche non lette
     const unreadNotifications = useMemo(() => {
@@ -153,6 +201,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         });
     }, [groupedItems, location.pathname, setIsOpen, sidebarSectionColors, unreadNotifications, expandedSections]);
 
+    // Sezione "Recenti": scorciatoie alle ultime pagine visitate.
+    const recentSection: SidebarSectionGroup | null = useMemo(() => {
+        if (!recentPaths.length) return null;
+        const items: RenderableSidebarItem[] = recentPaths
+            .map(path => navigationRoutes.find(r => r.path === path))
+            .filter((r): r is AppRoute => Boolean(r))
+            .map(r => ({
+                path: r.path,
+                label: r.label,
+                icon: r.icon,
+                section: RECENT_SECTION,
+                isActive: location.pathname === r.path,
+                onClick: () => {
+                    if (window.innerWidth < 768) setIsOpen(false);
+                }
+            }));
+        if (!items.length) return null;
+        return {
+            name: RECENT_SECTION,
+            color: 'secondary',
+            items,
+            isExpanded: expandedSections.has(RECENT_SECTION)
+        };
+    }, [recentPaths, navigationRoutes, location.pathname, expandedSections, setIsOpen]);
+
+    const allSections = useMemo(
+        () => (recentSection ? [recentSection, ...sections] : sections),
+        [recentSection, sections]
+    );
+
     const footerActions: SidebarFooterAction[] = useMemo(() => {
         return sidebarFooterActions
             .filter(action => !action.requiredPermission || hasPermission(action.requiredPermission))
@@ -216,7 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         </div>
                     </div>
                 }
-                sections={sections}
+                sections={allSections}
                 footerActions={footerActions}
                 renderItem={(item) => <SidebarItemFactory item={item} />}
                 renderFooterAction={renderFooterAction}
