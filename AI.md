@@ -193,7 +193,8 @@ This is **not** a monorepo. Most source files live at the repository root rather
 │   ├── auth.ts              # getStoredAuthToken helper
 │   ├── dateUtils.ts         # Date manipulation helpers
 │   ├── costUtils.ts         # Cost/budget calculations
-│   ├── exportUtils.ts       # Export to Excel (xlsx)
+│   ├── exportUtils.ts       # Export to Excel (ExcelJS via excelAdapter)
+│   ├── excelAdapter.ts      # SheetJS-compatible API implemented on ExcelJS
 │   ├── exportTableUtils.ts  # Table-specific export helpers
 │   ├── formatters.ts        # Data formatting
 │   ├── paths.ts             # Route path constants

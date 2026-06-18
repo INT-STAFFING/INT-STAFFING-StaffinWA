@@ -14,8 +14,8 @@ export default defineConfig(() => {
         rollupOptions: {
           output: {
             // Vendor splitting: isola le librerie stabili e pesanti in chunk
-            // dedicati per migliorare il caching tra deploy. xlsx/jspdf restano
-            // gia in chunk separati perche importati in modo lazy.
+            // dedicati per migliorare il caching tra deploy. exceljs (via
+            // excelAdapter)/jspdf restano gia in chunk separati perche importati in modo lazy.
             manualChunks: {
               'react-vendor': ['react', 'react-dom', 'react-router-dom'],
               'd3-vendor': ['d3', 'd3-sankey'],
