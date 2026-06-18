@@ -185,7 +185,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
 
       <main className="flex-1 overflow-y-auto bg-background pb-20 md:pb-0">
         <div className="w-full max-w-none px-4 sm:px-6 py-4 sm:py-6">
-          <Suspense fallback={<LoadingSkeleton />}>
+          <Suspense fallback={<LoadingSkeleton variant="content" />}>
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/global-search" element={<DynamicRoute path="/global-search"><GlobalSearchPage /></DynamicRoute>} />
