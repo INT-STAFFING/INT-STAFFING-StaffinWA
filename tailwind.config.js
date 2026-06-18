@@ -8,7 +8,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Manrope', 'sans-serif'],
+        sans: ['Satoshi', 'Manrope', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         sm: ['0.9375rem', '1.4'],
