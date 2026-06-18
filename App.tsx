@@ -17,6 +17,7 @@ import { RoutesProvider, useRoutesManifest } from './context/RoutesContext';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
+import HeaderActions from './components/HeaderActions';
 import SearchWidget from './components/SearchWidget';
 import { SpinnerIcon } from './components/icons';
 import { FormFieldFeedback } from './components/forms';
@@ -111,8 +112,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             )}
           </div>
         </nav>
-        
-        <div className="md:hidden w-10" />
+
+        <HeaderActions />
       </div>
     </header>
   );
