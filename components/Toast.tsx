@@ -67,8 +67,17 @@ const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
       color: config.color,
   };
 
+  // I messaggi di errore/avviso vengono annunciati immediatamente (assertive),
+  // gli altri in modo non invasivo (polite).
+  const isUrgent = type === 'error' || type === 'warning';
+
   return (
-    <div className={baseClasses} style={dynamicStyles}>
+    <div
+      className={baseClasses}
+      style={dynamicStyles}
+      role={isUrgent ? 'alert' : 'status'}
+      aria-live={isUrgent ? 'assertive' : 'polite'}
+    >
       <div className="flex-shrink-0 text-2xl flex items-center">
         <span className="material-symbols-outlined">{config.icon}</span>
       </div>
@@ -76,7 +85,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onDismiss }) => {
         <p className="text-sm font-bold leading-tight">{message}</p>
       </div>
       <div className="flex-shrink-0 flex items-center">
-        <button onClick={onDismiss} className="opacity-60 hover:opacity-100 transition-opacity">
+        <button onClick={onDismiss} aria-label="Chiudi notifica" className="opacity-60 hover:opacity-100 transition-opacity">
           <span className="material-symbols-outlined text-lg">close</span>
         </button>
       </div>

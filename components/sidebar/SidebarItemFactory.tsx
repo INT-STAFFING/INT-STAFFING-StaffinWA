@@ -24,6 +24,7 @@ const SidebarItemFactory: React.FC<SidebarItemFactoryProps> = ({ item }) => {
         <Link
             to={item.path}
             onClick={item.onClick}
+            aria-current={isActive ? 'page' : undefined}
             className={`flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 justify-between ${
                 isActive
                     ? 'text-primary bg-secondary-container border-r-4 border-primary'
