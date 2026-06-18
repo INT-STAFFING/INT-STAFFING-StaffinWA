@@ -6,6 +6,7 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import ErrorBoundary from './ErrorBoundary';
+import EmptyState from './EmptyState';
 
 export interface ColumnDef<T> {
     header: string;
@@ -266,7 +267,17 @@ export function DataTable<T extends { id?: string }>({
         );
     };
 
-    const desktopEmptyMessage = emptyMessage ?? 'Nessun dato trovato.';
+    const canAddNew = Boolean(title && addNewButtonLabel);
+    const emptyContent = emptyMessage ?? (
+        <EmptyState
+            size="compact"
+            icon="inbox"
+            title="Nessun dato trovato"
+            description="Non ci sono elementi da mostrare con i filtri o i criteri correnti."
+            actionLabel={canAddNew ? addNewButtonLabel : undefined}
+            onAction={canAddNew ? onAddNew : undefined}
+        />
+    );
     const loadingLabel = loadingMessage ?? 'Caricamento...';
 
     return (
@@ -423,11 +434,8 @@ export function DataTable<T extends { id?: string }>({
                                         })
                                     ) : (
                                         <tr>
-                                            <td
-                                                colSpan={columns.length + 1}
-                                                className="px-6 py-8 text-center text-on-surface-variant"
-                                            >
-                                                {desktopEmptyMessage}
+                                            <td colSpan={columns.length + 1} className="p-0">
+                                                {emptyContent}
                                             </td>
                                         </tr>
                                     )}
@@ -456,9 +464,7 @@ export function DataTable<T extends { id?: string }>({
                         ) : sortedData.length > 0 ? (
                             sortedData.map(item => renderMobileCard(item))
                         ) : (
-                            <p className="text-center py-8 text-on-surface-variant">
-                                {desktopEmptyMessage}
-                            </p>
+                            emptyContent
                         )}
                     </div>
                 </div>
