@@ -32,11 +32,46 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
     const titleId = useId();
     const descriptionId = useId();
 
+    // Al primo render: memorizza l'elemento attivo, sposta il focus nella modale
+    // e lo ripristina alla chiusura/smontaggio.
     useEffect(() => {
-        if (isOpen) {
-            dialogRef.current?.focus();
-        }
+        if (!isOpen) return;
+        const previouslyFocused = document.activeElement as HTMLElement | null;
+        dialogRef.current?.focus();
+        return () => {
+            previouslyFocused?.focus?.();
+        };
     }, [isOpen]);
+
+    // Mantiene il focus all'interno della modale (focus trap) durante la navigazione con Tab.
+    const handleFocusTrap = (event: React.KeyboardEvent) => {
+        if (event.key !== 'Tab' || !dialogRef.current) return;
+        const focusable = Array.from(
+            dialogRef.current.querySelectorAll<HTMLElement>(
+                'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )
+        ).filter(el => el.offsetParent !== null);
+
+        if (focusable.length === 0) {
+            event.preventDefault();
+            dialogRef.current.focus();
+            return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+
+        if (event.shiftKey) {
+            if (active === first || active === dialogRef.current) {
+                event.preventDefault();
+                last.focus();
+            }
+        } else if (active === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    };
 
     // Non renderizzare nulla se la modale non è aperta.
     if (!isOpen) return null;
@@ -71,7 +106,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
                         if (confirmed) {
                             onClose();
                         }
+                        return;
                     }
+                    handleFocusTrap(event);
                 }}
             >
                 {/* Header: non si restringe e rimane sempre visibile in alto. */}
