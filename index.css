@@ -44,6 +44,12 @@
   /* Custom Colors */
   --color-yellow-container: #ffea9f;
   --color-on-yellow-container: #5e4500;
+
+  /* Semantic Success (verde) — distinto dal tertiary (viola) */
+  --color-success: #2e7d32;
+  --color-on-success: #ffffff;
+  --color-success-container: #b6f2bd;
+  --color-on-success-container: #00210a;
 }
 
 .dark {
@@ -86,6 +92,12 @@
   /* Custom Colors */
   --color-yellow-container: #7a5c00;
   --color-on-yellow-container: #ffea9f;
+
+  /* Semantic Success (verde) — distinto dal tertiary (viola) */
+  --color-success: #7bdb86;
+  --color-on-success: #003914;
+  --color-success-container: #00531f;
+  --color-on-success-container: #97f8a1;
 }
 
 @layer base {
@@ -188,4 +200,69 @@ button[class*="bg-primary"]:focus-visible::before, a[class*="bg-primary"]:focus-
 }
 button[class*="bg-primary"]:active::before, a[class*="bg-primary"]:active::before {
   opacity: 0.12; /* M3 Pressed state layer */
+}
+
+/* M3 State Layers per i bottoni "tonal" (container) e outlined.
+   Ogni variante usa il proprio colore "on-*" come tinta dello state layer. */
+button[class*="bg-secondary-container"], a[class*="bg-secondary-container"],
+button[class*="bg-tertiary-container"], a[class*="bg-tertiary-container"],
+button[class*="bg-error-container"], a[class*="bg-error-container"],
+button[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]),
+a[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]) {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+button[class*="bg-secondary-container"]::before, a[class*="bg-secondary-container"]::before,
+button[class*="bg-tertiary-container"]::before, a[class*="bg-tertiary-container"]::before,
+button[class*="bg-error-container"]::before, a[class*="bg-error-container"]::before,
+button[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"])::before,
+a[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"])::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tinte specifiche per variante */
+button[class*="bg-secondary-container"]::before, a[class*="bg-secondary-container"]::before {
+  background-color: var(--color-on-secondary-container);
+}
+button[class*="bg-tertiary-container"]::before, a[class*="bg-tertiary-container"]::before {
+  background-color: var(--color-on-tertiary-container);
+}
+button[class*="bg-error-container"]::before, a[class*="bg-error-container"]::before {
+  background-color: var(--color-on-error-container);
+}
+button[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"])::before,
+a[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"])::before {
+  background-color: var(--color-on-surface);
+}
+
+/* Stati hover / focus / pressed condivisi */
+button[class*="bg-secondary-container"]:hover::before, a[class*="bg-secondary-container"]:hover::before,
+button[class*="bg-tertiary-container"]:hover::before, a[class*="bg-tertiary-container"]:hover::before,
+button[class*="bg-error-container"]:hover::before, a[class*="bg-error-container"]:hover::before,
+button[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]):hover::before,
+a[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]):hover::before {
+  opacity: 0.08;
+}
+
+button[class*="bg-secondary-container"]:focus-visible::before, a[class*="bg-secondary-container"]:focus-visible::before,
+button[class*="bg-tertiary-container"]:focus-visible::before, a[class*="bg-tertiary-container"]:focus-visible::before,
+button[class*="bg-error-container"]:focus-visible::before, a[class*="bg-error-container"]:focus-visible::before,
+button[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]):focus-visible::before,
+a[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]):focus-visible::before {
+  opacity: 0.12;
+}
+
+button[class*="bg-secondary-container"]:active::before, a[class*="bg-secondary-container"]:active::before,
+button[class*="bg-tertiary-container"]:active::before, a[class*="bg-tertiary-container"]:active::before,
+button[class*="bg-error-container"]:active::before, a[class*="bg-error-container"]:active::before,
+button[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]):active::before,
+a[class*="border-outline"]:not([class*="bg-primary"]):not([class*="bg-error-container"]):active::before {
+  opacity: 0.12;
 }

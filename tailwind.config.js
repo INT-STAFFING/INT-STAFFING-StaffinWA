@@ -64,9 +64,14 @@ export default {
         'yellow-container': 'var(--color-yellow-container)',
         'on-yellow-container': 'var(--color-on-yellow-container)',
 
+        // Semantic Success (verde)
+        'success': 'var(--color-success)',
+        'on-success': 'var(--color-on-success)',
+        'success-container': 'var(--color-success-container)',
+        'on-success-container': 'var(--color-on-success-container)',
+
         // Legacy color mapping for smoother transition
         'destructive': 'var(--color-error)',
-        'success': 'var(--color-tertiary)',
         'foreground': 'var(--color-on-surface)',
         'card': 'var(--color-surface-container-low)',
         'border': 'var(--color-outline-variant)',
