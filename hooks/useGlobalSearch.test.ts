@@ -15,11 +15,13 @@ vi.mock('../context/ResourcesContext');
 vi.mock('../context/ProjectsContext');
 vi.mock('../context/SkillsContext');
 vi.mock('../context/HRContext');
+vi.mock('../context/KnowledgeBaseContext');
 
 import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { useHRContext } from '../context/HRContext';
+import { useKnowledgeBaseContext } from '../context/KnowledgeBaseContext';
 
 const mockResource = {
     id: 'r1', name: 'Mario Rossi', email: 'mario.rossi@example.com',
@@ -37,12 +39,14 @@ const mockCert    = { id: 'sk2', name: 'AWS Certified', isCertification: true, m
 const mockRequest = { id: 'req1', projectId: 'p1', roleId: 'role1', requestorId: null, startDate: '2025-01-01', endDate: '2025-12-31', commitmentPercentage: 100, isUrgent: false, isLongTerm: false, isTechRequest: false, status: 'ATTIVA' as const };
 const mockInterview = { id: 'int1', resourceRequestId: 'req1', candidateName: 'Anna', candidateSurname: 'Verdi', birthDate: null, function: null, roleId: null, cvSummary: null, interviewersIds: null, interviewDate: '2025-06-01', feedback: null, notes: null, hiringStatus: null, entryDate: null, status: 'Aperto' as const };
 const mockRole = { id: 'role1', name: 'Senior Developer', seniorityLevel: 'SENIOR', dailyCost: 500 };
+const mockArticle = { id: 'kb1', title: 'Guida Onboarding', content: '<p>processo di inserimento risorse</p>', format: 'html' as const, tags: ['hr'], createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-02T00:00:00.000Z', linkedEntities: [] };
 
 const defaultContexts = () => {
     vi.mocked(useResourcesContext).mockReturnValue({ resources: [mockResource, mockResignedResource], roles: [mockRole] } as any);
     vi.mocked(useProjectsContext).mockReturnValue({ projects: [mockProject], clients: [mockClient], contracts: [mockContract] } as any);
     vi.mocked(useSkillsContext).mockReturnValue({ skills: [mockSkill, mockCert] } as any);
     vi.mocked(useHRContext).mockReturnValue({ resourceRequests: [mockRequest], interviews: [mockInterview] } as any);
+    vi.mocked(useKnowledgeBaseContext).mockReturnValue({ articles: [mockArticle] } as any);
 };
 
 beforeEach(() => {
@@ -176,8 +180,37 @@ describe('useGlobalSearch – dati vuoti', () => {
         vi.mocked(useProjectsContext).mockReturnValue({ projects: [], clients: [], contracts: [] } as any);
         vi.mocked(useSkillsContext).mockReturnValue({ skills: [] } as any);
         vi.mocked(useHRContext).mockReturnValue({ resourceRequests: [], interviews: [] } as any);
+        vi.mocked(useKnowledgeBaseContext).mockReturnValue({ articles: [] } as any);
 
         const { result } = renderHook(() => useGlobalSearch('test'));
         expect(result.current).toHaveLength(0);
+    });
+});
+
+describe('useGlobalSearch – schede Knowledge Base', () => {
+    it('trova una scheda KB per titolo', () => {
+        const { result } = renderHook(() => useGlobalSearch('Onboarding'));
+        const schede = result.current.filter(r => r.type === 'SCHEDA');
+        expect(schede).toHaveLength(1);
+        expect(schede[0].title).toBe('Guida Onboarding');
+        expect(schede[0].link).toContain('/knowledge-base');
+    });
+
+    it('trova una scheda KB per contenuto ignorando i tag HTML', () => {
+        const { result } = renderHook(() => useGlobalSearch('inserimento'));
+        const schede = result.current.filter(r => r.type === 'SCHEDA');
+        expect(schede).toHaveLength(1);
+        expect(schede[0].id).toBe('kb1');
+    });
+
+    it('il link della scheda include openId per aprire l\'articolo', () => {
+        const { result } = renderHook(() => useGlobalSearch('Onboarding'));
+        const scheda = result.current.find(r => r.type === 'SCHEDA');
+        expect(scheda?.link).toContain('openId=kb1');
+    });
+
+    it('non trova schede per query non corrispondenti', () => {
+        const { result } = renderHook(() => useGlobalSearch('inesistente'));
+        expect(result.current.filter(r => r.type === 'SCHEDA')).toHaveLength(0);
     });
 });

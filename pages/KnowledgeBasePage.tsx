@@ -5,7 +5,8 @@
  * delle schede KB, con editor WYSIWYG per il formato HTML e textarea monospace per Plain.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useKnowledgeBaseContext } from '../context/KnowledgeBaseContext';
 import { useEntitiesContext } from '../context/AppContext';
 import Modal from '../components/Modal';
@@ -53,6 +54,7 @@ const KnowledgeBasePage: React.FC = () => {
     const [draft, setDraft] = useState<KBArticle | null>(null);
     const [tagsText, setTagsText] = useState('');
     const [deleting, setDeleting] = useState<KBArticle | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Opzioni per i selettori di collegamento, ricavate dagli store di dominio esistenti.
     const optionsByType = useMemo<Record<LinkedEntityType, Option[]>>(() => {
@@ -77,6 +79,18 @@ const KnowledgeBasePage: React.FC = () => {
     const openForNew = () => { setDraft(newEmptyArticle()); setTagsText(''); };
     const openForEdit = (article: KBArticle) => { setDraft({ ...article }); setTagsText(article.tags.join(', ')); };
     const closeForm = () => { setDraft(null); setTagsText(''); };
+
+    // Deep-link: apre la scheda indicata da ?openId (es. da un risultato di ricerca globale).
+    useEffect(() => {
+        const openId = searchParams.get('openId');
+        if (openId && !draft && articles.length > 0) {
+            const target = articles.find(a => a.id === openId);
+            if (target) {
+                openForEdit(target);
+                setSearchParams({}, { replace: true });
+            }
+        }
+    }, [searchParams, articles, draft, setSearchParams]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();

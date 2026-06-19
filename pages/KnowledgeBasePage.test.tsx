@@ -59,7 +59,8 @@ const setupEntities = () => {
     } as unknown as ReturnType<typeof useEntitiesContext>);
 };
 
-const renderPage = () => render(<MemoryRouter><KnowledgeBasePage /></MemoryRouter>);
+const renderPage = (initialEntries: string[] = ['/knowledge-base']) =>
+    render(<MemoryRouter initialEntries={initialEntries}><KnowledgeBasePage /></MemoryRouter>);
 
 describe('KnowledgeBasePage - lista e ricerca', () => {
     it('mostra le schede esistenti con titolo, badge formato e tag', () => {
@@ -127,6 +128,16 @@ describe('KnowledgeBasePage - creazione', () => {
         expect(payload.title).toBe('Nuova Guida');
         expect(payload.format).toBe('plain');
         expect(payload.content).toBe('testo semplice');
+    });
+});
+
+describe('KnowledgeBasePage - deep link', () => {
+    it('apre automaticamente la scheda indicata da ?openId (es. da ricerca globale)', () => {
+        setupContext();
+        setupEntities();
+        renderPage(['/knowledge-base?openId=a1']);
+        expect(screen.getByText('Modifica Scheda KB')).toBeDefined();
+        expect((screen.getByLabelText(/Titolo/i) as HTMLInputElement).value).toBe('Onboarding Risorse');
     });
 });
 
