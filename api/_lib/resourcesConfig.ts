@@ -12,6 +12,7 @@ import { z } from '../../libs/zod.js';
 export const JSONB_FIELDS: Record<string, string[]> = {
     'notification_rules': ['templateBlocks'],
     'app_users': ['managerIds'],
+    'knowledge_base_articles': ['tags', 'linkedEntities'],
 };
 
 // Entità soggette al controllo di visibilità per ruolo (Layer 3 RBAC).
@@ -321,5 +322,18 @@ export const VALIDATION_SCHEMAS: Record<string, any> = {
         date: z.string(),
         type: z.string(),
         location: z.string().optional().nullable()
+    }),
+    'knowledge_base_articles': z.object({
+        title: z.string(),
+        content: z.string().optional().nullable(),
+        format: z.string().optional().nullable(),
+        tags: z.array(z.string()).optional().nullable(),
+        createdAt: z.string().optional().nullable(),
+        updatedAt: z.string().optional().nullable(),
+        linkedEntities: z.array(z.object({
+            entityType: z.string(),
+            entityId: z.string(),
+            label: z.string()
+        })).optional().nullable()
     }),
 };

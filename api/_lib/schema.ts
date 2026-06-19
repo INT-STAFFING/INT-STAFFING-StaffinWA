@@ -156,4 +156,19 @@ export async function ensureDbTablesExist(db: VercelPool) {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     `;
+
+    // 12. Knowledge Base
+    await db.sql`
+        CREATE TABLE IF NOT EXISTS knowledge_base_articles (
+            id UUID PRIMARY KEY,
+            title VARCHAR(500) NOT NULL,
+            content TEXT,
+            format VARCHAR(20) NOT NULL DEFAULT 'html',
+            tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+            linked_entities JSONB NOT NULL DEFAULT '[]'::jsonb,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            version INT DEFAULT 1
+        );
+    `;
 }
