@@ -146,6 +146,18 @@
     @apply text-base text-on-surface;
   }
 
+  /* I testi inline (icone, etichette) dentro pulsanti e link ereditano il
+     colore del contenitore invece di essere forzati a `on-surface`. Senza
+     questa regola un'icona in un <span> dentro un bottone `bg-primary`
+     diventa teal-su-teal (on-surface == primary nella palette Intellera) e
+     quindi illeggibile. La maggiore specificità (0,0,2) batte la regola
+     `span` base; le utility di colore esplicite (es. text-primary) restano
+     prioritarie perché vivono nel layer `utilities`. */
+  button span, button p, button label,
+  a span, a p, a label {
+    color: inherit;
+  }
+
   .material-symbols-outlined {
     font-variation-settings:
     'FILL' 0,
