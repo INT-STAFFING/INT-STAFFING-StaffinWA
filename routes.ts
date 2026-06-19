@@ -372,4 +372,13 @@ export const routesManifest: AppRoute[] = [
         featureFlag: 'pageVisibility',
         component: createLazyPage(() => import('./pages/DbInspectorPage')),
     },
+    {
+        path: '/knowledge-base',
+        label: 'Knowledge Base',
+        icon: 'library_books',
+        section: 'Amministrazione',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/KnowledgeBasePage')),
+    },
 ];

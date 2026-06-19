@@ -161,6 +161,7 @@ export const mockFetch = async (url: string, options: RequestInit = {}): Promise
     if (entity === 'wbs_tasks') dbKey = 'wbsTasks';
     if (entity === 'project_expenses') dbKey = 'projectExpenses';
     if (entity === 'leave_types') dbKey = 'leaveTypes';
+    if (entity === 'knowledge_base_articles') dbKey = 'knowledgeBaseArticles';
 
     // ── db_inspector: mock risposte per SQL editor, update/delete ────────────
     if (entity === 'db_inspector') {

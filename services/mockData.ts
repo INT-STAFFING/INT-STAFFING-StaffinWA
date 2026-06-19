@@ -1,6 +1,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { AppUser, Assignment, Allocation, CalendarEvent, Client, ConfigOption, Contract, ContractProject, ContractManager, Interview, LeaveRequest, LeaveType, Notification, Project, ProjectExpense, RateCard, Resource, ResourceRequest, Role, RoleCostHistory, Skill, SkillCategory, SkillMacroCategory, BillingMilestone, ResourceSkill, ProjectSkill, RoleEntityVisibility } from '../types';
+import { KBArticle } from '../types/knowledgeBase';
 
 export const INITIAL_MOCK_DATA: {
     functions: ConfigOption[];
@@ -52,6 +53,7 @@ export const INITIAL_MOCK_DATA: {
     notificationRules: any[];
     resourceEvaluations?: any[];
     roleEntityVisibility: RoleEntityVisibility[];
+    knowledgeBaseArticles: KBArticle[];
 } = {
   functions: [
     { id: 'h1', value: 'Software Engineering' }, 
@@ -216,5 +218,18 @@ export const INITIAL_MOCK_DATA: {
     const ROLES = ['SIMPLE', 'SIMPLE_EXT', 'MANAGER', 'MANAGER_EXT', 'SENIOR MANAGER', 'SENIOR MANAGER_EXT', 'ASSOCIATE DIRECTOR', 'ASSOCIATE DIRECTOR_EXT', 'MANAGING DIRECTOR', 'MANAGING DIRECTOR_EXT'];
     const ENTITIES = ['resources', 'projects', 'clients', 'assignments', 'allocations', 'contracts', 'rate_cards', 'skills', 'roles', 'leaves', 'resource_requests', 'interviews', 'wbs_tasks', 'billing_milestones', 'resource_evaluations'];
     return ROLES.flatMap(role => ENTITIES.map(entity => ({ role: role as any, entity, isVisible: true })));
-  })()
+  })(),
+  knowledgeBaseArticles: [
+    {
+      id: 'kb1',
+      title: 'Processo di Onboarding Risorse',
+      content: '<h2>Onboarding</h2><p>Linee guida per l\'inserimento di una <strong>nuova risorsa</strong> nel team.</p>',
+      format: 'html',
+      tags: ['hr', 'onboarding'],
+      createdAt: '2026-01-10T09:00:00.000Z',
+      updatedAt: '2026-01-12T09:00:00.000Z',
+      linkedEntities: [],
+      version: 1,
+    },
+  ],
 };
