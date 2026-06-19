@@ -61,20 +61,14 @@ const SidebarHeadless: React.FC<SidebarHeadlessProps> = ({
                 <nav className="flex-1 overflow-y-auto py-4">
                     {sections.map(section => {
                         if (!section.items.length) return null;
-                        
-                        const colorValue = section.color 
-                            ? (section.color.startsWith('#') ? section.color : `var(--color-${section.color})`)
-                            : undefined;
-                        
-                        const sectionStyle = colorValue ? { color: colorValue } : undefined;
 
                         return (
                             <div key={section.name} className="mb-1">
                                 <button
                                     onClick={() => onToggleSection(section.name)}
-                                    className="w-full px-4 py-2 flex items-center justify-between text-xs font-bold text-on-surface-variant uppercase tracking-wider hover:bg-surface-container-low transition-colors group"
+                                    className="w-full px-4 py-2 flex items-center justify-between text-xs font-bold text-primary uppercase tracking-wider hover:bg-surface-container-low transition-colors group"
                                 >
-                                    <span style={sectionStyle}>{section.name}</span>
+                                    <span>{section.name}</span>
                                     <span className={`material-symbols-outlined text-sm transition-transform duration-300 ${section.isExpanded ? 'rotate-180' : ''}`}>
                                         keyboard_arrow_down
                                     </span>
