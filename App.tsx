@@ -14,6 +14,7 @@ import { ExportProvider } from './context/ExportContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { RoutesProvider, useRoutesManifest } from './context/RoutesContext';
+import { KnowledgeBaseProvider } from './context/KnowledgeBaseContext';
 import LoadingSkeleton from './components/LoadingSkeleton';
 import Sidebar from './components/Sidebar';
 import BottomNavBar from './components/BottomNavBar';
@@ -61,6 +62,7 @@ const WbsAllocationPage = lazy(() => import('./pages/WbsAllocationPage').then(mo
 const RevenuePage = lazy(() => import('./pages/RevenuePage').then(module => ({ default: module.RevenuePage })));
 const PerformanceTimelinePage = lazy(() => import('./pages/PerformanceTimeline').then(module => ({ default: module.PerformanceTimelinePage })));
 const OrgChartPage = lazy(() => import('./pages/OrgChartPage'));
+const KnowledgeBasePage = lazy(() => import('./pages/KnowledgeBasePage'));
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -221,6 +223,7 @@ const AppContent: React.FC<AppContentProps> = ({ onToggleSidebar }) => {
               <Route path="/revenue" element={<DynamicRoute path="/revenue"><RevenuePage /></DynamicRoute>} />
               <Route path="/performance" element={<DynamicRoute path="/performance"><PerformanceTimelinePage /></DynamicRoute>} />
               <Route path="/org-chart" element={<DynamicRoute path="/org-chart"><OrgChartPage /></DynamicRoute>} />
+              <Route path="/knowledge-base" element={<DynamicRoute path="/knowledge-base"><KnowledgeBasePage /></DynamicRoute>} />
 
               <Route path="/admin-settings" element={<DynamicRoute path="/admin-settings"><AdminSettingsPage /></DynamicRoute>} />
               <Route path="/security-center" element={<DynamicRoute path="/security-center"><SecurityCenterPage /></DynamicRoute>} />
@@ -324,7 +327,9 @@ const App: React.FC = () => {
             <AuthProvider>
               <ExportProvider>
                 <RoutesProvider>
-                  <AppRoutes />
+                  <KnowledgeBaseProvider>
+                    <AppRoutes />
+                  </KnowledgeBaseProvider>
                 </RoutesProvider>
               </ExportProvider>
             </AuthProvider>

@@ -51,6 +51,15 @@ export const routesManifest: AppRoute[] = [
         component: createLazyPage(() => import('./pages/GlobalSearchPage').then(module => ({ default: module.default }))),
     },
     {
+        path: '/knowledge-base',
+        label: 'Knowledge Base',
+        icon: 'library_books',
+        section: 'Principale',
+        showInSidebar: true,
+        featureFlag: 'pageVisibility',
+        component: createLazyPage(() => import('./pages/KnowledgeBasePage')),
+    },
+    {
         path: '/notifications',
         label: 'Notifiche',
         icon: 'notifications',

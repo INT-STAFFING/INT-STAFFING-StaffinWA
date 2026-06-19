@@ -4,11 +4,13 @@ import { useResourcesContext } from '../context/ResourcesContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useSkillsContext } from '../context/SkillsContext';
 import { useHRContext } from '../context/HRContext';
+import { useKnowledgeBaseContext } from '../context/KnowledgeBaseContext';
+import { stripHtml, formatBadgeLabel } from '../utils/knowledgeBaseFilters';
 import { normalizePath } from '../utils/paths';
 
 export interface SearchResult {
     id: string;
-    type: 'RISORSA' | 'PROGETTO' | 'CLIENTE' | 'CONTRATTO' | 'COMPETENZA' | 'CERTIFICAZIONE' | 'RICHIESTA' | 'COLLOQUIO' | 'WBS';
+    type: 'RISORSA' | 'PROGETTO' | 'CLIENTE' | 'CONTRATTO' | 'COMPETENZA' | 'CERTIFICAZIONE' | 'RICHIESTA' | 'COLLOQUIO' | 'WBS' | 'SCHEDA';
     title: string;
     subtitle: string;
     link: string;
@@ -21,6 +23,7 @@ export const useGlobalSearch = (query: string) => {
     const { projects, clients, contracts } = useProjectsContext();
     const { skills } = useSkillsContext();
     const { resourceRequests, interviews } = useHRContext();
+    const { articles } = useKnowledgeBaseContext();
 
     const results = useMemo<SearchResult[]>(() => {
         if (!query || query.length < 2) return [];
@@ -182,9 +185,26 @@ export const useGlobalSearch = (query: string) => {
             }
         });
 
+        // 8. Knowledge Base (Match: title, content)
+        (articles || []).forEach(article => {
+            const contentText = article.format === 'html' ? stripHtml(article.content) : article.content;
+            const score = Math.max(calcScore(article.title), calcScore(contentText));
+            if (score > 0) {
+                matches.push({
+                    id: article.id,
+                    type: 'SCHEDA',
+                    title: article.title,
+                    subtitle: article.tags.length > 0 ? article.tags.join(', ') : `Scheda ${formatBadgeLabel(article.format)}`,
+                    link: `/knowledge-base?openId=${article.id}`,
+                    icon: 'library_books',
+                    score
+                });
+            }
+        });
+
         return matches.sort((a, b) => b.score - a.score);
 
-    }, [query, resources, projects, clients, contracts, skills, resourceRequests, interviews, roles]);
+    }, [query, resources, projects, clients, contracts, skills, resourceRequests, interviews, roles, articles]);
 
     return results;
 };
